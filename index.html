@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0b0e1a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CardVault" />
+  <meta name="description" content="Snap your Pokémon cards, build a digital binder, and check live market prices before you sell." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>CardVault — Pokémon Inventory</title>
+</head>
+<body>
+  <div id="app">
+    <!-- ===== Header ===== -->
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div class="brand-text">
+          <h1>CardVault</h1>
+          <p id="brandSub">Your Pokémon inventory</p>
+        </div>
+      </div>
+      <button id="installBtn" class="install-btn hidden" type="button">Install</button>
+    </header>
+
+    <!-- ===== Views ===== -->
+    <main id="main">
+
+      <!-- BINDER VIEW -->
+      <section id="view-binder" class="view active">
+        <div class="search-wrap">
+          <svg class="search-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+          <input id="binderSearch" type="search" placeholder="Search your inventory…" autocomplete="off" />
+        </div>
+
+        <div class="stats-row" id="statsRow">
+          <div class="stat"><span class="stat-num" id="statCount">0</span><span class="stat-label">Cards</span></div>
+          <div class="stat"><span class="stat-num" id="statValue">$0</span><span class="stat-label">Est. Value</span></div>
+          <div class="stat"><span class="stat-num" id="statSets">0</span><span class="stat-label">Sets</span></div>
+        </div>
+
+        <div id="binderGrid" class="binder-grid"></div>
+
+        <div id="binderEmpty" class="empty-state">
+          <div class="empty-art" aria-hidden="true">📸</div>
+          <h2>Your binder is empty</h2>
+          <p>Snap a photo of a card or search the catalog to add your first one.</p>
+          <button class="primary-btn" data-goto="scan">Add a card</button>
+        </div>
+      </section>
+
+      <!-- SCAN / ADD VIEW -->
+      <section id="view-scan" class="view">
+        <div class="scan-head">
+          <h2>Add a card</h2>
+          <p>Snap a photo for your records, then find the exact card in the catalog.</p>
+        </div>
+
+        <div class="capture-card">
+          <div id="previewWrap" class="preview-wrap empty">
+            <img id="photoPreview" alt="Captured card" />
+            <div class="preview-hint">
+              <span class="preview-ic">📷</span>
+              <span>Tap below to snap your card</span>
+            </div>
+          </div>
+          <div class="capture-actions">
+            <label class="capture-btn primary">
+              <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden />
+              Snap photo
+            </label>
+            <label class="capture-btn">
+              <input id="galleryInput" type="file" accept="image/*" hidden />
+              From library
+            </label>
+          </div>
+        </div>
+
+        <div class="catalog-search">
+          <label for="catalogSearch">Find the card</label>
+          <div class="search-wrap inline">
+            <svg class="search-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+            <input id="catalogSearch" type="search" placeholder="e.g. Charizard, Pikachu ex…" autocomplete="off" />
+          </div>
+          <p class="hint">Search by name. Add a set number too for an exact match (e.g. “Charizard 4”).</p>
+        </div>
+
+        <div id="catalogStatus" class="status-line"></div>
+        <div id="catalogResults" class="catalog-results"></div>
+      </section>
+
+      <!-- DETAIL VIEW -->
+      <section id="view-detail" class="view">
+        <button class="back-btn" id="detailBack" type="button">‹ Back</button>
+        <div id="detailContent"></div>
+      </section>
+    </main>
+
+    <!-- ===== Bottom Nav ===== -->
+    <nav class="tabbar">
+      <button class="tab active" data-tab="binder">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 4v16"/></svg>
+        <span>Binder</span>
+      </button>
+      <button class="tab tab-scan" data-tab="scan">
+        <span class="scan-fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+        <span>Add</span>
+      </button>
+      <button class="tab" data-tab="binder-alt" id="searchTab">
+        <svg viewBox="0 0 24 24"><path d="M21 21l-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
+        <span>Search</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

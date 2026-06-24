@@ -1,0 +1,15 @@
+{
+  "name": "CardVault — Pokémon Inventory",
+  "short_name": "CardVault",
+  "description": "Snap your Pokémon cards, build a digital binder, and check live market prices before you sell.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0e1a",
+  "theme_color": "#0b0e1a",
+  "categories": ["shopping", "utilities", "lifestyle"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
