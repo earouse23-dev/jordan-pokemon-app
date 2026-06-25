@@ -1,6 +1,6 @@
 /* CardVault service worker — offline shell caching.
    API calls (pokemontcg.io) always go to network; the app shell is cached. */
-const CACHE = 'cardvault-v1';
+const CACHE = 'cardvault-v2';
 const SHELL = [
   './',
   './index.html',

@@ -120,6 +120,16 @@
 
   <div id="toast" class="toast"></div>
 
+  <!-- Supabase client (public, RLS-protected values — safe to ship). Sets window.sb before app.js
+       runs; if the CDN is unreachable the app silently falls back to local-only storage. -->
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+    window.sb = createClient(
+      "https://hibkthhcohatgtzhpsjm.supabase.co",
+      "sb_publishable_zCf9LJ7g8RlqVN_vkh1tlg_nJtMy3aM"
+    );
+  </script>
+
   <script src="app.js"></script>
 </body>
 </html>

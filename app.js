@@ -1,8 +1,71 @@
 /* ============================================================
    CardVault — Pokémon inventory PWA
    Data source: pokemontcg.io (free, returns live TCGPlayer prices)
-   Storage: IndexedDB (cards + locally-stored photos)
+   Storage: Supabase (cloud sync) with IndexedDB as an offline cache.
+            Falls back to local-only if Supabase is unreachable.
    ============================================================ */
+
+/* ---------- Supabase cloud sync ---------- */
+const SB_TABLE = 'app_c14bef07_cards';      // namespaced per multi-app isolation rules
+const sb = () => window.sb || null;          // set by the module tag in index.html
+
+/* Identity: no login screen. We use Supabase Anonymous Sign-Ins so each device gets a real
+   auth user; RLS keys every row to that auth.uid() server-side (no shared anon access).
+   The session is persisted by supabase-js, so the same device keeps the same binder. */
+let OWNER = null;
+async function ensureAuth() {
+  const client = sb();
+  if (!client) return null;
+  try {
+    let { data: { session } } = await client.auth.getSession();
+    if (!session) {
+      const { data, error } = await client.auth.signInAnonymously();
+      if (error) throw error;
+      session = data.session;
+    }
+    OWNER = (session && session.user && session.user.id) || null;
+  } catch (e) {
+    console.warn('Supabase anonymous sign-in unavailable — running local-only', e);
+    OWNER = null;
+  }
+  return OWNER;
+}
+
+/* Map between our in-memory card shape and the snake_case DB row. */
+function toRow(card) {
+  return {
+    owner_id: OWNER,
+    uid: card.uid,
+    name: card.name ?? null,
+    set_name: card.setName ?? null,
+    series: card.series ?? null,
+    release_date: card.releaseDate ?? null,
+    number: card.number ?? null,
+    rarity: card.rarity ?? null,
+    image: card.image ?? null,
+    market: card.market ?? null,
+    prices: card.prices ?? null,
+    photo: card.photo ?? null,
+    added_at: card.addedAt ?? Date.now(),
+  };
+}
+function fromRow(r) {
+  return {
+    uid: r.uid,
+    cardId: r.uid,
+    name: r.name,
+    setName: r.set_name,
+    series: r.series,
+    releaseDate: r.release_date,
+    number: r.number,
+    rarity: r.rarity,
+    image: r.image,
+    market: r.market != null ? Number(r.market) : null,
+    prices: r.prices,
+    photo: r.photo,
+    addedAt: r.added_at,
+  };
+}
 
 const API = 'https://api.pokemontcg.io/v2/cards';
 const PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
@@ -40,8 +103,64 @@ const DB = (() => {
     put: (c) => tx('readwrite', s => s.put(c)),
     del: (uid) => tx('readwrite', s => s.delete(uid)),
     get: (uid) => tx('readonly', s => s.get(uid)),
+    clear: () => tx('readwrite', s => s.clear()),
+    async replaceAll(cards) {
+      await tx('readwrite', s => { s.clear(); cards.forEach(c => s.put(c)); });
+    },
   };
 })();
+
+/* ---------- unified store: Supabase first, IndexedDB as offline cache ----------
+   Every read tries the cloud and refreshes the local cache; writes go to both.
+   If the network/Supabase is down, the IndexedDB cache keeps the app fully working. */
+let cloudOk = false;   // true once a cloud read/write has succeeded this session
+const Store = {
+  async all() {
+    const client = sb();
+    if (client && await ensureAuth()) {
+      try {
+        const { data, error } = await client
+          .from(SB_TABLE).select('*')
+          .eq('owner_id', OWNER)
+          .order('added_at', { ascending: false });
+        if (error) throw error;
+        const cards = (data || []).map(fromRow);
+        cloudOk = true;
+        await DB.replaceAll(cards);
+        return cards;
+      } catch (e) {
+        console.warn('Supabase read failed — using local cache', e);
+      }
+    }
+    return (await DB.all()) || [];
+  },
+  async put(card) {
+    await DB.put(card);                       // local cache first (instant + offline-safe)
+    const client = sb();
+    if (client && await ensureAuth()) {
+      try {
+        const { error } = await client.from(SB_TABLE).upsert(toRow(card), { onConflict: 'owner_id,uid' });
+        if (error) throw error;
+        cloudOk = true;
+      } catch (e) {
+        console.warn('Supabase write failed — saved locally only', e);
+      }
+    }
+  },
+  async del(uid) {
+    await DB.del(uid);
+    const client = sb();
+    if (client && await ensureAuth()) {
+      try {
+        const { error } = await client.from(SB_TABLE).delete().eq('owner_id', OWNER).eq('uid', uid);
+        if (error) throw error;
+        cloudOk = true;
+      } catch (e) {
+        console.warn('Supabase delete failed — removed locally only', e);
+      }
+    }
+  },
+};
 
 /* ---------- state ---------- */
 let library = [];           // cards in binder
@@ -368,8 +487,8 @@ async function addToBinder(card) {
   delete entry._api;
   entry.photo = pendingPhoto || entry.photo || null;
   entry.addedAt = Date.now();
-  await DB.put(entry);
-  library = await DB.all();
+  await Store.put(entry);
+  library = await Store.all();
   pendingPhoto = null;
   resetCapturePreview();
   toast('Added to your binder ✓');
@@ -378,8 +497,8 @@ async function addToBinder(card) {
 }
 
 async function removeFromBinder(uid) {
-  await DB.del(uid);
-  library = await DB.all();
+  await Store.del(uid);
+  library = await Store.all();
   toast('Removed from binder');
   renderBinder($('#binderSearch').value);
   show('binder');
@@ -423,6 +542,13 @@ function resetCapturePreview() {
   $('#photoPreview').src = '';
 }
 
+/* Reflect cloud-sync status in the header subtitle. */
+function updateSyncBadge() {
+  const el = $('#brandSub');
+  if (!el) return;
+  el.textContent = cloudOk ? '☁ Synced to the cloud' : 'Your Pokémon inventory';
+}
+
 /* ============================================================
    Wiring
    ============================================================ */
@@ -459,9 +585,10 @@ function init() {
     $('#installBtn').classList.add('hidden');
   });
 
-  // load library
-  DB.all().then(rows => { library = rows || []; renderBinder(); })
-    .catch(() => { library = []; renderBinder(); });
+  // load library (cloud → local cache fallback) and reflect sync state in the header
+  Store.all()
+    .then(rows => { library = rows || []; renderBinder(); updateSyncBadge(); })
+    .catch(() => { library = []; renderBinder(); updateSyncBadge(); });
 
   // service worker
   if ('serviceWorker' in navigator) {
