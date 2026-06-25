@@ -207,6 +207,25 @@ body {
 .section-title { font-size: 15px; font-weight: 800; margin: 24px 2px 12px; display: flex; align-items: center; gap: 8px; }
 .section-title .tag { font-size: 10px; font-weight: 700; color: var(--good); background: rgba(52,211,153,.12); padding: 3px 8px; border-radius: 999px; border: 1px solid rgba(52,211,153,.25); }
 
+/* price trend */
+.chg { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.chg.up { color: var(--good); background: rgba(52,211,153,.12); border: 1px solid rgba(52,211,153,.28); }
+.chg.down { color: var(--accent); background: rgba(255,70,85,.12); border: 1px solid rgba(255,70,85,.28); }
+.chg.flat { color: var(--text-dim); background: rgba(255,255,255,.05); border: 1px solid var(--border); }
+.trend-card { background: linear-gradient(160deg, var(--surface), var(--bg-2)); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; }
+.trend-spark { height: 56px; margin-bottom: 12px; }
+.spark { width: 100%; height: 56px; display: block; }
+.trend-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.trend-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 6px; }
+.trend-cell .t-k { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .6px; }
+
+/* recent sales */
+.sales-table { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.sale-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.sale-row:last-child { border-bottom: 0; }
+.sale-row .s-when { font-size: 13px; color: var(--text-dim); }
+.sale-row .s-price { font-weight: 800; font-size: 15px; color: var(--text); }
+
 .meta-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
 .meta-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
 .meta-item .m-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .6px; }

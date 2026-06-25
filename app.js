@@ -45,6 +45,7 @@ function toRow(card) {
     image: card.image ?? null,
     market: card.market ?? null,
     prices: card.prices ?? null,
+    details: card.details ?? null,
     photo: card.photo ?? null,
     added_at: card.addedAt ?? Date.now(),
   };
@@ -62,6 +63,7 @@ function fromRow(r) {
     image: r.image,
     market: r.market != null ? Number(r.market) : null,
     prices: r.prices,
+    details: r.details,
     photo: r.photo,
     addedAt: r.added_at,
   };
@@ -170,8 +172,39 @@ let currentDetail = null;   // card object currently shown in detail
 /* ---------- helpers ---------- */
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const money = (n) => (n == null || isNaN(n)) ? '—' : '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n, cur = '$') => (n == null || isNaN(n)) ? '—' : cur + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* Signed percentage move between two price points (currency-neutral, like Card Ladder's % column). */
+function pctMove(from, to) {
+  if (from == null || to == null || from === 0) return null;
+  return ((to - from) / from) * 100;
+}
+function pctTag(p) {
+  if (p == null) return '<span class="chg flat">—</span>';
+  const cls = p > 0.05 ? 'up' : p < -0.05 ? 'down' : 'flat';
+  const arrow = p > 0.05 ? '▲' : p < -0.05 ? '▼' : '▬';
+  return `<span class="chg ${cls}">${arrow} ${p >= 0 ? '+' : ''}${p.toFixed(1)}%</span>`;
+}
+
+/* Inline SVG sparkline for a small price series (oldest → newest). */
+function sparkline(values) {
+  const pts = values.filter(v => v != null && !isNaN(v));
+  if (pts.length < 2) return '';
+  const w = 240, h = 56, pad = 4;
+  const min = Math.min(...pts), max = Math.max(...pts);
+  const span = (max - min) || 1;
+  const step = (w - pad * 2) / (pts.length - 1);
+  const coords = pts.map((v, i) => [pad + i * step, h - pad - ((v - min) / span) * (h - pad * 2)]);
+  const line = coords.map((c, i) => (i ? 'L' : 'M') + c[0].toFixed(1) + ' ' + c[1].toFixed(1)).join(' ');
+  const area = `${line} L${coords[coords.length - 1][0].toFixed(1)} ${h} L${coords[0][0].toFixed(1)} ${h} Z`;
+  const rising = pts[pts.length - 1] >= pts[0];
+  const stroke = rising ? 'var(--good)' : 'var(--accent)';
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <path d="${area}" fill="${rising ? 'rgba(52,211,153,.14)' : 'rgba(255,70,85,.14)'}"/>
+    <path d="${line}" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+}
 
 function toast(msg) {
   const t = $('#toast');
@@ -219,6 +252,43 @@ function extractPrices(card) {
     };
   }
   return null;
+}
+
+/* Real price-trend history. TCGPlayer's block has no history, but the Cardmarket block bundled in
+   every pokemontcg.io response carries rolling averages (avg1 ≈ 24h, avg7 ≈ 7-day, avg30 ≈ 30-day)
+   plus the current trend price. That gives Card Ladder-style price movement and a recent-sales feed.
+   Values are Cardmarket euros, so we label them as such and lean on currency-neutral % moves. */
+function extractTrends(card) {
+  const cm = card && card.cardmarket && card.cardmarket.prices;
+  if (!cm) return null;
+  const now = cm.trendPrice ?? cm.averageSellPrice ?? null;
+  const series = { d30: cm.avg30 ?? null, d7: cm.avg7 ?? null, d1: cm.avg1 ?? null, now };
+  if ([series.d30, series.d7, series.d1, series.now].every(v => v == null)) return null;
+  return {
+    ...series,
+    source: 'Cardmarket',
+    cur: '€',
+    updatedAt: (card.cardmarket && card.cardmarket.updatedAt) || null,
+    chg24h: pctMove(series.d1, now),
+    chg7d: pctMove(series.d7, now),
+    chg30d: pctMove(series.d30, now),
+  };
+}
+
+/* Identity depth Card Ladder surfaces: artist, year, Pokédex #, and print run (a real
+   population-style figure from the set's official total). All pulled straight from the catalog. */
+function extractDetails(card) {
+  if (!card) return null;
+  const set = card.set || {};
+  const year = set.releaseDate ? String(set.releaseDate).slice(0, 4) : null;
+  return {
+    artist: card.artist || null,
+    year,
+    pokedex: (card.nationalPokedexNumbers && card.nationalPokedexNumbers[0]) || null,
+    printRun: set.printedTotal ?? set.total ?? null,
+    setSeries: set.series || null,
+    flavor: card.flavorText || null,
+  };
 }
 
 /* Build 2-3 "recent listing" comps that MATCH the market price.
@@ -375,6 +445,7 @@ async function runCatalogSearch(raw) {
 /* Turn an API card into our internal shape */
 function normalizeCard(apiCard) {
   const p = extractPrices(apiCard);
+  if (p) p.trends = extractTrends(apiCard);   // fold trend history into the (jsonb) price block
   return {
     uid: apiCard.id,                         // catalog id == stable uid
     cardId: apiCard.id,
@@ -387,6 +458,7 @@ function normalizeCard(apiCard) {
     image: (apiCard.images && apiCard.images.large) || (apiCard.images && apiCard.images.small) || null,
     market: p && p.market,
     prices: p,
+    details: extractDetails(apiCard),
     photo: null,
     _api: apiCard,
   };
@@ -403,6 +475,8 @@ function openDetail(card) {
   const saved = library.find(c => c.uid === card.uid);
   const photo = saved ? saved.photo : (pendingPhoto && !inLib ? pendingPhoto : null);
   const p = card.prices || extractPrices(card._api || {});
+  const trends = (p && p.trends) || extractTrends(card._api || {});
+  const details = card.details || extractDetails(card._api || {});
   const comps = buildComps(p);
 
   const compHtml = comps.length ? comps.map(c => `
@@ -418,12 +492,45 @@ function openDetail(card) {
 
   const updated = p && p.updatedAt ? `Updated ${esc(p.updatedAt)}` : '';
 
+  // ---- Price trend (24h / 7d / 30d % moves + sparkline) ----
+  const trendHtml = trends ? `
+    <div class="section-title">Price trend
+      ${pctTag(trends.chg30d)}<span class="tag" style="color:var(--text-dim);background:rgba(255,255,255,.05);border-color:var(--border)">30-day</span>
+    </div>
+    <div class="trend-card">
+      <div class="trend-spark">${sparkline([trends.d30, trends.d7, trends.d1, trends.now]) || '<span class="match-note">Not enough history.</span>'}</div>
+      <div class="trend-row">
+        <div class="trend-cell"><span class="t-k">24h</span>${pctTag(trends.chg24h)}</div>
+        <div class="trend-cell"><span class="t-k">7-day</span>${pctTag(trends.chg7d)}</div>
+        <div class="trend-cell"><span class="t-k">30-day</span>${pctTag(trends.chg30d)}</div>
+      </div>
+    </div>` : '';
+
+  // ---- Recent sales (rolling Cardmarket averages, newest first) ----
+  const salesRows = trends ? [
+    { k: 'Latest trend', v: trends.now },
+    { k: '24-hour avg', v: trends.d1 },
+    { k: '7-day avg', v: trends.d7 },
+    { k: '30-day avg', v: trends.d30 },
+  ].filter(r => r.v != null) : [];
+  const salesHtml = salesRows.length ? `
+    <div class="section-title">Recent sales <span class="tag">${esc(trends.source)}${trends.updatedAt ? ' · ' + esc(trends.updatedAt) : ''}</span></div>
+    <div class="sales-table">
+      ${salesRows.map(r => `<div class="sale-row"><span class="s-when">${esc(r.k)}</span><span class="s-price">${money(r.v, trends.cur)}</span></div>`).join('')}
+    </div>
+    <p class="match-note">Rolling average sale prices from ${esc(trends.source)} (€). Exact per-sale timestamps require a paid sales feed.</p>` : '';
+
+  const lastSold = trends && trends.now != null
+    ? money(trends.now, trends.cur)
+    : money(p && p.market);
+
   $('#detailContent').innerHTML = `
     <div class="detail-hero">
       <div class="hero-img"><img src="${esc(photo || card.image || PLACEHOLDER)}" alt="${esc(card.name)}" onerror="this.src='${PLACEHOLDER}'"></div>
       <div class="hero-meta">
         <h2>${esc(card.name)}</h2>
-        <div class="h-set">${esc(card.setName || '')} · #${esc(card.number || '?')}</div>
+        <div class="h-set">${esc(card.setName || '')} · #${esc(card.number || '?')}${details && details.printRun ? '/' + esc(details.printRun) : ''}</div>
+        ${details && details.setSeries ? `<div class="h-set" style="margin-top:2px">${esc(details.setSeries)}${details.year ? ' · ' + esc(details.year) : ''}</div>` : ''}
         ${card.rarity ? `<span class="rarity-pill">${esc(card.rarity)}</span>` : ''}
         ${photo ? '<div class="match-note" style="margin-top:10px">📷 Your photo is saved to this card.</div>' : ''}
       </div>
@@ -439,12 +546,26 @@ function openDetail(card) {
       <div class="price-box"><div class="pb-label">High</div><div class="pb-val">${money(p && p.high)}</div></div>
     </div>
 
+    ${trendHtml}
+
     <div class="section-title">Market data</div>
     <div class="meta-grid">
-      <div class="meta-item"><div class="m-label">Last sold (market)</div><div class="m-val">${money(p && p.market)}</div></div>
+      <div class="meta-item"><div class="m-label">Last sold</div><div class="m-val">${lastSold}</div></div>
       <div class="meta-item"><div class="m-label">Mid price</div><div class="m-val">${money(p && p.mid)}</div></div>
       <div class="meta-item"><div class="m-label">Demand</div><div class="m-val">${demandLabel(p)}</div></div>
-      <div class="meta-item"><div class="m-label">Population</div><div class="m-val muted">Coming soon</div></div>
+      <div class="meta-item"><div class="m-label">Print run</div><div class="m-val">${details && details.printRun ? esc(details.printRun) + ' cards' : '<span class="muted">—</span>'}</div></div>
+    </div>
+
+    ${salesHtml}
+
+    <div class="section-title">Card details</div>
+    <div class="meta-grid">
+      <div class="meta-item"><div class="m-label">Set</div><div class="m-val" style="font-size:14px">${esc(card.setName || '—')}</div></div>
+      <div class="meta-item"><div class="m-label">Rarity</div><div class="m-val" style="font-size:14px">${esc(card.rarity || '—')}</div></div>
+      <div class="meta-item"><div class="m-label">Artist</div><div class="m-val" style="font-size:14px">${details && details.artist ? esc(details.artist) : '—'}</div></div>
+      <div class="meta-item"><div class="m-label">Pokédex №</div><div class="m-val" style="font-size:14px">${details && details.pokedex ? '#' + esc(details.pokedex) : '—'}</div></div>
+      <div class="meta-item"><div class="m-label">Graded pop (PSA)</div><div class="m-val muted">Not tracked yet</div></div>
+      <div class="meta-item"><div class="m-label">Condition</div><div class="m-val" style="font-size:14px">Raw / Ungraded</div></div>
     </div>
 
     <div class="section-title">Recent listings <span class="tag">price-matched ±15%</span></div>

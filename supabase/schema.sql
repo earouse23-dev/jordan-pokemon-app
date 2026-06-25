@@ -20,12 +20,16 @@ create table if not exists app_c14bef07_cards (
   rarity        text,
   image         text,                            -- catalog image url
   market        numeric,                         -- market price snapshot
-  prices        jsonb,                           -- full price block (market/low/mid/high/source/url)
+  prices        jsonb,                           -- full price block (market/low/mid/high/source/url/trends)
+  details       jsonb,                           -- Card Ladder-style identity (artist/year/pokedex/printRun)
   photo         text,                            -- the user's own snapped photo (downscaled jpeg data url)
   added_at      bigint,                          -- epoch ms the card was added
   created_at    timestamptz default now(),
   primary key (owner_id, uid)
 );
+
+-- Added after launch — bring existing tables up to date (no-op if the column already exists).
+alter table app_c14bef07_cards add column if not exists details jsonb;
 
 create index if not exists app_c14bef07_cards_owner_idx
   on app_c14bef07_cards (owner_id, added_at desc);

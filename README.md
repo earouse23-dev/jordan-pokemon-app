@@ -12,13 +12,18 @@ The mission asked for an iPhone App Store app. Native Swift/SwiftUI requires a M
 - **☁️ Cloud sync (Supabase)** — your binder is stored in Supabase and synced across sessions; IndexedDB is kept as an offline cache so the app keeps working with no connection and reconciles when you're back online.
 - **🗂️ Digital binder** — every card you add is saved to your binder (cloud + on-device).
 - **🔎 Instant inventory search** — filter your binder by name, set, or card number; live totals (count, est. value, sets).
-- **💲 Live pricing** — market / low / high pulled from [pokemontcg.io](https://pokemontcg.io), which returns real **TCGPlayer** prices.
+- **🗃️ Every Pokémon card** — search the full [pokemontcg.io](https://pokemontcg.io) catalog: ~20k+ cards across every official English & major international set, with images, set, number, rarity and variant.
+- **💲 Live pricing** — market / low / high / mid pulled from pokemontcg.io, which returns real **TCGPlayer** prices.
+- **📊 Card Ladder-style detail** — every card opens to a full market page mirroring Card Ladder:
+  - **Price trend** — real **24h / 7-day / 30-day** % moves with a sparkline chart (rolling Cardmarket averages bundled in the catalog feed).
+  - **Recent sales** — newest-first table of rolling average sale prices with the source & date.
+  - **Card details** — set, rarity, **artist**, **National Pokédex №**, release year, and **print run**.
+  - **Demand signal**, last-sold, mid price, and direct TCGPlayer listing links.
 - **✅ Price-matched comps** — recent listings are filtered to **within ±15% of the market average**, so out-of-place prices are excluded (the core vendor requirement).
-- **📈 Demand signal** + last-sold (market proxy) + direct TCGPlayer listing links.
 
 ### Honest limitations
-- **Last sold** uses the current market price as a proxy — no free API exposes true sold comps.
-- **Population** (PSA) has no free API and is marked *Coming soon*.
+- **Recent sales** are rolling **average** windows (24h/7d/30d) from Cardmarket — real movement, but no free API exposes per-sale timestamps or true individual sold comps.
+- **Graded population** (PSA/BGS/CGC) has no free API and is marked *Not tracked yet*.
 - **Card recognition** from the photo is not automated; you snap the photo, then find the exact card in the catalog (always reliable, even on worn/foil cards).
 
 ## Run locally
@@ -43,7 +48,7 @@ Zero-config static deploy. On **Vercel**: import the repo and deploy — no sett
 |---|---|
 | `index.html` | App shell & views (binder / add / detail) |
 | `styles.css` | Visual design (dark, mobile-first) |
-| `app.js` | Logic: Supabase cloud sync + IndexedDB cache, camera capture, pokemontcg.io search, pricing, ±15% comp filter |
+| `app.js` | Logic: Supabase cloud sync + IndexedDB cache, camera capture, pokemontcg.io search, pricing, price-trend/sparkline + recent-sales extraction, ±15% comp filter |
 | `index.html` | App shell; also boots the Supabase client (public RLS-protected key, hard-coded — no env vars needed on Vercel) |
 | `manifest.webmanifest` | PWA install metadata |
 | `sw.js` | Service worker — caches the shell, always fetches pricing fresh |
@@ -54,7 +59,7 @@ Zero-config static deploy. On **Vercel**: import the repo and deploy — no sett
 
 The app is wired to Supabase. The connection values in `index.html` are **public** and protected by Row Level Security, so they're safe to ship and require no Vercel configuration.
 
-- **Schema:** a single table `app_c14bef07_cards` (namespaced to keep this app's data isolated from others sharing the project). RLS is enabled.
+- **Schema:** a single table `app_c14bef07_cards` (namespaced to keep this app's data isolated from others sharing the project). RLS is enabled. A `details` jsonb column stores the Card Ladder-style identity (artist/year/Pokédex №/print run); the schema's `add column if not exists` keeps it idempotent for existing tables.
 - **How a binder is owned (secure):** there is no login screen, but the app uses **Supabase Anonymous Sign-Ins** — each device silently gets a real auth user, and the RLS policy keys every row to `auth.uid()`. Ownership is enforced **server-side**, so one device can never read or write another's rows. The session is persisted, so a device keeps the same binder across visits. To add full accounts later (email/social), no schema change is needed — just add a login UI; the same `auth.uid()` policy keeps working.
 - **⚠️ One dashboard toggle required:** enable **Authentication → Sign In / Providers → Anonymous Sign-ins**. Until that's on, the app runs **local-only** (IndexedDB) and never exposes data — it just won't sync to the cloud.
 - **Apply the schema:** ACE applies `supabase/schema.sql` automatically after a build. To run it manually, open the Supabase dashboard → **SQL Editor**, paste the file, and run it (it's idempotent — safe to re-run). Tables may not exist until this is applied.
