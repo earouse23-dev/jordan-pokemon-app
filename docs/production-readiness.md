@@ -2,9 +2,11 @@
 
 - [x] Original mobile product surface, PWA shell, local core journey, testable business rules.
 - [x] Provider research, capability boundaries, transparent demo data, no fabricated completed sales.
-- [x] Normalized schema and ownership-based RLS definitions.
+- [x] Normalized schema, ownership-consistent foreign keys, complete RLS coverage, and versioned launch migration.
+- [x] Dedicated Supabase project; launch schema applied; security and performance advisors reviewed.
+- [x] Vercel build/output configuration and baseline response headers.
 - [ ] Brand/trademark approval and legal terms review.
-- [ ] Dedicated Supabase project; auth templates/providers; storage policies; schema advisors and RLS tests.
+- [ ] Auth templates/providers, private Storage policies, and cross-user RLS tests with real test identities.
 - [ ] Server adapters, provider approval/keys, rate limits, health/circuit logic, scheduled sync.
 - [ ] OCR/vision evaluation dataset and measured top-1/top-3/no-match/correction/cost results.
 - [ ] Production import/export jobs, idempotent outbox, account deletion, retention cleanup.

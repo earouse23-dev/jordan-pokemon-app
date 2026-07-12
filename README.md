@@ -18,6 +18,7 @@ Open `http://localhost:4173`. The first load uses six preview records; local edi
 
 ```bash
 npm test
+npm run test:schema
 npm run typecheck
 npm run lint
 npm run build
@@ -38,7 +39,7 @@ npm run build
 ## Production setup
 
 1. Create a dedicated Supabase project and configure email/password, email verification, password reset, and Google OAuth if approved.
-2. Apply `supabase/schema.sql` to a **fresh** project, then run Supabase database advisors and cross-user RLS tests.
+2. Apply the versioned migration in `supabase/migrations/` to a **fresh** project, then run Supabase database advisors and cross-user RLS tests. `supabase/schema.sql` mirrors the launch migration for review.
 3. Create a private scan bucket with per-user object policies and a 24-hour cleanup job.
 4. Deploy catalog, pricing, and identification adapters as authenticated server/edge functions. Do not expose provider or Gemini secrets in the browser.
 5. Copy `.env.example`, add only server-side secrets to the deployment environment, and configure rate limits.
@@ -48,7 +49,7 @@ The Pokémon TCG API is the recommended initial catalog/price-field bridge. New 
 
 ## Deployment
 
-Deploy `dist/` to any HTTPS static host. Camera access and service workers require HTTPS outside localhost. A production data-connected release also needs authenticated server functions; the static bundle alone intentionally does not make third-party pricing calls.
+Deploy `dist/` to any HTTPS static host. `vercel.json` runs `npm run build`, publishes `dist/`, prevents stale service-worker caching, and adds baseline security headers. Camera access and service workers require HTTPS outside localhost. A production data-connected release also needs authenticated server functions; the static bundle alone intentionally does not make third-party pricing calls.
 
 ## Documentation
 

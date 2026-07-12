@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "npx serve . -l 4173",
     "test": "node tests/core.test.js",
+    "test:schema": "node scripts/validate-schema.mjs",
     "typecheck": "node --check app.js && node --check lib/core.js",
     "lint": "node scripts/lint.mjs",
     "build": "node scripts/build.mjs"
