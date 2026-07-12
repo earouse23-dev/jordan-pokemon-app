@@ -1,2 +1,4 @@
-.vercel
-.env*
+dist/
+.DS_Store
+Thumbs.db
+*.log

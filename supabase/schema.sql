@@ -1,47 +1,182 @@
--- CardVault — Pokémon inventory cloud sync
--- All objects are namespaced with the app prefix `app_c14bef07_` and isolated by Row Level Security.
--- This file is IDEMPOTENT: it can be re-run safely. ACE applies it automatically after a build;
--- to run it manually, paste it into the Supabase dashboard → SQL Editor and execute.
---
--- AUTH: the app uses Supabase Anonymous Sign-Ins — each device silently gets a real auth user, so
--- ownership is enforced server-side by `auth.uid()` (no shared/permissive anon access to user data).
--- Enable it in the dashboard: Authentication → Sign In / Providers → Anonymous Sign-ins → ON.
--- If it is left off, the client simply runs local-only (IndexedDB) and never exposes rows.
+-- Mica collection ledger — launch schema
+-- Apply in a dedicated Supabase project. All user-owned tables use auth.uid()-based RLS.
+create extension if not exists pgcrypto;
 
--- One row per card a user has added to their binder. A binder is owned by the device's auth user.
-create table if not exists app_c14bef07_cards (
-  owner_id      uuid        not null default auth.uid(),   -- = auth.uid() of the (anonymous) user
-  uid           text        not null,                      -- pokemontcg.io card id (stable)
-  name          text,
-  set_name      text,
-  series        text,
-  release_date  text,
-  number        text,
-  rarity        text,
-  image         text,                            -- catalog image url
-  market        numeric,                         -- market price snapshot
-  prices        jsonb,                           -- full price block (market/low/mid/high/source/url/trends)
-  details       jsonb,                           -- Card Ladder-style identity (artist/year/pokedex/printRun)
-  photo         text,                            -- the user's own snapped photo (downscaled jpeg data url)
-  added_at      bigint,                          -- epoch ms the card was added
-  created_at    timestamptz default now(),
-  primary key (owner_id, uid)
+create table if not exists public.profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  display_name text check (char_length(display_name) <= 80),
+  display_currency text not null default 'USD' check (display_currency ~ '^[A-Z]{3}$'),
+  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create table if not exists public.subscriptions (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  status text not null default 'preview', entitlements jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now()
+);
+create table if not exists public.usage_events (
+  id bigint generated always as identity primary key, user_id uuid not null references auth.users(id) on delete cascade,
+  event_type text not null, quantity integer not null default 1 check (quantity > 0), occurred_at timestamptz not null default now()
 );
 
--- Added after launch — bring existing tables up to date (no-op if the column already exists).
-alter table app_c14bef07_cards add column if not exists details jsonb;
+create table if not exists public.card_sets (
+  id uuid primary key default gen_random_uuid(), name text not null, series text, release_date date,
+  language text not null default 'en', unique(name, language)
+);
+create table if not exists public.cards (
+  id uuid primary key default gen_random_uuid(), set_id uuid not null references public.card_sets(id) on delete cascade,
+  name text not null, collector_number text not null, rarity text, artist text, language text not null default 'en',
+  search_document tsvector generated always as (to_tsvector('simple', coalesce(name,'') || ' ' || coalesce(collector_number,''))) stored,
+  unique(set_id, collector_number, language)
+);
+create index if not exists cards_search_idx on public.cards using gin(search_document);
+create table if not exists public.card_variants (
+  id uuid primary key default gen_random_uuid(), card_id uuid not null references public.cards(id) on delete cascade,
+  finish text not null, edition text not null default '', language text not null default 'en', unique(card_id, finish, edition, language)
+);
+create table if not exists public.card_external_ids (
+  card_id uuid not null references public.cards(id) on delete cascade, provider text not null, external_id text not null,
+  primary key(provider, external_id)
+);
+create table if not exists public.card_images (
+  id uuid primary key default gen_random_uuid(), card_id uuid not null references public.cards(id) on delete cascade,
+  provider text not null, size text not null, url text not null, unique(card_id, provider, size)
+);
+create table if not exists public.catalog_sync_runs (
+  id uuid primary key default gen_random_uuid(), provider text not null, status text not null,
+  cursor text, records_processed integer not null default 0, started_at timestamptz not null default now(), finished_at timestamptz
+);
 
-create index if not exists app_c14bef07_cards_owner_idx
-  on app_c14bef07_cards (owner_id, added_at desc);
+create table if not exists public.collections (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null check (char_length(name) between 1 and 100), created_at timestamptz not null default now()
+);
+create index if not exists collections_owner_idx on public.collections(user_id);
+create table if not exists public.collection_items (
+  id uuid primary key default gen_random_uuid(), collection_id uuid not null references public.collections(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade, variant_id uuid references public.card_variants(id),
+  quantity integer not null default 1 check (quantity between 1 and 99999), valuation_basis text not null default 'provider_market',
+  manual_value numeric(14,2) check (manual_value >= 0), notes text check (char_length(notes) <= 10000),
+  storage_location text check (char_length(storage_location) <= 250), created_at timestamptz not null default now(), updated_at timestamptz not null default now()
+);
+create index if not exists collection_items_owner_collection_idx on public.collection_items(user_id, collection_id);
+create table if not exists public.owned_copies (
+  id uuid primary key default gen_random_uuid(), collection_item_id uuid not null references public.collection_items(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade, condition text, grading_company text, grade numeric(4,2),
+  purchase_price numeric(14,2) check (purchase_price >= 0), purchase_currency text check (purchase_currency ~ '^[A-Z]{3}$'),
+  purchase_date date, notes text check (char_length(notes) <= 10000), storage_location text check (char_length(storage_location) <= 250)
+);
+create table if not exists public.collection_tags (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null check (char_length(name) between 1 and 60), unique(user_id,name)
+);
+create table if not exists public.collection_item_tags (
+  collection_item_id uuid not null references public.collection_items(id) on delete cascade,
+  tag_id uuid not null references public.collection_tags(id) on delete cascade, user_id uuid not null references auth.users(id) on delete cascade,
+  primary key(collection_item_id,tag_id)
+);
+create table if not exists public.saved_views (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null, configuration jsonb not null default '{}'::jsonb, created_at timestamptz not null default now()
+);
 
--- Row Level Security: a user can only read/write rows they own. Anonymous-sign-in users carry the
--- `authenticated` role with a real auth.uid(), so this enforces per-device isolation server-side.
-alter table app_c14bef07_cards enable row level security;
+create table if not exists public.card_scans (
+  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
+  storage_path text, status text not null, quality_flags text[] not null default '{}', prompt_version text,
+  expires_at timestamptz not null default (now()+interval '24 hours'), created_at timestamptz not null default now()
+);
+create table if not exists public.scan_candidates (
+  scan_id uuid not null references public.card_scans(id) on delete cascade, variant_id uuid not null references public.card_variants(id),
+  rank smallint not null check(rank > 0), confidence numeric(5,4) check(confidence between 0 and 1), reasons jsonb not null default '[]',
+  primary key(scan_id,variant_id)
+);
+create table if not exists public.scan_feedback (
+  id uuid primary key default gen_random_uuid(), scan_id uuid not null references public.card_scans(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade, selected_variant_id uuid references public.card_variants(id),
+  outcome text not null, created_at timestamptz not null default now()
+);
 
-drop policy if exists app_c14bef07_cards_rw on app_c14bef07_cards;
-create policy app_c14bef07_cards_rw
-  on app_c14bef07_cards
-  for all
-  to authenticated
-  using (owner_id = auth.uid())
-  with check (owner_id = auth.uid());
+create table if not exists public.price_sources (
+  id uuid primary key default gen_random_uuid(), provider text not null unique, attribution text not null, capabilities jsonb not null default '{}'::jsonb
+);
+create table if not exists public.price_products (
+  id uuid primary key default gen_random_uuid(), source_id uuid not null references public.price_sources(id), variant_id uuid not null references public.card_variants(id),
+  external_id text not null, condition text, grading_company text, grade numeric(4,2), currency text not null check(currency ~ '^[A-Z]{3}$'),
+  unique(source_id,external_id,condition,grading_company,grade)
+);
+create table if not exists public.price_snapshots (
+  id bigint generated always as identity primary key, product_id uuid not null references public.price_products(id),
+  price_type text not null, amount numeric(14,2) not null check(amount >= 0), observed_at timestamptz, retrieved_at timestamptz not null default now(),
+  provider_url text, quality jsonb not null default '{}'::jsonb
+);
+create index if not exists price_snapshots_product_time_idx on public.price_snapshots(product_id,retrieved_at desc);
+create table if not exists public.sales_records (
+  id uuid primary key default gen_random_uuid(), product_id uuid not null references public.price_products(id),
+  provider_sale_id text not null, amount numeric(14,2) not null, currency text not null, sold_at timestamptz not null,
+  source_url text, unique(product_id,provider_sale_id)
+);
+create table if not exists public.valuation_snapshots (
+  id bigint generated always as identity primary key, user_id uuid not null references auth.users(id) on delete cascade,
+  collection_id uuid not null references public.collections(id) on delete cascade, total numeric(16,2) not null,
+  currency text not null, priced_items integer not null, unpriced_items integer not null, observed_at timestamptz not null default now()
+);
+
+create table if not exists public.import_jobs (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, status text not null, totals jsonb not null default '{}', created_at timestamptz not null default now());
+create table if not exists public.export_jobs (id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade, status text not null, created_at timestamptz not null default now(), expires_at timestamptz);
+create table if not exists public.provider_health_events (id bigint generated always as identity primary key, provider text not null, status text not null, latency_ms integer, occurred_at timestamptz not null default now());
+create table if not exists public.audit_events (id bigint generated always as identity primary key, user_id uuid references auth.users(id) on delete set null, action text not null, entity_type text not null, entity_id uuid, occurred_at timestamptz not null default now());
+
+-- Exposed canonical data is read-only to signed-in users. User data is ownership-scoped.
+alter table public.profiles enable row level security;
+alter table public.subscriptions enable row level security;
+alter table public.usage_events enable row level security;
+alter table public.collections enable row level security;
+alter table public.collection_items enable row level security;
+alter table public.owned_copies enable row level security;
+alter table public.collection_tags enable row level security;
+alter table public.collection_item_tags enable row level security;
+alter table public.saved_views enable row level security;
+alter table public.card_scans enable row level security;
+alter table public.scan_candidates enable row level security;
+alter table public.scan_feedback enable row level security;
+alter table public.valuation_snapshots enable row level security;
+alter table public.import_jobs enable row level security;
+alter table public.export_jobs enable row level security;
+alter table public.card_sets enable row level security;
+alter table public.cards enable row level security;
+alter table public.card_variants enable row level security;
+alter table public.card_external_ids enable row level security;
+alter table public.card_images enable row level security;
+alter table public.price_sources enable row level security;
+alter table public.price_products enable row level security;
+alter table public.price_snapshots enable row level security;
+alter table public.sales_records enable row level security;
+
+-- Run once in a fresh project. Policies intentionally use SELECT wrappers for stable plans.
+create policy "profiles own rows" on public.profiles for all to authenticated using ((select auth.uid())=id) with check ((select auth.uid())=id);
+create policy "subscriptions own rows" on public.subscriptions for select to authenticated using ((select auth.uid())=user_id);
+create policy "usage own rows" on public.usage_events for select to authenticated using ((select auth.uid())=user_id);
+create policy "collections own rows" on public.collections for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "items own rows" on public.collection_items for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "copies own rows" on public.owned_copies for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "tags own rows" on public.collection_tags for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "item tags own rows" on public.collection_item_tags for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "views own rows" on public.saved_views for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "scans own rows" on public.card_scans for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "scan candidates via scan" on public.scan_candidates for select to authenticated using (exists(select 1 from public.card_scans s where s.id=scan_id and s.user_id=(select auth.uid())));
+create policy "feedback own rows" on public.scan_feedback for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "valuations own rows" on public.valuation_snapshots for select to authenticated using ((select auth.uid())=user_id);
+create policy "imports own rows" on public.import_jobs for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "exports own rows" on public.export_jobs for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
+create policy "catalog sets read" on public.card_sets for select to authenticated using (true);
+create policy "catalog cards read" on public.cards for select to authenticated using (true);
+create policy "catalog variants read" on public.card_variants for select to authenticated using (true);
+create policy "catalog ids read" on public.card_external_ids for select to authenticated using (true);
+create policy "catalog images read" on public.card_images for select to authenticated using (true);
+create policy "price sources read" on public.price_sources for select to authenticated using (true);
+create policy "price products read" on public.price_products for select to authenticated using (true);
+create policy "price snapshots read" on public.price_snapshots for select to authenticated using (true);
+create policy "sales records read" on public.sales_records for select to authenticated using (true);
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.profiles, public.collections, public.collection_items, public.owned_copies, public.collection_tags, public.collection_item_tags, public.saved_views, public.card_scans, public.scan_feedback, public.import_jobs, public.export_jobs to authenticated;
+grant select on public.subscriptions, public.usage_events, public.scan_candidates, public.valuation_snapshots, public.card_sets, public.cards, public.card_variants, public.card_external_ids, public.card_images, public.price_sources, public.price_products, public.price_snapshots, public.sales_records to authenticated;
+

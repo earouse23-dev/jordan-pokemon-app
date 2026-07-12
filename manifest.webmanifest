@@ -1,15 +1,13 @@
 {
-  "name": "CardVault — Pokémon Inventory",
-  "short_name": "CardVault",
-  "description": "Snap your Pokémon cards, build a digital binder, and check live market prices before you sell.",
-  "start_url": "./index.html",
+  "name": "Mica — Collection Ledger",
+  "short_name": "Mica",
+  "description": "A precise, private collection ledger for trading card collectors.",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#0b0e1a",
-  "theme_color": "#0b0e1a",
-  "categories": ["shopping", "utilities", "lifestyle"],
-  "icons": [
-    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
-  ]
+  "orientation": "portrait-primary",
+  "background_color": "#f3f0e8",
+  "theme_color": "#f3f0e8",
+  "categories": ["utilities", "finance", "lifestyle"],
+  "icons": [{ "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
 }

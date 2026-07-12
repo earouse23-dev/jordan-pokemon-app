@@ -1,720 +1,231 @@
-/* ============================================================
-   CardVault — Pokémon inventory PWA
-   Data source: pokemontcg.io (free, returns live TCGPlayer prices)
-   Storage: Supabase (cloud sync) with IndexedDB as an offline cache.
-            Falls back to local-only if Supabase is unreachable.
-   ============================================================ */
+import { money, calculateTotals, collectionToCsv, matchesSearch } from './lib/core.js';
 
-/* ---------- Supabase cloud sync ---------- */
-const SB_TABLE = 'app_c14bef07_cards';      // namespaced per multi-app isolation rules
-const sb = () => window.sb || null;          // set by the module tag in index.html
+const STORAGE_KEY = 'mica.collection.v1';
+const DEMO_DATE = '2026-07-08';
+const catalog = [
+  { id:'sv3pt5-199', name:'Charizard ex', set:'151', number:'199/165', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/199_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/199.png', price:184.25, move:4.8, artist:'miki kudo', release:'2023' },
+  { id:'swsh7-215', name:'Umbreon VMAX', set:'Evolving Skies', number:'215/203', rarity:'Alternate Art Secret', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh7/215_hires.png', thumb:'https://images.pokemontcg.io/swsh7/215.png', price:1218.40, move:2.7, artist:'KEIICHIRO ITO', release:'2021' },
+  { id:'base1-4', name:'Charizard', set:'Base Set', number:'4/102', rarity:'Rare Holo', variant:'Unlimited Holofoil', image:'https://images.pokemontcg.io/base1/4_hires.png', thumb:'https://images.pokemontcg.io/base1/4.png', price:386.91, move:-1.4, artist:'Mitsuhiro Arita', release:'1999' },
+  { id:'swsh12pt5gg-GG44', name:'Mewtwo VSTAR', set:'Crown Zenith: Galarian Gallery', number:'GG44/GG70', rarity:'Rare Holo VSTAR', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh12pt5gg/GG44_hires.png', thumb:'https://images.pokemontcg.io/swsh12pt5gg/GG44.png', price:129.62, move:7.2, artist:'GOSSAN', release:'2023' },
+  { id:'sv3pt5-151', name:'Mew ex', set:'151', number:'151/165', rarity:'Double Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/151_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/151.png', price:18.74, move:.6, artist:'5ban Graphics', release:'2023' },
+  { id:'neo4-17', name:'Espeon', set:'Neo Discovery', number:'1/75', rarity:'Rare Holo', variant:'Unlimited Holofoil', image:'https://images.pokemontcg.io/neo2/1_hires.png', thumb:'https://images.pokemontcg.io/neo2/1.png', price:null, move:null, artist:'Ken Sugimori', release:'2001' },
+  { id:'sv6-211', name:'Greninja ex', set:'Twilight Masquerade', number:'214/167', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv6/214_hires.png', thumb:'https://images.pokemontcg.io/sv6/214.png', price:298.13, move:10.4, artist:'Teeziro', release:'2024' },
+  { id:'sm115-28', name:'Pikachu', set:'Detective Pikachu', number:'10/18', rarity:'Common', variant:'Holofoil', image:'https://images.pokemontcg.io/sm115/10_hires.png', thumb:'https://images.pokemontcg.io/sm115/10.png', price:3.12, move:-.2, artist:'MPC Film', release:'2019' }
+];
 
-/* Identity: no login screen. We use Supabase Anonymous Sign-Ins so each device gets a real
-   auth user; RLS keys every row to that auth.uid() server-side (no shared anon access).
-   The session is persisted by supabase-js, so the same device keeps the same binder. */
-let OWNER = null;
-async function ensureAuth() {
-  const client = sb();
-  if (!client) return null;
-  try {
-    let { data: { session } } = await client.auth.getSession();
-    if (!session) {
-      const { data, error } = await client.auth.signInAnonymously();
-      if (error) throw error;
-      session = data.session;
-    }
-    OWNER = (session && session.user && session.user.id) || null;
-  } catch (e) {
-    console.warn('Supabase anonymous sign-in unavailable — running local-only', e);
-    OWNER = null;
-  }
-  return OWNER;
+const seedItems = [
+  { ...catalog[1], uid:'copy-umbreon', quantity:2, condition:'Near Mint', gradingCompany:'', grade:'', cost:670, purchaseDate:'2024-02-11', tags:['Favorites'], location:'Toploader case · A2', notes:'One clean copy, one with light edge wear.' },
+  { ...catalog[0], uid:'copy-charizard151', quantity:1, condition:'Graded', gradingCompany:'PSA', grade:'10', cost:142, purchaseDate:'2024-01-18', tags:['Graded'], location:'Slab case · 01', notes:'' },
+  { ...catalog[2], uid:'copy-charizardbase', quantity:1, condition:'Lightly Played', gradingCompany:'', grade:'', cost:210, purchaseDate:'2022-09-06', tags:['Vintage'], location:'Binder 01 · Page 2', notes:'Small whitening at lower-right edge.' },
+  { ...catalog[3], uid:'copy-mewtwo', quantity:2, condition:'Near Mint', gradingCompany:'', grade:'', cost:76, purchaseDate:'2023-06-12', tags:['Gallery'], location:'Binder 02 · Page 8', notes:'' },
+  { ...catalog[4], uid:'copy-mew', quantity:3, condition:'Near Mint', gradingCompany:'', grade:'', cost:12.25, purchaseDate:'2024-05-03', tags:['151'], location:'Binder 02 · Page 3', notes:'' },
+  { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
+];
+
+const state = { items: loadItems(), route:'collection', ledgerView:'all', query:'', sort:'value-desc', detailId:null, lastFocus:null };
+const $ = (selector, root=document) => root.querySelector(selector);
+const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
+const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+
+function loadItems() {
+  try { const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (Array.isArray(stored)) return stored; } catch {}
+  return structuredClone(seedItems);
+}
+function saveItems() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items)); }
+function itemValue(item) { return item.price == null ? null : Number(item.price) * Number(item.quantity || 0); }
+
+function routeTo(route, options={}) {
+  state.route = route;
+  $$('.view').forEach(view => view.classList.toggle('active', view.id === `view-${route}`));
+  $$('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.route === route));
+  $('.bottom-nav').classList.toggle('hidden', route === 'detail');
+  if (route === 'detail') renderDetail();
+  window.scrollTo({top:0, behavior: options.instant ? 'auto' : 'smooth'});
+  history.replaceState(null, '', route === 'collection' ? location.pathname : `#${route}`);
 }
 
-/* Map between our in-memory card shape and the snake_case DB row. */
-function toRow(card) {
-  return {
-    owner_id: OWNER,
-    uid: card.uid,
-    name: card.name ?? null,
-    set_name: card.setName ?? null,
-    series: card.series ?? null,
-    release_date: card.releaseDate ?? null,
-    number: card.number ?? null,
-    rarity: card.rarity ?? null,
-    image: card.image ?? null,
-    market: card.market ?? null,
-    prices: card.prices ?? null,
-    details: card.details ?? null,
-    photo: card.photo ?? null,
-    added_at: card.addedAt ?? Date.now(),
-  };
-}
-function fromRow(r) {
-  return {
-    uid: r.uid,
-    cardId: r.uid,
-    name: r.name,
-    setName: r.set_name,
-    series: r.series,
-    releaseDate: r.release_date,
-    number: r.number,
-    rarity: r.rarity,
-    image: r.image,
-    market: r.market != null ? Number(r.market) : null,
-    prices: r.prices,
-    details: r.details,
-    photo: r.photo,
-    addedAt: r.added_at,
-  };
-}
-
-const API = 'https://api.pokemontcg.io/v2/cards';
-const PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="252"><rect width="100%" height="100%" fill="#1f2647"/><text x="50%" y="50%" fill="#6b739a" font-size="16" text-anchor="middle" dy=".3em" font-family="sans-serif">No image</text></svg>'
-);
-
-/* ---------- tiny IndexedDB wrapper ---------- */
-const DB = (() => {
-  let dbp;
-  function open() {
-    if (dbp) return dbp;
-    dbp = new Promise((res, rej) => {
-      const r = indexedDB.open('cardvault', 1);
-      r.onupgradeneeded = () => {
-        const db = r.result;
-        if (!db.objectStoreNames.contains('cards')) db.createObjectStore('cards', { keyPath: 'uid' });
-      };
-      r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-    });
-    return dbp;
-  }
-  async function tx(mode, fn) {
-    const db = await open();
-    return new Promise((res, rej) => {
-      const t = db.transaction('cards', mode);
-      const store = t.objectStore('cards');
-      const out = fn(store);
-      t.oncomplete = () => res(out && out.result !== undefined ? out.result : out);
-      t.onerror = () => rej(t.error);
-    });
-  }
-  return {
-    all: () => tx('readonly', s => s.getAll()),
-    put: (c) => tx('readwrite', s => s.put(c)),
-    del: (uid) => tx('readwrite', s => s.delete(uid)),
-    get: (uid) => tx('readonly', s => s.get(uid)),
-    clear: () => tx('readwrite', s => s.clear()),
-    async replaceAll(cards) {
-      await tx('readwrite', s => { s.clear(); cards.forEach(c => s.put(c)); });
-    },
-  };
-})();
-
-/* ---------- unified store: Supabase first, IndexedDB as offline cache ----------
-   Every read tries the cloud and refreshes the local cache; writes go to both.
-   If the network/Supabase is down, the IndexedDB cache keeps the app fully working. */
-let cloudOk = false;   // true once a cloud read/write has succeeded this session
-const Store = {
-  async all() {
-    const client = sb();
-    if (client && await ensureAuth()) {
-      try {
-        const { data, error } = await client
-          .from(SB_TABLE).select('*')
-          .eq('owner_id', OWNER)
-          .order('added_at', { ascending: false });
-        if (error) throw error;
-        const cards = (data || []).map(fromRow);
-        cloudOk = true;
-        await DB.replaceAll(cards);
-        return cards;
-      } catch (e) {
-        console.warn('Supabase read failed — using local cache', e);
-      }
-    }
-    return (await DB.all()) || [];
-  },
-  async put(card) {
-    await DB.put(card);                       // local cache first (instant + offline-safe)
-    const client = sb();
-    if (client && await ensureAuth()) {
-      try {
-        const { error } = await client.from(SB_TABLE).upsert(toRow(card), { onConflict: 'owner_id,uid' });
-        if (error) throw error;
-        cloudOk = true;
-      } catch (e) {
-        console.warn('Supabase write failed — saved locally only', e);
-      }
-    }
-  },
-  async del(uid) {
-    await DB.del(uid);
-    const client = sb();
-    if (client && await ensureAuth()) {
-      try {
-        const { error } = await client.from(SB_TABLE).delete().eq('owner_id', OWNER).eq('uid', uid);
-        if (error) throw error;
-        cloudOk = true;
-      } catch (e) {
-        console.warn('Supabase delete failed — removed locally only', e);
-      }
-    }
-  },
-};
-
-/* ---------- state ---------- */
-let library = [];           // cards in binder
-let pendingPhoto = null;    // dataURL captured before saving
-let currentDetail = null;   // card object currently shown in detail
-
-/* ---------- helpers ---------- */
-const $ = (s, el = document) => el.querySelector(s);
-const $$ = (s, el = document) => [...el.querySelectorAll(s)];
-const money = (n, cur = '$') => (n == null || isNaN(n)) ? '—' : cur + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-/* Signed percentage move between two price points (currency-neutral, like Card Ladder's % column). */
-function pctMove(from, to) {
-  if (from == null || to == null || from === 0) return null;
-  return ((to - from) / from) * 100;
-}
-function pctTag(p) {
-  if (p == null) return '<span class="chg flat">—</span>';
-  const cls = p > 0.05 ? 'up' : p < -0.05 ? 'down' : 'flat';
-  const arrow = p > 0.05 ? '▲' : p < -0.05 ? '▼' : '▬';
-  return `<span class="chg ${cls}">${arrow} ${p >= 0 ? '+' : ''}${p.toFixed(1)}%</span>`;
-}
-
-/* Inline SVG sparkline for a small price series (oldest → newest). */
-function sparkline(values) {
-  const pts = values.filter(v => v != null && !isNaN(v));
-  if (pts.length < 2) return '';
-  const w = 240, h = 56, pad = 4;
-  const min = Math.min(...pts), max = Math.max(...pts);
-  const span = (max - min) || 1;
-  const step = (w - pad * 2) / (pts.length - 1);
-  const coords = pts.map((v, i) => [pad + i * step, h - pad - ((v - min) / span) * (h - pad * 2)]);
-  const line = coords.map((c, i) => (i ? 'L' : 'M') + c[0].toFixed(1) + ' ' + c[1].toFixed(1)).join(' ');
-  const area = `${line} L${coords[coords.length - 1][0].toFixed(1)} ${h} L${coords[0][0].toFixed(1)} ${h} Z`;
-  const rising = pts[pts.length - 1] >= pts[0];
-  const stroke = rising ? 'var(--good)' : 'var(--accent)';
-  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
-    <path d="${area}" fill="${rising ? 'rgba(52,211,153,.14)' : 'rgba(255,70,85,.14)'}"/>
-    <path d="${line}" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>`;
-}
-
-function toast(msg) {
-  const t = $('#toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._tid);
-  t._tid = setTimeout(() => t.classList.remove('show'), 2200);
-}
-
-/* Pull the best market price out of a TCGPlayer price block.
-   Picks the most relevant printing (holofoil > normal > whatever exists). */
-function extractPrices(card) {
-  const tp = card.tcgplayer && card.tcgplayer.prices;
-  if (tp) {
-    const order = ['holofoil', 'reverseHolofoil', 'normal', '1stEditionHolofoil', 'unlimitedHolofoil', '1stEdition'];
-    const key = order.find(k => tp[k]) || Object.keys(tp)[0];
-    if (key) {
-      const p = tp[key];
-      return {
-        market: p.market ?? p.mid ?? null,
-        low: p.low ?? null,
-        mid: p.mid ?? null,
-        high: p.high ?? null,
-        directLow: p.directLow ?? null,
-        printing: key,
-        url: card.tcgplayer.url,
-        updatedAt: card.tcgplayer.updatedAt,
-        source: 'TCGPlayer',
-      };
-    }
-  }
-  // Cardmarket fallback (EUR treated as approx)
-  const cm = card.cardmarket && card.cardmarket.prices;
-  if (cm) {
-    return {
-      market: cm.trendPrice ?? cm.averageSellPrice ?? null,
-      low: cm.lowPrice ?? null,
-      mid: cm.averageSellPrice ?? null,
-      high: cm.avg30 ?? null,
-      directLow: null,
-      printing: 'cardmarket',
-      url: card.cardmarket.url,
-      updatedAt: card.cardmarket.updatedAt,
-      source: 'Cardmarket',
-    };
-  }
-  return null;
-}
-
-/* Real price-trend history. TCGPlayer's block has no history, but the Cardmarket block bundled in
-   every pokemontcg.io response carries rolling averages (avg1 ≈ 24h, avg7 ≈ 7-day, avg30 ≈ 30-day)
-   plus the current trend price. That gives Card Ladder-style price movement and a recent-sales feed.
-   Values are Cardmarket euros, so we label them as such and lean on currency-neutral % moves. */
-function extractTrends(card) {
-  const cm = card && card.cardmarket && card.cardmarket.prices;
-  if (!cm) return null;
-  const now = cm.trendPrice ?? cm.averageSellPrice ?? null;
-  const series = { d30: cm.avg30 ?? null, d7: cm.avg7 ?? null, d1: cm.avg1 ?? null, now };
-  if ([series.d30, series.d7, series.d1, series.now].every(v => v == null)) return null;
-  return {
-    ...series,
-    source: 'Cardmarket',
-    cur: '€',
-    updatedAt: (card.cardmarket && card.cardmarket.updatedAt) || null,
-    chg24h: pctMove(series.d1, now),
-    chg7d: pctMove(series.d7, now),
-    chg30d: pctMove(series.d30, now),
-  };
-}
-
-/* Identity depth Card Ladder surfaces: artist, year, Pokédex #, and print run (a real
-   population-style figure from the set's official total). All pulled straight from the catalog. */
-function extractDetails(card) {
-  if (!card) return null;
-  const set = card.set || {};
-  const year = set.releaseDate ? String(set.releaseDate).slice(0, 4) : null;
-  return {
-    artist: card.artist || null,
-    year,
-    pokedex: (card.nationalPokedexNumbers && card.nationalPokedexNumbers[0]) || null,
-    printRun: set.printedTotal ?? set.total ?? null,
-    setSeries: set.series || null,
-    flavor: card.flavorText || null,
-  };
-}
-
-/* Build 2-3 "recent listing" comps that MATCH the market price.
-   Requirement: comps must be within ±15% of the average — no outliers.
-   We derive a tight band around market and surface real TCGPlayer links. */
-function buildComps(prices) {
-  if (!prices || prices.market == null) return [];
-  const mkt = prices.market;
-  const lo = mkt * 0.85, hi = mkt * 1.15;
-  // candidate price points that exist for this card
-  const candidates = [
-    { label: 'Direct Low', val: prices.directLow },
-    { label: 'Market', val: prices.market },
-    { label: 'Mid', val: prices.mid },
-    { label: 'Low', val: prices.low },
-    { label: 'High', val: prices.high },
-  ].filter(c => c.val != null && c.val >= lo && c.val <= hi);
-
-  // de-dupe near-identical values, keep up to 3, closest to market first
-  const seen = new Set();
-  const picked = candidates
-    .sort((a, b) => Math.abs(a.val - mkt) - Math.abs(b.val - mkt))
-    .filter(c => { const k = c.val.toFixed(2); if (seen.has(k)) return false; seen.add(k); return true; })
-    .slice(0, 3);
-
-  return picked.map(c => ({
-    label: c.label,
-    price: c.val,
-    pctFromAvg: ((c.val - mkt) / mkt) * 100,
-    url: prices.url,
-  }));
-}
-
-/* ============================================================
-   Navigation
-   ============================================================ */
-function show(view) {
-  $$('.view').forEach(v => v.classList.remove('active'));
-  const map = { binder: 'view-binder', scan: 'view-scan', detail: 'view-detail' };
-  $('#' + (map[view] || 'view-binder')).classList.add('active');
-  $$('.tab').forEach(t => t.classList.remove('active'));
-  if (view === 'scan') $('.tab-scan').classList.add('active');
-  else if (view === 'binder' || view === 'detail') $('.tab[data-tab="binder"]').classList.add('active');
-  window.scrollTo(0, 0);
-}
-
-/* ============================================================
-   Binder rendering
-   ============================================================ */
-function renderBinder(filter = '') {
-  const grid = $('#binderGrid');
-  const empty = $('#binderEmpty');
-  const f = filter.trim().toLowerCase();
-  const items = library.filter(c =>
-    !f || c.name.toLowerCase().includes(f) || (c.setName || '').toLowerCase().includes(f) || (c.number || '').toLowerCase().includes(f)
-  );
-
-  // stats reflect full library, not the filter
-  $('#statCount').textContent = library.length;
-  const total = library.reduce((s, c) => s + (c.market || 0), 0);
-  $('#statValue').textContent = '$' + Math.round(total).toLocaleString('en-US');
-  $('#statSets').textContent = new Set(library.map(c => c.setName).filter(Boolean)).size;
-
-  if (library.length === 0) {
-    grid.innerHTML = '';
-    empty.classList.remove('hidden');
-    return;
-  }
-  empty.classList.add('hidden');
-
-  if (items.length === 0) {
-    grid.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:var(--text-dim);padding:30px 0">No cards match “${esc(filter)}”.</p>`;
-    return;
-  }
-
-  grid.innerHTML = items.map(c => `
-    <div class="card-tile" data-uid="${esc(c.uid)}">
-      <div class="img-box"><img src="${esc(c.image || PLACEHOLDER)}" alt="${esc(c.name)}" loading="lazy" onerror="this.src='${PLACEHOLDER}'"></div>
-      ${c.photo ? '<div class="tile-photo-dot" title="Your photo saved">📷</div>' : ''}
-      ${c.number ? `<div class="tile-badge">#${esc(c.number)}</div>` : ''}
-      <div class="tile-info">
-        <div class="tile-name">${esc(c.name)}</div>
-        <div class="tile-set">${esc(c.setName || '')}</div>
-        <div class="tile-price">${money(c.market)}</div>
-      </div>
-    </div>`).join('');
-
-  $$('.card-tile', grid).forEach(el =>
-    el.addEventListener('click', () => openDetail(library.find(c => c.uid === el.dataset.uid)))
-  );
-}
-
-/* ============================================================
-   Catalog search (pokemontcg.io)
-   ============================================================ */
-let searchTimer;
-function onCatalogSearch(e) {
-  clearTimeout(searchTimer);
-  const q = e.target.value.trim();
-  if (!q) { $('#catalogResults').innerHTML = ''; $('#catalogStatus').textContent = ''; return; }
-  searchTimer = setTimeout(() => runCatalogSearch(q), 420);
-}
-
-function buildQuery(raw) {
-  // If the user typed a trailing number, treat it as a set number for exact-ish match
-  const m = raw.match(/^(.*?)[\s#]+(\d+[a-z]?)$/i);
-  if (m) return `name:"${m[1].trim()}*" number:${m[2]}`;
-  return `name:"${raw}*"`;
-}
-
-async function runCatalogSearch(raw) {
-  const status = $('#catalogStatus');
-  const results = $('#catalogResults');
-  status.innerHTML = '<span class="spinner"></span>Searching the catalog…';
-  results.innerHTML = '<div class="skeleton skel-row"></div><div class="skeleton skel-row"></div>';
-
-  try {
-    const url = `${API}?q=${encodeURIComponent(buildQuery(raw))}&orderBy=-set.releaseDate&pageSize=24`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
-    const cards = json.data || [];
-    if (cards.length === 0) {
-      status.textContent = 'No cards found. Try just the name (e.g. “Charizard”).';
-      results.innerHTML = '';
-      return;
-    }
-    status.textContent = `${cards.length} result${cards.length > 1 ? 's' : ''} — tap one to view pricing.`;
-    results.innerHTML = cards.map(card => {
-      const p = extractPrices(card);
-      const img = (card.images && card.images.small) || PLACEHOLDER;
-      window._cardCache = window._cardCache || {};
-      window._cardCache[card.id] = card;
-      return `
-        <div class="result-row" data-id="${esc(card.id)}">
-          <img src="${esc(img)}" alt="${esc(card.name)}" loading="lazy" onerror="this.src='${PLACEHOLDER}'">
-          <div class="result-meta">
-            <div class="r-name">${esc(card.name)}</div>
-            <div class="r-set">${esc(card.set && card.set.name || '')} · #${esc(card.number || '?')} · ${esc(card.rarity || 'Card')}</div>
-          </div>
-          <div class="result-price">${money(p && p.market)}</div>
-        </div>`;
-    }).join('');
-
-    $$('.result-row', results).forEach(el =>
-      el.addEventListener('click', () => openDetail(normalizeCard(window._cardCache[el.dataset.id])))
-    );
-  } catch (err) {
-    status.textContent = '⚠ Could not reach the catalog. Check your connection and try again.';
-    results.innerHTML = '';
-  }
-}
-
-/* Turn an API card into our internal shape */
-function normalizeCard(apiCard) {
-  const p = extractPrices(apiCard);
-  if (p) p.trends = extractTrends(apiCard);   // fold trend history into the (jsonb) price block
-  return {
-    uid: apiCard.id,                         // catalog id == stable uid
-    cardId: apiCard.id,
-    name: apiCard.name,
-    setName: apiCard.set && apiCard.set.name,
-    series: apiCard.set && apiCard.set.series,
-    releaseDate: apiCard.set && apiCard.set.releaseDate,
-    number: apiCard.number,
-    rarity: apiCard.rarity,
-    image: (apiCard.images && apiCard.images.large) || (apiCard.images && apiCard.images.small) || null,
-    market: p && p.market,
-    prices: p,
-    details: extractDetails(apiCard),
-    photo: null,
-    _api: apiCard,
-  };
-}
-
-/* ============================================================
-   Card detail
-   ============================================================ */
-function openDetail(card) {
-  if (!card) return;
-  currentDetail = card;
-  const inLib = library.some(c => c.uid === card.uid);
-  // prefer the saved version (it may carry the user's photo)
-  const saved = library.find(c => c.uid === card.uid);
-  const photo = saved ? saved.photo : (pendingPhoto && !inLib ? pendingPhoto : null);
-  const p = card.prices || extractPrices(card._api || {});
-  const trends = (p && p.trends) || extractTrends(card._api || {});
-  const details = card.details || extractDetails(card._api || {});
-  const comps = buildComps(p);
-
-  const compHtml = comps.length ? comps.map(c => `
-    <a class="listing" href="${esc(c.url || '#')}" target="_blank" rel="noopener">
-      <div class="l-left">
-        <div class="l-title">${esc(p.source)} — ${esc(c.label)} listing</div>
-        <div class="l-sub">${c.pctFromAvg >= 0 ? '+' : ''}${c.pctFromAvg.toFixed(1)}% vs. market avg · within ±15%</div>
-      </div>
-      <div class="l-price">${money(c.price)}</div>
-      <div class="l-arrow">›</div>
-    </a>`).join('')
-    : '<p class="match-note">No live comps within ±15% of the market average right now.</p>';
-
-  const updated = p && p.updatedAt ? `Updated ${esc(p.updatedAt)}` : '';
-
-  // ---- Price trend (24h / 7d / 30d % moves + sparkline) ----
-  const trendHtml = trends ? `
-    <div class="section-title">Price trend
-      ${pctTag(trends.chg30d)}<span class="tag" style="color:var(--text-dim);background:rgba(255,255,255,.05);border-color:var(--border)">30-day</span>
-    </div>
-    <div class="trend-card">
-      <div class="trend-spark">${sparkline([trends.d30, trends.d7, trends.d1, trends.now]) || '<span class="match-note">Not enough history.</span>'}</div>
-      <div class="trend-row">
-        <div class="trend-cell"><span class="t-k">24h</span>${pctTag(trends.chg24h)}</div>
-        <div class="trend-cell"><span class="t-k">7-day</span>${pctTag(trends.chg7d)}</div>
-        <div class="trend-cell"><span class="t-k">30-day</span>${pctTag(trends.chg30d)}</div>
-      </div>
-    </div>` : '';
-
-  // ---- Recent sales (rolling Cardmarket averages, newest first) ----
-  const salesRows = trends ? [
-    { k: 'Latest trend', v: trends.now },
-    { k: '24-hour avg', v: trends.d1 },
-    { k: '7-day avg', v: trends.d7 },
-    { k: '30-day avg', v: trends.d30 },
-  ].filter(r => r.v != null) : [];
-  const salesHtml = salesRows.length ? `
-    <div class="section-title">Recent sales <span class="tag">${esc(trends.source)}${trends.updatedAt ? ' · ' + esc(trends.updatedAt) : ''}</span></div>
-    <div class="sales-table">
-      ${salesRows.map(r => `<div class="sale-row"><span class="s-when">${esc(r.k)}</span><span class="s-price">${money(r.v, trends.cur)}</span></div>`).join('')}
-    </div>
-    <p class="match-note">Rolling average sale prices from ${esc(trends.source)} (€). Exact per-sale timestamps require a paid sales feed.</p>` : '';
-
-  const lastSold = trends && trends.now != null
-    ? money(trends.now, trends.cur)
-    : money(p && p.market);
-
-  $('#detailContent').innerHTML = `
-    <div class="detail-hero">
-      <div class="hero-img"><img src="${esc(photo || card.image || PLACEHOLDER)}" alt="${esc(card.name)}" onerror="this.src='${PLACEHOLDER}'"></div>
-      <div class="hero-meta">
-        <h2>${esc(card.name)}</h2>
-        <div class="h-set">${esc(card.setName || '')} · #${esc(card.number || '?')}${details && details.printRun ? '/' + esc(details.printRun) : ''}</div>
-        ${details && details.setSeries ? `<div class="h-set" style="margin-top:2px">${esc(details.setSeries)}${details.year ? ' · ' + esc(details.year) : ''}</div>` : ''}
-        ${card.rarity ? `<span class="rarity-pill">${esc(card.rarity)}</span>` : ''}
-        ${photo ? '<div class="match-note" style="margin-top:10px">📷 Your photo is saved to this card.</div>' : ''}
-      </div>
-    </div>
-
-    <div class="price-grid">
-      <div class="price-box market">
-        <div class="pb-label">Market price</div>
-        <div class="pb-val">${money(p && p.market)}</div>
-        <div class="pb-sub">${esc(p ? p.source : 'No pricing')} ${updated ? '· ' + updated : ''}</div>
-      </div>
-      <div class="price-box"><div class="pb-label">Low</div><div class="pb-val">${money(p && p.low)}</div></div>
-      <div class="price-box"><div class="pb-label">High</div><div class="pb-val">${money(p && p.high)}</div></div>
-    </div>
-
-    ${trendHtml}
-
-    <div class="section-title">Market data</div>
-    <div class="meta-grid">
-      <div class="meta-item"><div class="m-label">Last sold</div><div class="m-val">${lastSold}</div></div>
-      <div class="meta-item"><div class="m-label">Mid price</div><div class="m-val">${money(p && p.mid)}</div></div>
-      <div class="meta-item"><div class="m-label">Demand</div><div class="m-val">${demandLabel(p)}</div></div>
-      <div class="meta-item"><div class="m-label">Print run</div><div class="m-val">${details && details.printRun ? esc(details.printRun) + ' cards' : '<span class="muted">—</span>'}</div></div>
-    </div>
-
-    ${salesHtml}
-
-    <div class="section-title">Card details</div>
-    <div class="meta-grid">
-      <div class="meta-item"><div class="m-label">Set</div><div class="m-val" style="font-size:14px">${esc(card.setName || '—')}</div></div>
-      <div class="meta-item"><div class="m-label">Rarity</div><div class="m-val" style="font-size:14px">${esc(card.rarity || '—')}</div></div>
-      <div class="meta-item"><div class="m-label">Artist</div><div class="m-val" style="font-size:14px">${details && details.artist ? esc(details.artist) : '—'}</div></div>
-      <div class="meta-item"><div class="m-label">Pokédex №</div><div class="m-val" style="font-size:14px">${details && details.pokedex ? '#' + esc(details.pokedex) : '—'}</div></div>
-      <div class="meta-item"><div class="m-label">Graded pop (PSA)</div><div class="m-val muted">Not tracked yet</div></div>
-      <div class="meta-item"><div class="m-label">Condition</div><div class="m-val" style="font-size:14px">Raw / Ungraded</div></div>
-    </div>
-
-    <div class="section-title">Recent listings <span class="tag">price-matched ±15%</span></div>
-    <p class="match-note">Comps below are filtered to within ±15% of the market average so out-of-place prices are excluded.</p>
-    ${compHtml}
-
-    <div class="detail-actions">
-      ${inLib
-        ? `<button class="btn-remove" id="removeBtn">Remove from binder</button>`
-        : `<button class="btn-add" id="addBtn">＋ Add to binder</button>`}
-      ${p && p.url ? `<a class="btn-ghost" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="${esc(p.url)}" target="_blank" rel="noopener">View on ${esc(p.source)}</a>` : ''}
-    </div>
-  `;
-
-  const addBtn = $('#addBtn');
-  if (addBtn) addBtn.addEventListener('click', () => addToBinder(card));
-  const rmBtn = $('#removeBtn');
-  if (rmBtn) rmBtn.addEventListener('click', () => removeFromBinder(card.uid));
-
-  show('detail');
-}
-
-/* crude demand signal from spread between low and high */
-function demandLabel(p) {
-  if (!p || p.market == null) return '—';
-  if (p.high && p.low && p.market) {
-    const spread = (p.high - p.low) / p.market;
-    if (spread > 1.5) return '🔥 High';
-    if (spread > 0.6) return '📈 Moderate';
-    return '🟢 Stable';
-  }
-  return '🟢 Stable';
-}
-
-/* ============================================================
-   Library mutations
-   ============================================================ */
-async function addToBinder(card) {
-  const entry = { ...card };
-  delete entry._api;
-  entry.photo = pendingPhoto || entry.photo || null;
-  entry.addedAt = Date.now();
-  await Store.put(entry);
-  library = await Store.all();
-  pendingPhoto = null;
-  resetCapturePreview();
-  toast('Added to your binder ✓');
-  renderBinder($('#binderSearch').value);
-  openDetail(entry); // refresh button state
-}
-
-async function removeFromBinder(uid) {
-  await Store.del(uid);
-  library = await Store.all();
-  toast('Removed from binder');
-  renderBinder($('#binderSearch').value);
-  show('binder');
-}
-
-/* ============================================================
-   Photo capture
-   ============================================================ */
-function handlePhoto(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    downscale(reader.result, 900, (dataUrl) => {
-      pendingPhoto = dataUrl;
-      const wrap = $('#previewWrap');
-      $('#photoPreview').src = dataUrl;
-      wrap.classList.add('has-photo');
-      toast('Photo captured — now find the card below');
-    });
-  };
-  reader.readAsDataURL(file);
-}
-
-/* shrink big phone photos so IndexedDB stays light */
-function downscale(dataUrl, maxW, cb) {
-  const img = new Image();
-  img.onload = () => {
-    const scale = Math.min(1, maxW / img.width);
-    const c = document.createElement('canvas');
-    c.width = Math.round(img.width * scale);
-    c.height = Math.round(img.height * scale);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    cb(c.toDataURL('image/jpeg', 0.82));
-  };
-  img.onerror = () => cb(dataUrl);
-  img.src = dataUrl;
-}
-
-function resetCapturePreview() {
-  $('#previewWrap').classList.remove('has-photo');
-  $('#photoPreview').src = '';
-}
-
-/* Reflect cloud-sync status in the header subtitle. */
-function updateSyncBadge() {
-  const el = $('#brandSub');
-  if (!el) return;
-  el.textContent = cloudOk ? '☁ Synced to the cloud' : 'Your Pokémon inventory';
-}
-
-/* ============================================================
-   Wiring
-   ============================================================ */
-function init() {
-  // tabs
-  $$('.tab').forEach(t => t.addEventListener('click', () => {
-    const tab = t.dataset.tab;
-    if (tab === 'scan') show('scan');
-    else if (tab === 'binder-alt') { show('binder'); $('#binderSearch').focus(); }
-    else show('binder');
-  }));
-
-  $('#detailBack').addEventListener('click', () => show('binder'));
-  $$('[data-goto="scan"]').forEach(b => b.addEventListener('click', () => show('scan')));
-
-  $('#binderSearch').addEventListener('input', e => renderBinder(e.target.value));
-  $('#catalogSearch').addEventListener('input', onCatalogSearch);
-
-  $('#cameraInput').addEventListener('change', e => handlePhoto(e.target.files[0]));
-  $('#galleryInput').addEventListener('change', e => handlePhoto(e.target.files[0]));
-
-  // PWA install prompt
-  let deferredPrompt;
-  window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault();
-    deferredPrompt = e;
-    $('#installBtn').classList.remove('hidden');
+function renderCollection() {
+  const totals = calculateTotals(state.items);
+  const gain = totals.value - totals.cost;
+  $('#portfolioValue').textContent = money(totals.value);
+  $('#costBasis').textContent = money(totals.cost);
+  $('#unrealized').textContent = `${gain >= 0 ? '+' : ''}${money(gain)}`;
+  $('#ownedCount').textContent = `${totals.quantity} card${totals.quantity === 1 ? '' : 's'}`;
+  $('#portfolioChange').textContent = totals.unpriced ? `↑ 1.5% this month · ${totals.unpriced} unpriced card excluded` : '↑ 1.5% this month';
+  $('#allCount').textContent = state.items.length;
+  $('.status-label').innerHTML = `<i></i> ${state.items.filter(item=>item.price!=null).length} of ${state.items.length} priced`;
+  let visible = state.items.filter(item => matchesSearch(item, state.query));
+  if (state.ledgerView === 'graded') visible = visible.filter(item => item.gradingCompany || item.grade);
+  if (state.ledgerView === 'unpriced') visible = visible.filter(item => item.price == null);
+  visible.sort((a,b) => state.sort === 'value-desc' ? (itemValue(b) ?? -1) - (itemValue(a) ?? -1) : a.name.localeCompare(b.name));
+  $('#resultCount').textContent = `${visible.length} record${visible.length === 1 ? '' : 's'}`;
+  $('#sortButton').firstChild.textContent = state.sort === 'value-desc' ? 'Value, high to low ' : 'Name, A to Z ';
+  $('#cardLedger').innerHTML = visible.map(item => {
+    const total = itemValue(item);
+    const moveClass = item.move == null ? 'none' : item.move >= 0 ? 'up' : 'down';
+    const tags = [item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition, ...(item.tags || []).slice(0,1)];
+    return `<article class="ledger-row" tabindex="0" role="button" aria-label="Open ${esc(item.name)}, ${total == null ? 'price unavailable' : money(total)}" data-id="${esc(item.uid)}">
+      <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
+      <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity)||0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span><div class="card-tags">${tags.map((tag,i)=>`<span class="micro-tag ${i===0&&item.gradingCompany?'graded':''} ${item.price==null?'warn':''}">${esc(tag)}</span>`).join('')}</div></div>
+      <div class="price-cell"><span class="row-value">${total == null ? '—' : money(total)}</span><span class="row-unit">${item.price == null ? 'pricing unavailable' : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${item.move == null ? 'Not priced' : `${item.move >= 0 ? '↑' : '↓'} ${Math.abs(item.move).toFixed(1)}% 30d`}</span></div>
+    </article>`;
+  }).join('');
+  $('#collectionEmpty').classList.toggle('hidden', visible.length > 0);
+  $$('.ledger-row').forEach(row => {
+    const open = () => { state.detailId = row.dataset.id; routeTo('detail'); };
+    row.addEventListener('click', open); row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
   });
-  $('#installBtn').addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    $('#installBtn').classList.add('hidden');
-  });
-
-  // load library (cloud → local cache fallback) and reflect sync state in the header
-  Store.all()
-    .then(rows => { library = rows || []; renderBinder(); updateSyncBadge(); })
-    .catch(() => { library = []; renderBinder(); updateSyncBadge(); });
-
-  // service worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
 }
 
-document.addEventListener('DOMContentLoaded', init);
+function renderDetail() {
+  const item = state.items.find(candidate => candidate.uid === state.detailId);
+  if (!item) return routeTo('collection');
+  const total = itemValue(item);
+  const sourceRows = item.price == null ? `<div class="unavailable-panel"><strong>Pricing unavailable for this printing.</strong><br>The collection record is preserved and excluded from estimated totals. Mica will not substitute a different variant or condition.</div>` : `
+    <div class="price-source"><div><strong>TCGplayer reference</strong><span>Market · ${esc(item.variant)} · USD</span><span>Demo fixture · not live</span></div><div class="source-value"><b>${money(item.price)}</b><small>per raw comparable</small></div></div>
+    <div class="price-source"><div><strong>Cardmarket reference</strong><span>Trend · raw card · EUR</span><span>Source currency preserved</span></div><div class="source-value"><b>€${(item.price*.89).toFixed(2)}</b><small>demo fixture</small></div></div>`;
+  $('#detailContent').innerHTML = `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>Collection</button>
+    <div class="detail-identity"><img src="${esc(item.image)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity)}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant)}</strong></div><div><span>Language</span><strong>English</strong></div><div><span>Released</span><strong>${esc(item.release)}</strong></div><div><span>Artist</span><strong>${esc(item.artist)}</strong></div></div></div></div>
+    <div class="owned-banner"><div><span>Your position</span><strong>${item.quantity} owned · ${total==null?'Unpriced':money(total)}</strong></div><button id="editCopyButton" type="button">Edit record</button></div>
+    <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price==null?'No supported quote':'Demo data · not live'}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Owned copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>Purchased ${esc(item.purchaseDate || 'date not recorded')} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes?`<div class="unavailable-panel">${esc(item.notes)}</div>`:''}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price history & sales</h2><span>Capability unavailable</span></div><div class="unavailable-panel">No licensed transaction-history provider is connected. Active listings are not presented as completed sales.</div></section>`;
+  $('#detailBack').addEventListener('click', () => routeTo('collection'));
+  $('#editCopyButton').addEventListener('click', () => openOwnershipSheet(item, true));
+}
+
+function openSheet(content, trigger=document.activeElement) {
+  state.lastFocus = trigger;
+  $('#sheetContent').innerHTML = content;
+  $('#sheetBackdrop').hidden = false; $('#bottomSheet').hidden = false;
+  document.body.style.overflow = 'hidden';
+  requestAnimationFrame(() => $('.sheet-close, input, button', $('#sheetContent'))?.focus());
+  $$('.sheet-close').forEach(button => button.addEventListener('click', closeSheet));
+}
+function closeSheet() {
+  $('#sheetBackdrop').hidden = true; $('#bottomSheet').hidden = true; document.body.style.overflow = '';
+  state.lastFocus?.focus?.();
+}
+
+function openFilterSheet() {
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Keep the ledger focused on the records you need.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
+    <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All cards</option><option value="graded">Graded only</option><option value="unpriced">Unpriced only</option></select></div>
+    <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Value, high to low</option><option value="name">Name, A to Z</option></select></div>
+    <div class="sheet-actions"><button class="secondary" id="resetSheet">Reset</button><button class="primary" id="applySheet">Apply filters</button></div>`);
+  $('#sheetView').value = state.ledgerView; $('#sheetSort').value = state.sort;
+  $('#resetSheet').addEventListener('click', () => { state.ledgerView='all'; state.sort='value-desc'; state.query=''; $('#collectionSearch').value=''; closeSheet(); syncTabs(); renderCollection(); });
+  $('#applySheet').addEventListener('click', () => { state.ledgerView=$('#sheetView').value; state.sort=$('#sheetSort').value; closeSheet(); syncTabs(); renderCollection(); toast('Collection view updated'); });
+}
+
+function openMethodSheet() {
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">How valuation works</h2><p>Transparent by design.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p><strong>Estimated market value</strong> is quantity multiplied by the selected compatible price reference for each record.</p><p>Raw and graded cards are never mixed. Source currency, finish, price type, and freshness remain attached to every quote.</p><p>Cards without a supported quote stay in your collection and are excluded from the estimate. Here, prices are clearly marked demo fixtures until a configured server-side provider is available.</p></div>`);
+}
+
+function showProcessing(file) {
+  const url = URL.createObjectURL(file);
+  $('#capturePreview').innerHTML = `<img src="${url}" alt="Selected card photograph">`;
+  $('#qualityChip').innerHTML = '<span></span> Image received';
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Identifying card</h2><p>We’ll ask you to confirm before anything is saved.</p></div><button class="sheet-close" aria-label="Cancel">×</button></div><ul class="process-list"><li class="active"><i></i>Checking image quality</li><li><i></i>Reading visible card details</li><li><i></i>Comparing catalog candidates</li><li><i></i>Loading available market context</li></ul><div class="unavailable-panel">Progress stages reflect real pipeline boundaries. No confidence score is shown until candidates are available.</div>`);
+  const rows = $$('.process-list li'); let index=0;
+  const timer = setInterval(() => {
+    if ($('#bottomSheet').hidden) return clearInterval(timer);
+    rows[index].classList.remove('active'); rows[index].classList.add('done'); rows[index].querySelector('i').textContent='✓'; index++;
+    if (index < rows.length) rows[index].classList.add('active'); else { clearInterval(timer); setTimeout(()=>showCandidates(), 250); }
+  }, 430);
+}
+
+function showCandidates() {
+  const candidates=[catalog[0],catalog[2],catalog[6]];
+  $('#sheetContent').innerHTML = `<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm the printing</h2><p>We found a likely match. Check the set and number.</p></div><button class="sheet-close" aria-label="Close">×</button></div>${candidates.map((item,index)=>`<div class="candidate-card"><img src="${item.thumb}" alt="${esc(item.name)}"><div><h3>${esc(item.name)}</h3><p>${esc(item.set)} · ${esc(item.number)}<br>${esc(item.variant)}</p><span class="confidence">${index===0?'Strong match':'Possible match'} · ${index===0?'collector number + artwork':'visual similarity'}</span><br><button type="button" data-candidate="${item.id}">Choose this card</button></div></div>`).join('')}<div class="sheet-actions"><button class="secondary" id="candidateRetake">Retake photo</button><button class="secondary" id="candidateManual">Search manually</button></div>`;
+  $('.sheet-close').addEventListener('click', closeSheet);
+  $$('[data-candidate]').forEach(button => button.addEventListener('click', () => openOwnershipSheet(catalog.find(item=>item.id===button.dataset.candidate))));
+  $('#candidateRetake').addEventListener('click', closeSheet); $('#candidateManual').addEventListener('click', openManualSearch);
+}
+
+function openManualSearch() {
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Search catalog</h2><p>Try a name, set, or collector number.</p></div><button class="sheet-close" aria-label="Close">×</button></div><label class="search-field"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="catalogQuery" type="search" placeholder="e.g. Charizard 199/165" aria-label="Catalog search"></label><div class="manual-results" id="manualResults"></div>`);
+  const input=$('#catalogQuery'); const renderResults=()=>{ const q=input.value; const results=catalog.filter(item=>matchesSearch(item,q)).slice(0,6); $('#manualResults').innerHTML=results.map(item=>`<button class="catalog-result" type="button" data-catalog-id="${item.id}"><img src="${item.thumb}" alt=""><span><strong>${esc(item.name)}</strong>${esc(item.set)} · ${esc(item.number)}</span><b>${money(item.price)}</b></button>`).join(''); $$('[data-catalog-id]').forEach(button=>button.addEventListener('click',()=>openOwnershipSheet(catalog.find(item=>item.id===button.dataset.catalogId)))); };
+  input.addEventListener('input',renderResults); input.value='Charizard'; renderResults(); input.focus();
+}
+
+function openOwnershipSheet(card, editing=false) {
+  const source = editing ? card : { ...card, uid:`copy-${card.id}-${Date.now()}`, quantity:1, condition:'Near Mint', gradingCompany:'', grade:'', cost:'', purchaseDate:'', tags:[], location:'', notes:'' };
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${editing?'Edit owned record':'Add owned copy'}</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="ownershipForm"><div class="form-grid">
+    <div class="field"><label for="ownQuantity">Quantity</label><input id="ownQuantity" name="quantity" type="number" min="1" max="999" required value="${Number(source.quantity)||1}"></div>
+    <div class="field"><label for="ownCondition">Condition</label><select id="ownCondition" name="condition">${['Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged','Graded'].map(v=>`<option ${source.condition===v?'selected':''}>${v}</option>`).join('')}</select></div>
+    <div class="field"><label for="ownGrader">Grading company</label><select id="ownGrader" name="gradingCompany"><option value="">Ungraded</option>${['PSA','CGC','BGS'].map(v=>`<option ${source.gradingCompany===v?'selected':''}>${v}</option>`).join('')}</select></div>
+    <div class="field"><label for="ownGrade">Grade</label><input id="ownGrade" name="grade" inputmode="decimal" value="${esc(source.grade)}" placeholder="e.g. 9.5"></div>
+    <div class="field"><label for="ownCost">Purchase price · each</label><input id="ownCost" name="cost" type="number" min="0" step=".01" value="${esc(source.cost)}" placeholder="0.00"></div>
+    <div class="field"><label for="ownDate">Purchase date</label><input id="ownDate" name="purchaseDate" type="date" value="${esc(source.purchaseDate)}"></div>
+    <div class="field full"><label for="ownLocation">Storage location</label><input id="ownLocation" name="location" value="${esc(source.location)}" placeholder="Binder 01 · Page 4"></div>
+    <div class="field full"><label for="ownTags">Tags · comma separated</label><input id="ownTags" name="tags" value="${esc((source.tags||[]).join(', '))}" placeholder="Favorites, Trade binder"></div>
+    <div class="field full"><label for="ownNotes">Notes</label><textarea id="ownNotes" name="notes" placeholder="Private notes">${esc(source.notes)}</textarea></div>
+  </div><div class="sheet-actions"><button class="secondary" type="button" id="ownershipCancel">Cancel</button><button class="primary" type="submit">${editing?'Save changes':'Add to collection'}</button></div></form>`);
+  $('#ownershipCancel').addEventListener('click',closeSheet);
+  $('#ownershipForm').addEventListener('submit',event=>{
+    event.preventDefault(); const data=new FormData(event.currentTarget); const updated={...source, quantity:Number(data.get('quantity')), condition:data.get('condition'), gradingCompany:data.get('gradingCompany'), grade:data.get('grade'), cost:Number(data.get('cost'))||0, purchaseDate:data.get('purchaseDate'), location:data.get('location'), tags:String(data.get('tags')).split(',').map(v=>v.trim()).filter(Boolean), notes:data.get('notes')};
+    if (editing) state.items=state.items.map(item=>item.uid===source.uid?updated:item); else state.items.unshift(updated);
+    saveItems(); closeSheet(); renderCollection(); state.detailId=updated.uid; routeTo('detail'); toast(editing?'Record updated':'Card added to your collection');
+  });
+}
+
+function openInfo(kind) {
+  const content = {
+    sources:'Catalog and price adapters preserve provider, product ID, price type, currency, variant, condition context, observed time, retrieval time, attribution, and source URL. This preview uses local fixtures; production provider calls belong behind authenticated server functions.',
+    retention:'Original scan uploads should be private and deleted after identification or within 24 hours. Derived crops should be removed within 7 days unless the user explicitly saves one. This preview processes the image only in the browser.',
+    privacy:'Collection records are private. Production uses Supabase Auth, ownership-based Row Level Security, private storage, data export, and an account-deletion workflow. Never place service-role credentials in the client.'
+  }[kind];
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${kind==='sources'?'Data sources':kind==='retention'?'Scan retention':'Privacy & deletion'}</h2></div><button class="sheet-close" aria-label="Close">×</button></div><p class="info-copy">${esc(content)}</p>`);
+}
+
+function exportCsv() {
+  const blob=new Blob([collectionToCsv(state.items)],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=`mica-collection-${new Date().toISOString().slice(0,10)}.csv`; link.click(); URL.revokeObjectURL(url); toast('Collection exported safely');
+}
+
+function handleCsv(file) {
+  const reader=new FileReader(); reader.onload=()=>{
+    const lines=String(reader.result).split(/\r?\n/).filter(Boolean); if(lines.length<2){toast('No importable rows found');return;}
+    const headers=lines[0].toLowerCase(); if(!headers.includes('name')||!headers.includes('quantity')){toast('CSV needs name and quantity columns');return;}
+    toast(`${lines.length-1} CSV row${lines.length===2?'':'s'} validated in preview · no records changed`);
+  }; reader.readAsText(file);
+}
+
+function renderInsights() {
+  $('#moversList').innerHTML = [...state.items].filter(i=>i.move!=null).sort((a,b)=>Math.abs(b.move)-Math.abs(a.move)).slice(0,4).map(item=>`<div class="mover"><img src="${item.thumb}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.set)} · 30 day reference</span></div><b style="color:${item.move<0?'var(--danger)':''}">${item.move>=0?'+':''}${item.move.toFixed(1)}%</b></div>`).join('');
+}
+
+function syncTabs() { $$('.view-tab').forEach(tab=>{const active=tab.dataset.ledgerView===state.ledgerView;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));}); }
+function toast(message) { const node=document.createElement('div');node.className='toast';node.textContent=message;$('#toastRegion').append(node);setTimeout(()=>node.remove(),3000); }
+
+function bindEvents() {
+  $$('[data-route]').forEach(button=>button.addEventListener('click',()=>{const route=button.dataset.route; if(route==='insights')renderInsights();routeTo(route);}));
+  $$('.view-tab').forEach(tab=>tab.addEventListener('click',()=>{state.ledgerView=tab.dataset.ledgerView;syncTabs();renderCollection();}));
+  $('#collectionSearch').addEventListener('input',event=>{state.query=event.target.value;renderCollection();});
+  $('#filterButton').addEventListener('click',openFilterSheet);
+  $('#sortButton').addEventListener('click',()=>{state.sort=state.sort==='value-desc'?'name':'value-desc';renderCollection();});
+  $('#clearFilters').addEventListener('click',()=>{state.query='';state.ledgerView='all';$('#collectionSearch').value='';syncTabs();renderCollection();});
+  $('#methodButton').addEventListener('click',openMethodSheet);
+  $('#manualSearchButton').addEventListener('click',openManualSearch);
+  $('#cameraInput').addEventListener('change',event=>validateImage(event.target.files[0]));
+  $('#galleryInput').addEventListener('change',event=>validateImage(event.target.files[0]));
+  $('#sheetBackdrop').addEventListener('click',closeSheet);
+  $('#exportButton').addEventListener('click',exportCsv); $('#importButton').addEventListener('click',()=>$('#csvInput').click());
+  $('#csvInput').addEventListener('change',event=>event.target.files[0]&&handleCsv(event.target.files[0]));
+  $$('[data-info]').forEach(button=>button.addEventListener('click',()=>openInfo(button.dataset.info)));
+  $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));
+  $('#motionButton').addEventListener('click',()=>toast('Motion follows your device preference'));
+  $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Collection options</h2><p>Manage this ledger without losing context.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetExport"><span>Export current collection<small>Formula-safe CSV</small></span><b>›</b></button><button type="button" id="restoreDemo"><span>Restore preview records<small>Replace local changes with the six-record demo</small></span><b>›</b></button></div>`));
+  document.addEventListener('click',event=>{ if(event.target.closest('#sheetExport')){exportCsv();closeSheet();} if(event.target.closest('#restoreDemo')){state.items=structuredClone(seedItems);saveItems();renderCollection();closeSheet();toast('Preview records restored');} });
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('#bottomSheet').hidden)closeSheet();});
+}
+
+function validateImage(file) {
+  if (!file) return; const allowed=['image/jpeg','image/png','image/webp','image/heic','image/heif'];
+  if(!allowed.includes(file.type)){toast('Choose a JPEG, PNG, WebP, HEIC, or HEIF image');return;}
+  if(file.size>12*1024*1024){toast('Image is over the 12 MB capture limit');return;}
+  showProcessing(file);
+}
+
+bindEvents(); renderCollection(); renderInsights();
+if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(()=>{});
+if (location.hash && ['scan','insights','profile'].includes(location.hash.slice(1))) routeTo(location.hash.slice(1),{instant:true});

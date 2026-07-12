@@ -1,52 +1,16 @@
-/* CardVault service worker — offline shell caching.
-   API calls (pokemontcg.io) always go to network; the app shell is cached. */
-const CACHE = 'cardvault-v2';
-const SHELL = [
-  './',
-  './index.html',
-  './styles.css',
-  './app.js',
-  './manifest.webmanifest',
-  './icons/icon.svg',
-];
-
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
-});
-
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
-  if (e.request.method !== 'GET') return;
-
-  // Never cache the live pricing API — always fetch fresh.
-  if (url.hostname.includes('pokemontcg.io')) {
-    e.respondWith(fetch(e.request).catch(() => new Response('{"data":[]}', { headers: { 'Content-Type': 'application/json' } })));
+const CACHE = 'mica-shell-v1';
+const SHELL = ['./','./index.html','./styles.css','./app.js','./lib/core.js','./manifest.webmanifest','./icons/icon.svg'];
+self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(()=>self.skipWaiting())));
+self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) {
+    event.respondWith(caches.open(CACHE).then(async cache => {
+      const hit=await cache.match(event.request); if(hit) return hit;
+      try { const response=await fetch(event.request); if(response.ok) cache.put(event.request,response.clone()); return response; } catch { return new Response('',{status:503}); }
+    }));
     return;
   }
-
-  // Card images: cache-first (they're immutable per id).
-  if (url.hostname.includes('images.pokemontcg.io')) {
-    e.respondWith(
-      caches.open(CACHE).then(async cache => {
-        const hit = await cache.match(e.request);
-        if (hit) return hit;
-        const res = await fetch(e.request);
-        cache.put(e.request, res.clone());
-        return res;
-      }).catch(() => fetch(e.request))
-    );
-    return;
-  }
-
-  // App shell: cache-first, fall back to network.
-  e.respondWith(
-    caches.match(e.request).then(hit => hit || fetch(e.request))
-  );
+  event.respondWith(caches.match(event.request).then(hit=>hit||fetch(event.request).then(response=>{const copy=response.clone();caches.open(CACHE).then(cache=>cache.put(event.request,copy));return response;})));
 });
