@@ -1,135 +1,187 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#0b0e1a" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="CardVault" />
-  <meta name="description" content="Snap your Pokémon cards, build a digital binder, and check live market prices before you sell." />
-  <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="icons/icon.svg" />
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css" />
-  <title>CardVault — Pokémon Inventory</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f0e8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Mica">
+  <meta name="description" content="Mica is a precise collection ledger for trading card collectors.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <link rel="stylesheet" href="styles.css">
+  <title>Mica — Collection ledger</title>
 </head>
 <body>
-  <div id="app">
-    <!-- ===== Header ===== -->
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <div class="brand-text">
-          <h1>CardVault</h1>
-          <p id="brandSub">Your Pokémon inventory</p>
-        </div>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="app-shell" id="appShell">
+    <header class="app-header">
+      <button class="wordmark" type="button" data-route="collection" aria-label="Mica home">
+        <span class="wordmark-gem" aria-hidden="true"><i></i></span>
+        <span>Mica</span>
+      </button>
+      <div class="header-actions">
+        <button class="sync-state" type="button" id="syncState" aria-label="Sync status">
+          <span class="sync-dot"></span><span>Synced</span>
+        </button>
+        <button class="avatar" type="button" data-route="profile" aria-label="Open profile">JD</button>
       </div>
-      <button id="installBtn" class="install-btn hidden" type="button">Install</button>
     </header>
 
-    <!-- ===== Views ===== -->
-    <main id="main">
-
-      <!-- BINDER VIEW -->
-      <section id="view-binder" class="view active">
-        <div class="search-wrap">
-          <svg class="search-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
-          <input id="binderSearch" type="search" placeholder="Search your inventory…" autocomplete="off" />
+    <main id="main" tabindex="-1">
+      <section class="view active" id="view-collection" aria-labelledby="collectionTitle">
+        <div class="collection-heading">
+          <div>
+            <p class="eyebrow">Personal collection</p>
+            <h1 id="collectionTitle">The ledger</h1>
+          </div>
+          <button class="icon-button" id="moreButton" type="button" aria-label="Collection options" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+          </button>
         </div>
 
-        <div class="stats-row" id="statsRow">
-          <div class="stat"><span class="stat-num" id="statCount">0</span><span class="stat-label">Cards</span></div>
-          <div class="stat"><span class="stat-num" id="statValue">$0</span><span class="stat-label">Est. Value</span></div>
-          <div class="stat"><span class="stat-num" id="statSets">0</span><span class="stat-label">Sets</span></div>
+        <section class="portfolio-panel" aria-label="Portfolio summary">
+          <div class="portfolio-topline">
+            <span>Estimated market value</span>
+            <span class="status-label"><i></i> 5 of 6 priced</span>
+          </div>
+          <div class="portfolio-value" id="portfolioValue">$0.00</div>
+          <div class="portfolio-change" id="portfolioChange"></div>
+          <div class="portfolio-divider"></div>
+          <div class="portfolio-stats">
+            <div><span>Cost basis</span><strong id="costBasis">$0.00</strong></div>
+            <div><span>Unrealized</span><strong id="unrealized">—</strong></div>
+            <div><span>Owned</span><strong id="ownedCount">0 cards</strong></div>
+          </div>
+          <p class="valuation-note">Market references are estimates, not appraisals. <button id="methodButton" type="button">How valuation works</button></p>
+        </section>
+
+        <div class="view-tabs" role="tablist" aria-label="Collection view">
+          <button class="view-tab active" type="button" role="tab" aria-selected="true" data-ledger-view="all">All cards <span id="allCount">0</span></button>
+          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="graded">Graded</button>
+          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="unpriced">Unpriced</button>
         </div>
 
-        <div id="binderGrid" class="binder-grid"></div>
+        <div class="ledger-tools">
+          <label class="search-field">
+            <span class="sr-only">Search collection</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+            <input id="collectionSearch" type="search" placeholder="Search name, set, or number" autocomplete="off">
+          </label>
+          <button class="tool-button" id="filterButton" type="button" aria-label="Filter and sort collection" aria-haspopup="dialog">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+            <span id="filterLabel">Filter</span>
+          </button>
+        </div>
 
-        <div id="binderEmpty" class="empty-state">
-          <div class="empty-art" aria-hidden="true">📸</div>
-          <h2>Your binder is empty</h2>
-          <p>Snap a photo of a card or search the catalog to add your first one.</p>
-          <button class="primary-btn" data-goto="scan">Add a card</button>
+        <div class="ledger-meta">
+          <span id="resultCount">0 records</span>
+          <button id="sortButton" type="button">Value, high to low <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
+        </div>
+        <div class="card-ledger" id="cardLedger" aria-live="polite"></div>
+        <div class="empty-state hidden" id="collectionEmpty">
+          <span class="empty-mark" aria-hidden="true"></span>
+          <h2>No cards in this view</h2>
+          <p>Try clearing the search or changing your filters.</p>
+          <button class="text-button" id="clearFilters" type="button">Clear filters</button>
         </div>
       </section>
 
-      <!-- SCAN / ADD VIEW -->
-      <section id="view-scan" class="view">
-        <div class="scan-head">
-          <h2>Add a card</h2>
-          <p>Snap a photo for your records, then find the exact card in the catalog.</p>
+      <section class="view" id="view-scan" aria-labelledby="scanTitle">
+        <div class="scan-header">
+          <p class="eyebrow">Add to collection</p>
+          <h1 id="scanTitle">Scan a card</h1>
+          <p>We’ll read visible details, compare catalog records, then ask you to confirm the exact printing.</p>
         </div>
-
-        <div class="capture-card">
-          <div id="previewWrap" class="preview-wrap empty">
-            <img id="photoPreview" alt="Captured card" />
-            <div class="preview-hint">
-              <span class="preview-ic">📷</span>
-              <span>Tap below to snap your card</span>
-            </div>
+        <div class="capture-stage" id="captureStage">
+          <div class="camera-grid" aria-hidden="true"></div>
+          <div class="card-guide" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="capture-preview" id="capturePreview">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4z"/><circle cx="12" cy="13" r="3.2"/></svg>
+            <strong>Position one card inside the frame</strong>
+            <span>Use a plain background and avoid glare</span>
           </div>
-          <div class="capture-actions">
-            <label class="capture-btn primary">
-              <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden />
-              Snap photo
-            </label>
-            <label class="capture-btn">
-              <input id="galleryInput" type="file" accept="image/*" hidden />
-              From library
-            </label>
-          </div>
+          <div class="quality-chip" id="qualityChip"><span></span> Ready for a clear photo</div>
         </div>
-
-        <div class="catalog-search">
-          <label for="catalogSearch">Find the card</label>
-          <div class="search-wrap inline">
-            <svg class="search-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21l-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
-            <input id="catalogSearch" type="search" placeholder="e.g. Charizard, Pikachu ex…" autocomplete="off" />
-          </div>
-          <p class="hint">Search by name. Add a set number too for an exact match (e.g. “Charizard 4”).</p>
+        <div class="capture-controls">
+          <label class="primary-action capture-action">
+            <input id="cameraInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M4 8h3l1-2h8l1 2h3v11H4z"/></svg>
+            Take photo
+          </label>
+          <label class="secondary-action capture-action">
+            <input id="galleryInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden>
+            Choose from library
+          </label>
         </div>
-
-        <div id="catalogStatus" class="status-line"></div>
-        <div id="catalogResults" class="catalog-results"></div>
+        <div class="privacy-note">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          <p><strong>Your photo stays private.</strong> Backgrounds may contain personal details. Mica minimizes and removes temporary scan files after identification.</p>
+        </div>
+        <div class="manual-divider"><span>or</span></div>
+        <button class="manual-search-card" id="manualSearchButton" type="button">
+          <span><strong>Search the catalog manually</strong><small>Best for partial cards, slabs, or unsupported languages</small></span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
       </section>
 
-      <!-- DETAIL VIEW -->
-      <section id="view-detail" class="view">
-        <button class="back-btn" id="detailBack" type="button">‹ Back</button>
+      <section class="view" id="view-insights" aria-labelledby="insightsTitle">
+        <div class="screen-heading"><p class="eyebrow">Market context</p><h1 id="insightsTitle">Insights</h1><p>Movement based only on comparable, supported price snapshots.</p></div>
+        <div class="insight-feature">
+          <div class="insight-kicker">Collection movement · 30 days</div>
+          <strong id="movementValue">+$124.18</strong>
+          <span>+1.5% across 5 priced records</span>
+          <svg class="portfolio-chart" viewBox="0 0 340 104" role="img" aria-label="Collection value rose gradually over the past 30 days"><path class="chart-area" d="M0 90 C35 86 48 72 82 76 S127 60 159 65 S207 40 232 47 S279 32 340 18 L340 104 L0 104Z"/><path class="chart-line" d="M0 90 C35 86 48 72 82 76 S127 60 159 65 S207 40 232 47 S279 32 340 18"/></svg>
+        </div>
+        <h2 class="section-heading">What changed</h2>
+        <div id="moversList" class="movers-list"></div>
+        <div class="data-boundary"><strong>No sales history connected</strong><p>Mica does not infer completed sales from active listings. Add a licensed sales-history provider when approved.</p></div>
+      </section>
+
+      <section class="view" id="view-profile" aria-labelledby="profileTitle">
+        <div class="screen-heading"><p class="eyebrow">Account & preferences</p><h1 id="profileTitle">Jordan’s Mica</h1><p>Preview workspace · local-first mode</p></div>
+        <div class="profile-card"><div class="profile-avatar">JD</div><div><strong>Jordan’s collection</strong><span>Last synced just now</span></div><span class="plan-badge">Preview</span></div>
+        <div class="settings-group">
+          <h2>Collection</h2>
+          <button type="button" id="importButton"><span>Import CSV<small>Add records with row-level validation</small></span><b>›</b></button>
+          <button type="button" id="exportButton"><span>Export collection<small>Formula-safe CSV, all current records</small></span><b>›</b></button>
+          <input id="csvInput" type="file" accept=".csv,text/csv" hidden>
+        </div>
+        <div class="settings-group">
+          <h2>Preferences</h2>
+          <button type="button" id="currencyButton"><span>Display currency<small>Source currencies remain visible</small></span><strong>USD</strong></button>
+          <button type="button" id="motionButton"><span>Reduced motion<small>Follow device preference</small></span><strong>Auto</strong></button>
+        </div>
+        <div class="settings-group">
+          <h2>Trust & privacy</h2>
+          <button type="button" data-info="sources"><span>Data sources & attribution</span><b>›</b></button>
+          <button type="button" data-info="retention"><span>Scan retention</span><b>›</b></button>
+          <button type="button" data-info="privacy"><span>Privacy & account deletion</span><b>›</b></button>
+        </div>
+        <p class="legal-copy">Mica is an independent collection tool and is not affiliated with or endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak, TCGplayer, Cardmarket, eBay, PSA, CGC, or Beckett.</p>
+      </section>
+
+      <section class="view detail-view" id="view-detail" aria-labelledby="detailTitle">
         <div id="detailContent"></div>
       </section>
     </main>
 
-    <!-- ===== Bottom Nav ===== -->
-    <nav class="tabbar">
-      <button class="tab active" data-tab="binder">
-        <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 4v16"/></svg>
-        <span>Binder</span>
-      </button>
-      <button class="tab tab-scan" data-tab="scan">
-        <span class="scan-fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
-        <span>Add</span>
-      </button>
-      <button class="tab" data-tab="binder-alt" id="searchTab">
-        <svg viewBox="0 0 24 24"><path d="M21 21l-4.3-4.3M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z"/></svg>
-        <span>Search</span>
-      </button>
+    <nav class="bottom-nav" aria-label="Primary navigation">
+      <button class="nav-item active" type="button" data-route="collection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5"/></svg><span>Collection</span></button>
+      <button class="nav-item scan-nav" type="button" data-route="scan"><span class="scan-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Scan</span></button>
+      <button class="nav-item" type="button" data-route="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9M10 18V5M16 18v-7M21 18H3"/></svg><span>Insights</span></button>
+      <button class="nav-item" type="button" data-route="profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg><span>Profile</span></button>
     </nav>
   </div>
 
-  <div id="toast" class="toast"></div>
-
-  <!-- Supabase client (public, RLS-protected values — safe to ship). Sets window.sb before app.js
-       runs; if the CDN is unreachable the app silently falls back to local-only storage. -->
-  <script type="module">
-    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-    window.sb = createClient(
-      "https://hibkthhcohatgtzhpsjm.supabase.co",
-      "sb_publishable_zCf9LJ7g8RlqVN_vkh1tlg_nJtMy3aM"
-    );
-  </script>
-
-  <script src="app.js"></script>
+  <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+  <section class="bottom-sheet" id="bottomSheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div id="sheetContent"></div>
+  </section>
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

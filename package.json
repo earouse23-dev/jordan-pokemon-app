@@ -1,0 +1,14 @@
+{
+  "name": "mica-collection-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve . -l 4173",
+    "test": "node tests/core.test.js",
+    "typecheck": "node --check app.js && node --check lib/core.js",
+    "lint": "node scripts/lint.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

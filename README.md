@@ -1,67 +1,58 @@
-# CardVault — Pokémon Inventory
+# Mica — collection ledger
 
-Snap a photo of your Pokémon cards, build a digital binder, and check **live market pricing** before you sell. Built as an installable, mobile-first **PWA** so it runs on an iPhone (Safari → Share → *Add to Home Screen*) and deploys anywhere static — no build step, no API keys.
+Mica is a mobile-first, installable collection ledger for trading-card collectors. It turns a physical card into an editable owned-copy record, keeps price context attributable, and remains useful when pricing or recognition is unavailable.
 
-## Why a PWA (and not native iOS)
+This repository is a dependency-free PWA product slice. It runs locally with realistic, explicitly labeled demo data and includes production-oriented provider contracts plus a normalized Supabase schema. It does **not** claim live pricing, completed sales, appraisal value, or automated condition grading.
 
-The mission asked for an iPhone App Store app. Native Swift/SwiftUI requires a Mac + Xcode + a paid Apple Developer account, none of which exist in this build environment. A PWA delivers the **exact same vendor workflow today** — installable, full-screen, camera access, offline binder — and can be wrapped for the App Store later (e.g. via a WKWebView shell or Capacitor) without rewriting the product.
+## Run
 
-## Features
-
-- **📸 Snap & save** — capture a card with the phone camera; the photo is downscaled and saved with the card.
-- **☁️ Cloud sync (Supabase)** — your binder is stored in Supabase and synced across sessions; IndexedDB is kept as an offline cache so the app keeps working with no connection and reconciles when you're back online.
-- **🗂️ Digital binder** — every card you add is saved to your binder (cloud + on-device).
-- **🔎 Instant inventory search** — filter your binder by name, set, or card number; live totals (count, est. value, sets).
-- **🗃️ Every Pokémon card** — search the full [pokemontcg.io](https://pokemontcg.io) catalog: ~20k+ cards across every official English & major international set, with images, set, number, rarity and variant.
-- **💲 Live pricing** — market / low / high / mid pulled from pokemontcg.io, which returns real **TCGPlayer** prices.
-- **📊 Card Ladder-style detail** — every card opens to a full market page mirroring Card Ladder:
-  - **Price trend** — real **24h / 7-day / 30-day** % moves with a sparkline chart (rolling Cardmarket averages bundled in the catalog feed).
-  - **Recent sales** — newest-first table of rolling average sale prices with the source & date.
-  - **Card details** — set, rarity, **artist**, **National Pokédex №**, release year, and **print run**.
-  - **Demand signal**, last-sold, mid price, and direct TCGPlayer listing links.
-- **✅ Price-matched comps** — recent listings are filtered to **within ±15% of the market average**, so out-of-place prices are excluded (the core vendor requirement).
-
-### Honest limitations
-- **Recent sales** are rolling **average** windows (24h/7d/30d) from Cardmarket — real movement, but no free API exposes per-sale timestamps or true individual sold comps.
-- **Graded population** (PSA/BGS/CGC) has no free API and is marked *Not tracked yet*.
-- **Card recognition** from the photo is not automated; you snap the photo, then find the exact card in the catalog (always reliable, even on worn/foil cards).
-
-## Run locally
-
-It's a static site — just serve the folder over HTTP (the camera + service worker need `http://localhost` or HTTPS, not `file://`):
+Requires Node 20+.
 
 ```bash
-npx serve .
-# or
-python -m http.server 8000
+npm run dev
 ```
 
-Then open the URL on your phone (same network) or desktop.
+Open `http://localhost:4173`. The first load uses six preview records; local edits persist in `localStorage`. Use Collection options → Restore preview records to reset.
 
-## Deploy
+## Verify
 
-Zero-config static deploy. On **Vercel**: import the repo and deploy — no settings needed. Works the same on GitHub Pages or Netlify. HTTPS (which all three provide) is required for the camera on iOS Safari.
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build
+```
 
-## Files
+`npm run build` produces the deployable static bundle in `dist/`.
 
-| File | Purpose |
-|---|---|
-| `index.html` | App shell & views (binder / add / detail) |
-| `styles.css` | Visual design (dark, mobile-first) |
-| `app.js` | Logic: Supabase cloud sync + IndexedDB cache, camera capture, pokemontcg.io search, pricing, price-trend/sparkline + recent-sales extraction, ±15% comp filter |
-| `index.html` | App shell; also boots the Supabase client (public RLS-protected key, hard-coded — no env vars needed on Vercel) |
-| `manifest.webmanifest` | PWA install metadata |
-| `sw.js` | Service worker — caches the shell, always fetches pricing fresh |
-| `icons/icon.svg` | App icon |
-| `supabase/schema.sql` | Cloud schema (`app_c14bef07_cards`) with RLS — see below |
+## What works in the product slice
 
-## Supabase backend
+- Mobile collection ledger with valuation, cost basis, gain/loss, partial-pricing disclosure, search, saved view modes, and sorting.
+- Card detail with identity, owned-copy metadata, transparent source/type/currency context, and honest unavailable states.
+- Camera/library capture with MIME and size gates, truthful pipeline stages, multiple candidates, confirmation, retake, and manual-search fallback.
+- Add/edit quantity, condition, grading company, grade, cost, purchase date, tags, notes, and location.
+- Formula-injection-safe CSV export and a validation-only import preview.
+- Offline shell, card-image caching, local persistence, reduced-motion support, and installable PWA metadata.
+- Provider-neutral TypeScript contracts and an ownership-scoped Supabase schema with RLS.
 
-The app is wired to Supabase. The connection values in `index.html` are **public** and protected by Row Level Security, so they're safe to ship and require no Vercel configuration.
+## Production setup
 
-- **Schema:** a single table `app_c14bef07_cards` (namespaced to keep this app's data isolated from others sharing the project). RLS is enabled. A `details` jsonb column stores the Card Ladder-style identity (artist/year/Pokédex №/print run); the schema's `add column if not exists` keeps it idempotent for existing tables.
-- **How a binder is owned (secure):** there is no login screen, but the app uses **Supabase Anonymous Sign-Ins** — each device silently gets a real auth user, and the RLS policy keys every row to `auth.uid()`. Ownership is enforced **server-side**, so one device can never read or write another's rows. The session is persisted, so a device keeps the same binder across visits. To add full accounts later (email/social), no schema change is needed — just add a login UI; the same `auth.uid()` policy keeps working.
-- **⚠️ One dashboard toggle required:** enable **Authentication → Sign In / Providers → Anonymous Sign-ins**. Until that's on, the app runs **local-only** (IndexedDB) and never exposes data — it just won't sync to the cloud.
-- **Apply the schema:** ACE applies `supabase/schema.sql` automatically after a build. To run it manually, open the Supabase dashboard → **SQL Editor**, paste the file, and run it (it's idempotent — safe to re-run). Tables may not exist until this is applied.
+1. Create a dedicated Supabase project and configure email/password, email verification, password reset, and Google OAuth if approved.
+2. Apply `supabase/schema.sql` to a **fresh** project, then run Supabase database advisors and cross-user RLS tests.
+3. Create a private scan bucket with per-user object policies and a 24-hour cleanup job.
+4. Deploy catalog, pricing, and identification adapters as authenticated server/edge functions. Do not expose provider or Gemini secrets in the browser.
+5. Copy `.env.example`, add only server-side secrets to the deployment environment, and configure rate limits.
+6. Replace demo fixtures after approved provider accounts and data rights are confirmed.
 
-No tracking. Your cards and photos sync to your Supabase project under your device's own auth user, and are cached on-device for offline use.
+The Pokémon TCG API is the recommended initial catalog/price-field bridge. New direct TCGplayer and Cardmarket API access is not currently available, and ordinary eBay Browse access does not provide completed sales. See [provider research](docs/provider-research.md).
+
+## Deployment
+
+Deploy `dist/` to any HTTPS static host. Camera access and service workers require HTTPS outside localhost. A production data-connected release also needs authenticated server functions; the static bundle alone intentionally does not make third-party pricing calls.
+
+## Documentation
+
+Start with [architecture](docs/architecture.md), [PRD](docs/prd.md), [provider research](docs/provider-research.md), and [production readiness](docs/production-readiness.md).
+
+Mica is independent and is not affiliated with or endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak, TCGplayer, Cardmarket, eBay, PSA, CGC, Beckett, or Card Ladder.
+
