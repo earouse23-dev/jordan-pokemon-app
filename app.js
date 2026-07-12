@@ -52,7 +52,7 @@ function renderQuoteRow(quote, label) {
   const source = quote.providerUrl
     ? `<a href="${esc(quote.providerUrl)}" target="_blank" rel="noreferrer">${esc(label)}</a>`
     : `<strong>${esc(label)}</strong>`;
-  return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.currency)}</span><span>Observed ${esc(quote.observedAt || 'date unavailable')} · retrieved ${esc(quote.retrievedAt.slice(0,10))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
+  return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.condition || 'Condition-neutral')} · ${esc(quote.currency)}</span><span>Observed ${esc(quote.observedAt || 'date unavailable')} · retrieved ${esc(quote.retrievedAt.slice(0,10))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
 }
 
 function historyForItem(item) {
@@ -165,7 +165,7 @@ function renderDetail() {
   const item = state.items.find(candidate => candidate.uid === state.detailId);
   if (!item) return routeTo('collection');
   const total = itemValue(item);
-  const tcgQuote = selectReferenceQuote(item.quotes, item.variant);
+  const tcgQuote = selectReferenceQuote(item.quotes, item.variant, 'USD', item);
   const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
   const sourceRows = item.price == null ? `<div class="unavailable-panel"><strong>Pricing unavailable for this printing.</strong><br>The collection record is preserved and excluded from estimated totals. Mica will not substitute a different variant or condition.</div>`
     : item.pricingStatus === 'live'
@@ -304,7 +304,7 @@ async function refreshLivePricing() {
       const card = cards.get(item.id);
       const demoPrice = item.demoPrice ?? item.price;
       if (!card) return { ...item, demoPrice, price:null, move:null, quotes:[], pricingStatus:'unavailable', pricingUpdatedAt:null };
-      const quote = selectReferenceQuote(card.quotes, item.variant);
+      const quote = selectReferenceQuote(card.quotes, item.variant, 'USD', item);
       return {
         ...item,
         demoPrice,

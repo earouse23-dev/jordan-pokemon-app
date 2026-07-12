@@ -31,6 +31,17 @@ test('selects only a compatible TCGplayer finish and preferred price type', () =
   assert.equal(selectReferenceQuote(quotes, 'Normal'), null);
 });
 
+test('does not mix raw quotes into graded copies or substitute a different raw condition', () => {
+  const rawQuotes = normalizeJustTcgCard({ id:'card', name:'Card', variants:[
+    { id:'nm', condition:'Near Mint', printing:'Holofoil', price:100, lastUpdated:1783814400 },
+  ] }).quotes;
+  assert.equal(selectReferenceQuote(rawQuotes, 'Holofoil', 'USD', { gradingCompany:'PSA', grade:'10' }), null);
+  assert.equal(selectReferenceQuote(rawQuotes, 'Holofoil', 'USD', { condition:'Lightly Played' }), null);
+  assert.equal(selectReferenceQuote(rawQuotes, 'Holofoil', 'USD', { condition:'Near Mint' }).amount, 100);
+  const neutral = normalizeTcgdexPricingCard({ id:'x', pricing:{tcgplayer:{unit:'USD',holofoil:{marketPrice:80}}} }).quotes;
+  assert.equal(selectReferenceQuote(neutral, 'Holofoil', 'USD', { condition:'Lightly Played' }).amount, 80);
+});
+
 test('selects compatible Cardmarket reference without mixing currencies', () => {
   const quotes = normalizeCard(card).quotes;
   assert.equal(selectCardmarketReference(quotes, 'Holofoil').amount, 8.2);
