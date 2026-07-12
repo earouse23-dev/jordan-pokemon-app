@@ -44,8 +44,8 @@ test('does not mix raw quotes into graded copies or substitute a different raw c
 
 test('selects compatible Cardmarket reference without mixing currencies', () => {
   const quotes = normalizeCard(card).quotes;
-  assert.equal(selectCardmarketReference(quotes, 'Holofoil').amount, 8.2);
-  assert.equal(selectCardmarketReference(quotes, 'Reverse Holofoil').amount, 6.7);
+  assert.equal(selectCardmarketReference(quotes, 'Holofoil'), null);
+  assert.equal(selectCardmarketReference(quotes, 'Reverse Holofoil'), null);
   assert.equal(finishForVariant('1st Edition Holofoil'), '1stEditionHolofoil');
 });
 
@@ -97,6 +97,7 @@ test('normalizes public TCGdex TCGplayer and Cardmarket price fields', () => {
   assert.equal(normalized.quotes.find(quote => quote.provider === 'tcgplayer' && quote.priceType === 'market').finish, 'holofoil');
   assert.equal(normalized.quotes.find(quote => quote.provider === 'cardmarket' && quote.priceType === 'trend').amount, 275);
   assert.equal(normalized.quotes.find(quote => quote.quality.windowDays === 7).amount, 270);
+  assert.equal(selectCardmarketReference(normalized.quotes, 'Holofoil').amount, 275);
   assert.equal(normalized.quotes.some(quote => quote.quality.field === 'idProduct'), false);
   assert.equal(normalized.quotes.some(quote => quote.amount === 0), false);
 });
