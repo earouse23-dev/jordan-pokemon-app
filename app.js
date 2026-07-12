@@ -288,6 +288,7 @@ async function refreshLivePricing() {
     clientId: item.id,
     justtcgId: item.externalIds?.justtcg || '',
     tcgplayerId: item.externalIds?.tcgplayer || '',
+    tcgdexId: item.externalIds?.tcgdex || '',
     name: item.name,
     set: item.set,
     number: item.number,

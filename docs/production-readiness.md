@@ -16,7 +16,7 @@
 
 ## Provider account instructions
 
-Pokémon TCG API: register only if the chosen usage/rate needs a key. TCGplayer/Cardmarket direct credentials cannot be assumed for new applicants. eBay requires a developer application and does not unlock restricted Insights by default. Gemini requires a paid Google AI project and retention/privacy approval. Supabase requires a dedicated organization/project and publishable/secret keys stored in correct client/server environments.
+TCGdex requires no key for the baseline catalog and market adapter. JustTCG requires a server-only key and written commercial authorization for the enhanced tracker use case. TCGplayer/Cardmarket direct credentials cannot be assumed for new applicants. eBay requires a developer application and does not unlock restricted Insights by default. Gemini requires a paid Google AI project and retention/privacy approval. Supabase requires a dedicated organization/project and publishable/secret keys stored in correct client/server environments.
 
 ## Backup and recovery
 

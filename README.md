@@ -2,7 +2,7 @@
 
 Mica is a mobile-first, installable collection ledger for trading-card collectors. It turns a physical card into an editable owned-copy record, keeps price context attributable, and remains useful when pricing or recognition is unavailable.
 
-This repository is a dependency-free PWA product slice. It runs locally with realistic, explicitly labeled demo data and includes production-oriented provider contracts plus a normalized Supabase schema. It does **not** claim live pricing, completed sales, appraisal value, or automated condition grading.
+This repository is a dependency-free PWA product slice. It runs locally with explicitly labeled fallback fixtures and includes live TCGdex catalog/market adapters, an enhanced JustTCG adapter, a licensed sold-evidence boundary, and a normalized Supabase schema. It does **not** claim appraisal value or automated condition grading.
 
 ## Run
 
@@ -35,11 +35,11 @@ npm run build
 - Formula-injection-safe CSV export and a validation-only import preview.
 - Offline shell, card-image caching, local persistence, reduced-motion support, and installable PWA metadata.
 - Provider-neutral TypeScript contracts and an ownership-scoped Supabase schema with RLS.
-- Server-side live pricing through the Pokémon TCG API, with compatible TCGplayer USD and Cardmarket EUR quotes kept separate.
+- Server-side live pricing through TCGdex with compatible TCGplayer USD and Cardmarket EUR quotes kept separate, plus optional condition-level JustTCG pricing.
 
 ## Live pricing
 
-Set `PRICING_PROVIDER_API_KEY` as a **Sensitive** Vercel environment variable for Production, then redeploy. The key is read only by `api/cards.js` and is sent upstream in the documented `X-Api-Key` header; it is never included in browser code or API responses.
+No secret is required for the public TCGdex market-price fallback. For enhanced condition × printing quotes and daily history, set `JUSTTCG_API_KEY` as a **Sensitive** Vercel environment variable for Production, then redeploy. The key is read only by `api/cards.js`, sent upstream in the documented `x-api-key` header, and never included in browser code or API responses.
 
 The collection requests normalized quotes for its card IDs. TCGplayer market is preferred only when the finish matches the owned record. Missing or incompatible prices remain explicitly unpriced, while provider outages fall back to clearly labeled preview values.
 
@@ -52,7 +52,7 @@ The collection requests normalized quotes for its card IDs. TCGplayer market is 
 5. Copy `.env.example`, add only server-side secrets to the deployment environment, and configure rate limits.
 6. Replace demo fixtures after approved provider accounts and data rights are confirmed.
 
-The Pokémon TCG API is the recommended initial catalog/price-field bridge. New direct TCGplayer and Cardmarket API access is not currently available, and ordinary eBay Browse access does not provide completed sales. See [provider research](docs/provider-research.md).
+TCGdex is the initial multilingual catalog and no-secret market-price bridge. JustTCG is the enhanced quote source after commercial authorization. New direct TCGplayer and Cardmarket API access is not currently available, and ordinary eBay Browse access does not provide completed sales. See [provider research](docs/provider-research.md).
 
 ## Deployment
 

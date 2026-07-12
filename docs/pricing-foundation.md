@@ -31,7 +31,7 @@ The sold-comparable method uses a recency-weighted median after rejecting duplic
 ```text
 TCGdex catalog ──> catalog staging ──> canonical cards/variants ──┐
                                                                 │
-JustTCG quotes ──> provider adapter ──> immutable price quotes ──┼─> card API
+TCGdex + JustTCG ─> provider adapters ─> immutable price quotes ─┼─> card API
                                                                 │
 licensed sales ──> validation/mapping ─> sold transactions ─────┤
                                                                 │
@@ -60,7 +60,7 @@ Responses use internal IDs and normalized schemas. Provider-specific fields stay
 ## Rollout gates
 
 1. Catalog and variant identity with coverage reporting.
-2. JustTCG current quotes behind server-only configuration.
+2. No-secret TCGdex current quotes, enhanced by JustTCG behind server-only configuration.
 3. Durable history and source freshness UI.
 4. Licensed sold evidence and transparent valuation.
 5. Graded/population data.

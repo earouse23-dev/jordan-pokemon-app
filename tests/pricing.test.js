@@ -4,7 +4,7 @@ import handler from '../api/cards.js';
 import { finishForVariant, normalizeCard, selectCardmarketReference, selectReferenceQuote } from '../lib/pricing.js';
 import { normalizeJustTcgCard, normalizePrinting } from '../lib/providers/justtcg.js';
 import { normalizePkmnPricesSale } from '../lib/providers/pkmnprices.js';
-import { normalizeTcgdexCard } from '../lib/providers/tcgdex.js';
+import { normalizeTcgdexCard, normalizeTcgdexPricingCard } from '../lib/providers/tcgdex.js';
 
 const card = {
   id: 'set-1', name: 'Test card', number: '1', set: { name: 'Test Set', releaseDate: '2026/01/02' },
@@ -66,6 +66,19 @@ test('normalizes catalog variants and only preserves safe sold-listing links', (
   assert.equal(unsafe.sourceUrl, null);
 });
 
+test('normalizes public TCGdex TCGplayer and Cardmarket price fields', () => {
+  const normalized = normalizeTcgdexPricingCard({
+    id:'base1-4', localId:'4', name:'Charizard', set:{name:'Base Set'}, pricing:{
+      tcgplayer:{updated:'2026-07-12T10:00:00Z',unit:'USD','unlimited-holofoil':{marketPrice:350,lowPrice:300}},
+      cardmarket:{updated:'2026-07-12T00:00:00Z',unit:'EUR','trend-holo':275,'avg7-holo':270},
+    },
+  }, '2026-07-12T12:00:00Z', 'client-base');
+  assert.equal(normalized.providerCardId, 'client-base');
+  assert.equal(normalized.quotes.find(quote => quote.provider === 'tcgplayer' && quote.priceType === 'market').finish, 'holofoil');
+  assert.equal(normalized.quotes.find(quote => quote.provider === 'cardmarket' && quote.priceType === 'trend').amount, 275);
+  assert.equal(normalized.quotes.find(quote => quote.quality.windowDays === 7).amount, 270);
+});
+
 test('server endpoint keeps the JustTCG key in the upstream header and returns normalized data', async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.JUSTTCG_API_KEY;
@@ -90,12 +103,41 @@ test('server endpoint keeps the JustTCG key in the upstream header and returns n
     await handler({ method:'GET', query:{ lookups }, headers:{}, socket:{} }, response);
     assert.equal(response.statusCode, 200);
     assert.equal(body.cards[0].providerCardId, 'set-1');
-    assert.equal(body.provider, 'justtcg');
+    assert.deepEqual(body.providers, ['justtcg']);
     assert.equal(JSON.stringify(body).includes('test-server-secret'), false);
     assert.match(headers['Cache-Control'], /s-maxage=900/);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.JUSTTCG_API_KEY;
     else process.env.JUSTTCG_API_KEY = originalKey;
+  }
+});
+
+test('server endpoint returns public TCGdex market pricing when no paid key is configured', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalJustKey = process.env.JUSTTCG_API_KEY;
+  const originalPricingKey = process.env.PRICING_PROVIDER_API_KEY;
+  delete process.env.JUSTTCG_API_KEY; delete process.env.PRICING_PROVIDER_API_KEY;
+  let body;
+  const response = {
+    setHeader() {}, status(status) { this.statusCode = status; return this; }, json(value) { body = value; return value; },
+  };
+  globalThis.fetch = async url => {
+    assert.match(String(url), /api\.tcgdex\.net\/v2\/en\/cards\/base1-4/);
+    return new Response(JSON.stringify({
+      id:'base1-4', localId:'4', name:'Charizard', set:{name:'Base Set'},
+      pricing:{tcgplayer:{updated:'2026-07-12T10:00:00Z',unit:'USD',holofoil:{marketPrice:350}}},
+    }), { status:200, headers:{'Content-Type':'application/json'} });
+  };
+  try {
+    const lookups = JSON.stringify([{ clientId:'base1-4', name:'Charizard', set:'Base Set', number:'4/102' }]);
+    await handler({ method:'GET', query:{lookups}, headers:{}, socket:{} }, response);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(body.providers, ['tcgdex']);
+    assert.equal(body.cards[0].quotes[0].amount, 350);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalJustKey === undefined) delete process.env.JUSTTCG_API_KEY; else process.env.JUSTTCG_API_KEY = originalJustKey;
+    if (originalPricingKey === undefined) delete process.env.PRICING_PROVIDER_API_KEY; else process.env.PRICING_PROVIDER_API_KEY = originalPricingKey;
   }
 });

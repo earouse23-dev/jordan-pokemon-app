@@ -1,4 +1,5 @@
 import { fetchJustTcgLookup, normalizeJustTcgCard } from '../lib/providers/justtcg.js';
+import { fetchTcgdexPricingLookup, normalizeTcgdexPricingCard } from '../lib/providers/tcgdex.js';
 
 const windows = new Map();
 const SAFE_TEXT = /^[\p{L}\p{N} .:'&+\-/()#]{1,120}$/u;
@@ -35,12 +36,13 @@ function parseLookups(request) {
       clientId: String(raw?.clientId || '').trim(),
       justtcgId: String(raw?.justtcgId || '').trim(),
       tcgplayerId: String(raw?.tcgplayerId || '').trim(),
+      tcgdexId: String(raw?.tcgdexId || '').trim(),
       name: String(raw?.name || '').trim(),
       set: String(raw?.set || '').trim(),
       number: String(raw?.number || '').trim(),
     };
     if (!lookup.clientId || seen.has(lookup.clientId)) continue;
-    const hasDirectId = /^[A-Za-z0-9-]{1,100}$/.test(lookup.justtcgId) || /^\d{1,12}$/.test(lookup.tcgplayerId);
+    const hasDirectId = /^[A-Za-z0-9-]{1,100}$/.test(lookup.justtcgId) || /^\d{1,12}$/.test(lookup.tcgplayerId) || /^[A-Za-z0-9.-]+-[A-Za-z0-9.-]+$/.test(lookup.tcgdexId);
     const hasSearch = SAFE_TEXT.test(lookup.name) && (!lookup.set || SAFE_TEXT.test(lookup.set)) && (!lookup.number || SAFE_TEXT.test(lookup.number));
     if (!hasDirectId && !hasSearch) return null;
     seen.add(lookup.clientId);
@@ -60,32 +62,38 @@ export default async function handler(request, response) {
   if (!lookups) return send(response, 400, { error: 'Provide 1 to 8 valid card lookups.' });
 
   const apiKey = process.env.JUSTTCG_API_KEY || process.env.PRICING_PROVIDER_API_KEY;
-  if (!apiKey) return send(response, 503, { error: 'Live pricing is not configured.', provider: 'justtcg' });
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9_000);
   const retrievedAt = new Date().toISOString();
   try {
-    const settled = await Promise.allSettled(lookups.map(lookup => fetchJustTcgLookup(apiKey, lookup, controller.signal)));
-    const cards = [];
-    const unavailable = [];
-    let rateLimited = false;
-    settled.forEach((result, index) => {
-      const lookup = lookups[index];
-      if (result.status === 'fulfilled' && result.value.card) cards.push(normalizeJustTcgCard(result.value.card, retrievedAt, lookup.clientId));
-      else {
-        unavailable.push(lookup.clientId);
-        if (result.status === 'rejected' && result.reason?.status === 429) rateLimited = true;
-      }
+    const cardsByClientId = new Map();
+    const providers = new Set();
+    if (apiKey) {
+      const primary = await Promise.allSettled(lookups.map(lookup => fetchJustTcgLookup(apiKey, lookup, controller.signal)));
+      primary.forEach((result, index) => {
+        if (result.status !== 'fulfilled' || !result.value.card) return;
+        const card = normalizeJustTcgCard(result.value.card, retrievedAt, lookups[index].clientId);
+        cardsByClientId.set(card.providerCardId, card); providers.add('justtcg');
+      });
+    }
+    const fallbacks = lookups.filter(lookup => !cardsByClientId.has(lookup.clientId));
+    const fallbackResults = await Promise.allSettled(fallbacks.map(lookup => fetchTcgdexPricingLookup(lookup, controller.signal)));
+    fallbackResults.forEach((result, index) => {
+      if (result.status !== 'fulfilled' || !result.value) return;
+      const card = normalizeTcgdexPricingCard(result.value, retrievedAt, fallbacks[index].clientId);
+      cardsByClientId.set(card.providerCardId, card); providers.add('tcgdex');
     });
-    if (!cards.length && rateLimited) return send(response, 429, { error: 'The pricing plan rate limit was reached.', provider: 'justtcg', unavailable }, { 'Retry-After': '60' });
-    return send(response, 200, { cards, unavailable, retrievedAt, provider: 'justtcg', partial: unavailable.length > 0 }, {
+    const cards = [...cardsByClientId.values()];
+    const unavailable = lookups.filter(lookup => !cardsByClientId.has(lookup.clientId)).map(lookup => lookup.clientId);
+    if (!cards.length) return send(response, 502, { error: 'No pricing provider responded.', providers: ['justtcg', 'tcgdex'], unavailable });
+    return send(response, 200, { cards, unavailable, retrievedAt, providers: [...providers], partial: unavailable.length > 0 }, {
       'Cache-Control': 's-maxage=900, stale-while-revalidate=3600',
       'CDN-Cache-Control': 'max-age=900',
     });
   } catch (error) {
     console.error('[api/cards] provider request errored', { name: error?.name || 'Error' });
-    return send(response, 502, { error: 'The pricing provider did not respond in time.', provider: 'justtcg' });
+    return send(response, 502, { error: 'The pricing providers did not respond in time.', providers: ['justtcg', 'tcgdex'] });
   } finally {
     clearTimeout(timeout);
   }
