@@ -10,9 +10,9 @@ npm run lint
 npm run build
 ```
 
-Results: 15/15 unit tests passed; the schema validator confirmed 35/35 public tables have RLS; JavaScript and Deno checks passed; custom source lint passed across 13 files; production bundle built successfully to `dist/`. Pricing tests cover normalization, currency/finish/condition/grade compatibility, preferred price selection, history deduplication, server-only key forwarding, normalized output, and cache headers.
+Results: 15/15 unit tests passed; the schema validator confirmed 36/36 public tables have RLS; JavaScript and Deno checks passed; custom source lint passed across 13 files; production bundle built successfully to `dist/`. Pricing tests cover normalization, currency/finish/condition/grade compatibility, preferred price selection, history deduplication, server-only key forwarding, normalized output, and cache headers.
 
-The dedicated Supabase project now has four versioned migrations, 35 public tables with RLS, an active JWT-protected catalog Edge Function, and an active hourly price-metric cron job. An unauthenticated importer request returned `401`. Supabase security advisors report no warning/error findings and only informational default-deny notices for five server-only operational tables. Performance advisors report only expected unused-index information while the database remains empty.
+The dedicated Supabase project now has five versioned migrations, 36 public tables with RLS, version 2 of the active JWT-protected catalog Edge Function, an active Vault-backed dispatcher cron, and an active hourly price-metric cron job. Ten language targets are pending with zero attempts while the service-role JWT is absent, proving the dispatcher is dormant rather than failing or bypassing authorization. An unauthenticated importer request returned `401`. Supabase security advisors report no warning/error findings and only informational default-deny notices for six server-only operational tables.
 
 The failing Vercel deployment was traced to `STATIC_BUILD_NO_OUT_DIR`: the project expected `public/` while the build emits `dist/`. Repository-owned `vercel.json` now sets the build command and output directory explicitly.
 
@@ -22,4 +22,4 @@ Browser QA passed at 390×844 and 320×700: meaningful content, 6 seeded records
 
 Not browser-automated: native camera/file chooser upload, download confirmation, physical-device permissions, screen-reader speech, and a connected provider outage. Those remain device/infrastructure checks.
 
-Not yet executable end to end: protected full catalog backfill (requires an authorized service-role operator), recurring external importer invocation, licensed sold-data ingestion, cross-user RLS integration with test identities, Auth/OAuth, private signed upload, Gemini identification, scheduled cleanup, provider outage integration, and production monitoring.
+Not yet executable end to end: protected full catalog backfill (requires an authorized service-role JWT in Vault), licensed sold-data ingestion, cross-user RLS integration with test identities, Auth/OAuth, private signed upload, Gemini identification, scheduled cleanup, provider outage integration, and production monitoring.

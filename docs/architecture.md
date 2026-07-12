@@ -14,6 +14,8 @@ UI never consumes provider response schemas. Functions validate normalized outpu
 
 `supabase/functions/sync-catalog` is the resumable system-of-record importer. A service-role caller supplies a language and page; the function fetches bounded TCGdex batches, normalizes sets/cards/variants/images/external IDs, stores compatible positive market observations, records coverage, and returns the next cursor. It cannot be invoked by browser or authenticated-user tokens. PostgreSQL deduplicates provider observations and an internal `pg_cron` job refreshes daily OHLC/average metrics hourly.
 
+`catalog_sync_targets` and `dispatch_catalog_sync()` form the backfill control plane. A minute cron claims up to three different language pages with row locks, invokes the importer asynchronously through `pg_net`, retries abandoned/failed claims, and restarts completed language cycles after their configured refresh interval. The dispatcher returns without claiming work unless its project URL and service-role JWT exist in Vault.
+
 ## Modules
 
 - `types/providers.ts`: normalized provider capabilities and contracts.

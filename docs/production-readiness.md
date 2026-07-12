@@ -4,11 +4,11 @@
 - [x] Provider research, capability boundaries, transparent demo data, no fabricated completed sales.
 - [x] Normalized schema, ownership-consistent foreign keys, complete RLS coverage, and versioned launch migration.
 - [x] Dedicated Supabase project; launch schema applied; security and performance advisors reviewed.
-- [x] Service-role-only multilingual catalog importer deployed; durable price observations and hourly daily-metric rollup active.
+- [x] Service-role-only multilingual catalog importer deployed; Vault-backed resumable scheduler and hourly daily-metric rollup active.
 - [x] Vercel build/output configuration and baseline response headers.
 - [ ] Brand/trademark approval and legal terms review.
 - [ ] Auth templates/providers, private Storage policies, and cross-user RLS tests with real test identities.
-- [ ] Authorized operator secret in Vault, full catalog backfill, recurring external sync, provider approval/keys, and health/circuit alerting.
+- [ ] Authorized service-role JWT in Vault, completed catalog backfill, provider approval/keys, and health/circuit alerting.
 - [ ] OCR/vision evaluation dataset and measured top-1/top-3/no-match/correction/cost results.
 - [ ] Production import/export jobs, idempotent outbox, account deletion, retention cleanup.
 - [ ] Analytics/monitoring configuration, alert routing, incident runbook, backups and restore drill.

@@ -251,9 +251,18 @@ Deno.serve(async request => {
       status: 'completed', cursor: nextPage ? JSON.stringify({ language, page: nextPage }) : null,
       records_processed: cards.length, finished_at: new Date().toISOString(),
     }).eq('id', run.id);
+    await supabase.from('catalog_sync_targets').update({
+      next_page: nextPage, status: nextPage ? 'pending' : 'completed', claimed_at: null,
+      next_attempt_at: new Date().toISOString(), completed_at: nextPage ? null : new Date().toISOString(),
+      last_error: null, updated_at: new Date().toISOString(),
+    }).eq('language', language).eq('next_page', page);
     return json({ runId: run.id, language, page, processed: cards.length, quoteSnapshots: snapshots.length, nextPage, hasMore: nextPage !== null });
   } catch (error) {
     await supabase.from('catalog_sync_runs').update({ status: 'failed', finished_at: new Date().toISOString() }).eq('id', run.id);
+    await supabase.from('catalog_sync_targets').update({
+      status: 'pending', claimed_at: null, next_attempt_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+      last_error: 'catalog sync failed', updated_at: new Date().toISOString(),
+    }).eq('language', language).eq('next_page', page);
     console.error('[sync-catalog]', error instanceof Error ? error.message : 'Unknown error');
     return json({ error: 'Catalog sync failed', runId: run.id }, 502);
   }
