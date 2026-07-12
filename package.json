@@ -7,7 +7,7 @@
     "dev": "npx serve . -l 4173",
     "test": "node tests/run.js",
     "test:schema": "node scripts/validate-schema.mjs",
-    "typecheck": "node --check app.js && node --check api/cards.js && node --check lib/core.js && node --check lib/pricing.js",
+    "typecheck": "node --check app.js && node --check api/cards.js && node --check api/catalog.js && node --check api/sales.js && node --check lib/core.js && node --check lib/pricing.js && node --check lib/providers/justtcg.js && node --check lib/providers/pkmnprices.js && node --check lib/providers/tcgdex.js",
     "lint": "node scripts/lint.mjs",
     "build": "node scripts/build.mjs"
   },

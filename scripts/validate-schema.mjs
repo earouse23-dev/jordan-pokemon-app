@@ -7,9 +7,9 @@ const rlsTables = new Set(
 );
 const required = [
   'profiles', 'subscriptions', 'usage_events', 'card_sets', 'cards', 'card_variants',
-  'card_external_ids', 'card_images', 'catalog_sync_runs', 'collections', 'collection_items',
+  'card_external_ids', 'variant_external_ids', 'card_images', 'catalog_sync_runs', 'catalog_coverage_snapshots', 'collections', 'collection_items',
   'owned_copies', 'collection_tags', 'collection_item_tags', 'saved_views', 'card_scans',
-  'scan_candidates', 'scan_feedback', 'price_sources', 'price_products', 'price_snapshots',
+  'scan_candidates', 'scan_feedback', 'price_sources', 'provider_policies', 'price_products', 'price_snapshots', 'price_daily_metrics',
   'sales_records', 'pricing_sync_runs', 'purchase_transactions', 'sale_transactions',
   'valuation_snapshots', 'provider_health_events', 'audit_events', 'import_jobs', 'export_jobs',
 ];

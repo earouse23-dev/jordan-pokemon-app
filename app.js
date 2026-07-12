@@ -1,5 +1,5 @@
 import { money, calculateTotals, collectionToCsv, matchesSearch } from './lib/core.js';
-import { selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
+import { finishForVariant, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 
 const STORAGE_KEY = 'mica.collection.v1';
 const DEMO_DATE = '2026-07-08';
@@ -33,7 +33,7 @@ function loadItems() {
   return structuredClone(seedItems);
 }
 function saveItems() {
-  const persisted = state.items.map(({ quotes, pricingStatus, pricingUpdatedAt, demoPrice, ...item }) => ({
+  const persisted = state.items.map(({ quotes, priceHistory, sales, salesStatus, pricingStatus, pricingUpdatedAt, demoPrice, ...item }) => ({
     ...item,
     price: demoPrice ?? item.price,
   }));
@@ -53,6 +53,59 @@ function renderQuoteRow(quote, label) {
     ? `<a href="${esc(quote.providerUrl)}" target="_blank" rel="noreferrer">${esc(label)}</a>`
     : `<strong>${esc(label)}</strong>`;
   return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.currency)}</span><span>Observed ${esc(quote.observedAt || 'date unavailable')} · retrieved ${esc(quote.retrievedAt.slice(0,10))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
+}
+
+function historyForItem(item) {
+  if (item.gradingCompany) return [];
+  const finish = finishForVariant(item.variant);
+  const exact = (item.priceHistory || []).filter(point => point.finish === finish && point.condition === item.condition);
+  return (exact.length ? exact : (item.priceHistory || []).filter(point => point.finish === finish))
+    .sort((left, right) => new Date(left.recordedAt) - new Date(right.recordedAt));
+}
+
+function renderHistory(item) {
+  const history = historyForItem(item);
+  if (history.length < 2) return `<div class="unavailable-panel">Not enough comparable observations exist for a price chart yet. Daily source data is never expanded into artificial minute-by-minute points.</div>`;
+  const values = history.map(point => point.amount);
+  const min = Math.min(...values); const max = Math.max(...values); const spread = max - min || 1;
+  const points = history.map((point, index) => `${(index / (history.length - 1)) * 100},${38 - ((point.amount - min) / spread) * 34}`).join(' ');
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const first = history[0]; const last = history.at(-1);
+  return `<div class="history-summary"><div><span>30-day average</span><strong>${money(average, last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Samples</span><strong>${history.length} daily</strong></div></div>
+    <svg class="price-chart" viewBox="0 0 100 42" role="img" aria-label="Price history from ${esc(first.recordedAt.slice(0,10))} to ${esc(last.recordedAt.slice(0,10))}"><path d="M0 40H100"/><polyline points="${points}"/></svg>
+    <div class="chart-dates"><span>${esc(first.recordedAt.slice(0,10))}</span><span>${esc(last.recordedAt.slice(0,10))}</span></div>`;
+}
+
+function comparableSales(item) {
+  return (item.sales || []).filter(sale => item.gradingCompany
+    ? sale.sourceUrl && sale.gradingCompany === item.gradingCompany && String(sale.grade) === String(item.grade)
+    : sale.sourceUrl && !sale.gradingCompany);
+}
+
+function renderSales(item) {
+  if (item.salesStatus === 'loading') return `<div class="unavailable-panel">Loading licensed sold-listing evidence…</div>`;
+  const sales = comparableSales(item);
+  if (!sales.length) {
+    const copy = item.salesStatus === 'unconfigured'
+      ? 'No licensed sold-listing provider is connected. Active listings are not presented as completed sales.'
+      : 'No verified sales matched this exact raw/graded context. A broader card sale is not substituted.';
+    return `<div class="unavailable-panel">${copy}</div>`;
+  }
+  return `<div class="sales-list">${sales.slice(0,5).map(sale => `<a class="sale-row" href="${esc(sale.sourceUrl)}" target="_blank" rel="noreferrer"><div><strong>${esc(sale.title)}</strong><span>${esc(sale.soldAt)} · ${esc(sale.gradingCompany ? `${sale.gradingCompany} ${sale.grade}` : 'Raw')}</span></div><b>${money(sale.amount, sale.currency)}</b></a>`).join('')}</div>`;
+}
+
+async function loadSales(item) {
+  if (item.salesStatus) return;
+  item.salesStatus = 'loading';
+  if (state.route === 'detail' && state.detailId === item.uid) renderDetail();
+  const lookup = { clientId:item.id, pkmnpricesId:item.externalIds?.pkmnprices || '', name:item.name, set:item.set, number:item.number };
+  try {
+    const response = await fetch(`/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}`, { headers:{ Accept:'application/json' } });
+    if (response.status === 503) { item.salesStatus = 'unconfigured'; item.sales = []; }
+    else if (!response.ok) { item.salesStatus = 'error'; item.sales = []; }
+    else { const payload = await response.json(); item.salesStatus = 'live'; item.sales = payload.sales || []; }
+  } catch { item.salesStatus = 'error'; item.sales = []; }
+  if (state.route === 'detail' && state.detailId === item.uid) renderDetail();
 }
 
 function routeTo(route, options={}) {
@@ -116,16 +169,18 @@ function renderDetail() {
   const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
   const sourceRows = item.price == null ? `<div class="unavailable-panel"><strong>Pricing unavailable for this printing.</strong><br>The collection record is preserved and excluded from estimated totals. Mica will not substitute a different variant or condition.</div>`
     : item.pricingStatus === 'live'
-      ? `${renderQuoteRow(tcgQuote, 'TCGplayer reference')}${renderQuoteRow(cardmarketQuote, 'Cardmarket reference')}`
+      ? `${renderQuoteRow(tcgQuote, tcgQuote?.provider === 'justtcg' ? 'JustTCG market estimate' : 'TCGplayer reference')}${renderQuoteRow(cardmarketQuote, 'Cardmarket reference')}`
       : `<div class="price-source"><div><strong>Preview reference</strong><span>Fixture · ${esc(item.variant)} · USD</span><span>Live provider refresh has not completed.</span></div><div class="source-value"><b>${money(item.price)}</b><small>Clearly labeled demo data</small></div></div>`;
   $('#detailContent').innerHTML = `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>Collection</button>
     <div class="detail-identity"><img src="${esc(item.image)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity)}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant)}</strong></div><div><span>Language</span><strong>English</strong></div><div><span>Released</span><strong>${esc(item.release)}</strong></div><div><span>Artist</span><strong>${esc(item.artist)}</strong></div></div></div></div>
     <div class="owned-banner"><div><span>Your position</span><strong>${item.quantity} owned · ${total==null?'Unpriced':money(total)}</strong></div><button id="editCopyButton" type="button">Edit record</button></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price==null?'No supported quote':item.pricingStatus==='live'?'Live provider data':'Preview data · not live'}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
     <section class="detail-section"><div class="detail-section-head"><h2>Owned copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>Purchased ${esc(item.purchaseDate || 'date not recorded')} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes?`<div class="unavailable-panel">${esc(item.notes)}</div>`:''}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price history & sales</h2><span>Capability unavailable</span></div><div class="unavailable-panel">No licensed transaction-history provider is connected. Active listings are not presented as completed sales.</div></section>`;
+    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2><span>Source granularity · daily</span></div>${renderHistory(item)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Recent sold evidence</h2><span>${item.salesStatus === 'live' ? 'Linked completed sales' : 'Licensed source required'}</span></div>${renderSales(item)}</section>`;
   $('#detailBack').addEventListener('click', () => routeTo('collection'));
   $('#editCopyButton').addEventListener('click', () => openOwnershipSheet(item, true));
+  void loadSales(item);
 }
 
 function openSheet(content, trigger=document.activeElement) {
@@ -177,9 +232,11 @@ function showCandidates() {
 }
 
 function openManualSearch() {
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Search catalog</h2><p>Try a name, set, or collector number.</p></div><button class="sheet-close" aria-label="Close">×</button></div><label class="search-field"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="catalogQuery" type="search" placeholder="e.g. Charizard 199/165" aria-label="Catalog search"></label><div class="manual-results" id="manualResults"></div>`);
-  const input=$('#catalogQuery'); const renderResults=()=>{ const q=input.value; const results=catalog.filter(item=>matchesSearch(item,q)).slice(0,6); $('#manualResults').innerHTML=results.map(item=>`<button class="catalog-result" type="button" data-catalog-id="${item.id}"><img src="${item.thumb}" alt=""><span><strong>${esc(item.name)}</strong>${esc(item.set)} · ${esc(item.number)}</span><b>${money(item.price)}</b></button>`).join(''); $$('[data-catalog-id]').forEach(button=>button.addEventListener('click',()=>openOwnershipSheet(catalog.find(item=>item.id===button.dataset.catalogId)))); };
-  input.addEventListener('input',renderResults); input.value='Charizard'; renderResults(); input.focus();
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Search catalog</h2><p>Search the multilingual TCGdex catalog.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="catalogQuery" type="search" placeholder="e.g. Charizard" aria-label="Catalog search"></label><div class="field"><label for="catalogLanguage">Language</label><select id="catalogLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div></div><div class="manual-results" id="manualResults"><div class="unavailable-panel">Type at least two characters to search.</div></div>`);
+  const input=$('#catalogQuery'); const language=$('#catalogLanguage'); let timer; let requestId=0;
+  const bindResults=results=>{ $('#manualResults').innerHTML=results.length?results.map(item=>`<button class="catalog-result" type="button" data-catalog-id="${esc(item.id)}"><img src="${esc(item.thumb||'')}" alt=""><span><strong>${esc(item.name)}</strong>${esc(item.set||'Set unavailable')} · ${esc(item.number)}</span><b>Add</b></button>`).join(''):'<div class="unavailable-panel">No catalog matches found.</div>'; $$('[data-catalog-id]').forEach(button=>button.addEventListener('click',()=>openOwnershipSheet(catalog.find(item=>item.id===button.dataset.catalogId)))); };
+  const renderResults=async()=>{ const q=input.value.trim(); const current=++requestId; if(q.length<2){$('#manualResults').innerHTML='<div class="unavailable-panel">Type at least two characters to search.</div>';return;} $('#manualResults').innerHTML='<div class="unavailable-panel">Searching catalog…</div>'; try{const response=await fetch(`/api/catalog?q=${encodeURIComponent(q)}&language=${encodeURIComponent(language.value)}&limit=8`,{headers:{Accept:'application/json'}});if(!response.ok)throw new Error('catalog');const payload=await response.json();if(current!==requestId)return;const results=(payload.cards||[]).map(item=>({...item,variant:item.variants?.includes('holo')?'Holofoil':item.variants?.includes('normal')?'Normal':item.variants?.[0]||'Unknown',price:null,move:null,cost:0,quantity:1,condition:'Near Mint',gradingCompany:'',grade:'',tags:[],location:'',notes:''}));for(const item of results)if(!catalog.some(existing=>existing.id===item.id))catalog.push(item);bindResults(results);}catch{if(current===requestId)$('#manualResults').innerHTML='<div class="unavailable-panel">Catalog search is temporarily unavailable.</div>';}};
+  const schedule=()=>{clearTimeout(timer);timer=setTimeout(renderResults,250);}; input.addEventListener('input',schedule); language.addEventListener('change',renderResults); input.focus();
 }
 
 function openOwnershipSheet(card, editing=false) {
@@ -205,7 +262,7 @@ function openOwnershipSheet(card, editing=false) {
 
 function openInfo(kind) {
   const content = {
-    sources:'Live quotes are requested through a server-side Pokémon TCG API adapter. Every quote preserves provider, product ID, price type, currency, variant, observed time, retrieval time, attribution, and source URL. The API key is never sent to the browser.',
+    sources:'Live quotes are requested through a server-side JustTCG adapter. Every quote preserves provider, product and variant IDs, condition, printing, currency, observed time, retrieval time, attribution, and quality metadata. The API key is never sent to the browser.',
     retention:'Original scan uploads should be private and deleted after identification or within 24 hours. Derived crops should be removed within 7 days unless the user explicitly saves one. This preview processes the image only in the browser.',
     privacy:'Collection records are private. Production uses Supabase Auth, ownership-based Row Level Security, private storage, data export, and an account-deletion workflow. Never place service-role credentials in the client.'
   }[kind];
@@ -225,12 +282,20 @@ function handleCsv(file) {
 }
 
 async function refreshLivePricing() {
-  const ids = [...new Set(state.items.map(item => item.id).filter(Boolean))];
-  if (!ids.length) return;
+  const uniqueItems = [...new Map(state.items.filter(item => item.id).map(item => [item.id, item])).values()];
+  if (!uniqueItems.length) return;
+  const lookups = uniqueItems.slice(0, 8).map(item => ({
+    clientId: item.id,
+    justtcgId: item.externalIds?.justtcg || '',
+    tcgplayerId: item.externalIds?.tcgplayer || '',
+    name: item.name,
+    set: item.set,
+    number: item.number,
+  }));
   state.pricingStatus = 'loading';
   renderCollection();
   try {
-    const response = await fetch(`/api/cards?ids=${encodeURIComponent(ids.join(','))}`, { headers: { Accept: 'application/json' } });
+    const response = await fetch(`/api/cards?lookups=${encodeURIComponent(JSON.stringify(lookups))}`, { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error(`Pricing request failed with ${response.status}`);
     const payload = await response.json();
     const cards = new Map((payload.cards || []).map(card => [card.providerCardId, card]));
@@ -245,6 +310,7 @@ async function refreshLivePricing() {
         price: quote?.amount ?? null,
         move: null,
         quotes: card.quotes,
+        priceHistory: card.history || [],
         pricingStatus: quote ? 'live' : 'unavailable',
         pricingUpdatedAt: quote?.observedAt || quote?.retrievedAt?.slice(0,10) || null,
       };

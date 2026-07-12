@@ -38,6 +38,12 @@ create table if not exists public.card_external_ids (
   primary key(provider, external_id)
 );
 create index if not exists card_external_ids_card_idx on public.card_external_ids(card_id);
+create table if not exists public.variant_external_ids (
+  variant_id uuid not null references public.card_variants(id) on delete cascade, provider text not null, external_id text not null,
+  mapping_method text not null default 'imported', mapping_confidence numeric(5,4) check(mapping_confidence between 0 and 1),
+  reviewed_at timestamptz, primary key(provider, external_id)
+);
+create index if not exists variant_external_ids_variant_idx on public.variant_external_ids(variant_id);
 create table if not exists public.card_images (
   id uuid primary key default gen_random_uuid(), card_id uuid not null references public.cards(id) on delete cascade,
   provider text not null, size text not null, url text not null, unique(card_id, provider, size)
@@ -52,6 +58,12 @@ create table if not exists public.collections (
   name text not null check (char_length(name) between 1 and 100), created_at timestamptz not null default now(),
   unique(id, user_id)
 );
+create table if not exists public.catalog_coverage_snapshots (
+  id bigint generated always as identity primary key, provider text not null, language text not null,
+  entity_type text not null, expected_count integer, imported_count integer not null check(imported_count >= 0),
+  mapped_price_count integer not null default 0 check(mapped_price_count >= 0), measured_at timestamptz not null default now()
+);
+create index if not exists catalog_coverage_provider_time_idx on public.catalog_coverage_snapshots(provider, measured_at desc);
 create index if not exists collections_owner_idx on public.collections(user_id);
 create table if not exists public.collection_items (
   id uuid primary key default gen_random_uuid(), collection_id uuid not null,
@@ -119,7 +131,14 @@ create index if not exists scan_feedback_selected_variant_idx on public.scan_fee
 create index if not exists scan_feedback_owner_idx on public.scan_feedback(user_id);
 
 create table if not exists public.price_sources (
-  id uuid primary key default gen_random_uuid(), provider text not null unique, attribution text not null, capabilities jsonb not null default '{}'::jsonb
+  id uuid primary key default gen_random_uuid(), provider text not null unique, attribution text not null,
+  terms_url text, status text not null default 'evaluation', capabilities jsonb not null default '{}'::jsonb
+);
+create table if not exists public.provider_policies (
+  source_id uuid primary key references public.price_sources(id) on delete cascade,
+  commercial_authorized boolean not null default false, derived_metrics_allowed boolean not null default false,
+  raw_retention_days integer check(raw_retention_days is null or raw_retention_days >= 0),
+  attribution_requirements text, contract_reference text, reviewed_at timestamptz, review_due_at timestamptz
 );
 create table if not exists public.price_products (
   id uuid primary key default gen_random_uuid(), source_id uuid not null references public.price_sources(id), variant_id uuid not null references public.card_variants(id),
@@ -133,14 +152,25 @@ create table if not exists public.price_snapshots (
   provider_url text, quality jsonb not null default '{}'::jsonb
 );
 create index if not exists price_snapshots_product_time_idx on public.price_snapshots(product_id,retrieved_at desc);
+create index if not exists price_snapshots_observed_idx on public.price_snapshots(product_id,price_type,observed_at desc);
+create table if not exists public.price_daily_metrics (
+  product_id uuid not null references public.price_products(id) on delete cascade, price_type text not null, metric_date date not null,
+  open_amount numeric(14,2) not null check(open_amount >= 0), high_amount numeric(14,2) not null check(high_amount >= 0),
+  low_amount numeric(14,2) not null check(low_amount >= 0), close_amount numeric(14,2) not null check(close_amount >= 0),
+  average_amount numeric(14,2) not null check(average_amount >= 0), sample_count integer not null check(sample_count > 0),
+  computed_at timestamptz not null default now(), primary key(product_id, price_type, metric_date)
+);
+create index if not exists price_daily_metrics_date_idx on public.price_daily_metrics(product_id,metric_date desc);
 create table if not exists public.sales_records (
   id uuid primary key default gen_random_uuid(), product_id uuid not null references public.price_products(id),
   provider_sale_id text not null, amount numeric(14,2) not null, currency text not null, sold_at timestamptz not null,
-  source_url text, unique(product_id,provider_sale_id)
+  source_url text, title text, sale_type text, listing_condition text, grading_company text, grade numeric(4,2),
+  match_confidence numeric(5,4) check(match_confidence between 0 and 1), quality jsonb not null default '{}'::jsonb,
+  unique(product_id,provider_sale_id)
 );
 create table if not exists public.pricing_sync_runs (
   id uuid primary key default gen_random_uuid(), provider text not null, status text not null,
-  products_processed integer not null default 0, failures integer not null default 0,
+  cursor text, products_processed integer not null default 0, failures integer not null default 0,
   started_at timestamptz not null default now(), finished_at timestamptz
 );
 create table if not exists public.purchase_transactions (
@@ -185,8 +215,10 @@ alter table public.card_sets enable row level security;
 alter table public.cards enable row level security;
 alter table public.card_variants enable row level security;
 alter table public.card_external_ids enable row level security;
+alter table public.variant_external_ids enable row level security;
 alter table public.card_images enable row level security;
 alter table public.catalog_sync_runs enable row level security;
+alter table public.catalog_coverage_snapshots enable row level security;
 alter table public.collections enable row level security;
 alter table public.collection_items enable row level security;
 alter table public.owned_copies enable row level security;
@@ -197,8 +229,10 @@ alter table public.card_scans enable row level security;
 alter table public.scan_candidates enable row level security;
 alter table public.scan_feedback enable row level security;
 alter table public.price_sources enable row level security;
+alter table public.provider_policies enable row level security;
 alter table public.price_products enable row level security;
 alter table public.price_snapshots enable row level security;
+alter table public.price_daily_metrics enable row level security;
 alter table public.sales_records enable row level security;
 alter table public.pricing_sync_runs enable row level security;
 alter table public.purchase_transactions enable row level security;
@@ -231,10 +265,13 @@ drop policy if exists "catalog sets read" on public.card_sets;
 drop policy if exists "catalog cards read" on public.cards;
 drop policy if exists "catalog variants read" on public.card_variants;
 drop policy if exists "catalog ids read" on public.card_external_ids;
+drop policy if exists "variant ids read" on public.variant_external_ids;
 drop policy if exists "catalog images read" on public.card_images;
+drop policy if exists "catalog coverage read" on public.catalog_coverage_snapshots;
 drop policy if exists "price sources read" on public.price_sources;
 drop policy if exists "price products read" on public.price_products;
 drop policy if exists "price snapshots read" on public.price_snapshots;
+drop policy if exists "price daily metrics read" on public.price_daily_metrics;
 drop policy if exists "sales records read" on public.sales_records;
 
 create policy "profiles own rows" on public.profiles for all to authenticated using ((select auth.uid())=id) with check ((select auth.uid())=id);
@@ -258,10 +295,13 @@ create policy "catalog sets read" on public.card_sets for select to authenticate
 create policy "catalog cards read" on public.cards for select to authenticated using (true);
 create policy "catalog variants read" on public.card_variants for select to authenticated using (true);
 create policy "catalog ids read" on public.card_external_ids for select to authenticated using (true);
+create policy "variant ids read" on public.variant_external_ids for select to authenticated using (true);
 create policy "catalog images read" on public.card_images for select to authenticated using (true);
+create policy "catalog coverage read" on public.catalog_coverage_snapshots for select to authenticated using (true);
 create policy "price sources read" on public.price_sources for select to authenticated using (true);
 create policy "price products read" on public.price_products for select to authenticated using (true);
 create policy "price snapshots read" on public.price_snapshots for select to authenticated using (true);
+create policy "price daily metrics read" on public.price_daily_metrics for select to authenticated using (true);
 create policy "sales records read" on public.sales_records for select to authenticated using (true);
 
 -- Tables created in public may otherwise inherit broad Data API grants. Make client access explicit.
@@ -281,5 +321,5 @@ $$;
 
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.profiles, public.collections, public.collection_items, public.owned_copies, public.collection_tags, public.collection_item_tags, public.saved_views, public.card_scans, public.scan_feedback, public.purchase_transactions, public.sale_transactions, public.import_jobs, public.export_jobs to authenticated;
-grant select on public.subscriptions, public.usage_events, public.scan_candidates, public.valuation_snapshots, public.card_sets, public.cards, public.card_variants, public.card_external_ids, public.card_images, public.price_sources, public.price_products, public.price_snapshots, public.sales_records to authenticated;
+grant select on public.subscriptions, public.usage_events, public.scan_candidates, public.valuation_snapshots, public.card_sets, public.cards, public.card_variants, public.card_external_ids, public.variant_external_ids, public.card_images, public.catalog_coverage_snapshots, public.price_sources, public.price_products, public.price_snapshots, public.price_daily_metrics, public.sales_records to authenticated;
 

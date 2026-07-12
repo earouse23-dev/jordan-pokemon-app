@@ -4,7 +4,9 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "functions": {
-    "api/cards.js": { "maxDuration": 10 }
+    "api/cards.js": { "maxDuration": 10 },
+    "api/catalog.js": { "maxDuration": 10 },
+    "api/sales.js": { "maxDuration": 10 }
   },
   "headers": [
     {

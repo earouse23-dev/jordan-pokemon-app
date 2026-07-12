@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-const files=['index.html','styles.css','app.js','api/cards.js','lib/core.js','lib/pricing.js','manifest.webmanifest','sw.js'];
+const files=['index.html','styles.css','app.js','api/cards.js','api/catalog.js','api/sales.js','lib/core.js','lib/pricing.js','lib/providers/justtcg.js','lib/providers/pkmnprices.js','lib/providers/tcgdex.js','manifest.webmanifest','sw.js'];
 const failures=[];
 for(const file of files){const text=await readFile(new URL(`../${file}`,import.meta.url),'utf8');if(/PokÃ|â€”|â€™|ðŸ/.test(text))failures.push(`${file}: contains mojibake`);if(/console\.log\(/.test(text))failures.push(`${file}: contains console.log`);}
 if(failures.length){console.error(failures.join('\n'));process.exit(1);} console.log(`Linted ${files.length} source files.`);

@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../api/cards.js';
 import { finishForVariant, normalizeCard, selectCardmarketReference, selectReferenceQuote } from '../lib/pricing.js';
+import { normalizeJustTcgCard, normalizePrinting } from '../lib/providers/justtcg.js';
+import { normalizePkmnPricesSale } from '../lib/providers/pkmnprices.js';
+import { normalizeTcgdexCard } from '../lib/providers/tcgdex.js';
 
 const card = {
   id: 'set-1', name: 'Test card', number: '1', set: { name: 'Test Set', releaseDate: '2026/01/02' },
@@ -35,10 +38,38 @@ test('selects compatible Cardmarket reference without mixing currencies', () => 
   assert.equal(finishForVariant('1st Edition Holofoil'), '1stEditionHolofoil');
 });
 
-test('server endpoint keeps the API key in the upstream header and returns normalized data', async () => {
+test('normalizes JustTCG condition, printing, timestamps, statistics and daily history', () => {
+  const normalized = normalizeJustTcgCard({
+    id: 'pokemon-test-set-test-card-1', uuid: 'card-uuid', name: 'Test card', set_name: 'Test Set', number: '1', rarity: 'Rare', tcgplayerId: '123',
+    variants: [{
+      id: 'variant-slug', uuid: 'variant-uuid', condition: 'Near Mint', printing: 'Holofoil', language: 'English',
+      price: 12.5, lastUpdated: 1783814400, priceChange24hr: -1.2, avgPrice: 11.9,
+      priceHistory: [{ p: 10.25, t: 1783728000 }],
+    }],
+  }, '2026-07-12T00:00:00.000Z', 'client-card');
+  assert.equal(normalized.providerCardId, 'client-card');
+  assert.equal(normalized.externalIds.tcgplayer, '123');
+  assert.equal(normalized.quotes[0].finish, 'holofoil');
+  assert.equal(normalized.quotes[0].quality.priceChange24h, -1.2);
+  assert.equal(normalized.history[0].granularity, 'day');
+  assert.equal(normalizePrinting('1st Edition Holofoil'), '1stEditionHolofoil');
+  assert.equal(selectReferenceQuote(normalized.quotes, 'Holofoil').amount, 12.5);
+});
+
+test('normalizes catalog variants and only preserves safe sold-listing links', () => {
+  const catalogCard = normalizeTcgdexCard({ id:'base1-4', localId:'4', name:'Charizard', image:'https://assets.tcgdex.net/en/base/base1/4', set:{ id:'base1', name:'Base Set' }, variants:{ normal:false, holo:true, firstEdition:true } }, 'en');
+  assert.equal(catalogCard.id, 'tcgdex:en:base1-4');
+  assert.deepEqual(catalogCard.variants, ['holo', 'firstEdition']);
+  const sale = normalizePkmnPricesSale({ ebay_listing_id:'123', title:'Charizard PSA 10', price:100, grader:'PSA', grade:'10', sold_at:'2026-07-10', listing_url:'https://www.ebay.com/itm/123' });
+  assert.equal(sale.sourceUrl, 'https://www.ebay.com/itm/123');
+  const unsafe = normalizePkmnPricesSale({ id:'x', title:'Bad link', price:1, sold_at:'2026-07-10', listing_url:'javascript:alert(1)' });
+  assert.equal(unsafe.sourceUrl, null);
+});
+
+test('server endpoint keeps the JustTCG key in the upstream header and returns normalized data', async () => {
   const originalFetch = globalThis.fetch;
-  const originalKey = process.env.PRICING_PROVIDER_API_KEY;
-  process.env.PRICING_PROVIDER_API_KEY = 'test-server-secret';
+  const originalKey = process.env.JUSTTCG_API_KEY;
+  process.env.JUSTTCG_API_KEY = 'test-server-secret';
   let body;
   const headers = {};
   const response = {
@@ -47,19 +78,24 @@ test('server endpoint keeps the API key in the upstream header and returns norma
     json(value) { body = value; return value; },
   };
   globalThis.fetch = async (url, options) => {
-    assert.equal(options.headers['X-Api-Key'], 'test-server-secret');
-    assert.match(String(url), /id%3Aset-1/);
-    return new Response(JSON.stringify({ data: [card] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    assert.equal(options.headers['x-api-key'], 'test-server-secret');
+    assert.match(String(url), /q=Test\+card/);
+    return new Response(JSON.stringify({ data: [{
+      id:'pokemon-test-set-test-card-1', uuid:'just-card', name:'Test card', set_name:'Test Set', number:'1', rarity:'Rare', tcgplayerId:'123',
+      variants:[{ id:'v', uuid:'variant', condition:'Near Mint', printing:'Holofoil', language:'English', price:9.5, lastUpdated:1783814400, priceHistory:[] }],
+    }] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
   try {
-    await handler({ method:'GET', query:{ ids:'set-1' }, headers:{}, socket:{} }, response);
+    const lookups = JSON.stringify([{ clientId:'set-1', name:'Test card', set:'Test Set', number:'1/100' }]);
+    await handler({ method:'GET', query:{ lookups }, headers:{}, socket:{} }, response);
     assert.equal(response.statusCode, 200);
     assert.equal(body.cards[0].providerCardId, 'set-1');
+    assert.equal(body.provider, 'justtcg');
     assert.equal(JSON.stringify(body).includes('test-server-secret'), false);
     assert.match(headers['Cache-Control'], /s-maxage=900/);
   } finally {
     globalThis.fetch = originalFetch;
-    if (originalKey === undefined) delete process.env.PRICING_PROVIDER_API_KEY;
-    else process.env.PRICING_PROVIDER_API_KEY = originalKey;
+    if (originalKey === undefined) delete process.env.JUSTTCG_API_KEY;
+    else process.env.JUSTTCG_API_KEY = originalKey;
   }
 });
