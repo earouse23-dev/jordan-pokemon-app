@@ -1,7 +1,8 @@
 import { money, calculateTotals, collectionToCsv, matchesSearch } from './lib/core.js';
-import { finishForVariant, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
+import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 
 const STORAGE_KEY = 'mica.collection.v1';
+const PRICE_HISTORY_KEY = 'mica.price-history.v1';
 const DEMO_DATE = '2026-07-08';
 let catalog = [
   { id:'sv3pt5-199', name:'Charizard ex', set:'151', number:'199/165', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/199_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/199.png', price:184.25, move:4.8, artist:'miki kudo', release:'2023' },
@@ -39,6 +40,25 @@ function saveItems() {
   }));
   localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
+
+function historyKey(item) {
+  return [item.id, item.variant, item.condition, item.gradingCompany, item.grade].map(value => String(value || '')).join('|');
+}
+
+function recordPriceObservation(item, quote, providerHistory = []) {
+  let journal = {};
+  try { journal = JSON.parse(localStorage.getItem(PRICE_HISTORY_KEY)) || {}; } catch {}
+  const key = historyKey(item);
+  const observation = quote ? {
+    provider:quote.provider, providerVariantId:quote.providerVariantId || quote.providerProductId,
+    currency:quote.currency, condition:quote.condition, finish:quote.finish, amount:quote.amount,
+    recordedAt:quote.observedAt || quote.retrievedAt, granularity:'observation',
+  } : null;
+  const localHistory = mergePriceHistory(journal[key] || [], observation ? [observation] : []).slice(-400);
+  journal[key] = localHistory;
+  try { localStorage.setItem(PRICE_HISTORY_KEY, JSON.stringify(journal)); } catch {}
+  return mergePriceHistory(providerHistory, localHistory);
+}
 function itemValue(item) { return item.price == null ? null : Number(item.price) * Number(item.quantity || 0); }
 
 function priceStatusText(item) {
@@ -71,7 +91,7 @@ function renderHistory(item) {
   const points = history.map((point, index) => `${(index / (history.length - 1)) * 100},${38 - ((point.amount - min) / spread) * 34}`).join(' ');
   const average = values.reduce((sum, value) => sum + value, 0) / values.length;
   const first = history[0]; const last = history.at(-1);
-  return `<div class="history-summary"><div><span>30-day average</span><strong>${money(average, last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Samples</span><strong>${history.length} daily</strong></div></div>
+  return `<div class="history-summary"><div><span>Observed average</span><strong>${money(average, last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Samples</span><strong>${history.length} observations</strong></div></div>
     <svg class="price-chart" viewBox="0 0 100 42" role="img" aria-label="Price history from ${esc(first.recordedAt.slice(0,10))} to ${esc(last.recordedAt.slice(0,10))}"><path d="M0 40H100"/><polyline points="${points}"/></svg>
     <div class="chart-dates"><span>${esc(first.recordedAt.slice(0,10))}</span><span>${esc(last.recordedAt.slice(0,10))}</span></div>`;
 }
@@ -176,7 +196,7 @@ function renderDetail() {
     <div class="owned-banner"><div><span>Your position</span><strong>${item.quantity} owned · ${total==null?'Unpriced':money(total)}</strong></div><button id="editCopyButton" type="button">Edit record</button></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price==null?'No supported quote':item.pricingStatus==='live'?'Live provider data':'Preview data · not live'}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
     <section class="detail-section"><div class="detail-section-head"><h2>Owned copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>Purchased ${esc(item.purchaseDate || 'date not recorded')} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes?`<div class="unavailable-panel">${esc(item.notes)}</div>`:''}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2><span>Source granularity · daily</span></div>${renderHistory(item)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2><span>Provider observations · no synthetic ticks</span></div>${renderHistory(item)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent sold evidence</h2><span>${item.salesStatus === 'live' ? 'Linked completed sales' : 'Licensed source required'}</span></div>${renderSales(item)}</section>`;
   $('#detailBack').addEventListener('click', () => routeTo('collection'));
   $('#editCopyButton').addEventListener('click', () => openOwnershipSheet(item, true));
@@ -311,7 +331,7 @@ async function refreshLivePricing() {
         price: quote?.amount ?? null,
         move: null,
         quotes: card.quotes,
-        priceHistory: card.history || [],
+        priceHistory: quote ? recordPriceObservation(item, quote, card.history || []) : card.history || [],
         pricingStatus: quote ? 'live' : 'unavailable',
         pricingUpdatedAt: quote?.observedAt || quote?.retrievedAt?.slice(0,10) || null,
       };

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../api/cards.js';
-import { finishForVariant, normalizeCard, selectCardmarketReference, selectReferenceQuote } from '../lib/pricing.js';
+import { finishForVariant, mergePriceHistory, normalizeCard, selectCardmarketReference, selectReferenceQuote } from '../lib/pricing.js';
 import { normalizeJustTcgCard, normalizePrinting } from '../lib/providers/justtcg.js';
 import { normalizePkmnPricesSale } from '../lib/providers/pkmnprices.js';
 import { normalizeTcgdexCard, normalizeTcgdexPricingCard } from '../lib/providers/tcgdex.js';
@@ -47,6 +47,15 @@ test('selects compatible Cardmarket reference without mixing currencies', () => 
   assert.equal(selectCardmarketReference(quotes, 'Holofoil').amount, 8.2);
   assert.equal(selectCardmarketReference(quotes, 'Reverse Holofoil').amount, 6.7);
   assert.equal(finishForVariant('1st Edition Holofoil'), '1stEditionHolofoil');
+});
+
+test('deduplicates and orders genuine price observations without accepting zero placeholders', () => {
+  const first = { provider:'tcgplayer', providerVariantId:'v', currency:'USD', condition:null, finish:'holofoil', amount:10, recordedAt:'2026-07-11T00:00:00Z' };
+  const second = { ...first, amount:12, recordedAt:'2026-07-12T00:00:00Z' };
+  const merged = mergePriceHistory([second, first], [first], [{...first, amount:0}]);
+  assert.equal(merged.length, 2);
+  assert.equal(merged[0].amount, 10);
+  assert.equal(merged[1].amount, 12);
 });
 
 test('normalizes JustTCG condition, printing, timestamps, statistics and daily history', () => {
