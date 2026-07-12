@@ -12,10 +12,13 @@ UI never consumes provider response schemas. Functions validate normalized outpu
 
 `api/cards.js` accepts bounded identity lookups, prefers condition-specific JustTCG data when a server-only key is configured, and falls back to public TCGdex TCGplayer/Cardmarket market fields. It rate-limits callers, times out upstream requests, returns partial results, and emits CDN-cacheable provider-neutral quotes. `api/catalog.js` supplies multilingual TCGdex search and `api/sales.js` gates linked completed sales behind a separately licensed provider. The service worker always sends `/api/` requests to the network.
 
+`supabase/functions/sync-catalog` is the resumable system-of-record importer. A service-role caller supplies a language and page; the function fetches bounded TCGdex batches, normalizes sets/cards/variants/images/external IDs, stores compatible positive market observations, records coverage, and returns the next cursor. It cannot be invoked by browser or authenticated-user tokens. PostgreSQL deduplicates provider observations and an internal `pg_cron` job refreshes daily OHLC/average metrics hourly.
+
 ## Modules
 
 - `types/providers.ts`: normalized provider capabilities and contracts.
 - `supabase/schema.sql`: identity, catalog, collection/copies, scans/candidates, pricing, valuations, jobs, health, and RLS.
+- `supabase/functions/sync-catalog`: service-role multilingual catalog and baseline-price ingestion.
 - `lib/core.js`: pure financial, search, freshness, and CSV safety functions.
 - `tests/`: unit verification independent of live APIs.
 

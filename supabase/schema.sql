@@ -19,9 +19,10 @@ create table if not exists public.usage_events (
 create index if not exists usage_events_user_idx on public.usage_events(user_id);
 
 create table if not exists public.card_sets (
-  id uuid primary key default gen_random_uuid(), name text not null, series text, release_date date,
-  language text not null default 'en', unique(name, language)
+  id uuid primary key default gen_random_uuid(), name text not null, canonical_key text, series text, release_date date,
+  language text not null default 'en'
 );
+create unique index if not exists card_sets_canonical_key_unique on public.card_sets(language,canonical_key);
 create table if not exists public.cards (
   id uuid primary key default gen_random_uuid(), set_id uuid not null references public.card_sets(id) on delete cascade,
   name text not null, collector_number text not null, rarity text, artist text, language text not null default 'en',
@@ -37,6 +38,11 @@ create table if not exists public.card_external_ids (
   card_id uuid not null references public.cards(id) on delete cascade, provider text not null, external_id text not null,
   primary key(provider, external_id)
 );
+create table if not exists public.set_external_ids (
+  set_id uuid not null references public.card_sets(id) on delete cascade, provider text not null, external_id text not null,
+  primary key(provider, external_id)
+);
+create index if not exists set_external_ids_set_idx on public.set_external_ids(set_id);
 create index if not exists card_external_ids_card_idx on public.card_external_ids(card_id);
 create table if not exists public.variant_external_ids (
   variant_id uuid not null references public.card_variants(id) on delete cascade, provider text not null, external_id text not null,
@@ -153,6 +159,7 @@ create table if not exists public.price_snapshots (
 );
 create index if not exists price_snapshots_product_time_idx on public.price_snapshots(product_id,retrieved_at desc);
 create index if not exists price_snapshots_observed_idx on public.price_snapshots(product_id,price_type,observed_at desc);
+create unique index if not exists price_snapshots_observation_unique on public.price_snapshots(product_id,price_type,observed_at,amount);
 create table if not exists public.price_daily_metrics (
   product_id uuid not null references public.price_products(id) on delete cascade, price_type text not null, metric_date date not null,
   open_amount numeric(14,2) not null check(open_amount >= 0), high_amount numeric(14,2) not null check(high_amount >= 0),
@@ -161,6 +168,24 @@ create table if not exists public.price_daily_metrics (
   computed_at timestamptz not null default now(), primary key(product_id, price_type, metric_date)
 );
 create index if not exists price_daily_metrics_date_idx on public.price_daily_metrics(product_id,metric_date desc);
+create or replace function public.refresh_price_daily_metrics(target_date date default current_date)
+returns integer language plpgsql security definer set search_path = '' as $$
+declare affected integer;
+begin
+  insert into public.price_daily_metrics(product_id,price_type,metric_date,open_amount,high_amount,low_amount,close_amount,average_amount,sample_count,computed_at)
+  select product_id, price_type, target_date,
+    (array_agg(amount order by coalesce(observed_at,retrieved_at) asc, retrieved_at asc, id asc))[1], max(amount), min(amount),
+    (array_agg(amount order by coalesce(observed_at,retrieved_at) desc, retrieved_at desc, id desc))[1], avg(amount), count(*)::integer, now()
+  from public.price_snapshots
+  where (coalesce(observed_at,retrieved_at) at time zone 'UTC')::date = target_date
+  group by product_id,price_type
+  on conflict(product_id,price_type,metric_date) do update set
+    open_amount=excluded.open_amount, high_amount=excluded.high_amount, low_amount=excluded.low_amount,
+    close_amount=excluded.close_amount, average_amount=excluded.average_amount, sample_count=excluded.sample_count, computed_at=excluded.computed_at;
+  get diagnostics affected = row_count;
+  return affected;
+end $$;
+revoke all on function public.refresh_price_daily_metrics(date) from public, anon, authenticated;
 create table if not exists public.sales_records (
   id uuid primary key default gen_random_uuid(), product_id uuid not null references public.price_products(id),
   provider_sale_id text not null, amount numeric(14,2) not null, currency text not null, sold_at timestamptz not null,
@@ -212,6 +237,7 @@ alter table public.profiles enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.usage_events enable row level security;
 alter table public.card_sets enable row level security;
+alter table public.set_external_ids enable row level security;
 alter table public.cards enable row level security;
 alter table public.card_variants enable row level security;
 alter table public.card_external_ids enable row level security;
@@ -262,6 +288,7 @@ drop policy if exists "valuations own rows" on public.valuation_snapshots;
 drop policy if exists "imports own rows" on public.import_jobs;
 drop policy if exists "exports own rows" on public.export_jobs;
 drop policy if exists "catalog sets read" on public.card_sets;
+drop policy if exists "catalog set ids read" on public.set_external_ids;
 drop policy if exists "catalog cards read" on public.cards;
 drop policy if exists "catalog variants read" on public.card_variants;
 drop policy if exists "catalog ids read" on public.card_external_ids;
@@ -292,6 +319,7 @@ create policy "valuations own rows" on public.valuation_snapshots for select to 
 create policy "imports own rows" on public.import_jobs for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
 create policy "exports own rows" on public.export_jobs for all to authenticated using ((select auth.uid())=user_id) with check ((select auth.uid())=user_id);
 create policy "catalog sets read" on public.card_sets for select to authenticated using (true);
+create policy "catalog set ids read" on public.set_external_ids for select to authenticated using (true);
 create policy "catalog cards read" on public.cards for select to authenticated using (true);
 create policy "catalog variants read" on public.card_variants for select to authenticated using (true);
 create policy "catalog ids read" on public.card_external_ids for select to authenticated using (true);
@@ -321,5 +349,5 @@ $$;
 
 grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.profiles, public.collections, public.collection_items, public.owned_copies, public.collection_tags, public.collection_item_tags, public.saved_views, public.card_scans, public.scan_feedback, public.purchase_transactions, public.sale_transactions, public.import_jobs, public.export_jobs to authenticated;
-grant select on public.subscriptions, public.usage_events, public.scan_candidates, public.valuation_snapshots, public.card_sets, public.cards, public.card_variants, public.card_external_ids, public.variant_external_ids, public.card_images, public.catalog_coverage_snapshots, public.price_sources, public.price_products, public.price_snapshots, public.price_daily_metrics, public.sales_records to authenticated;
+grant select on public.subscriptions, public.usage_events, public.scan_candidates, public.valuation_snapshots, public.card_sets, public.set_external_ids, public.cards, public.card_variants, public.card_external_ids, public.variant_external_ids, public.card_images, public.catalog_coverage_snapshots, public.price_sources, public.price_products, public.price_snapshots, public.price_daily_metrics, public.sales_records to authenticated;
 

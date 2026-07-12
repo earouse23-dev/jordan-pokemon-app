@@ -46,11 +46,13 @@ The collection requests normalized quotes for its card IDs. TCGplayer market is 
 ## Production setup
 
 1. Create a dedicated Supabase project and configure email/password, email verification, password reset, and Google OAuth if approved.
-2. Apply the versioned migration in `supabase/migrations/` to a **fresh** project, then run Supabase database advisors and cross-user RLS tests. `supabase/schema.sql` mirrors the launch migration for review.
+2. Apply the versioned migrations in `supabase/migrations/` to a **fresh** project, deploy the JWT-protected `supabase/functions/sync-catalog` Edge Function, then run Supabase database advisors and cross-user RLS tests. `supabase/schema.sql` mirrors the resulting schema for review.
 3. Create a private scan bucket with per-user object policies and a 24-hour cleanup job.
 4. Configure the included server-side pricing adapter. Deploy catalog search and identification adapters as authenticated server/edge functions. Do not expose provider or Gemini secrets in the browser.
 5. Copy `.env.example`, add only server-side secrets to the deployment environment, and configure rate limits.
 6. Replace demo fixtures after approved provider accounts and data rights are confirmed.
+
+The importer is deliberately service-role-only. Use the [catalog sync runbook](docs/catalog-sync-runbook.md) for the protected multilingual backfill, coverage checks, and recurring schedule; never expose a service-role token to the client.
 
 TCGdex is the initial multilingual catalog and no-secret market-price bridge. JustTCG is the enhanced quote source after commercial authorization. New direct TCGplayer and Cardmarket API access is not currently available, and ordinary eBay Browse access does not provide completed sales. See [provider research](docs/provider-research.md).
 
