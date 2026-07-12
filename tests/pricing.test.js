@@ -70,13 +70,15 @@ test('normalizes public TCGdex TCGplayer and Cardmarket price fields', () => {
   const normalized = normalizeTcgdexPricingCard({
     id:'base1-4', localId:'4', name:'Charizard', set:{name:'Base Set'}, pricing:{
       tcgplayer:{updated:'2026-07-12T10:00:00Z',unit:'USD','unlimited-holofoil':{marketPrice:350,lowPrice:300}},
-      cardmarket:{updated:'2026-07-12T00:00:00Z',unit:'EUR','trend-holo':275,'avg7-holo':270},
+      cardmarket:{updated:'2026-07-12T00:00:00Z',unit:'EUR',idProduct:273699,'trend-holo':275,'avg7-holo':270,'avg-holo':0},
     },
   }, '2026-07-12T12:00:00Z', 'client-base');
   assert.equal(normalized.providerCardId, 'client-base');
   assert.equal(normalized.quotes.find(quote => quote.provider === 'tcgplayer' && quote.priceType === 'market').finish, 'holofoil');
   assert.equal(normalized.quotes.find(quote => quote.provider === 'cardmarket' && quote.priceType === 'trend').amount, 275);
   assert.equal(normalized.quotes.find(quote => quote.quality.windowDays === 7).amount, 270);
+  assert.equal(normalized.quotes.some(quote => quote.quality.field === 'idProduct'), false);
+  assert.equal(normalized.quotes.some(quote => quote.amount === 0), false);
 });
 
 test('server endpoint keeps the JustTCG key in the upstream header and returns normalized data', async () => {
