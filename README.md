@@ -35,13 +35,20 @@ npm run build
 - Formula-injection-safe CSV export and a validation-only import preview.
 - Offline shell, card-image caching, local persistence, reduced-motion support, and installable PWA metadata.
 - Provider-neutral TypeScript contracts and an ownership-scoped Supabase schema with RLS.
+- Server-side live pricing through the Pokémon TCG API, with compatible TCGplayer USD and Cardmarket EUR quotes kept separate.
+
+## Live pricing
+
+Set `PRICING_PROVIDER_API_KEY` as a **Sensitive** Vercel environment variable for Production, then redeploy. The key is read only by `api/cards.js` and is sent upstream in the documented `X-Api-Key` header; it is never included in browser code or API responses.
+
+The collection requests normalized quotes for its card IDs. TCGplayer market is preferred only when the finish matches the owned record. Missing or incompatible prices remain explicitly unpriced, while provider outages fall back to clearly labeled preview values.
 
 ## Production setup
 
 1. Create a dedicated Supabase project and configure email/password, email verification, password reset, and Google OAuth if approved.
 2. Apply the versioned migration in `supabase/migrations/` to a **fresh** project, then run Supabase database advisors and cross-user RLS tests. `supabase/schema.sql` mirrors the launch migration for review.
 3. Create a private scan bucket with per-user object policies and a 24-hour cleanup job.
-4. Deploy catalog, pricing, and identification adapters as authenticated server/edge functions. Do not expose provider or Gemini secrets in the browser.
+4. Configure the included server-side pricing adapter. Deploy catalog search and identification adapters as authenticated server/edge functions. Do not expose provider or Gemini secrets in the browser.
 5. Copy `.env.example`, add only server-side secrets to the deployment environment, and configure rate limits.
 6. Replace demo fixtures after approved provider accounts and data rights are confirmed.
 

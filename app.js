@@ -1,8 +1,9 @@
 import { money, calculateTotals, collectionToCsv, matchesSearch } from './lib/core.js';
+import { selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 
 const STORAGE_KEY = 'mica.collection.v1';
 const DEMO_DATE = '2026-07-08';
-const catalog = [
+let catalog = [
   { id:'sv3pt5-199', name:'Charizard ex', set:'151', number:'199/165', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/199_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/199.png', price:184.25, move:4.8, artist:'miki kudo', release:'2023' },
   { id:'swsh7-215', name:'Umbreon VMAX', set:'Evolving Skies', number:'215/203', rarity:'Alternate Art Secret', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh7/215_hires.png', thumb:'https://images.pokemontcg.io/swsh7/215.png', price:1218.40, move:2.7, artist:'KEIICHIRO ITO', release:'2021' },
   { id:'base1-4', name:'Charizard', set:'Base Set', number:'4/102', rarity:'Rare Holo', variant:'Unlimited Holofoil', image:'https://images.pokemontcg.io/base1/4_hires.png', thumb:'https://images.pokemontcg.io/base1/4.png', price:386.91, move:-1.4, artist:'Mitsuhiro Arita', release:'1999' },
@@ -22,7 +23,7 @@ const seedItems = [
   { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
 ];
 
-const state = { items: loadItems(), route:'collection', ledgerView:'all', query:'', sort:'value-desc', detailId:null, lastFocus:null };
+const state = { items: loadItems(), route:'collection', ledgerView:'all', query:'', sort:'value-desc', detailId:null, lastFocus:null, pricingStatus:'demo' };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -31,8 +32,28 @@ function loadItems() {
   try { const stored = JSON.parse(localStorage.getItem(STORAGE_KEY)); if (Array.isArray(stored)) return stored; } catch {}
   return structuredClone(seedItems);
 }
-function saveItems() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items)); }
+function saveItems() {
+  const persisted = state.items.map(({ quotes, pricingStatus, pricingUpdatedAt, demoPrice, ...item }) => ({
+    ...item,
+    price: demoPrice ?? item.price,
+  }));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+}
 function itemValue(item) { return item.price == null ? null : Number(item.price) * Number(item.quantity || 0); }
+
+function priceStatusText(item) {
+  if (item.price == null) return 'Pricing unavailable';
+  if (item.pricingStatus === 'live') return `Updated ${item.pricingUpdatedAt || 'recently'}`;
+  return 'Preview fixture';
+}
+
+function renderQuoteRow(quote, label) {
+  if (!quote) return '';
+  const source = quote.providerUrl
+    ? `<a href="${esc(quote.providerUrl)}" target="_blank" rel="noreferrer">${esc(label)}</a>`
+    : `<strong>${esc(label)}</strong>`;
+  return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.currency)}</span><span>Observed ${esc(quote.observedAt || 'date unavailable')} · retrieved ${esc(quote.retrievedAt.slice(0,10))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
+}
 
 function routeTo(route, options={}) {
   state.route = route;
@@ -51,9 +72,15 @@ function renderCollection() {
   $('#costBasis').textContent = money(totals.cost);
   $('#unrealized').textContent = `${gain >= 0 ? '+' : ''}${money(gain)}`;
   $('#ownedCount').textContent = `${totals.quantity} card${totals.quantity === 1 ? '' : 's'}`;
-  $('#portfolioChange').textContent = totals.unpriced ? `↑ 1.5% this month · ${totals.unpriced} unpriced card excluded` : '↑ 1.5% this month';
+  const partial = totals.unpriced ? ` · ${totals.unpriced} unpriced card${totals.unpriced === 1 ? '' : 's'} excluded` : '';
+  $('#portfolioChange').textContent = state.pricingStatus === 'live' ? `Current provider snapshots${partial}` : `Preview pricing${partial}`;
   $('#allCount').textContent = state.items.length;
-  $('.status-label').innerHTML = `<i></i> ${state.items.filter(item=>item.price!=null).length} of ${state.items.length} priced`;
+  const pricedCount = state.items.filter(item=>item.price!=null).length;
+  const pricingLabel = state.pricingStatus === 'loading' ? 'Updating live prices…'
+    : state.pricingStatus === 'live' ? `${pricedCount} of ${state.items.length} live prices`
+    : state.pricingStatus === 'error' ? 'Provider unavailable · preview prices'
+    : `${pricedCount} of ${state.items.length} preview prices`;
+  $('.status-label').innerHTML = `<i></i> ${pricingLabel}`;
   let visible = state.items.filter(item => matchesSearch(item, state.query));
   if (state.ledgerView === 'graded') visible = visible.filter(item => item.gradingCompany || item.grade);
   if (state.ledgerView === 'unpriced') visible = visible.filter(item => item.price == null);
@@ -63,11 +90,15 @@ function renderCollection() {
   $('#cardLedger').innerHTML = visible.map(item => {
     const total = itemValue(item);
     const moveClass = item.move == null ? 'none' : item.move >= 0 ? 'up' : 'down';
+    const hasMovement = Number.isFinite(Number(item.move));
+    const movementLabel = item.pricingStatus === 'live' || item.price == null || !hasMovement
+      ? priceStatusText(item)
+      : `${item.move >= 0 ? '↑' : '↓'} ${Math.abs(item.move).toFixed(1)}% preview`;
     const tags = [item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition, ...(item.tags || []).slice(0,1)];
     return `<article class="ledger-row" tabindex="0" role="button" aria-label="Open ${esc(item.name)}, ${total == null ? 'price unavailable' : money(total)}" data-id="${esc(item.uid)}">
       <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity)||0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span><div class="card-tags">${tags.map((tag,i)=>`<span class="micro-tag ${i===0&&item.gradingCompany?'graded':''} ${item.price==null?'warn':''}">${esc(tag)}</span>`).join('')}</div></div>
-      <div class="price-cell"><span class="row-value">${total == null ? '—' : money(total)}</span><span class="row-unit">${item.price == null ? 'pricing unavailable' : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${item.move == null ? 'Not priced' : `${item.move >= 0 ? '↑' : '↓'} ${Math.abs(item.move).toFixed(1)}% 30d`}</span></div>
+      <div class="price-cell"><span class="row-value">${total == null ? '—' : money(total)}</span><span class="row-unit">${item.price == null ? 'pricing unavailable' : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>
     </article>`;
   }).join('');
   $('#collectionEmpty').classList.toggle('hidden', visible.length > 0);
@@ -81,13 +112,16 @@ function renderDetail() {
   const item = state.items.find(candidate => candidate.uid === state.detailId);
   if (!item) return routeTo('collection');
   const total = itemValue(item);
-  const sourceRows = item.price == null ? `<div class="unavailable-panel"><strong>Pricing unavailable for this printing.</strong><br>The collection record is preserved and excluded from estimated totals. Mica will not substitute a different variant or condition.</div>` : `
-    <div class="price-source"><div><strong>TCGplayer reference</strong><span>Market · ${esc(item.variant)} · USD</span><span>Demo fixture · not live</span></div><div class="source-value"><b>${money(item.price)}</b><small>per raw comparable</small></div></div>
-    <div class="price-source"><div><strong>Cardmarket reference</strong><span>Trend · raw card · EUR</span><span>Source currency preserved</span></div><div class="source-value"><b>€${(item.price*.89).toFixed(2)}</b><small>demo fixture</small></div></div>`;
+  const tcgQuote = selectReferenceQuote(item.quotes, item.variant);
+  const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
+  const sourceRows = item.price == null ? `<div class="unavailable-panel"><strong>Pricing unavailable for this printing.</strong><br>The collection record is preserved and excluded from estimated totals. Mica will not substitute a different variant or condition.</div>`
+    : item.pricingStatus === 'live'
+      ? `${renderQuoteRow(tcgQuote, 'TCGplayer reference')}${renderQuoteRow(cardmarketQuote, 'Cardmarket reference')}`
+      : `<div class="price-source"><div><strong>Preview reference</strong><span>Fixture · ${esc(item.variant)} · USD</span><span>Live provider refresh has not completed.</span></div><div class="source-value"><b>${money(item.price)}</b><small>Clearly labeled demo data</small></div></div>`;
   $('#detailContent').innerHTML = `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>Collection</button>
     <div class="detail-identity"><img src="${esc(item.image)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity)}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant)}</strong></div><div><span>Language</span><strong>English</strong></div><div><span>Released</span><strong>${esc(item.release)}</strong></div><div><span>Artist</span><strong>${esc(item.artist)}</strong></div></div></div></div>
     <div class="owned-banner"><div><span>Your position</span><strong>${item.quantity} owned · ${total==null?'Unpriced':money(total)}</strong></div><button id="editCopyButton" type="button">Edit record</button></div>
-    <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price==null?'No supported quote':'Demo data · not live'}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price==null?'No supported quote':item.pricingStatus==='live'?'Live provider data':'Preview data · not live'}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
     <section class="detail-section"><div class="detail-section-head"><h2>Owned copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>Purchased ${esc(item.purchaseDate || 'date not recorded')} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes?`<div class="unavailable-panel">${esc(item.notes)}</div>`:''}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Price history & sales</h2><span>Capability unavailable</span></div><div class="unavailable-panel">No licensed transaction-history provider is connected. Active listings are not presented as completed sales.</div></section>`;
   $('#detailBack').addEventListener('click', () => routeTo('collection'));
@@ -171,7 +205,7 @@ function openOwnershipSheet(card, editing=false) {
 
 function openInfo(kind) {
   const content = {
-    sources:'Catalog and price adapters preserve provider, product ID, price type, currency, variant, condition context, observed time, retrieval time, attribution, and source URL. This preview uses local fixtures; production provider calls belong behind authenticated server functions.',
+    sources:'Live quotes are requested through a server-side Pokémon TCG API adapter. Every quote preserves provider, product ID, price type, currency, variant, observed time, retrieval time, attribution, and source URL. The API key is never sent to the browser.',
     retention:'Original scan uploads should be private and deleted after identification or within 24 hours. Derived crops should be removed within 7 days unless the user explicitly saves one. This preview processes the image only in the browser.',
     privacy:'Collection records are private. Production uses Supabase Auth, ownership-based Row Level Security, private storage, data export, and an account-deletion workflow. Never place service-role credentials in the client.'
   }[kind];
@@ -190,8 +224,53 @@ function handleCsv(file) {
   }; reader.readAsText(file);
 }
 
+async function refreshLivePricing() {
+  const ids = [...new Set(state.items.map(item => item.id).filter(Boolean))];
+  if (!ids.length) return;
+  state.pricingStatus = 'loading';
+  renderCollection();
+  try {
+    const response = await fetch(`/api/cards?ids=${encodeURIComponent(ids.join(','))}`, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Pricing request failed with ${response.status}`);
+    const payload = await response.json();
+    const cards = new Map((payload.cards || []).map(card => [card.providerCardId, card]));
+    const applyPricing = item => {
+      const card = cards.get(item.id);
+      const demoPrice = item.demoPrice ?? item.price;
+      if (!card) return { ...item, demoPrice, price:null, move:null, quotes:[], pricingStatus:'unavailable', pricingUpdatedAt:null };
+      const quote = selectReferenceQuote(card.quotes, item.variant);
+      return {
+        ...item,
+        demoPrice,
+        price: quote?.amount ?? null,
+        move: null,
+        quotes: card.quotes,
+        pricingStatus: quote ? 'live' : 'unavailable',
+        pricingUpdatedAt: quote?.observedAt || quote?.retrievedAt?.slice(0,10) || null,
+      };
+    };
+    state.items = state.items.map(applyPricing);
+    catalog = catalog.map(item => cards.has(item.id) ? applyPricing(item) : item);
+    state.pricingStatus = 'live';
+    renderCollection();
+    renderInsights();
+    if (state.route === 'detail') renderDetail();
+  } catch {
+    state.pricingStatus = 'error';
+    renderCollection();
+    renderInsights();
+  }
+}
+
 function renderInsights() {
-  $('#moversList').innerHTML = [...state.items].filter(i=>i.move!=null).sort((a,b)=>Math.abs(b.move)-Math.abs(a.move)).slice(0,4).map(item=>`<div class="mover"><img src="${item.thumb}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.set)} · 30 day reference</span></div><b style="color:${item.move<0?'var(--danger)':''}">${item.move>=0?'+':''}${item.move.toFixed(1)}%</b></div>`).join('');
+  const priced = state.items.filter(item => item.price != null).length;
+  if (state.pricingStatus === 'live') {
+    $('.insight-feature').innerHTML = `<div class="insight-kicker">Live pricing status</div><strong>${priced} of ${state.items.length} records priced</strong><span>Current compatible provider snapshots · source currencies preserved</span><div class="unavailable-panel">A single current snapshot does not establish price movement. Historical changes will appear only after comparable snapshots have been collected over time.</div>`;
+    $('#moversList').innerHTML = '<div class="data-boundary"><strong>Movement history is not available yet</strong><p>Mica will not infer a trend from one quote or from incompatible variants.</p></div>';
+    return;
+  }
+  $('.insight-feature').innerHTML = `<div class="insight-kicker">Preview movement · fixture data</div><strong>+$124.18</strong><span>Illustrative only · replaced when live comparable history exists</span>`;
+  $('#moversList').innerHTML = [...state.items].filter(i=>i.move!=null).sort((a,b)=>Math.abs(b.move)-Math.abs(a.move)).slice(0,4).map(item=>`<div class="mover"><img src="${item.thumb}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.set)} · preview fixture</span></div><b style="color:${item.move<0?'var(--danger)':''}">${item.move>=0?'+':''}${item.move.toFixed(1)}%</b></div>`).join('');
 }
 
 function syncTabs() { $$('.view-tab').forEach(tab=>{const active=tab.dataset.ledgerView===state.ledgerView;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));}); }
@@ -226,6 +305,6 @@ function validateImage(file) {
   showProcessing(file);
 }
 
-bindEvents(); renderCollection(); renderInsights();
+bindEvents(); renderCollection(); renderInsights(); refreshLivePricing();
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(()=>{});
 if (location.hash && ['scan','insights','profile'].includes(location.hash.slice(1))) routeTo(location.hash.slice(1),{instant:true});

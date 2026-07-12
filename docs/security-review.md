@@ -8,3 +8,5 @@ Supabase change review: current platform guidance separates grants from RLS, so 
 
 Advisor result: no externally facing warning remains. Four informational notices identify server-only operational tables with RLS and no client policies; this is intentional default-deny behavior. Cross-user policy tests and Storage policies remain launch gates.
 
+Live pricing review: `PRICING_PROVIDER_API_KEY` is server-only and `.env*` files are ignored. The endpoint allowlists card IDs, caps batches at 25, applies a best-effort per-IP rate limit, uses an eight-second upstream timeout, returns generic provider errors, and never serializes the key or raw provider payload.
+

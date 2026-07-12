@@ -10,6 +10,8 @@ Static/PWA client → authenticated Supabase functions → provider-neutral cata
 
 UI never consumes provider response schemas. Functions validate normalized output, enforce entitlements/rate limits, cache by provider/product/window, log structured health without PII, and return partial results.
 
+`api/cards.js` is the first production adapter. It accepts a bounded list of card IDs, calls the Pokémon TCG API with a server-only key, normalizes TCGplayer and Cardmarket fields, rate-limits callers, times out upstream requests, and returns CDN-cacheable provider-neutral quotes. The service worker always sends `/api/` requests to the network.
+
 ## Modules
 
 - `types/providers.ts`: normalized provider capabilities and contracts.

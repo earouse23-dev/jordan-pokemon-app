@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "npx serve . -l 4173",
-    "test": "node tests/core.test.js",
+    "test": "node tests/run.js",
     "test:schema": "node scripts/validate-schema.mjs",
-    "typecheck": "node --check app.js && node --check lib/core.js",
+    "typecheck": "node --check app.js && node --check api/cards.js && node --check lib/core.js && node --check lib/pricing.js",
     "lint": "node scripts/lint.mjs",
     "build": "node scripts/build.mjs"
   },

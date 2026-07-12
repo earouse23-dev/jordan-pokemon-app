@@ -10,7 +10,7 @@ npm run lint
 npm run build
 ```
 
-Results: 5/5 unit tests passed; the schema validator confirmed 30/30 public tables have RLS; JavaScript syntax checks passed; custom source lint passed across 6 files; production bundle built successfully to `dist/`.
+Results: 9/9 unit tests passed; the schema validator confirmed 30/30 public tables have RLS; JavaScript syntax checks passed; custom source lint passed across 8 files; production bundle built successfully to `dist/`. Pricing tests cover normalization, currency/finish compatibility, preferred price selection, server-only key forwarding, normalized output, and cache headers.
 
 The dedicated Supabase project was empty before setup. The launch schema was applied transactionally and verified at 30 public tables, 30 RLS-enabled tables, and 26 policies. Supabase security advisors report only four informational default-deny notices for server-only operational tables; performance advisors report no missing foreign-key indexes. New indexes are expected to appear as unused until production queries exercise them.
 
