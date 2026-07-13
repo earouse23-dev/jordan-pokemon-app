@@ -24,7 +24,7 @@ const seedItems = [
   { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
 ];
 
-const state = { items: loadItems(), route:'collection', ledgerView:'all', query:'', sort:'value-desc', detailId:null, lastFocus:null, pricingStatus:'demo' };
+const state = { items: loadItems(), route:'collection', ledgerView:'all', query:'', sort:'value-desc', detailId:null, detailCard:null, lastFocus:null, pricingStatus:'demo' };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -119,7 +119,7 @@ function renderSales(item) {
 async function loadSales(item) {
   if (item.salesStatus) return;
   item.salesStatus = 'loading';
-  if (state.route === 'detail' && state.detailId === item.uid) renderDetail();
+  if (state.route === 'detail' && (state.detailId === item.uid || state.detailId === item.id)) renderDetail();
   const lookup = { clientId:item.id, pkmnpricesId:item.externalIds?.pkmnprices || '', name:item.name, set:item.set, number:item.number };
   try {
     const response = await fetch(`/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}`, { headers:{ Accept:'application/json' } });
@@ -129,7 +129,7 @@ async function loadSales(item) {
     else if (!response.ok) { item.salesStatus = 'error'; item.sales = []; }
     else { item.salesStatus = 'live'; item.sales = payload.sales || []; }
   } catch { item.salesStatus = 'error'; item.sales = []; }
-  if (state.route === 'detail' && state.detailId === item.uid) renderDetail();
+  if (state.route === 'detail' && (state.detailId === item.uid || state.detailId === item.id)) renderDetail();
 }
 
 function routeTo(route, options={}) {
@@ -162,7 +162,7 @@ function renderCollection() {
   if (state.ledgerView === 'graded') visible = visible.filter(item => item.gradingCompany || item.grade);
   if (state.ledgerView === 'unpriced') visible = visible.filter(item => item.price == null);
   visible.sort((a,b) => state.sort === 'value-desc' ? (itemValue(b) ?? -1) - (itemValue(a) ?? -1) : a.name.localeCompare(b.name));
-  $('#resultCount').textContent = `${visible.length} record${visible.length === 1 ? '' : 's'}`;
+  $('#resultCount').textContent = `${visible.length} card${visible.length === 1 ? '' : 's'}`;
   $('#sortButton').firstChild.textContent = state.sort === 'value-desc' ? 'Value, high to low ' : 'Name, A to Z ';
   $('#cardLedger').innerHTML = visible.map(item => {
     const total = itemValue(item);
@@ -180,12 +180,37 @@ function renderCollection() {
   }).join('');
   $('#collectionEmpty').classList.toggle('hidden', visible.length > 0);
   $$('.ledger-row').forEach(row => {
-    const open = () => { state.detailId = row.dataset.id; routeTo('detail'); };
+    const open = () => openCardDetail(state.items.find(item => item.uid === row.dataset.id), true);
     row.addEventListener('click', open); row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
   });
 }
 
-function renderDetail() {
+function openCardDetail(card, preferOwned=false) {
+  if (!card) return;
+  const owned = preferOwned ? card : state.items.find(item => item.id === card.id);
+  state.detailId = owned?.uid || card.id;
+  state.detailCard = owned || card;
+  routeTo('detail');
+  if (!owned && !card.quotes?.length) void loadCardPreviewPricing(card);
+}
+
+async function loadCardPreviewPricing(card) {
+  const lookup = [{ clientId:card.id, tcgdexId:card.externalIds?.tcgdex || '', name:card.name, set:card.set, number:card.number }];
+  try {
+    const response = await fetch(`/api/cards?lookups=${encodeURIComponent(JSON.stringify(lookup))}`, { headers:{Accept:'application/json'} });
+    if (!response.ok) return;
+    const payload = await response.json();
+    const priced = payload.cards?.[0];
+    if (!priced || state.detailId !== card.id) return;
+    const quote = selectReferenceQuote(priced.quotes, card.variant, 'USD', { condition:'Near Mint' });
+    const updated = { ...card, price:quote?.amount ?? null, quotes:priced.quotes || [], priceHistory:priced.history || [], pricingStatus:quote?'live':'unavailable', pricingUpdatedAt:quote?.observedAt || quote?.retrievedAt?.slice(0,10) || null };
+    catalog = catalog.map(item => item.id === card.id ? updated : item);
+    state.detailCard = updated;
+    renderDetail();
+  } catch {}
+}
+
+function renderOwnedDetailLegacy() {
   const item = state.items.find(candidate => candidate.uid === state.detailId);
   if (!item) return routeTo('collection');
   const total = itemValue(item);
@@ -207,6 +232,49 @@ function renderDetail() {
   void loadSales(item);
 }
 
+function renderDetail() {
+  const owned = state.items.find(candidate => candidate.uid === state.detailId) || null;
+  const item = owned || state.detailCard || catalog.find(candidate => candidate.id === state.detailId);
+  if (!item) return routeTo('scan');
+  const conditionContext = owned || { condition:'Near Mint', gradingCompany:'', grade:'' };
+  const tcgQuote = selectReferenceQuote(item.quotes, item.variant, 'USD', conditionContext);
+  const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
+  const displayPrice = tcgQuote?.amount ?? item.price;
+  const marketLabel = item.pricingStatus === 'live' ? 'Current market' : displayPrice == null ? 'Current market' : 'Preview price';
+  const sourceRows = item.pricingStatus === 'live'
+    ? `${renderQuoteRow(tcgQuote, tcgQuote?.provider === 'justtcg' ? 'JustTCG market' : 'TCGplayer market')}${renderQuoteRow(cardmarketQuote, 'Cardmarket')}`
+    : `<div class="unavailable-panel">${item.pricingStatus === 'unavailable' ? 'No matching market price is available for this printing yet.' : 'Loading the latest matching market price…'}</div>`;
+  const backLabel = owned ? 'My library' : 'Find cards';
+  const ownedSection = owned ? `<section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location || 'Location not set')}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>${item.purchaseDate ? `Bought ${esc(item.purchaseDate)}` : 'Purchase date not added'}${item.cost ? ` · ${money(item.cost)} each` : ''}</span></div><b>×${item.quantity}</b></div>${item.notes?`<div class="unavailable-panel">${esc(item.notes)}</div>`:''}</section>` : '';
+  const action = owned
+    ? `<div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${displayPrice==null?'Price unavailable':`${money(displayPrice)} each`}</strong></div><button id="editCopyButton" type="button">Edit</button></div>`
+    : `<div class="detail-sticky-action"><button id="addLibraryButton" type="button">Add to Library</button></div>`;
+  $('#detailContent').innerHTML = `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
+    <div class="detail-identity"><img src="${esc(item.image || item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity || 'Pokémon card')}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant || 'Unknown')}</strong></div><div><span>Language</span><strong>${esc(item.language || 'English')}</strong></div><div><span>Released</span><strong>${esc(item.release || '—')}</strong></div><div><span>Artist</span><strong>${esc(item.artist || '—')}</strong></div></div></div></div>
+    <section class="market-hero"><span>${marketLabel}</span><strong>${displayPrice == null ? 'Price unavailable' : money(displayPrice)}</strong><small>${item.pricingStatus === 'live' ? `Updated ${esc(item.pricingUpdatedAt || 'recently')}` : 'Checking this exact printing'}</small></section>
+    ${action}
+    <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderHistory(item)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === 'live' ? 'Completed listings' : 'Verified links when available'}</span></div>${renderSales(item)}</section>
+    ${ownedSection}
+    <p class="legal-copy">Prices are market references, not guaranteed sale values. Condition can materially change what a card is worth.</p>`;
+  $('#detailBack').addEventListener('click', () => routeTo(owned ? 'collection' : 'scan'));
+  $('#editCopyButton')?.addEventListener('click', () => openOwnershipSheet(item, true));
+  $('#addLibraryButton')?.addEventListener('click', () => openQuickAddSheet(item));
+  void loadSales(item);
+}
+
+function openQuickAddSheet(card) {
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to Library</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="quickAddForm"><div class="quick-add-fields"><div class="field"><label for="quickQuantity">How many?</label><input id="quickQuantity" name="quantity" type="number" min="1" max="999" value="1" required></div><div class="field"><label for="quickCondition">Condition</label><select id="quickCondition" name="condition"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select></div></div><details class="optional-details"><summary>Add purchase or storage details</summary><div class="form-grid"><div class="field"><label for="quickCost">What you paid · each</label><input id="quickCost" name="cost" type="number" min="0" step=".01" placeholder="Optional"></div><div class="field"><label for="quickLocation">Where you keep it</label><input id="quickLocation" name="location" placeholder="Binder, case, box…"></div></div></details><div class="sheet-actions"><button class="secondary" type="button" id="quickAddCancel">Not now</button><button class="primary" type="submit">Add to Library</button></div></form>`);
+  $('#quickAddCancel').addEventListener('click', closeSheet);
+  $('#quickAddForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const added = { ...card, uid:`copy-${card.id}-${Date.now()}`, quantity:Number(data.get('quantity'))||1, condition:String(data.get('condition')), gradingCompany:'', grade:'', cost:Number(data.get('cost'))||0, purchaseDate:'', tags:[], location:String(data.get('location')||''), notes:'' };
+    state.items.unshift(added); saveItems(); closeSheet(); renderCollection(); state.detailId=added.uid; state.detailCard=added; renderDetail(); toast('Added to your library');
+  });
+}
+
 function openSheet(content, trigger=document.activeElement) {
   state.lastFocus = trigger;
   $('#sheetContent').innerHTML = content;
@@ -221,7 +289,7 @@ function closeSheet() {
 }
 
 function openFilterSheet() {
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Keep the ledger focused on the records you need.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Choose which cards you want to see.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All cards</option><option value="graded">Graded only</option><option value="unpriced">Unpriced only</option></select></div>
     <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Value, high to low</option><option value="name">Name, A to Z</option></select></div>
     <div class="sheet-actions"><button class="secondary" id="resetSheet">Reset</button><button class="primary" id="applySheet">Apply filters</button></div>`);
@@ -231,7 +299,7 @@ function openFilterSheet() {
 }
 
 function openMethodSheet() {
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">How valuation works</h2><p>Transparent by design.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p><strong>Estimated market value</strong> is quantity multiplied by the selected compatible price reference for each record.</p><p>Raw and graded cards are never mixed. Source currency, finish, price type, and freshness remain attached to every quote.</p><p>Cards without a supported quote stay in your collection and are excluded from the estimate. Here, prices are clearly marked demo fixtures until a configured server-side provider is available.</p></div>`);
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">How your value is calculated</h2><p>Simple and transparent.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p><strong>Collection value</strong> is each card's matching market price multiplied by how many you own.</p><p>Raw and graded cards are kept separate. We also match the printing and condition whenever the source supports it.</p><p>Cards without a reliable matching price stay in your library but are not counted in the total.</p></div>`);
 }
 
 function showProcessing(file) {
@@ -247,12 +315,18 @@ function showProcessing(file) {
   }, 430);
 }
 
-function showCandidates() {
+function showCandidatesLegacy() {
   const candidates=[catalog[0],catalog[2],catalog[6]];
   $('#sheetContent').innerHTML = `<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm the printing</h2><p>We found a likely match. Check the set and number.</p></div><button class="sheet-close" aria-label="Close">×</button></div>${candidates.map((item,index)=>`<div class="candidate-card"><img src="${item.thumb}" alt="${esc(item.name)}"><div><h3>${esc(item.name)}</h3><p>${esc(item.set)} · ${esc(item.number)}<br>${esc(item.variant)}</p><span class="confidence">${index===0?'Strong match':'Possible match'} · ${index===0?'collector number + artwork':'visual similarity'}</span><br><button type="button" data-candidate="${item.id}">Choose this card</button></div></div>`).join('')}<div class="sheet-actions"><button class="secondary" id="candidateRetake">Retake photo</button><button class="secondary" id="candidateManual">Search manually</button></div>`;
   $('.sheet-close').addEventListener('click', closeSheet);
   $$('[data-candidate]').forEach(button => button.addEventListener('click', () => openOwnershipSheet(catalog.find(item=>item.id===button.dataset.candidate))));
   $('#candidateRetake').addEventListener('click', closeSheet); $('#candidateManual').addEventListener('click', openManualSearch);
+}
+
+function showCandidates() {
+  closeSheet();
+  openCardDetail(catalog[0]);
+  toast('Best match found · check the set and card number');
 }
 
 function openManualSearch() {
@@ -265,7 +339,7 @@ function openManualSearch() {
 
 function openOwnershipSheet(card, editing=false) {
   const source = editing ? card : { ...card, uid:`copy-${card.id}-${Date.now()}`, quantity:1, condition:'Near Mint', gradingCompany:'', grade:'', cost:'', purchaseDate:'', tags:[], location:'', notes:'' };
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${editing?'Edit owned record':'Add owned copy'}</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="ownershipForm"><div class="form-grid">
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${editing?'Edit your card':'Add to Library'}</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="ownershipForm"><div class="form-grid">
     <div class="field"><label for="ownQuantity">Quantity</label><input id="ownQuantity" name="quantity" type="number" min="1" max="999" required value="${Number(source.quantity)||1}"></div>
     <div class="field"><label for="ownCondition">Condition</label><select id="ownCondition" name="condition">${['Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged','Graded'].map(v=>`<option ${source.condition===v?'selected':''}>${v}</option>`).join('')}</select></div>
     <div class="field"><label for="ownGrader">Grading company</label><select id="ownGrader" name="gradingCompany"><option value="">Ungraded</option>${['PSA','CGC','BGS'].map(v=>`<option ${source.gradingCompany===v?'selected':''}>${v}</option>`).join('')}</select></div>
@@ -294,14 +368,14 @@ function openInfo(kind) {
 }
 
 function exportCsv() {
-  const blob=new Blob([collectionToCsv(state.items)],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=`mica-collection-${new Date().toISOString().slice(0,10)}.csv`; link.click(); URL.revokeObjectURL(url); toast('Collection exported safely');
+  const blob=new Blob([collectionToCsv(state.items)],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=`mica-collection-${new Date().toISOString().slice(0,10)}.csv`; link.click(); URL.revokeObjectURL(url); toast('Library backup downloaded');
 }
 
 function handleCsv(file) {
   const reader=new FileReader(); reader.onload=()=>{
     const lines=String(reader.result).split(/\r?\n/).filter(Boolean); if(lines.length<2){toast('No importable rows found');return;}
-    const headers=lines[0].toLowerCase(); if(!headers.includes('name')||!headers.includes('quantity')){toast('CSV needs name and quantity columns');return;}
-    toast(`${lines.length-1} CSV row${lines.length===2?'':'s'} validated in preview · no records changed`);
+    const headers=lines[0].toLowerCase(); if(!headers.includes('name')||!headers.includes('quantity')){toast('This file needs card name and quantity columns');return;}
+    toast(`${lines.length-1} card${lines.length===2?'':'s'} checked · no changes made yet`);
   }; reader.readAsText(file);
 }
 
@@ -356,7 +430,7 @@ async function refreshLivePricing() {
 function renderInsights() {
   const priced = state.items.filter(item => item.price != null).length;
   if (state.pricingStatus === 'live') {
-    $('.insight-feature').innerHTML = `<div class="insight-kicker">Live pricing status</div><strong>${priced} of ${state.items.length} records priced</strong><span>Current compatible provider snapshots · source currencies preserved</span><div class="unavailable-panel">A single current snapshot does not establish price movement. Historical changes will appear only after comparable snapshots have been collected over time.</div>`;
+    $('.insight-feature').innerHTML = `<div class="insight-kicker">Live pricing status</div><strong>${priced} of ${state.items.length} cards priced</strong><span>Current matching market prices</span><div class="unavailable-panel">Price trends appear after matching prices have been collected over time.</div>`;
     $('#moversList').innerHTML = '<div class="data-boundary"><strong>Movement history is not available yet</strong><p>Mica will not infer a trend from one quote or from incompatible variants.</p></div>';
     return;
   }
@@ -366,6 +440,34 @@ function renderInsights() {
 
 function syncTabs() { $$('.view-tab').forEach(tab=>{const active=tab.dataset.ledgerView===state.ledgerView;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));}); }
 function toast(message) { const node=document.createElement('div');node.className='toast';node.textContent=message;$('#toastRegion').append(node);setTimeout(()=>node.remove(),3000); }
+
+function bindQuickCardSearch() {
+  const input = $('#quickCardSearch'); const language = $('#quickSearchLanguage'); const resultsNode = $('#quickSearchResults');
+  let timer; let requestId=0;
+  const showResults = results => {
+    resultsNode.innerHTML = results.length ? results.map(item => `<button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}"><img src="${esc(item.thumb || item.image || '')}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.set || 'Set unavailable')} · ${esc(item.number || 'Number unavailable')}</small><em>${esc(item.variant || 'Printing unknown')}</em></span><b>View</b></button>`).join('') : '<div class="find-empty"><strong>No matching cards</strong><span>Try the Pokémon name, then check the set and number.</span></div>';
+    $$('[data-quick-card]', resultsNode).forEach(button => button.addEventListener('click', () => openCardDetail(catalog.find(card => card.id === button.dataset.quickCard))));
+  };
+  const search = async () => {
+    const q=input.value.trim(); const current=++requestId;
+    if(q.length<2){resultsNode.innerHTML='<div class="find-empty"><strong>Find the exact printing</strong><span>Results show the set and card number so you can pick the right one.</span></div>';return;}
+    resultsNode.innerHTML='<div class="searching-cards"><i></i><span>Finding matching cards…</span></div>';
+    try {
+      const response=await fetch(`/api/catalog?q=${encodeURIComponent(q)}&language=${encodeURIComponent(language.value)}&limit=12`,{headers:{Accept:'application/json'}});
+      if(!response.ok)throw new Error('catalog'); const payload=await response.json(); if(current!==requestId)return;
+      const found=(payload.cards||[]).map(item=>({...item,variant:item.variants?.includes('holo')?'Holofoil':item.variants?.includes('normal')?'Normal':item.variants?.includes('reverse')?'Reverse Holofoil':item.variants?.[0]||'Unknown',price:null,move:null,pricingStatus:'loading'}));
+      for(const item of found){const index=catalog.findIndex(existing=>existing.id===item.id);if(index===-1)catalog.push(item);else catalog[index]={...catalog[index],...item};}
+      showResults(found);
+    } catch {
+      if(current!==requestId)return;
+      const offlineMatches=catalog.filter(item=>matchesSearch(item,q)).slice(0,12);
+      if(offlineMatches.length)showResults(offlineMatches);
+      else resultsNode.innerHTML='<div class="find-empty"><strong>Search is temporarily unavailable</strong><span>Your library is still safe. Try again in a moment.</span></div>';
+    }
+  };
+  const schedule=()=>{clearTimeout(timer);timer=setTimeout(search,220);};
+  input.addEventListener('input',schedule); language.addEventListener('change',search);
+}
 
 function bindEvents() {
   $$('[data-route]').forEach(button=>button.addEventListener('click',()=>{const route=button.dataset.route; if(route==='insights')renderInsights();routeTo(route);}));
@@ -384,9 +486,10 @@ function bindEvents() {
   $$('[data-info]').forEach(button=>button.addEventListener('click',()=>openInfo(button.dataset.info)));
   $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));
   $('#motionButton').addEventListener('click',()=>toast('Motion follows your device preference'));
-  $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Collection options</h2><p>Manage this ledger without losing context.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetExport"><span>Export current collection<small>Formula-safe CSV</small></span><b>›</b></button><button type="button" id="restoreDemo"><span>Restore preview records<small>Replace local changes with the six-record demo</small></span><b>›</b></button></div>`));
+  $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Backup or reset your card library.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetExport"><span>Download a backup<small>Save a copy of every card</small></span><b>›</b></button><button type="button" id="restoreDemo"><span>Restore preview cards<small>Replace local changes with the starter library</small></span><b>›</b></button></div>`));
   document.addEventListener('click',event=>{ if(event.target.closest('#sheetExport')){exportCsv();closeSheet();} if(event.target.closest('#restoreDemo')){state.items=structuredClone(seedItems);saveItems();renderCollection();closeSheet();toast('Preview records restored');} });
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('#bottomSheet').hidden)closeSheet();});
+  bindQuickCardSearch();
 }
 
 function validateImage(file) {

@@ -18,7 +18,7 @@ The failing Vercel deployment was traced to `STATIC_BUILD_NO_OUT_DIR`: the proje
 
 The first attempt to use the default Node test runner was blocked by sandbox process-spawn permissions (`EPERM`). The identical `node:test` cases were then run in-process with `node tests/core.test.js` and all passed. On this Windows host, use `npm.cmd` if PowerShell execution policy blocks `npm.ps1`.
 
-Browser QA passed at 390×844 and 320×700: meaningful content, 6 seeded records, no framework error overlay, no console errors, and no horizontal overflow. Collection summary math rendered as $3,323.42 value, $1,938.75 cost, +$1,384.67 unrealized, 10 owned, and 1 unpriced excluded. Detail showed two distinct demo source/currency rows and explicit unavailable sales history. Edit dialog exposed 9 ownership inputs with existing values. Unpriced filtering returned only Espeon. Scan view exposed camera, library, privacy, and manual fallback; manual “Charizard” search returned two exact-printing candidates.
+Current discovery-flow QA passed at 390×844 and 320×700 with no horizontal overflow or app error overlay. The verified journey was Library → Add card → search Greninja → exact result → value-first card page → Add to Library → default Near Mint copy saved. The quick-add form requires only quantity and condition; purchase and storage details are optional. One console message originated from the Chrome extension on a prior page, not from app code.
 
 Not browser-automated: native camera/file chooser upload, download confirmation, physical-device permissions, screen-reader speech, and a connected provider outage. Those remain device/infrastructure checks.
 

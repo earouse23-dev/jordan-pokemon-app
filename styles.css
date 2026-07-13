@@ -53,6 +53,8 @@ svg { display: block; }
 h1, h2, h3, p { overflow-wrap: anywhere; }
 h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin: 0; }
 .collection-heading { display: flex; align-items: center; justify-content: space-between; margin-bottom: 21px; }
+.collection-actions { display: flex; align-items: center; gap: 8px; }
+.quick-add { min-height: 39px; padding: 0 13px; border: 0; border-radius: 20px; background: var(--pine); color: white; font-size: 11px; font-weight: 700; }
 .icon-button { border: 1px solid var(--line); border-radius: 50%; width: 39px; height: 39px; display: grid; place-items: center; background: rgba(255,255,255,.5); }
 .icon-button svg { width: 20px; fill: var(--muted); }
 
@@ -111,8 +113,41 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .empty-state p { font-size: 12px; margin: 0 0 13px; }
 .text-button { border: 0; background: none; padding: 6px; color: var(--pine-2); text-decoration: underline; }
 
+.discovery-view { max-width: 680px; }
 .scan-header, .screen-heading { margin-bottom: 22px; }
 .scan-header p:last-child, .screen-heading p:last-child { color: var(--muted); font-size: 12px; line-height: 1.55; max-width: 430px; margin: 9px 0 0; }
+.find-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.find-action { min-height: 92px; padding: 16px; border: 1px solid var(--line-dark); border-radius: 10px; background: var(--paper); display: flex; align-items: center; gap: 12px; cursor: pointer; box-shadow: 0 5px 18px rgba(25,34,31,.05); }
+.find-action.primary-find { background: var(--pine); border-color: var(--pine); color: white; }
+.find-action svg { width: 28px; height: 28px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.find-action span, .find-action strong, .find-action small { display: block; }
+.find-action strong { font: 700 13px/1.2 "Manrope", sans-serif; }
+.find-action small { margin-top: 4px; color: var(--muted); font-size: 9px; }
+.find-action.primary-find small { color: rgba(255,255,255,.64); }
+.find-divider { display: flex; align-items: center; gap: 12px; margin: 25px 0 12px; color: var(--muted); font-size: 10px; }
+.find-divider::before, .find-divider::after { content:""; height: 1px; flex: 1; background: var(--line); }
+.find-search { min-height: 58px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border: 2px solid var(--pine); border-radius: 10px; background: white; box-shadow: 0 8px 25px rgba(25,54,45,.08); }
+.find-search svg { width: 22px; flex: none; fill: none; stroke: var(--pine); stroke-width: 1.8; }
+.find-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 15px; }
+.find-search input::placeholder { color: #949993; }
+.search-options { display: flex; align-items: center; justify-content: flex-end; gap: 7px; padding: 10px 2px 6px; color: var(--muted); font-size: 9px; }
+.search-options select { border: 0; background: transparent; color: var(--pine-2); font-size: 10px; font-weight: 700; }
+.quick-results { margin-top: 4px; border-top: 1px solid var(--line); }
+.quick-card-result { width: 100%; display: grid; grid-template-columns: 60px minmax(0,1fr) auto; align-items: center; gap: 13px; padding: 12px 2px; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; }
+.quick-card-result img { width: 60px; height: 84px; object-fit: cover; border-radius: 5px; background: #dedbd2; box-shadow: 0 5px 12px rgba(25,34,31,.12); }
+.quick-card-result span { min-width: 0; }
+.quick-card-result strong, .quick-card-result small, .quick-card-result em { display: block; }
+.quick-card-result strong { font: 700 13px/1.25 "Manrope", sans-serif; }
+.quick-card-result small { margin-top: 4px; color: var(--muted); font-size: 10px; }
+.quick-card-result em { margin-top: 8px; color: var(--pine-2); font-size: 9px; font-style: normal; }
+.quick-card-result b { color: var(--pine); font-size: 10px; }
+.find-empty { padding: 38px 20px; text-align: center; }
+.find-empty strong, .find-empty span { display: block; }
+.find-empty strong { font: 700 14px "Manrope"; }
+.find-empty span { max-width: 300px; margin: 6px auto 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.searching-cards { min-height: 95px; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: 10px; }
+.searching-cards i { width: 17px; height: 17px; border: 2px solid var(--line-dark); border-top-color: var(--pine); border-radius: 50%; animation: spin .7s linear infinite; }
+.simple-privacy { max-width: 420px; margin: 16px auto 0; text-align: center; color: var(--faint); font-size: 9px; }
 .capture-stage { position: relative; aspect-ratio: 1/1.12; max-height: 470px; overflow: hidden; border-radius: 8px; background: #1b2421; box-shadow: var(--shadow); }
 .camera-grid { position: absolute; inset: 0; opacity: .16; background-image: linear-gradient(rgba(255,255,255,.15) 1px, transparent 1px),linear-gradient(90deg,rgba(255,255,255,.15) 1px,transparent 1px); background-size: 33.333% 33.333%; }
 .capture-stage::after { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% 42%, rgba(255,255,255,.08), transparent 48%), linear-gradient(160deg, rgba(255,255,255,.04), transparent); pointer-events: none; }
@@ -179,6 +214,7 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .legal-copy { color: var(--faint); font-size: 8px; line-height: 1.55; margin: 28px 0 0; }
 
 .detail-view { padding-top: 12px; }
+.detail-view.active { padding-bottom: calc(104px + var(--safe-bottom)); }
 .detail-back { border: 0; background: none; display: flex; align-items: center; gap: 4px; padding: 8px 0 16px; font-size: 11px; color: var(--muted); }
 .detail-back svg { width: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; }
 .detail-identity { display: grid; grid-template-columns: 116px 1fr; gap: 16px; }
@@ -193,6 +229,17 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .owned-banner span { display: block; color: rgba(255,255,255,.57); font-size: 8px; }
 .owned-banner strong { font-size: 12px; }
 .owned-banner button { border: 1px solid rgba(255,255,255,.25); background: transparent; color: white; border-radius: 4px; padding: 7px 9px; font-size: 9px; }
+.market-hero { margin-top: 20px; padding: 18px; border-radius: 8px; background: #e7eee8; border: 1px solid #d2dfd5; }
+.market-hero span, .market-hero strong, .market-hero small { display: block; }
+.market-hero span { color: var(--pine-2); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.market-hero strong { margin-top: 4px; font: 700 29px/1.2 "Manrope", sans-serif; letter-spacing: -.03em; color: var(--pine); }
+.market-hero small { margin-top: 5px; color: var(--muted); font-size: 9px; }
+.detail-sticky-action { position: fixed; z-index: 34; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + var(--safe-bottom)); border-top: 1px solid var(--line-dark); background: rgba(250,249,244,.96); backdrop-filter: blur(16px); }
+.detail-sticky-action button { display: block; width: min(100%, 728px); min-height: 52px; margin: 0 auto; border: 0; border-radius: 7px; background: var(--pine); color: white; font: 700 13px "Manrope", sans-serif; box-shadow: 0 8px 20px rgba(24,63,54,.2); }
+.quick-add-fields { display: grid; grid-template-columns: 100px 1fr; gap: 11px; }
+.optional-details { margin: 3px 0 13px; padding: 11px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.optional-details summary { color: var(--pine-2); font-size: 10px; font-weight: 700; cursor: pointer; }
+.optional-details[open] summary { margin-bottom: 13px; }
 .detail-section { margin-top: 22px; }
 .detail-section-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 8px; }
 .detail-section h2 { margin: 0; font: 700 14px "Manrope"; }
@@ -289,6 +336,14 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
   .view-tabs { margin-left: -12px; margin-right: -12px; padding-left: 12px; }
   .portfolio-value { font-size: 33px; }
   .capture-preview strong { font-size: 10px; }
+}
+@media (max-width: 430px) {
+  .find-action { min-height: 82px; padding: 13px 11px; gap: 9px; }
+  .find-action svg { width: 23px; }
+  .find-action strong { font-size: 11px; }
+  .find-search input { font-size: 13px; }
+  .detail-identity { grid-template-columns: 102px 1fr; gap: 13px; }
+  .detail-identity img { width: 102px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto!important; animation-duration: .01ms!important; animation-iteration-count: 1!important; transition-duration: .01ms!important; }

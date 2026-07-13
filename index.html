@@ -7,12 +7,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Mica">
-  <meta name="description" content="Mica is a precise collection ledger for trading card collectors.">
+  <meta name="description" content="Scan, price, and organize your Pokémon card library.">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css">
-  <title>Mica — Collection ledger</title>
+  <link rel="stylesheet" href="styles.css?v=9">
+  <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -34,28 +34,28 @@
       <section class="view active" id="view-collection" aria-labelledby="collectionTitle">
         <div class="collection-heading">
           <div>
-            <p class="eyebrow">Personal collection</p>
-            <h1 id="collectionTitle">The ledger</h1>
+            <p class="eyebrow">Your cards</p>
+            <h1 id="collectionTitle">My library</h1>
           </div>
-          <button class="icon-button" id="moreButton" type="button" aria-label="Collection options" aria-expanded="false">
+          <div class="collection-actions"><button class="quick-add" type="button" data-route="scan">+ Add card</button><button class="icon-button" id="moreButton" type="button" aria-label="More library options" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
-          </button>
+          </button></div>
         </div>
 
         <section class="portfolio-panel" aria-label="Portfolio summary">
           <div class="portfolio-topline">
-            <span>Estimated market value</span>
+            <span>Collection value</span>
             <span class="status-label"><i></i> 5 of 6 priced</span>
           </div>
           <div class="portfolio-value" id="portfolioValue">$0.00</div>
           <div class="portfolio-change" id="portfolioChange"></div>
           <div class="portfolio-divider"></div>
           <div class="portfolio-stats">
-            <div><span>Cost basis</span><strong id="costBasis">$0.00</strong></div>
-            <div><span>Unrealized</span><strong id="unrealized">—</strong></div>
+            <div><span>You paid</span><strong id="costBasis">$0.00</strong></div>
+            <div><span>Gain / loss</span><strong id="unrealized">—</strong></div>
             <div><span>Owned</span><strong id="ownedCount">0 cards</strong></div>
           </div>
-          <p class="valuation-note">Market references are estimates, not appraisals. <button id="methodButton" type="button">How valuation works</button></p>
+          <p class="valuation-note">Based on matching market prices. <button id="methodButton" type="button">How it works</button></p>
         </section>
 
         <div class="view-tabs" role="tablist" aria-label="Collection view">
@@ -77,7 +77,7 @@
         </div>
 
         <div class="ledger-meta">
-          <span id="resultCount">0 records</span>
+          <span id="resultCount">0 cards</span>
           <button id="sortButton" type="button">Value, high to low <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
         </div>
         <div class="card-ledger" id="cardLedger" aria-live="polite"></div>
@@ -89,10 +89,27 @@
         </div>
       </section>
 
-      <section class="view" id="view-scan" aria-labelledby="scanTitle">
+      <section class="view discovery-view" id="view-scan" aria-labelledby="scanTitle">
+        <div class="scan-header">
+          <p class="eyebrow">Find any Pokémon card</p>
+          <h1 id="scanTitle">Add a card</h1>
+          <p>Take a photo or search. Tap the right card to see its value, price trend, and details before adding it.</p>
+        </div>
+        <div class="find-actions">
+          <label class="find-action primary-find" for="cameraInput"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M4 8h3l1-2h8l1 2h3v11H4z"/></svg><span><strong>Scan a card</strong><small>Take a quick photo</small></span></label>
+          <label class="find-action" for="galleryInput"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 3 3 2-2 6 5"/></svg><span><strong>Use a photo</strong><small>Choose from your phone</small></span></label>
+        </div>
+        <div class="find-divider"><span>or search by name</span></div>
+        <label class="find-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="quickCardSearch" type="search" placeholder="Try “Charizard” or “Pikachu 151”" autocomplete="off" aria-label="Search Pokémon cards"></label>
+        <div class="search-options"><label for="quickSearchLanguage">Card language</label><select id="quickSearchLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div>
+        <div class="quick-results" id="quickSearchResults" aria-live="polite"><div class="find-empty"><strong>Find the exact printing</strong><span>Results show the set and card number so you can pick the right one.</span></div></div>
+        <p class="simple-privacy">Photos are used only to identify the card and are not added to your library.</p>
+      </section>
+
+      <section class="view" id="view-scan-legacy" aria-labelledby="legacyScanTitle">
         <div class="scan-header">
           <p class="eyebrow">Add to collection</p>
-          <h1 id="scanTitle">Scan a card</h1>
+          <h1 id="legacyScanTitle">Scan a card</h1>
           <p>We’ll read visible details, compare catalog records, then ask you to confirm the exact printing.</p>
         </div>
         <div class="capture-stage" id="captureStage">
@@ -128,7 +145,7 @@
       </section>
 
       <section class="view" id="view-insights" aria-labelledby="insightsTitle">
-        <div class="screen-heading"><p class="eyebrow">Market context</p><h1 id="insightsTitle">Insights</h1><p>Movement based only on comparable, supported price snapshots.</p></div>
+        <div class="screen-heading"><p class="eyebrow">Your collection</p><h1 id="insightsTitle">Market</h1><p>See which cards are moving and where prices come from.</p></div>
         <div class="insight-feature">
           <div class="insight-kicker">Pricing status</div>
           <strong>Connecting to provider…</strong>
@@ -144,8 +161,8 @@
         <div class="profile-card"><div class="profile-avatar">JD</div><div><strong>Jordan’s collection</strong><span>Last synced just now</span></div><span class="plan-badge">Preview</span></div>
         <div class="settings-group">
           <h2>Collection</h2>
-          <button type="button" id="importButton"><span>Import CSV<small>Add records with row-level validation</small></span><b>›</b></button>
-          <button type="button" id="exportButton"><span>Export collection<small>Formula-safe CSV, all current records</small></span><b>›</b></button>
+          <button type="button" id="importButton"><span>Move in an existing collection<small>Upload a compatible collection file</small></span><b>›</b></button>
+          <button type="button" id="exportButton"><span>Download a backup<small>Save a copy of your library</small></span><b>›</b></button>
           <input id="csvInput" type="file" accept=".csv,text/csv" hidden>
         </div>
         <div class="settings-group">
@@ -168,9 +185,9 @@
     </main>
 
     <nav class="bottom-nav" aria-label="Primary navigation">
-      <button class="nav-item active" type="button" data-route="collection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5"/></svg><span>Collection</span></button>
-      <button class="nav-item scan-nav" type="button" data-route="scan"><span class="scan-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Scan</span></button>
-      <button class="nav-item" type="button" data-route="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9M10 18V5M16 18v-7M21 18H3"/></svg><span>Insights</span></button>
+      <button class="nav-item active" type="button" data-route="collection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5"/></svg><span>Library</span></button>
+      <button class="nav-item scan-nav" type="button" data-route="scan"><span class="scan-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Add card</span></button>
+      <button class="nav-item" type="button" data-route="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9M10 18V5M16 18v-7M21 18H3"/></svg><span>Market</span></button>
       <button class="nav-item" type="button" data-route="profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg><span>Profile</span></button>
     </nav>
   </div>
@@ -181,6 +198,6 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=9"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 {
-  "name": "Mica — Collection Ledger",
+  "name": "Mica — Pokémon Card Library",
   "short_name": "Mica",
-  "description": "A precise, private collection ledger for trading card collectors.",
+  "description": "Scan, price, and organize your Pokémon card library.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
