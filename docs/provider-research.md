@@ -4,6 +4,8 @@ Research checked 2026-07-12 against provider documentation and published terms. 
 
 ## Decision
 
+Live entitlement check on 2026-07-12: the supplied PkmnPrices key successfully returned five Charizard catalog records, but the eBay sold-listing endpoint returned HTTP `403` with `Listings require Pro or higher`. Card search is therefore verified; linked sold evidence is not enabled on the current plan.
+
 No single provider supplies a complete multilingual catalog, condition- and printing-specific raw and graded prices, minute-resolution history, and verified sold-listing links for every Pokémon card ever released.
 
 The production foundation therefore separates four capabilities:

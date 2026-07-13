@@ -38,8 +38,11 @@ export default async function handler(request, response) {
     });
   } catch (error) {
     console.error('[api/sales] provider request failed', { status: error?.status || null, name: error?.name || 'Error' });
+    if (error?.status === 403 && /pro|plan|listing/i.test(error?.providerMessage || '')) {
+      return send(response, 403, { error: 'PkmnPrices Pro or higher is required for sold-listing evidence.', code: 'provider_plan_required', provider: 'pkmnprices' });
+    }
     const status = error?.status === 429 ? 429 : 502;
-    return send(response, status, { error: status === 429 ? 'The sales-provider rate limit was reached.' : 'Sold-listing data is temporarily unavailable.', provider: 'pkmnprices' });
+    return send(response, status, { error: status === 429 ? 'The sales-provider rate limit was reached.' : 'Sold-listing data is temporarily unavailable.', code: status === 429 ? 'provider_rate_limited' : 'provider_unavailable', provider: 'pkmnprices' });
   } finally {
     clearTimeout(timeout);
   }

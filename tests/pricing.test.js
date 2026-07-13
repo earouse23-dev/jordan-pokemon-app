@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import handler from '../api/cards.js';
+import salesHandler from '../api/sales.js';
 import { finishForVariant, mergePriceHistory, normalizeCard, selectCardmarketReference, selectReferenceQuote } from '../lib/pricing.js';
 import { normalizeJustTcgCard, normalizePrinting } from '../lib/providers/justtcg.js';
 import { normalizePkmnPricesSale } from '../lib/providers/pkmnprices.js';
@@ -162,5 +163,29 @@ test('server endpoint returns public TCGdex market pricing when no paid key is c
     globalThis.fetch = originalFetch;
     if (originalJustKey === undefined) delete process.env.JUSTTCG_API_KEY; else process.env.JUSTTCG_API_KEY = originalJustKey;
     if (originalPricingKey === undefined) delete process.env.PRICING_PROVIDER_API_KEY; else process.env.PRICING_PROVIDER_API_KEY = originalPricingKey;
+  }
+});
+
+test('sold endpoint reports a missing PkmnPrices plan entitlement honestly', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.PKMNPRICES_API_KEY;
+  process.env.PKMNPRICES_API_KEY = 'test-sales-secret';
+  let body;
+  const response = {
+    setHeader() {}, status(status) { this.statusCode = status; return this; }, json(value) { body = value; return value; },
+  };
+  globalThis.fetch = async url => {
+    if (String(url).includes('/cards?')) return new Response(JSON.stringify({ data:[{ id:10571, name:'Charizard', number:'4', set:{name:'Base Set'} }] }), { status:200 });
+    return new Response(JSON.stringify({ error:{ code:'forbidden', message:'Listings require Pro or higher' } }), { status:403 });
+  };
+  try {
+    const lookup = JSON.stringify({ clientId:'base1-4', name:'Charizard', set:'Base Set', number:'4/102' });
+    await salesHandler({ method:'GET', query:{lookup} }, response);
+    assert.equal(response.statusCode, 403);
+    assert.equal(body.code, 'provider_plan_required');
+    assert.equal(JSON.stringify(body).includes('test-sales-secret'), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY; else process.env.PKMNPRICES_API_KEY = originalKey;
   }
 });

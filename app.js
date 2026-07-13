@@ -108,6 +108,8 @@ function renderSales(item) {
   if (!sales.length) {
     const copy = item.salesStatus === 'unconfigured'
       ? 'No licensed sold-listing provider is connected. Active listings are not presented as completed sales.'
+      : item.salesStatus === 'plan_required'
+        ? 'The connected PkmnPrices key is valid, but linked sold evidence requires a Pro or higher plan.'
       : 'No verified sales matched this exact raw/graded context. A broader card sale is not substituted.';
     return `<div class="unavailable-panel">${copy}</div>`;
   }
@@ -121,9 +123,11 @@ async function loadSales(item) {
   const lookup = { clientId:item.id, pkmnpricesId:item.externalIds?.pkmnprices || '', name:item.name, set:item.set, number:item.number };
   try {
     const response = await fetch(`/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}`, { headers:{ Accept:'application/json' } });
+    const payload = await response.json().catch(() => ({}));
     if (response.status === 503) { item.salesStatus = 'unconfigured'; item.sales = []; }
+    else if (response.status === 403 && payload.code === 'provider_plan_required') { item.salesStatus = 'plan_required'; item.sales = []; }
     else if (!response.ok) { item.salesStatus = 'error'; item.sales = []; }
-    else { const payload = await response.json(); item.salesStatus = 'live'; item.sales = payload.sales || []; }
+    else { item.salesStatus = 'live'; item.sales = payload.sales || []; }
   } catch { item.salesStatus = 'error'; item.sales = []; }
   if (state.route === 'detail' && state.detailId === item.uid) renderDetail();
 }

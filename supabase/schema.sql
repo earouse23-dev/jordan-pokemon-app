@@ -66,6 +66,9 @@ create table if not exists public.catalog_sync_targets (
   last_request_id bigint, last_error text, claimed_at timestamptz, next_attempt_at timestamptz not null default now(),
   cycle_started_at timestamptz not null default now(), completed_at timestamptz, updated_at timestamptz not null default now()
 );
+create table if not exists public.scheduler_credentials (
+  name text primary key, secret_hash text not null check(secret_hash ~ '^[0-9a-f]{64}$'), rotated_at timestamptz not null default now()
+);
 insert into public.catalog_sync_targets(language,next_page,page_size,refresh_interval)
 values
   ('en',1,50,interval '12 hours'), ('fr',1,50,interval '24 hours'), ('es',1,50,interval '24 hours'),
@@ -289,6 +292,7 @@ alter table public.variant_external_ids enable row level security;
 alter table public.card_images enable row level security;
 alter table public.catalog_sync_runs enable row level security;
 alter table public.catalog_sync_targets enable row level security;
+alter table public.scheduler_credentials enable row level security;
 alter table public.catalog_coverage_snapshots enable row level security;
 alter table public.collections enable row level security;
 alter table public.collection_items enable row level security;

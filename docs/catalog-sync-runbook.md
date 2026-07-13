@@ -6,7 +6,12 @@ The deployed `sync-catalog` Edge Function requires a valid Supabase service-role
 
 ## Activate the scheduler
 
-The live project already contains `catalog_sync_project_url`, ten language targets, and an active dispatcher cron. In the Supabase SQL editor, add the legacy service-role JWT directly to Vault; do not paste it into chat or source control:
+The live project already contains `catalog_sync_project_url`, ten language targets, and an active dispatcher cron. To activate it:
+
+1. Open the Supabase project dashboard.
+2. Go to **Project Settings → API Keys → Legacy API Keys**.
+3. Reveal and copy the `service_role` key—not the `anon` or publishable key. It is a long JWT beginning with `eyJ`.
+4. Open **SQL Editor → New query**, replace only the placeholder below, and run it. Do not paste the JWT into chat or source control.
 
 ```sql
 select vault.create_secret('<service-role-jwt>', 'catalog_sync_service_role_jwt', 'Catalog scheduler service role');

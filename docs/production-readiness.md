@@ -8,7 +8,7 @@
 - [x] Vercel build/output configuration and baseline response headers.
 - [ ] Brand/trademark approval and legal terms review.
 - [ ] Auth templates/providers, private Storage policies, and cross-user RLS tests with real test identities.
-- [ ] Authorized service-role JWT in Vault, completed catalog backfill, provider approval/keys, and health/circuit alerting.
+- [ ] Authorized service-role JWT in Vault, completed catalog backfill, PkmnPrices Pro-or-higher sold entitlement, server-side key configuration, and health/circuit alerting.
 - [ ] OCR/vision evaluation dataset and measured top-1/top-3/no-match/correction/cost results.
 - [ ] Production import/export jobs, idempotent outbox, account deletion, retention cleanup.
 - [ ] Analytics/monitoring configuration, alert routing, incident runbook, backups and restore drill.

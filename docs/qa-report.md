@@ -10,9 +10,9 @@ npm run lint
 npm run build
 ```
 
-Results: 15/15 unit tests passed; the schema validator confirmed 36/36 public tables have RLS; JavaScript and Deno checks passed; custom source lint passed across 13 files; production bundle built successfully to `dist/`. Pricing tests cover normalization, currency/finish/condition/grade compatibility, preferred price selection, history deduplication, server-only key forwarding, normalized output, and cache headers.
+Results: 16/16 unit tests passed; the schema validator confirmed 37/37 public tables have RLS; JavaScript and Deno checks passed; custom source lint passed across 13 files; production bundle built successfully to `dist/`. Pricing tests cover normalization, currency/finish/condition/grade compatibility, preferred price selection, history deduplication, server-only key forwarding, normalized output, cache headers, and explicit sold-provider entitlement failures.
 
-The dedicated Supabase project now has five versioned migrations, 36 public tables with RLS, version 2 of the active JWT-protected catalog Edge Function, an active Vault-backed dispatcher cron, and an active hourly price-metric cron job. Ten language targets are pending with zero attempts while the service-role JWT is absent, proving the dispatcher is dormant rather than failing or bypassing authorization. An unauthenticated importer request returned `401`. Supabase security advisors report no warning/error findings and only informational default-deny notices for six server-only operational tables.
+The dedicated Supabase project now has seven versioned migrations, 37 public tables with RLS, version 2 of the active JWT-protected catalog Edge Function, an active Vault-backed dispatcher cron, and an active hourly price-metric cron job. A proposed custom-token dispatcher was not deployed because changing the platform JWT boundary was not authorized; the follow-up migration restores the original JWT dispatcher. Ten language targets remain pending while the service-role JWT is absent. The supplied PkmnPrices key passed catalog search, while its sold-listing endpoint returned a verified Pro-plan requirement.
 
 The failing Vercel deployment was traced to `STATIC_BUILD_NO_OUT_DIR`: the project expected `public/` while the build emits `dist/`. Repository-owned `vercel.json` now sets the build command and output directory explicitly.
 
