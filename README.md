@@ -38,6 +38,7 @@ The app opens on the port printed by the local server. It does not fall back to 
 - Grades retain decimal precision such as BGS 9.5.
 - Raw and graded values are never combined. Graders, grades, variants, editions, finishes, languages, and currencies must remain compatible.
 - Purchases remain separate lots. Partial sales allocate the oldest remaining lots first using FIFO.
+- Additional copies can be recorded against an existing position without merging purchase lots or replacing their original costs.
 - Future acquisition and transaction dates are rejected in the client, transactional RPC, and table constraints.
 - Application money math uses integer minor units; Postgres stores money as `numeric(14,2)`.
 - Missing compatible prices remain unavailable, never `$0`.
@@ -56,6 +57,8 @@ The PkmnPrices account currently configured in this workspace can return current
 ## Scheduled synchronization
 
 Vercel calls `GET /api/price-sync` daily at 05:00 UTC. The endpoint requires the exact bearer value in `PRICE_SYNC_SECRET` or `CRON_SECRET`, loads actively owned canonical cards, requests PkmnPrices server-side, and inserts immutable normalized observations. Duplicate observations are retained once through a database unique index; partial failures update provider diagnostics without deleting prior valid data.
+
+Users whose Supabase `app_metadata.role` is `admin` receive a protected profile action for provider health, ambiguous or missing mappings, open anomalies, and manual re-sync. The manual `POST /api/price-sync` path validates the caller's Supabase access token and admin role on the server; the cron secret is never sent to the browser.
 
 Vercel Cron runs only for production deployments. Alt and Card Ladder are not scheduled while disabled.
 

@@ -58,8 +58,8 @@ function observationRow(item, quote) {
 }
 
 export default async function handler(request, response) {
-  if (request.method !== "GET") {
-    response.setHeader("Allow", "GET");
+  if (!["GET", "POST"].includes(request.method)) {
+    response.setHeader("Allow", "GET, POST");
     return send(response, 405, { error: "Method not allowed" });
   }
   let config;
@@ -77,11 +77,26 @@ export default async function handler(request, response) {
       error: "Price sync is not configured",
       missing: validation.missing,
     });
-  if (request.headers.authorization !== `Bearer ${config.syncSecret}`)
-    return send(response, 401, { error: "Unauthorized" });
   const database = createClient(config.supabaseUrl, config.supabaseSecretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+  const authorization = String(request.headers.authorization || "");
+  const bearerToken = authorization.startsWith("Bearer ")
+    ? authorization.slice(7)
+    : "";
+  if (request.method === "GET") {
+    if (bearerToken !== config.syncSecret)
+      return send(response, 401, { error: "Unauthorized" });
+  } else {
+    if (!bearerToken)
+      return send(response, 401, { error: "Authentication required" });
+    const { data: identity, error: identityError } =
+      await database.auth.getUser(bearerToken);
+    if (identityError || !identity.user)
+      return send(response, 401, { error: "Authentication required" });
+    if (identity.user.app_metadata?.role !== "admin")
+      return send(response, 403, { error: "Administrator access required" });
+  }
   const startedAt = new Date().toISOString();
   await database
     .from("provider_sync_status")

@@ -312,6 +312,62 @@ begin
   return target_item;
 end $$;
 
+create or replace function public.record_collection_purchase(
+  p_collection_item_id uuid,
+  p_transaction_date date,
+  p_quantity integer,
+  p_unit_price numeric,
+  p_tax numeric default 0,
+  p_shipping numeric default 0,
+  p_marketplace_fees numeric default 0,
+  p_grading_fees numeric default 0,
+  p_other_costs numeric default 0,
+  p_currency text default 'USD',
+  p_marketplace text default null,
+  p_notes text default null,
+  p_idempotency_key text default null
+) returns uuid language plpgsql security invoker set search_path='' as $$
+declare
+  owner_id uuid := (select auth.uid());
+  item_quantity integer;
+  item_currency text;
+  purchase_id uuid;
+  subtotal_amount numeric(14,2);
+  total_amount numeric(14,2);
+begin
+  if owner_id is null then raise exception 'authentication_required'; end if;
+  if p_transaction_date > current_date then raise exception 'future_acquisition_date'; end if;
+  if p_quantity is null or p_quantity <= 0 then raise exception 'invalid_quantity'; end if;
+  if p_unit_price is null or p_unit_price < 0 or least(coalesce(p_tax,0),coalesce(p_shipping,0),coalesce(p_marketplace_fees,0),coalesce(p_grading_fees,0),coalesce(p_other_costs,0)) < 0 then
+    raise exception 'invalid_cost';
+  end if;
+
+  select quantity,currency into item_quantity,item_currency
+  from public.collection_items
+  where id=p_collection_item_id and user_id=owner_id
+  for update;
+  if item_quantity is null then raise exception 'position_not_found'; end if;
+  if upper(p_currency)<>item_currency then raise exception 'currency_mismatch'; end if;
+
+  subtotal_amount := round(p_unit_price*p_quantity,2);
+  total_amount := subtotal_amount+coalesce(p_tax,0)+coalesce(p_shipping,0)+coalesce(p_marketplace_fees,0)+coalesce(p_grading_fees,0)+coalesce(p_other_costs,0);
+  insert into public.collection_transactions(
+    user_id,collection_item_id,transaction_type,transaction_date,quantity,unit_price,subtotal,tax,shipping,
+    marketplace_fees,grading_fees,other_costs,total_cost,currency,marketplace,notes,idempotency_key
+  ) values(
+    owner_id,p_collection_item_id,'purchase',p_transaction_date,p_quantity,p_unit_price,subtotal_amount,coalesce(p_tax,0),coalesce(p_shipping,0),
+    coalesce(p_marketplace_fees,0),coalesce(p_grading_fees,0),coalesce(p_other_costs,0),total_amount,item_currency,p_marketplace,p_notes,p_idempotency_key
+  ) returning id into purchase_id;
+
+  insert into public.purchase_lots(
+    user_id,collection_item_id,purchase_transaction_id,acquired_at,quantity_acquired,quantity_remaining,total_cost,remaining_cost,currency
+  ) values(owner_id,p_collection_item_id,purchase_id,p_transaction_date,p_quantity,p_quantity,total_amount,total_amount,item_currency);
+  update public.collection_items
+  set quantity=item_quantity+p_quantity,status='owned',updated_at=now()
+  where id=p_collection_item_id and user_id=owner_id;
+  return purchase_id;
+end $$;
+
 create or replace function public.record_collection_sale(
   p_collection_item_id uuid,
   p_transaction_date date,
@@ -375,6 +431,8 @@ end $$;
 
 revoke all on function public.create_collection_position(jsonb,uuid,uuid,text,text,text,numeric,text,integer,date,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text,text) from public,anon;
 grant execute on function public.create_collection_position(jsonb,uuid,uuid,text,text,text,numeric,text,integer,date,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text,text) to authenticated;
+revoke all on function public.record_collection_purchase(uuid,date,integer,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text,text) from public,anon;
+grant execute on function public.record_collection_purchase(uuid,date,integer,numeric,numeric,numeric,numeric,numeric,numeric,text,text,text,text) to authenticated;
 revoke all on function public.record_collection_sale(uuid,date,integer,numeric,numeric,numeric,numeric,text,text,text,text) from public,anon;
 grant execute on function public.record_collection_sale(uuid,date,integer,numeric,numeric,numeric,numeric,text,text,text,text) to authenticated;
 

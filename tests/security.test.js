@@ -32,11 +32,22 @@ test("portfolio mutation functions run as invoker and derive the owner from auth
   );
   assert.match(
     migration,
+    /create or replace function public\.record_collection_purchase[\s\S]+?security invoker[\s\S]+?auth\.uid\(\)/i,
+  );
+  assert.match(
+    migration,
     /create or replace function public\.record_collection_sale[\s\S]+?security invoker[\s\S]+?auth\.uid\(\)/i,
   );
   assert.doesNotMatch(
     migration,
-    /create or replace function public\.(create_collection_position|record_collection_sale)[\s\S]+?security definer/i,
+    /create or replace function public\.(create_collection_position|record_collection_purchase|record_collection_sale)[\s\S]+?security definer/i,
+  );
+});
+
+test("additional purchases preserve a separate lot and reject future dates", () => {
+  assert.match(
+    migration,
+    /record_collection_purchase[\s\S]+?future_acquisition_date[\s\S]+?insert into public\.purchase_lots/i,
   );
 });
 
@@ -64,6 +75,35 @@ test("scheduled price synchronization rejects unauthenticated requests before pr
     await priceSyncHandler({ method: "GET", headers: {} }, response);
     assert.equal(response.statusCode, 401);
     assert.equal(body.error, "Unauthorized");
+  } finally {
+    process.env = original;
+  }
+});
+
+test("manual price synchronization requires an authenticated administrator", async () => {
+  const original = { ...process.env };
+  Object.assign(process.env, {
+    NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SECRET_KEY: "server-secret",
+    PKMNPRICES_API_KEY: "provider-secret",
+    PRICE_SYNC_SECRET: "cron-secret",
+  });
+  let body;
+  const response = {
+    setHeader() {},
+    status(status) {
+      this.statusCode = status;
+      return this;
+    },
+    json(value) {
+      body = value;
+      return value;
+    },
+  };
+  try {
+    await priceSyncHandler({ method: "POST", headers: {} }, response);
+    assert.equal(response.statusCode, 401);
+    assert.equal(body.error, "Authentication required");
   } finally {
     process.env = original;
   }
