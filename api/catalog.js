@@ -1,4 +1,4 @@
-import { searchTcgdexCards } from '../lib/providers/tcgdex.js';
+import { parseCatalogQuery, searchTcgdexCards } from '../lib/providers/tcgdex.js';
 
 const LANGUAGES = new Set(['en', 'fr', 'es', 'de', 'it', 'pt', 'ja', 'zh-tw', 'id', 'th']);
 
@@ -20,7 +20,7 @@ export default async function handler(request, response) {
   const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
     const cards = await searchTcgdexCards(query, language, limit, controller.signal);
-    return send(response, 200, { cards, provider: 'tcgdex', retrievedAt: new Date().toISOString() }, {
+    return send(response, 200, { cards, parsedQuery:parseCatalogQuery(query), provider: 'tcgdex', retrievedAt: new Date().toISOString() }, {
       'Cache-Control': 's-maxage=86400, stale-while-revalidate=604800', 'CDN-Cache-Control': 'max-age=86400',
     });
   } catch (error) {

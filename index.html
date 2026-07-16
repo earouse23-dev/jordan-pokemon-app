@@ -11,11 +11,31 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css?v=9">
+  <link rel="stylesheet" href="styles.css?v=13">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
+  <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
+    <div class="auth-card">
+      <div class="auth-brand"><span class="wordmark-gem" aria-hidden="true"><i></i></span><span>Mica</span></div>
+      <p class="eyebrow">Private collector portfolio</p>
+      <h1 id="authTitle">Sign in to your collection</h1>
+      <p>Your cards, purchase lots, and transactions are protected by your Supabase account.</p>
+      <form id="passwordAuthForm" class="auth-form">
+        <div class="field"><label for="authEmail">Email</label><input id="authEmail" name="email" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="authPassword">Password</label><input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="8" required></div>
+        <button class="primary" type="submit" id="passwordSignIn">Sign in</button>
+        <button class="secondary" type="button" id="passwordSignUp">Create account</button>
+      </form>
+      <div class="auth-divider"><span>or</span></div>
+      <form id="magicLinkForm" class="auth-form auth-magic">
+        <label for="magicEmail">Email me a secure sign-in link</label>
+        <div><input id="magicEmail" name="email" type="email" autocomplete="email" required placeholder="you@example.com"><button type="submit">Send magic link</button></div>
+      </form>
+      <p class="auth-message" id="authMessage" role="status" aria-live="polite"></p>
+    </div>
+  </section>
   <div class="app-shell" id="appShell">
     <header class="app-header">
       <button class="wordmark" type="button" data-route="collection" aria-label="Mica home">
@@ -23,8 +43,8 @@
         <span>Mica</span>
       </button>
       <div class="header-actions">
-        <button class="sync-state" type="button" id="syncState" aria-label="Sync status">
-          <span class="sync-dot"></span><span>Synced</span>
+        <button class="sync-state" type="button" id="syncState" aria-label="Pricing and save status" aria-live="polite">
+          <span class="sync-dot"></span><span>Preview data</span>
         </button>
         <button class="avatar" type="button" data-route="profile" aria-label="Open profile">JD</button>
       </div>
@@ -45,23 +65,30 @@
         <section class="portfolio-panel" aria-label="Portfolio summary">
           <div class="portfolio-topline">
             <span>Collection value</span>
-            <span class="status-label"><i></i> 5 of 6 priced</span>
+            <span class="status-label" aria-live="polite"><i></i> Checking price coverage</span>
           </div>
           <div class="portfolio-value" id="portfolioValue">$0.00</div>
           <div class="portfolio-change" id="portfolioChange"></div>
           <div class="portfolio-divider"></div>
           <div class="portfolio-stats">
             <div><span>You paid</span><strong id="costBasis">$0.00</strong></div>
-            <div><span>Gain / loss</span><strong id="unrealized">—</strong></div>
+            <div><span id="gainLabel">Gain / loss</span><strong id="unrealized">—</strong></div>
             <div><span>Owned</span><strong id="ownedCount">0 cards</strong></div>
           </div>
-          <p class="valuation-note">Based on matching market prices. <button id="methodButton" type="button">How it works</button></p>
+          <p class="valuation-note" id="valuationNote">Based on matching market prices. <button id="methodButton" type="button">How it works</button></p>
         </section>
+        <div class="portfolio-detail-grid" aria-label="Portfolio performance details">
+          <div><span>Return</span><strong id="portfolioReturn">—</strong></div>
+          <div><span>Realized gain/loss</span><strong id="realizedGain">—</strong></div>
+          <div><span>Raw / graded</span><strong id="allocationSummary">—</strong></div>
+          <div><span>Fresh valuations</span><strong id="freshCoverage">—</strong></div>
+        </div>
 
         <div class="view-tabs" role="tablist" aria-label="Collection view">
           <button class="view-tab active" type="button" role="tab" aria-selected="true" data-ledger-view="all">All cards <span id="allCount">0</span></button>
+          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="favorites">Favorites</button>
           <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="graded">Graded</button>
-          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="unpriced">Unpriced</button>
+          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="unpriced">Needs review</button>
         </div>
 
         <div class="ledger-tools">
@@ -83,8 +110,9 @@
         <div class="card-ledger" id="cardLedger" aria-live="polite"></div>
         <div class="empty-state hidden" id="collectionEmpty">
           <span class="empty-mark" aria-hidden="true"></span>
-          <h2>No cards in this view</h2>
-          <p>Try clearing the search or changing your filters.</p>
+          <h2 id="collectionEmptyTitle">No cards in this view</h2>
+          <p id="collectionEmptyCopy">Try clearing the search or changing your filters.</p>
+          <button class="quick-add hidden" id="emptyAddCard" type="button">Add your first card</button>
           <button class="text-button" id="clearFilters" type="button">Clear filters</button>
         </div>
       </section>
@@ -93,17 +121,22 @@
         <div class="scan-header">
           <p class="eyebrow">Find any Pokémon card</p>
           <h1 id="scanTitle">Add a card</h1>
-          <p>Take a photo or search. Tap the right card to see its value, price trend, and details before adding it.</p>
+          <p>Search identifies the exact printing. A photo can stay on screen as a reference while you read the name, set, and collector number.</p>
         </div>
         <div class="find-actions">
-          <label class="find-action primary-find" for="cameraInput"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M4 8h3l1-2h8l1 2h3v11H4z"/></svg><span><strong>Scan a card</strong><small>Take a quick photo</small></span></label>
-          <label class="find-action" for="galleryInput"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 3 3 2-2 6 5"/></svg><span><strong>Use a photo</strong><small>Choose from your phone</small></span></label>
+          <label class="find-action primary-find" for="cameraInput"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M4 8h3l1-2h8l1 2h3v11H4z"/></svg><span><strong>Photo assist</strong><small>Keep details visible while searching</small></span></label>
+          <label class="find-action" for="galleryInput"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 3 3 2-2 6 5"/></svg><span><strong>Use saved photo</strong><small>Reference an image from your phone</small></span></label>
         </div>
-        <div class="find-divider"><span>or search by name</span></div>
-        <label class="find-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="quickCardSearch" type="search" placeholder="Try “Charizard” or “Pikachu 151”" autocomplete="off" aria-label="Search Pokémon cards"></label>
+        <div class="find-divider"><span>or search by name, set, number, or details</span></div>
+        <label class="find-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="quickCardSearch" type="search" placeholder="Mew ex 151/165" autocomplete="off" aria-label="Search cards by name, set, collector number, rarity, or finish"></label>
+        <div class="search-examples" aria-label="Search examples">
+          <button type="button" data-search-example="Mew ex 151/165">Mew ex 151/165</button>
+          <button type="button" data-search-example="Charizard Base Set 4/102">Charizard Base Set 4/102</button>
+          <button type="button" data-search-example="Pikachu 151">Pikachu 151</button>
+        </div>
         <div class="search-options"><label for="quickSearchLanguage">Card language</label><select id="quickSearchLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div>
         <div class="quick-results" id="quickSearchResults" aria-live="polite"><div class="find-empty"><strong>Find the exact printing</strong><span>Results show the set and card number so you can pick the right one.</span></div></div>
-        <p class="simple-privacy">Photos are used only to identify the card and are not added to your library.</p>
+        <p class="simple-privacy">Photo assist stays on this device, is not uploaded, and is not saved to your library.</p>
       </section>
 
       <section class="view" id="view-scan-legacy" aria-labelledby="legacyScanTitle">
@@ -135,7 +168,7 @@
         </div>
         <div class="privacy-note">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-          <p><strong>Your photo stays private.</strong> Backgrounds may contain personal details. Mica minimizes and removes temporary scan files after identification.</p>
+          <p><strong>Your photo stays private.</strong> This preview displays the image only on your device and does not upload or save it.</p>
         </div>
         <div class="manual-divider"><span>or</span></div>
         <button class="manual-search-card" id="manualSearchButton" type="button">
@@ -153,15 +186,19 @@
         </div>
         <h2 class="section-heading">What changed</h2>
         <div id="moversList" class="movers-list"></div>
+        <h2 class="section-heading">Portfolio positions</h2>
+        <div id="positionRankings" class="movers-list"></div>
+        <h2 class="section-heading">Recent activity</h2>
+        <div id="recentActivity" class="movers-list"></div>
         <div class="data-boundary"><strong>No sales history connected</strong><p>Mica does not infer completed sales from active listings. Add a licensed sales-history provider when approved.</p></div>
       </section>
 
       <section class="view" id="view-profile" aria-labelledby="profileTitle">
         <div class="screen-heading"><p class="eyebrow">Account & preferences</p><h1 id="profileTitle">Jordan’s Mica</h1><p>Preview workspace · local-first mode</p></div>
-        <div class="profile-card"><div class="profile-avatar">JD</div><div><strong>Jordan’s collection</strong><span>Last synced just now</span></div><span class="plan-badge">Preview</span></div>
+        <div class="profile-card"><div class="profile-avatar">JD</div><div><strong>Jordan’s collection</strong><span>Saved on this device</span></div><span class="plan-badge">Preview</span></div>
         <div class="settings-group">
           <h2>Collection</h2>
-          <button type="button" id="importButton"><span>Move in an existing collection<small>Upload a compatible collection file</small></span><b>›</b></button>
+          <button type="button" id="importButton"><span>Import a collection CSV<small>Add records or replace your on-device library</small></span><b>›</b></button>
           <button type="button" id="exportButton"><span>Download a backup<small>Save a copy of your library</small></span><b>›</b></button>
           <input id="csvInput" type="file" accept=".csv,text/csv" hidden>
         </div>
@@ -198,6 +235,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script type="module" src="app.js?v=9"></script>
+  <script src="app-config.js?v=13"></script>
+  <script type="module" src="app.js?v=13"></script>
 </body>
 </html>

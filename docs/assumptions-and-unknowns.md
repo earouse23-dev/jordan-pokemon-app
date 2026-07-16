@@ -11,7 +11,7 @@
 ## Unknowns requiring commercial or legal decisions
 
 - Approved product name, domain, and trademark clearance.
-- Paid plan, quotas, and billing provider.
+- Paid PkmnPrices plan level, production quotas, and billing approval. The current key can return current prices but is plan-limited for history and sold evidence.
 - Licensed commercial provider for graded prices or transaction history.
 - Whether Pokémon TCG API and linked pricing fields meet the client’s commercial redistribution terms at intended scale.
 - Required regions/languages at launch and exchange-rate provider.
@@ -19,7 +19,7 @@
 
 ## Current implementation boundaries
 
-- UI is a complete local product slice, not a connected production service.
+- UI is a complete local product slice with Vercel API adapters, not a fully connected production service.
 - Authentication screens, provider edge functions, actual OCR/vision calls, background sync, and durable import execution require configured infrastructure.
-- Preview prices are fixtures and visibly labeled not live.
+- Preview prices are fixtures and visibly labeled not live; loading, unavailable, stale, provider-error, and plan-limited states remain separate.
 

@@ -4,7 +4,7 @@ import handler from '../api/cards.js';
 import salesHandler from '../api/sales.js';
 import { finishForVariant, mergePriceHistory, normalizeCard, selectCardmarketReference, selectReferenceQuote } from '../lib/pricing.js';
 import { normalizeJustTcgCard, normalizePrinting } from '../lib/providers/justtcg.js';
-import { normalizePkmnPricesSale } from '../lib/providers/pkmnprices.js';
+import { fetchPkmnPricesLookup, normalizePkmnPricesCard, normalizePkmnPricesSale } from '../lib/providers/pkmnprices.js';
 import { normalizeTcgdexCard, normalizeTcgdexPricingCard } from '../lib/providers/tcgdex.js';
 
 const card = {
@@ -87,6 +87,36 @@ test('normalizes catalog variants and only preserves safe sold-listing links', (
   assert.equal(unsafe.sourceUrl, null);
 });
 
+test('normalizes PkmnPrices card quotes and daily history into the shared pricing schema', () => {
+  const normalized = normalizePkmnPricesCard({
+    id: 4521, tcg_player_id: 89356, name: 'Charizard', image_url: 'https://images.pkmnprices.com/cards/4521.jpg',
+    number: '4', rarity: 'Rare Holo', artist: 'Mitsuhiro Arita', set: { id: 1, name: 'Base Set' },
+    prices: [{ source: 'tcgplayer', currency: 'USD', condition: 'Near Mint', variant: 'Holofoil', market_price: 285, created_at: '2026-04-15T00:00:00Z' }],
+  }, [{ date: '2026-04-16', avg: 290, source: 'ebay', condition: 'Near Mint', variant: 'Holofoil', sale_count: 3 }], '2026-07-15T00:00:00.000Z', 'base1-4');
+  assert.equal(normalized.providerCardId, 'base1-4');
+  assert.equal(normalized.externalIds.pkmnprices, 4521);
+  assert.equal(normalized.quotes[0].provider, 'tcgplayer');
+  assert.equal(normalized.quotes[0].attribution, 'TCGplayer pricing via PkmnPrices');
+  assert.equal(selectReferenceQuote(normalized.quotes, 'Holofoil', 'USD', { condition:'Near Mint' }).amount, 285);
+  assert.equal(normalized.history[0].amount, 290);
+  assert.equal(normalized.history[0].quality.saleCount, 3);
+});
+
+test('reports PkmnPrices history plan limits without fabricating observations', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    assert.equal(options.headers['X-API-Key'], 'history-test-secret');
+    if (String(url).includes('/prices/history')) return new Response(JSON.stringify({ error:{ message:'Upgrade plan for history' } }), { status:403 });
+    return new Response(JSON.stringify({ id:4521, name:'Charizard', number:'4', set:{name:'Base Set'}, prices:[] }), { status:200 });
+  };
+  try {
+    const result = await fetchPkmnPricesLookup('history-test-secret', { pkmnpricesId:'4521' });
+    assert.equal(result.historyStatus, 'plan_required');
+    assert.deepEqual(result.history, []);
+    assert.equal(JSON.stringify(result).includes('history-test-secret'), false);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('normalizes public TCGdex TCGplayer and Cardmarket price fields', () => {
   const normalized = normalizeTcgdexPricingCard({
     id:'base1-4', localId:'4', name:'Charizard', set:{name:'Base Set'}, pricing:{
@@ -137,11 +167,49 @@ test('server endpoint keeps the JustTCG key in the upstream header and returns n
   }
 });
 
+test('server endpoint prefers PkmnPrices when its key is configured', async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.PKMNPRICES_API_KEY;
+  const originalJustKey = process.env.JUSTTCG_API_KEY;
+  process.env.PKMNPRICES_API_KEY = 'test-pkmnprices-secret';
+  delete process.env.JUSTTCG_API_KEY;
+  const requested = [];
+  let body;
+  const response = {
+    setHeader() {}, status(status) { this.statusCode = status; return this; }, json(value) { body = value; return value; },
+  };
+  globalThis.fetch = async (url, options) => {
+    requested.push(String(url));
+    assert.equal(options.headers['X-API-Key'], 'test-pkmnprices-secret');
+    if (String(url).includes('/cards?')) return new Response(JSON.stringify({ data:[{ id:4521, name:'Charizard', number:'4', set:{name:'Base Set'} }] }), { status:200 });
+    if (String(url).includes('/prices/history')) return new Response(JSON.stringify({ data:[{ date:'2026-04-16', avg:290, source:'ebay', condition:'Near Mint', variant:'Holofoil', sale_count:3 }] }), { status:200 });
+    return new Response(JSON.stringify({
+      id:4521, tcg_player_id:89356, name:'Charizard', number:'4', set:{name:'Base Set'},
+      prices:[{ source:'tcgplayer', currency:'USD', condition:'Near Mint', variant:'Holofoil', market_price:285, created_at:'2026-04-15T00:00:00Z' }],
+    }), { status:200 });
+  };
+  try {
+    const lookups = JSON.stringify([{ clientId:'base1-4', name:'Charizard', set:'Base Set', number:'4/102' }]);
+    await handler({ method:'GET', query:{lookups}, headers:{}, socket:{} }, response);
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(body.providers, ['pkmnprices']);
+    assert.equal(body.cards[0].quotes[0].amount, 285);
+    assert.equal(body.cards[0].history[0].amount, 290);
+    assert.equal(JSON.stringify(body).includes('test-pkmnprices-secret'), false);
+    assert.equal(requested.some(url => /api\.tcgdex/.test(url)), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY; else process.env.PKMNPRICES_API_KEY = originalKey;
+    if (originalJustKey === undefined) delete process.env.JUSTTCG_API_KEY; else process.env.JUSTTCG_API_KEY = originalJustKey;
+  }
+});
+
 test('server endpoint returns public TCGdex market pricing when no paid key is configured', async () => {
   const originalFetch = globalThis.fetch;
+  const originalPkmnKey = process.env.PKMNPRICES_API_KEY;
   const originalJustKey = process.env.JUSTTCG_API_KEY;
   const originalPricingKey = process.env.PRICING_PROVIDER_API_KEY;
-  delete process.env.JUSTTCG_API_KEY; delete process.env.PRICING_PROVIDER_API_KEY;
+  delete process.env.PKMNPRICES_API_KEY; delete process.env.JUSTTCG_API_KEY; delete process.env.PRICING_PROVIDER_API_KEY;
   let body;
   const response = {
     setHeader() {}, status(status) { this.statusCode = status; return this; }, json(value) { body = value; return value; },
@@ -161,6 +229,7 @@ test('server endpoint returns public TCGdex market pricing when no paid key is c
     assert.equal(body.cards[0].quotes[0].amount, 350);
   } finally {
     globalThis.fetch = originalFetch;
+    if (originalPkmnKey === undefined) delete process.env.PKMNPRICES_API_KEY; else process.env.PKMNPRICES_API_KEY = originalPkmnKey;
     if (originalJustKey === undefined) delete process.env.JUSTTCG_API_KEY; else process.env.JUSTTCG_API_KEY = originalJustKey;
     if (originalPricingKey === undefined) delete process.env.PRICING_PROVIDER_API_KEY; else process.env.PRICING_PROVIDER_API_KEY = originalPricingKey;
   }
