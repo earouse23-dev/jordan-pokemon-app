@@ -1,68 +1,113 @@
-# Mica — collection ledger
+# Mica — Pokémon card portfolio
 
-Mica is a mobile-first, installable collection ledger for trading-card collectors. It turns a physical card into an editable owned-copy record, keeps price context attributable, and remains useful when pricing or recognition is unavailable.
+Mica is a mobile-first, installable portfolio for exact Pokémon card printings. Authenticated collectors can record raw or graded positions, preserve individual purchase lots, track FIFO cost basis and sales, compare compatible provider values, and see acquisitions on real price history without invented data.
 
-This repository is a dependency-free PWA product slice. It runs locally with explicitly labeled fallback fixtures and includes live TCGdex catalog/market adapters, an enhanced JustTCG adapter, a licensed sold-evidence boundary, and a normalized Supabase schema. It does **not** claim appraisal value or automated condition grading.
+The product name is presentation-only. Domain models, provider adapters, and database structures do not depend on “Mica.”
 
 ## Run
 
 Requires Node 20+.
 
+1. Copy `.env.example` to `.env`.
+2. Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for browser authentication.
+3. Configure `SUPABASE_SECRET_KEY` only for server-side synchronization.
+4. Configure `PKMNPRICES_API_KEY` for primary market pricing.
+5. Apply the migrations in `supabase/migrations/` to the linked Supabase project.
+6. Run:
+
 ```bash
 npm run dev
 ```
 
-Open `http://localhost:4173`. The first load uses six preview records; local edits persist in `localStorage`. Use Collection options → Restore preview records to reset.
+The app opens on the port printed by the local server. It does not fall back to local demo collection storage when Supabase is missing or unavailable.
+
+## Authentication and persistence
+
+- Email/password is the primary sign-up and sign-in method.
+- Magic link is a secondary sign-in option.
+- Supabase Auth sessions automatically attach JWTs to Data API requests.
+- Collection items, transactions, purchase lots, FIFO allocations, and portfolio data persist in Supabase.
+- Ownership RLS uses `(select auth.uid()) = user_id` for reads and writes.
+- Mutation RPCs use `security invoker`, derive ownership from `auth.uid()`, and cannot accept a caller-supplied user ID.
+- The browser receives only the Supabase URL and publishable key. Secret/service and provider keys remain server-only.
+
+## Portfolio rules
+
+- Raw conditions normalize to Near Mint, Lightly Played, Moderately Played, Heavily Played, or Damaged while preserving provider labels.
+- Supported graders are PSA, BGS, CGC, and SGC, with an extensible `OTHER` normalization value.
+- Grades retain decimal precision such as BGS 9.5.
+- Raw and graded values are never combined. Graders, grades, variants, editions, finishes, languages, and currencies must remain compatible.
+- Purchases remain separate lots. Partial sales allocate the oldest remaining lots first using FIFO.
+- Future acquisition and transaction dates are rejected in the client, transactional RPC, and table constraints.
+- Application money math uses integer minor units; Postgres stores money as `numeric(14,2)`.
+- Missing compatible prices remain unavailable, never `$0`.
+
+## Provider behavior
+
+1. PkmnPrices is the primary source for compatible raw and graded prices and history.
+2. TCGdex supplies catalog identity, sets, variants, images, and compatible TCGplayer/Cardmarket raw comparisons.
+3. JustTCG remains an optional configured raw-price fallback.
+4. Alt and Card Ladder adapters are present but disabled. They require authorized API or licensed data access; the app does not scrape them.
+
+Provider responses are normalized before reaching portfolio calculations or UI components. Current observations, history, source, market, currency, condition/grader/grade, and freshness remain explicit. Provider disagreements are shown separately and are not averaged by default.
+
+The PkmnPrices account currently configured in this workspace can return current prices. Historical price and linked sold-listing endpoints may report `plan_required`; the app preserves that state rather than inventing history.
+
+## Scheduled synchronization
+
+Vercel calls `GET /api/price-sync` daily at 05:00 UTC. The endpoint requires the exact bearer value in `PRICE_SYNC_SECRET` or `CRON_SECRET`, loads actively owned canonical cards, requests PkmnPrices server-side, and inserts immutable normalized observations. Duplicate observations are retained once through a database unique index; partial failures update provider diagnostics without deleting prior valid data.
+
+Vercel Cron runs only for production deployments. Alt and Card Ladder are not scheduled while disabled.
+
+## Environment variables
+
+See `.env.example`. Important values:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+- `SUPABASE_SECRET_KEY`
+- `PKMNPRICES_API_KEY`
+- `TCGDEX_BASE_URL`
+- `PRICE_SYNC_SECRET` or Vercel `CRON_SECRET`
+- `PRICE_STALE_AFTER_HOURS`
+- `PRICE_ANOMALY_THRESHOLD_PERCENT`
+- disabled `ALT_*` and `CARD_LADDER_*` values
+
+Do not commit credentials. Do not add `SUPABASE_SECRET_KEY`, provider keys, or synchronization secrets to public/browser-prefixed variables.
 
 ## Verify
 
 ```bash
+npm run format
+npm run lint
+npm run typecheck
 npm test
 npm run test:schema
-npm run typecheck
-npm run lint
 npm run build
 ```
 
-`npm run build` produces the deployable static bundle in `dist/`.
+The deterministic tests do not call live providers. They cover identity normalization, variants, conditions, graders, grades, immutable observation selection, provider fallback, stale/missing/currency states, integer money, FIFO partial sales, future dates, RLS ownership, authenticated mutation functions, and secured synchronization.
 
-## What works in the product slice
+## Database deployment and troubleshooting
 
-- Mobile collection ledger with valuation, cost basis, gain/loss, partial-pricing disclosure, search, saved view modes, and sorting.
-- Card detail with identity, owned-copy metadata, transparent source/type/currency context, and honest unavailable states.
-- Camera/library capture with MIME and size gates, truthful pipeline stages, multiple candidates, confirmation, retake, and manual-search fallback.
-- Add/edit quantity, condition, grading company, grade, cost, purchase date, tags, notes, and location.
-- Formula-injection-safe CSV export and a validation-only import preview.
-- Offline shell, card-image caching, local persistence, reduced-motion support, and installable PWA metadata.
-- Provider-neutral TypeScript contracts and an ownership-scoped Supabase schema with RLS.
-- Server-side live pricing through TCGdex with compatible TCGplayer USD and Cardmarket EUR quotes kept separate, plus optional condition-level JustTCG pricing.
+Apply migrations before testing authenticated persistence. After applying them:
 
-## Live pricing
+1. Run Supabase database advisors.
+2. Verify the new tables have explicit Data API grants; Supabase no longer exposes new public tables automatically.
+3. Test with two accounts and confirm neither can select, update, or delete the other account’s collection, transactions, lots, or allocations.
+4. Enable email/password and magic-link providers and add the production URL to Auth redirect URLs.
+5. Confirm Vercel has the public Supabase variables at build time and server-only values at function runtime.
+6. Run the required PSA 10 and raw Near Mint acceptance flows.
 
-No secret is required for the public TCGdex market-price fallback. For enhanced condition × printing quotes and daily history, set `JUSTTCG_API_KEY` as a **Sensitive** Vercel environment variable for Production, then redeploy. The key is read only by `api/cards.js`, sent upstream in the documented `x-api-key` header, and never included in browser code or API responses.
-
-The collection requests normalized quotes for its card IDs. TCGplayer market is preferred only when the finish matches the owned record. Missing or incompatible prices remain explicitly unpriced, while provider outages fall back to clearly labeled preview values.
-
-## Production setup
-
-1. Create a dedicated Supabase project and configure email/password, email verification, password reset, and Google OAuth if approved.
-2. Apply the versioned migrations in `supabase/migrations/` to a **fresh** project, deploy the JWT-protected `supabase/functions/sync-catalog` Edge Function, then run Supabase database advisors and cross-user RLS tests. `supabase/schema.sql` mirrors the resulting schema for review.
-3. Create a private scan bucket with per-user object policies and a 24-hour cleanup job.
-4. Configure the included server-side pricing adapter. Deploy catalog search and identification adapters as authenticated server/edge functions. Do not expose provider or Gemini secrets in the browser.
-5. Copy `.env.example`, add only server-side secrets to the deployment environment, and configure rate limits.
-6. Replace demo fixtures after approved provider accounts and data rights are confirmed.
-
-The importer is deliberately service-role-only. The included Vault-backed scheduler automatically advances and refreshes all ten supported language catalogs once an authorized operator stores the service-role JWT. Use the [catalog sync runbook](docs/catalog-sync-runbook.md) for activation and coverage checks; never expose that token to the client.
-
-TCGdex is the initial multilingual catalog and no-secret market-price bridge. JustTCG is the enhanced quote source after commercial authorization. New direct TCGplayer and Cardmarket API access is not currently available, and ordinary eBay Browse access does not provide completed sales. See [provider research](docs/provider-research.md).
-
-## Deployment
-
-Deploy `dist/` to any HTTPS static host. `vercel.json` runs `npm run build`, publishes `dist/`, prevents stale service-worker caching, and adds baseline security headers. Camera access and service workers require HTTPS outside localhost. A production data-connected release also needs authenticated server functions; the static bundle alone intentionally does not make third-party pricing calls.
+If a value is unavailable, inspect exact identity/variant mapping, state, condition or grader/grade, currency, provider entitlement, and freshness before changing valuation logic.
 
 ## Documentation
 
-Start with [architecture](docs/architecture.md), [PRD](docs/prd.md), [provider research](docs/provider-research.md), and [production readiness](docs/production-readiness.md).
+- [Implementation plan and audit](docs/implementation-plan-market-portfolio.md)
+- [Architecture](docs/architecture.md)
+- [Provider setup](docs/provider-setup-runbook.md)
+- [Pricing foundation](docs/pricing-foundation.md)
+- [Catalog synchronization](docs/catalog-sync-runbook.md)
+- [Security review](docs/security-review.md)
 
-Mica is independent and is not affiliated with or endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak, TCGplayer, Cardmarket, eBay, PSA, CGC, Beckett, or Card Ladder.
-
+Mica is independent and is not affiliated with or endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak, TCGplayer, Cardmarket, eBay, PSA, CGC, Beckett, SGC, Alt, or Card Ladder.

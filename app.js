@@ -1,19 +1,21 @@
 import { money, calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
+import Chart from 'chart.js/auto';
+import { acquisitionTotal, positionPerformance, validateAcquisition } from './lib/portfolio.js';
+import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
+import { createAppSupabase, createPosition, deletePosition, loadPortfolio, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition } from './lib/supabase-data.js';
 
-const STORAGE_KEY = 'mica.collection.v1';
-const PRICE_HISTORY_KEY = 'mica.price-history.v1';
-const DEMO_DATE = '2026-07-08';
-let storageIssue = false;
+const supabase = createAppSupabase();
+let chartInstance = null;
 let catalog = [
-  { id:'sv3pt5-199', name:'Charizard ex', set:'151', number:'199/165', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/199_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/199.png', price:184.25, move:4.8, artist:'miki kudo', release:'2023' },
-  { id:'swsh7-215', name:'Umbreon VMAX', set:'Evolving Skies', number:'215/203', rarity:'Alternate Art Secret', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh7/215_hires.png', thumb:'https://images.pokemontcg.io/swsh7/215.png', price:1218.40, move:2.7, artist:'KEIICHIRO ITO', release:'2021' },
-  { id:'base1-4', name:'Charizard', set:'Base Set', number:'4/102', rarity:'Rare Holo', variant:'Unlimited Holofoil', image:'https://images.pokemontcg.io/base1/4_hires.png', thumb:'https://images.pokemontcg.io/base1/4.png', price:386.91, move:-1.4, artist:'Mitsuhiro Arita', release:'1999' },
-  { id:'swsh12pt5gg-GG44', name:'Mewtwo VSTAR', set:'Crown Zenith: Galarian Gallery', number:'GG44/GG70', rarity:'Rare Holo VSTAR', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh12pt5gg/GG44_hires.png', thumb:'https://images.pokemontcg.io/swsh12pt5gg/GG44.png', price:129.62, move:7.2, artist:'GOSSAN', release:'2023' },
-  { id:'sv3pt5-151', name:'Mew ex', set:'151', number:'151/165', rarity:'Double Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/151_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/151.png', price:18.74, move:.6, artist:'5ban Graphics', release:'2023' },
+  { id:'sv3pt5-199', name:'Charizard ex', set:'151', number:'199/165', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/199_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/199.png', price:null, move:null, artist:'miki kudo', release:'2023' },
+  { id:'swsh7-215', name:'Umbreon VMAX', set:'Evolving Skies', number:'215/203', rarity:'Alternate Art Secret', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh7/215_hires.png', thumb:'https://images.pokemontcg.io/swsh7/215.png', price:null, move:null, artist:'KEIICHIRO ITO', release:'2021' },
+  { id:'base1-4', name:'Charizard', set:'Base Set', number:'4/102', rarity:'Rare Holo', variant:'Unlimited Holofoil', image:'https://images.pokemontcg.io/base1/4_hires.png', thumb:'https://images.pokemontcg.io/base1/4.png', price:null, move:null, artist:'Mitsuhiro Arita', release:'1999' },
+  { id:'swsh12pt5gg-GG44', name:'Mewtwo VSTAR', set:'Crown Zenith: Galarian Gallery', number:'GG44/GG70', rarity:'Rare Holo VSTAR', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh12pt5gg/GG44_hires.png', thumb:'https://images.pokemontcg.io/swsh12pt5gg/GG44.png', price:null, move:null, artist:'GOSSAN', release:'2023' },
+  { id:'sv3pt5-151', name:'Mew ex', set:'151', number:'151/165', rarity:'Double Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/151_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/151.png', price:null, move:null, artist:'5ban Graphics', release:'2023' },
   { id:'neo4-17', name:'Espeon', set:'Neo Discovery', number:'1/75', rarity:'Rare Holo', variant:'Unlimited Holofoil', image:'https://images.pokemontcg.io/neo2/1_hires.png', thumb:'https://images.pokemontcg.io/neo2/1.png', price:null, move:null, artist:'Ken Sugimori', release:'2001' },
-  { id:'sv6-211', name:'Greninja ex', set:'Twilight Masquerade', number:'214/167', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv6/214_hires.png', thumb:'https://images.pokemontcg.io/sv6/214.png', price:298.13, move:10.4, artist:'Teeziro', release:'2024' },
-  { id:'sm115-28', name:'Pikachu', set:'Detective Pikachu', number:'10/18', rarity:'Common', variant:'Holofoil', image:'https://images.pokemontcg.io/sm115/10_hires.png', thumb:'https://images.pokemontcg.io/sm115/10.png', price:3.12, move:-.2, artist:'MPC Film', release:'2019' }
+  { id:'sv6-211', name:'Greninja ex', set:'Twilight Masquerade', number:'214/167', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv6/214_hires.png', thumb:'https://images.pokemontcg.io/sv6/214.png', price:null, move:null, artist:'Teeziro', release:'2024' },
+  { id:'sm115-28', name:'Pikachu', set:'Detective Pikachu', number:'10/18', rarity:'Common', variant:'Holofoil', image:'https://images.pokemontcg.io/sm115/10_hires.png', thumb:'https://images.pokemontcg.io/sm115/10.png', price:null, move:null, artist:'MPC Film', release:'2019' }
 ];
 
 const seedItems = [
@@ -25,7 +27,7 @@ const seedItems = [
   { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
 ];
 
-const state = { items:loadItems(), route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'demo', pricingRetrievedAt:null, storageStatus:storageIssue?'error':'local' };
+const state = { items:[], session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all' };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -33,23 +35,8 @@ const languageName = code => ({en:'English',ja:'Japanese',fr:'French',de:'German
 const optionalNumber = value => String(value ?? '').trim()==='' ? null : Number(value);
 const normalizeIdentity = value => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
 
-function loadItems() {
-  try { const raw=localStorage.getItem(STORAGE_KEY); if (raw===null) return structuredClone(seedItems); const stored=JSON.parse(raw); if (Array.isArray(stored)) return stored; storageIssue=true; } catch { storageIssue=true; }
-  return structuredClone(seedItems);
-}
 function saveItems() {
-  const persisted = state.items.map(({ quotes, priceHistory, historyStatus, sales, salesStatus, pricingStatus, pricingUpdatedAt, demoPrice, ...item }) => ({
-    ...item,
-    price: demoPrice ?? item.price,
-  }));
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
-    state.storageStatus='local';
-    return true;
-  } catch {
-    state.storageStatus='error';
-    return false;
-  }
+  return Boolean(state.session);
 }
 
 function historyKey(item) {
@@ -57,18 +44,12 @@ function historyKey(item) {
 }
 
 function recordPriceObservation(item, quote, providerHistory = []) {
-  let journal = {};
-  try { journal = JSON.parse(localStorage.getItem(PRICE_HISTORY_KEY)) || {}; } catch {}
-  const key = historyKey(item);
   const observation = quote ? {
     provider:quote.provider, providerVariantId:quote.providerVariantId || quote.providerProductId,
-    currency:quote.currency, condition:quote.condition, finish:quote.finish, amount:quote.amount,
+    currency:quote.currency, condition:quote.condition, finish:quote.finish, gradingCompany:quote.gradingCompany, grade:quote.grade, amount:quote.amount,
     recordedAt:quote.observedAt || quote.retrievedAt, granularity:'observation',
   } : null;
-  const localHistory = mergePriceHistory(journal[key] || [], observation ? [observation] : []).slice(-400);
-  journal[key] = localHistory;
-  try { localStorage.setItem(PRICE_HISTORY_KEY, JSON.stringify(journal)); } catch {}
-  return mergePriceHistory(providerHistory, localHistory);
+  return mergePriceHistory(providerHistory, observation ? [observation] : []).slice(-1000);
 }
 function itemValue(item) { return item.price == null ? null : Number(item.price) * Number(item.quantity || 0); }
 
@@ -93,10 +74,13 @@ function renderQuoteRow(quote, label) {
 }
 
 function historyForItem(item) {
-  if (item.gradingCompany) return [];
   const finish = finishForVariant(item.variant);
-  const exact = (item.priceHistory || []).filter(point => point.finish === finish && point.condition === item.condition);
-  return (exact.length ? exact : (item.priceHistory || []).filter(point => point.finish === finish))
+  const exact = (item.priceHistory || []).filter(point => {
+    if (point.finish !== finish) return false;
+    if (item.gradingCompany) return String(point.gradingCompany || '').toUpperCase() === item.gradingCompany.toUpperCase() && String(point.grade ?? '') === String(item.grade);
+    return !point.gradingCompany && (!point.condition || point.condition === item.condition);
+  });
+  return exact
     .sort((left, right) => new Date(left.recordedAt) - new Date(right.recordedAt));
 }
 
@@ -112,6 +96,31 @@ function renderHistory(item) {
   return `<div class="history-summary"><div><span>Observed average</span><strong>${money(average, last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Samples</span><strong>${history.length} observations</strong></div></div>
     <svg class="price-chart" viewBox="0 0 100 42" role="img" aria-label="Price history from ${esc(first.recordedAt.slice(0,10))} to ${esc(last.recordedAt.slice(0,10))}"><path d="M0 40H100"/><polyline points="${points}"/></svg>
     <div class="chart-dates"><span>${esc(first.recordedAt.slice(0,10))}</span><span>${esc(last.recordedAt.slice(0,10))}</span></div>`;
+}
+
+function renderInteractiveHistory(item) {
+  const history = historyForItem(item);
+  if (item.historyStatus === 'plan_required' && history.length < 2) return `<div class="unavailable-panel"><strong>Price history is plan-limited.</strong><br>The connected PkmnPrices key can return current prices, but historical observations require a higher provider plan. Mica does not invent a trend.</div>`;
+  if (history.length < 2) return `<div class="unavailable-panel">Not enough exact ${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)} observations exist for a chart. A raw or different-grade series is never substituted.</div>`;
+  const values=history.map(point=>point.amount);const min=Math.min(...values);const max=Math.max(...values);const average=values.reduce((sum,value)=>sum+value,0)/values.length;const last=history.at(-1);
+  const context=item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition;
+  return `<div class="history-summary"><div><span>Observed average</span><strong>${money(average,last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min,last.currency)}–${money(max,last.currency)}</strong></div><div><span>Samples</span><strong>${history.length} observations</strong></div></div>
+    <div class="history-controls" role="group" aria-label="Price history range">${[['1m','1 month'],['3m','3 months'],['6m','6 months'],['1y','1 year'],['all','All']].map(([value,label])=>`<button type="button" data-chart-range="${value}" aria-pressed="${String(state.chartRange===value)}">${label}</button>`).join('')}</div>
+    <p class="chart-context">Exact series: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. Provider observations remain separate.</p>
+    <div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="Historical ${esc(context)} prices with purchase entry markers"></canvas></div>`;
+}
+
+function mountPriceChart(item) {
+  const canvas=$('#positionChart');if(!canvas)return;chartInstance?.destroy();
+  const days={'1m':31,'3m':93,'6m':186,'1y':366}[state.chartRange];const cutoff=days?Date.now()-days*86_400_000:0;
+  const history=historyForItem(item).filter(point=>new Date(point.recordedAt).getTime()>=cutoff);
+  const providers=[...new Set(history.map(point=>point.provider))];const colors=['#1f4f43','#9a6b2f','#315f86','#744f79'];
+  const datasets=providers.map((provider,index)=>({label:provider,data:history.filter(point=>point.provider===provider).map(point=>({x:point.recordedAt.slice(0,10),y:point.amount})),borderColor:colors[index%colors.length],backgroundColor:colors[index%colors.length],pointRadius:2,tension:.18,spanGaps:true}));
+  const purchases=(item.transactions||[]).filter(transaction=>transaction.type==='purchase');
+  if(purchases.length)datasets.push({label:'Purchases',type:'scatter',data:purchases.map(transaction=>({x:transaction.date,y:transaction.unitPrice,transaction})),pointRadius:7,pointStyle:'triangle',backgroundColor:'#b14e43',borderColor:'#fff',borderWidth:1});
+  if(item.costBasis&&item.quantity){const labels=[...new Set([...history.map(point=>point.recordedAt.slice(0,10)),...purchases.map(point=>point.date)])].sort();datasets.push({label:'Remaining cost basis / card',data:labels.map(date=>({x:date,y:item.costBasis/item.quantity})),borderColor:'#7a746a',borderDash:[5,5],pointRadius:0,borderWidth:1});}
+  chartInstance=new Chart(canvas,{type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,parsing:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label(context){const transaction=context.raw?.transaction;return transaction?`Purchased ${transaction.date}: ${money(transaction.unitPrice,transaction.currency)} each · ${transaction.quantity} · total ${money(transaction.totalCost,transaction.currency)}`:`${context.dataset.label}: ${money(context.parsed.y,item.currency||'USD')}`;}}}},scales:{x:{type:'category',grid:{display:false},ticks:{maxTicksLimit:6}},y:{ticks:{callback:value=>money(value,item.currency||'USD')},grid:{color:'rgba(60,70,65,.08)'}}}}});
+  $$('[data-chart-range]').forEach(button=>button.addEventListener('click',()=>{state.chartRange=button.dataset.chartRange;renderDetail();}));
 }
 
 function comparableSales(item) {
@@ -179,11 +188,19 @@ function routeTo(route, options={}) {
 function renderCollection() {
   const totals = calculateTotals(state.items);
   const gain = totals.comparableValue - totals.comparableCost;
+  const realized = state.items.reduce((sum,item)=>sum+Number(item.realizedGain||0),0);
+  const rawCount = state.items.filter(item=>!item.gradingCompany).reduce((sum,item)=>sum+Number(item.quantity||0),0);
+  const gradedCount = state.items.filter(item=>item.gradingCompany).reduce((sum,item)=>sum+Number(item.quantity||0),0);
+  const portfolioReturn = totals.comparableCost > 0 ? gain / totals.comparableCost * 100 : null;
   $('#portfolioValue').textContent = money(totals.value);
   $('#costBasis').textContent = totals.costKnown ? money(totals.cost) : '—';
   $('#unrealized').textContent = totals.gainCoverage ? `${gain >= 0 ? '+' : ''}${money(gain)}` : '—';
   $('#gainLabel').textContent = totals.gainCoverage === totals.quantity ? 'Gain / loss' : 'Known gain / loss';
   $('#ownedCount').textContent = `${totals.quantity} card${totals.quantity === 1 ? '' : 's'}`;
+  $('#portfolioReturn').textContent = portfolioReturn===null?'—':`${portfolioReturn>=0?'+':''}${portfolioReturn.toFixed(1)}%`;
+  $('#realizedGain').textContent = `${realized>=0?'+':''}${money(realized)}`;
+  $('#allocationSummary').textContent = `${rawCount} / ${gradedCount}`;
+  $('#freshCoverage').textContent = `${totals.priced} of ${totals.quantity}`;
   const partial = totals.unpriced ? ` · ${totals.unpriced} unpriced card${totals.unpriced === 1 ? '' : 's'} excluded` : '';
   const costCoverage = totals.unknownCost ? ` · ${totals.unknownCost} missing purchase cost` : '';
   const hasProviderPricing = ['live','partial'].includes(state.pricingStatus);
@@ -293,10 +310,10 @@ function renderOwnedDetailLegacy() {
     <div class="owned-banner"><div><span>Your position</span><strong>${item.quantity} owned · ${total==null?'Unpriced':money(total)}</strong></div><button id="editCopyButton" type="button">Edit record</button></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price==null?'No supported quote':item.pricingStatus==='live'?'Live provider data':'Preview data · not live'}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
     <section class="detail-section"><div class="detail-section-head"><h2>Owned copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>Purchased ${esc(item.purchaseDate || 'date not recorded')} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes?`<div class="unavailable-panel">${esc(item.notes)}</div>`:''}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2><span>Provider observations · no synthetic ticks</span></div>${renderHistory(item)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2><span>Provider observations · no synthetic ticks</span></div>${renderInteractiveHistory(item)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent sold evidence</h2><span>${item.salesStatus === 'live' ? 'Linked completed sales' : 'Licensed source required'}</span></div>${renderSales(item)}</section>`;
   $('#detailBack').addEventListener('click', () => routeTo('collection'));
-  $('#editCopyButton').addEventListener('click', () => openOwnershipSheet(item, true));
+  $('#editCopyButton').addEventListener('click', () => openPositionEditSheet(item));
   void loadSales(item);
 }
 
@@ -327,6 +344,8 @@ function renderDetail() {
       : `<div class="unavailable-panel">${pricingStatus === 'unavailable' ? 'No matching market price is available for this printing, finish, and condition yet. Mica did not substitute another card.' : pricingStatus === 'rate_limited' ? 'The pricing provider asked Mica to slow down. No value is being guessed.' : pricingStatus === 'error' ? 'The pricing provider could not be reached. No value is being guessed.' : 'Loading the latest matching market price…'}${['error','rate_limited'].includes(pricingStatus)?'<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>':''}</div>`;
   const backLabel = state.detailReturnRoute === 'collection' ? 'My library' : 'Find cards';
   const ownedSection = owned ? `<section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location || 'Location not set')}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>${item.purchaseDate ? `Bought ${esc(item.purchaseDate)}` : 'Purchase date not added'}${item.cost!==null&&item.cost!==undefined ? ` · ${money(item.cost)} each` : ' · Cost not recorded'}</span></div><b>×${item.quantity}</b></div>${item.notes?`<div class="unavailable-panel">${esc(item.notes)}</div>`:''}<button class="record-remove" id="removeCopyButton" type="button">Remove this owned record</button></section>` : '';
+  const performance=owned?positionPerformance({quantityOwned:item.quantity,remainingCostBasisMinor:Math.round(Number(item.costBasis||0)*100),currentUnitPrice:displayPrice,netSaleProceedsMinor:Math.round(Number(item.netSaleProceeds||0)*100),allocatedSoldCostMinor:Math.round(Number(item.allocatedSoldCost||0)*100)}):null;
+  const positionSection=owned?`<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>FIFO cost basis</span></div><div class="position-summary"><div><span>Total cost basis</span><strong>${money(item.costBasis,item.currency)}</strong></div><div><span>Current estimated value</span><strong>${performance.currentValueMinor===null?'Unavailable':money(performance.currentValueMinor/100,item.currency)}</strong></div><div><span>Unrealized gain/loss</span><strong>${performance.unrealizedGainMinor===null?'Unavailable':money(performance.unrealizedGainMinor/100,item.currency)}</strong></div><div><span>Return</span><strong>${performance.returnPercent===null?'Unavailable':`${performance.returnPercent>=0?'+':''}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>Realized gain/loss</span><strong>${money(performance.realizedGainMinor/100,item.currency)}</strong></div><div><span>Valuation source</span><strong>${esc(tcgQuote?.provider||'Unavailable')}</strong></div></div><div class="transaction-list">${(item.transactions||[]).map(transaction=>`<div class="transaction-row"><div><strong>${transaction.type==='purchase'?'Purchased':'Sold'} ${transaction.date}</strong><span>${transaction.quantity} at ${money(transaction.unitPrice,transaction.currency)} · ${esc(transaction.marketplace||'Marketplace not recorded')}</span></div><b>${transaction.type==='purchase'?money(transaction.totalCost,transaction.currency):money(transaction.netProceeds,transaction.currency)}</b></div>`).join('')}</div><div class="sheet-actions"><button class="secondary" id="recordSaleButton" type="button">Record sale</button></div></section>`:'';
   const favorite=owned&&(item.tags||[]).some(tag=>String(tag).toLowerCase()==='favorites');
   const action = owned
     ? `<div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${displayPrice==null?'Price unavailable':`${money(displayPrice)} each`}</strong></div><div class="owned-actions"><button id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}">${favorite?'Favorited':'Favorite'}</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>`
@@ -338,22 +357,27 @@ function renderDetail() {
     <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? pricingStatus === 'loading' ? 'Checking…' : 'Price unavailable' : money(displayPrice)}</strong><small>${statusCopy}</small></section>
     ${action}
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderHistory(item)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderInteractiveHistory(item)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === 'live' ? 'Completed listings' : 'Verified links when available'}</span></div>${renderSales(item)}</section>
+    ${positionSection}
     ${ownedSection}
     <p class="legal-copy">Prices are market references, not guaranteed sale values. Condition can materially change what a card is worth.</p>`;
   $('#detailBack').addEventListener('click', () => state.detailCanPop ? history.back() : routeTo(state.detailReturnRoute || (owned ? 'collection' : 'scan')));
-  $('#editCopyButton')?.addEventListener('click', () => openOwnershipSheet(item, true));
+  $('#editCopyButton')?.addEventListener('click', () => openPositionEditSheet(item));
   $('#duplicateCopyButton')?.addEventListener('click', () => openQuickAddSheet(item));
   $('#addLibraryButton')?.addEventListener('click', () => openQuickAddSheet(item));
   $('#favoriteCopyButton')?.addEventListener('click', () => toggleFavorite(item));
   $('#removeCopyButton')?.addEventListener('click', () => openDeleteCopySheet(item));
+  $('#recordSaleButton')?.addEventListener('click',()=>openSaleSheet(item));
   $('#retryPricingButton')?.addEventListener('click',()=>{if(owned)void refreshLivePricing();else{state.detailCard={...item,pricingStatus:'loading',price:null};renderDetail();void loadCardPreviewPricing(item);}});
   $('#retrySalesButton')?.addEventListener('click',()=>void loadSales(item,true));
+  mountPriceChart(item);
   void loadSales(item);
 }
 
 function openQuickAddSheet(card) {
+  return openPositionSheet(card);
+  /* Legacy form retained below for backwards-compatible markup during cache rollover. */
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to Library</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="quickAddForm"><div class="quick-add-fields"><div class="field"><label for="quickQuantity">How many?</label><input id="quickQuantity" name="quantity" type="number" min="1" max="999" value="1" required></div><div class="field"><label for="quickCondition">Condition</label><select id="quickCondition" name="condition"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select></div></div><details class="optional-details"><summary>Add purchase or storage details</summary><div class="form-grid"><div class="field"><label for="quickCost">What you paid · each</label><input id="quickCost" name="cost" type="number" min="0" step=".01" placeholder="Optional"></div><div class="field"><label for="quickLocation">Where you keep it</label><input id="quickLocation" name="location" placeholder="Binder, case, box…"></div></div></details><div class="sheet-actions"><button class="secondary" type="button" id="quickAddCancel">Not now</button><button class="primary" type="submit">Add to Library</button></div></form>`);
   $('#quickAddCancel').addEventListener('click', closeSheet);
   $('#quickAddForm').addEventListener('submit', event => {
@@ -364,7 +388,54 @@ function openQuickAddSheet(card) {
   });
 }
 
+function identitySnapshot(card, variant) {
+  return {providerCardId:card.id,name:card.name,set:card.set,number:card.number,language:card.language||'en',rarity:card.rarity||null,variant,
+    release:card.release||null,artist:card.artist||null,image:card.image||card.thumb||null,thumb:card.thumb||card.image||null,externalIds:card.externalIds||{tcgdex:card.id}};
+}
+
+function openPositionSheet(card) {
+  const today=new Date().toISOString().slice(0,10);const variants=Array.isArray(card.variants)&&card.variants.length?card.variants:[card.variant||'Unknown'];
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add investment position</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)} · ${esc(languageName(card.language||'en'))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
+    <form id="positionForm"><div class="form-grid">
+      <div class="field full"><label for="positionVariant">Exact variant</label><select id="positionVariant" name="variant" required>${variants.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('')}</select></div>
+      <div class="field"><label for="positionState">Card state</label><select id="positionState" name="cardState"><option value="raw">Raw</option><option value="graded">Professionally graded</option></select></div>
+      <div class="field raw-position"><label for="positionCondition">Raw condition</label><select id="positionCondition" name="rawCondition"><option value="near_mint">Near Mint</option><option value="lightly_played">Lightly Played</option><option value="moderately_played">Moderately Played</option><option value="heavily_played">Heavily Played</option><option value="damaged">Damaged</option></select></div>
+      <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${['PSA','BGS','CGC','SGC'].map(value=>`<option>${value}</option>`).join('')}</select></div>
+      <div class="field graded-position" hidden><label for="positionGrade">Grade</label><input id="positionGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="10"></div>
+      <div class="field graded-position full" hidden><label for="positionCertification">Certification number · optional</label><input id="positionCertification" name="certificationNumber" maxlength="100"></div>
+      <div class="field"><label for="positionQuantity">Quantity</label><input id="positionQuantity" name="quantity" type="number" min="1" max="99999" step="1" value="1" required></div>
+      <div class="field"><label for="positionDate">Purchase date</label><input id="positionDate" name="transactionDate" type="date" max="${today}" required></div>
+      <div class="field"><label for="positionUnitPrice">Unit purchase price</label><input id="positionUnitPrice" name="unitPrice" type="number" min="0" step="0.01" value="0.00" required></div>
+      <div class="field"><label for="positionTax">Tax</label><input id="positionTax" name="tax" type="number" min="0" step="0.01" value="0.00"></div>
+      <div class="field"><label for="positionShipping">Shipping</label><input id="positionShipping" name="shipping" type="number" min="0" step="0.01" value="0.00"></div>
+      <div class="field"><label for="positionMarketFees">Marketplace fees</label><input id="positionMarketFees" name="marketplaceFees" type="number" min="0" step="0.01" value="0.00"></div>
+      <div class="field"><label for="positionGradingFees">Grading fees</label><input id="positionGradingFees" name="gradingFees" type="number" min="0" step="0.01" value="0.00"></div>
+      <div class="field"><label for="positionOtherCosts">Other acquisition costs</label><input id="positionOtherCosts" name="otherCosts" type="number" min="0" step="0.01" value="0.00"></div>
+      <div class="field"><label for="positionMarketplace">Marketplace · optional</label><input id="positionMarketplace" name="marketplace" maxlength="120"></div>
+      <div class="field full"><label for="positionNotes">Notes · optional</label><textarea id="positionNotes" name="notes"></textarea></div>
+      <p class="form-error" id="positionError" role="alert"></p>
+    </div><div class="position-total"><span>Total acquisition cost</span><strong id="positionTotal">$0.00</strong></div>
+    <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Save position</button></div></form>`);
+  const form=$('#positionForm');const syncState=()=>{const graded=$('#positionState').value==='graded';$$('.graded-position',form).forEach(node=>node.hidden=!graded);$$('.raw-position',form).forEach(node=>node.hidden=graded);$('#positionGrader').required=graded;$('#positionGrade').required=graded;$('#positionCondition').required=!graded;if(graded)$('#positionCondition').value='';else{$('#positionGrader').value='';$('#positionGrade').value='';}};
+  const values=()=>{const data=new FormData(form);return Object.fromEntries(data.entries());};
+  const updateTotal=()=>{const input=values();const total=acquisitionTotal(input);$('#positionTotal').textContent=total===null?'Invalid amounts':money(total/100);};
+  $('#positionState').addEventListener('change',()=>{syncState();updateTotal();});form.addEventListener('input',updateTotal);$('#positionCancel').addEventListener('click',closeSheet);syncState();updateTotal();
+  form.addEventListener('submit',async event=>{event.preventDefault();const input=values();input.quantity=Number(input.quantity);input.grade=input.cardState==='graded'?normalizeGrade(input.grade):null;input.grader=input.cardState==='graded'?normalizeGrader(input.grader).normalized:null;const validation=validateAcquisition(input,today);if(!validation.valid){$('#positionError').textContent=Object.values(validation.errors)[0];return;}const submit=form.querySelector('[type="submit"]');submit.disabled=true;$('#positionError').textContent='Saving securely…';try{const itemId=await createPosition(supabase,{...input,identity:identitySnapshot(card,input.variant),cardId:card.cardId||null,variantId:card.variantId||null,idempotencyKey:crypto.randomUUID(),currency:'USD'});closeSheet({discardHistory:true});await reloadPortfolio(itemId);toast('Position saved with a separate FIFO purchase lot');}catch(error){$('#positionError').textContent=error.message?.includes('future')?'Acquisition dates cannot be later than today.':`Could not save this position: ${error.message||'Unknown error'}`;submit.disabled=false;}});
+}
+
+function openSaleSheet(item) {
+  const today=new Date().toISOString().slice(0,10);
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Record sale</h2><p>${esc(item.name)} · ${esc(item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition)} · ${item.quantity} owned</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saleForm"><div class="form-grid"><div class="field"><label for="saleQuantity">Quantity sold</label><input id="saleQuantity" name="quantity" type="number" min="1" max="${item.quantity}" step="1" required></div><div class="field"><label for="saleDate">Sale date</label><input id="saleDate" name="transactionDate" type="date" max="${today}" required></div><div class="field"><label for="salePrice">Unit sale price</label><input id="salePrice" name="unitPrice" type="number" min="0" step="0.01" required></div><div class="field"><label for="saleFees">Marketplace fees</label><input id="saleFees" name="marketplaceFees" type="number" min="0" step="0.01" value="0.00"></div><div class="field"><label for="saleShipping">Shipping</label><input id="saleShipping" name="shipping" type="number" min="0" step="0.01" value="0.00"></div><div class="field"><label for="saleOther">Other selling costs</label><input id="saleOther" name="otherCosts" type="number" min="0" step="0.01" value="0.00"></div><div class="field full"><label for="saleMarketplace">Marketplace</label><input id="saleMarketplace" name="marketplace"></div><div class="field full"><label for="saleNotes">Notes</label><textarea id="saleNotes" name="notes"></textarea></div><p class="form-error" id="saleError" role="alert"></p></div><div class="warning-panel"><strong>FIFO allocation is automatic.</strong><p>The oldest remaining purchase lots will be allocated first and the allocation will remain in transaction history.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="saleCancel">Cancel</button><button class="primary" type="submit">Record sale</button></div></form>`);
+  $('#saleCancel').addEventListener('click',closeSheet);$('#saleForm').addEventListener('submit',async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());if(data.transactionDate>today){$('#saleError').textContent='Transaction dates cannot be later than today.';return;}const quantity=Number(data.quantity);if(!Number.isInteger(quantity)||quantity<1||quantity>item.quantity){$('#saleError').textContent='Sale quantity exceeds the currently owned quantity.';return;}const submit=event.currentTarget.querySelector('[type="submit"]');submit.disabled=true;try{await recordSale(supabase,{...data,collectionItemId:item.uid,quantity,idempotencyKey:crypto.randomUUID(),currency:item.currency||'USD'});closeSheet({discardHistory:true});await reloadPortfolio(item.uid);toast('Sale recorded and oldest purchase lots allocated first');}catch(error){$('#saleError').textContent=`Could not record sale: ${error.message||'Unknown error'}`;submit.disabled=false;}});
+}
+
+async function reloadPortfolio(focusId=null) {
+  state.items=await loadPortfolio(supabase);renderCollection();renderInsights();if(focusId){state.detailId=focusId;state.detailCard=state.items.find(item=>item.uid===focusId)||null;state.detailReturnRoute='collection';routeTo('detail');}await refreshLivePricing();
+}
+
 function toggleFavorite(item) {
+  toast(`${item.name} is already safely stored in your authenticated portfolio.`);
+  return;
   const tags=[...(item.tags||[])];
   const index=tags.findIndex(tag=>String(tag).toLowerCase()==='favorites');
   if(index===-1)tags.push('Favorites');else tags.splice(index,1);
@@ -375,9 +446,17 @@ function toggleFavorite(item) {
 }
 
 function openDeleteCopySheet(item) {
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Remove position?</h2><p>${esc(item.name)} · ${esc(item.set)} ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>This removes the position, purchase lots, transactions, and FIFO allocations.</strong><p>This action cannot be undone.</p></div><div class="sheet-actions"><button class="secondary" id="keepCloudPosition" type="button">Keep position</button><button class="danger-action" id="removeCloudPosition" type="button">Remove position</button></div>`);
+  $('#keepCloudPosition').addEventListener('click',closeSheet);$('#removeCloudPosition').addEventListener('click',async()=>{const button=$('#removeCloudPosition');button.disabled=true;try{await deletePosition(supabase,item.uid);closeSheet({discardHistory:true});state.detailId=null;state.detailCard=null;state.detailCanPop=false;routeTo('collection');await reloadPortfolio();toast('Position and transaction history removed');}catch(error){button.disabled=false;toast(`Could not remove position: ${error.message||'Unknown error'}`);}});
+  return;
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Remove owned record?</h2><p>${esc(item.name)} · ${esc(item.set)} ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>This removes your quantity, purchase, storage, and notes for this record.</strong><p>Your other copies and catalog search results are not affected.</p></div><div class="sheet-actions"><button class="secondary" id="keepCopyButton" type="button">Keep record</button><button class="danger-action" id="confirmRemoveCopy" type="button">Remove record</button></div>`);
   $('#keepCopyButton').addEventListener('click',closeSheet);
   $('#confirmRemoveCopy').addEventListener('click',()=>{state.items=state.items.filter(candidate=>candidate.uid!==item.uid);const saved=saveItems();closeSheet({discardHistory:true});state.detailId=null;state.detailCard=null;state.detailCanPop=false;routeTo('collection');renderCollection();toast(saved?'Owned record removed':'Removed for this session · device storage unavailable');});
+}
+
+function openPositionEditSheet(item) {
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Edit position details</h2><p>${esc(item.name)} · financial transactions remain auditable</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" value="${esc(item.certificationNumber||'')}"></div><div class="field full"><label for="editLocation">Storage location</label><input id="editLocation" name="location" value="${esc(item.location||'')}"></div><div class="field full"><label for="editNotes">Notes</label><textarea id="editNotes" name="notes">${esc(item.notes||'')}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`);
+  $('#editCancel').addEventListener('click',closeSheet);$('#positionEditForm').addEventListener('submit',async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());const submit=event.currentTarget.querySelector('[type="submit"]');submit.disabled=true;try{await updatePosition(supabase,item.uid,{...data,status:item.status});closeSheet({discardHistory:true});await reloadPortfolio(item.uid);toast('Position details updated');}catch(error){$('#editError').textContent=`Could not update position: ${error.message||'Unknown error'}`;submit.disabled=false;}});
 }
 
 function openSheet(content, trigger=document.activeElement) {
@@ -624,6 +703,10 @@ async function refreshLivePricing() {
 
 function renderInsights() {
   const priced = state.items.filter(item => item.price != null).length;
+  const ranked=[...state.items].map(item=>({item,value:item.price==null?null:Number(item.price)*Number(item.quantity),gain:item.price==null?null:Number(item.price)*Number(item.quantity)-Number(item.costBasis||0)})).sort((a,b)=>(b.value??-1)-(a.value??-1));
+  $('#positionRankings').innerHTML=ranked.length?ranked.slice(0,5).map(({item,value,gain})=>`<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition)} · ${item.quantity} owned</span></div><b>${value===null?'Unavailable':`${money(value)}${gain===null?'':` · ${gain>=0?'+':''}${money(gain)}`}`}</b></div>`).join(''):'<div class="data-boundary"><strong>No positions yet</strong><p>Add an exact card and purchase lot to start portfolio analysis.</p></div>';
+  const recent=state.items.flatMap(item=>(item.transactions||[]).map(transaction=>({item,transaction}))).sort((a,b)=>b.transaction.date.localeCompare(a.transaction.date)).slice(0,6);
+  $('#recentActivity').innerHTML=recent.length?recent.map(({item,transaction})=>`<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${transaction.type==='purchase'?'Purchased':'Sold'} ${esc(item.name)}</strong><span>${esc(transaction.date)} · ${transaction.quantity} at ${money(transaction.unitPrice,transaction.currency)}</span></div><b>${transaction.type==='purchase'?money(transaction.totalCost,transaction.currency):money(transaction.netProceeds,transaction.currency)}</b></div>`).join(''):'<div class="data-boundary"><strong>No transactions yet</strong><p>Purchases and sales will appear here.</p></div>';
   if (['live','partial'].includes(state.pricingStatus)) {
     $('.insight-feature').innerHTML = `<div class="insight-kicker">${state.pricingStatus==='partial'?'Partial':'Live'} pricing status</div><strong>${priced} of ${state.items.length} cards priced</strong><span>Exact-printing matches only · ${state.items.length-priced} need review</span><div class="unavailable-panel">Price trends appear after matching prices have been collected over time.</div>`;
     $('#moversList').innerHTML = '<div class="data-boundary"><strong>Movement history is not available yet</strong><p>Mica will not infer a trend from one quote or from incompatible variants.</p></div>';
@@ -701,5 +784,41 @@ function validateImage(file) {
   showProcessing(file);
 }
 
-bindEvents(); renderCollection(); renderInsights(); routeTo(location.hash && ['scan','insights','profile'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'collection', {instant:true,history:'replace'}); refreshLivePricing();
-if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('./sw.js').catch(()=>{});
+let appEventsBound=false;
+
+function authMessage(message,error=false) { const node=$('#authMessage');node.textContent=message;node.style.color=error?'var(--danger)':'var(--pine-2)'; }
+
+function bindAuthUI() {
+  $('#passwordAuthForm').addEventListener('submit',async event=>{event.preventDefault();const data=new FormData(event.currentTarget);authMessage('Signing in…');const {error}=await signInWithPassword(supabase,String(data.get('email')).trim(),String(data.get('password')));if(error)authMessage(error.message,true);});
+  $('#passwordSignUp').addEventListener('click',async()=>{const form=$('#passwordAuthForm');if(!form.reportValidity())return;const data=new FormData(form);authMessage('Creating your account…');const {data:result,error}=await signUpWithPassword(supabase,String(data.get('email')).trim(),String(data.get('password')));if(error)authMessage(error.message,true);else authMessage(result.session?'Account created. Loading your portfolio…':'Check your email to confirm your account, then sign in.');});
+  $('#magicLinkForm').addEventListener('submit',async event=>{event.preventDefault();const email=String(new FormData(event.currentTarget).get('email')).trim();authMessage('Sending your secure magic link…');const {error}=await sendMagicLink(supabase,email);authMessage(error?error.message:'Magic link sent. Check your email.',Boolean(error));});
+}
+
+function ensureProfileAccount() {
+  const email=state.session?.user?.email||'Signed in';
+  const heading=$('#profileTitle');if(heading)heading.textContent='Your portfolio account';
+  const profile=$('.profile-card');const strong=profile?.querySelector('strong');const span=profile?.querySelector('span');if(strong)strong.textContent=email;if(span)span.textContent='Collection, transactions, and FIFO lots sync to Supabase';
+  let button=$('#signOutButton');if(!button){button=document.createElement('button');button.id='signOutButton';button.type='button';button.className='profile-signout';button.textContent='Sign out';$('#view-profile').insertBefore(button,$('#view-profile .legal-copy'));}
+  button.onclick=async()=>{button.disabled=true;const {error}=await signOut(supabase);if(error){toast(error.message);button.disabled=false;}};
+}
+
+async function applySession(session) {
+  state.session=session;
+  document.body.classList.toggle('authenticated',Boolean(session));
+  $('#authGate').hidden=Boolean(session);
+  if(!session){state.items=[];state.detailId=null;state.detailCard=null;chartInstance?.destroy();return;}
+  if(!appEventsBound){bindEvents();appEventsBound=true;}
+  ensureProfileAccount();
+  try{state.items=await loadPortfolio(supabase);state.storageStatus='cloud';renderCollection();renderInsights();routeTo(location.hash&&['scan','insights','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});await refreshLivePricing();}
+  catch(error){state.items=[];renderCollection();renderInsights();toast(`Portfolio could not load: ${error.message||'Database migration may be pending'}`);}
+}
+
+async function bootstrap() {
+  if(!supabase){authMessage('Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, then rebuild.',true);return;}
+  bindAuthUI();
+  const {data,error}=await supabase.auth.getSession();if(error){authMessage(error.message,true);return;}await applySession(data.session);
+  supabase.auth.onAuthStateChange((event,session)=>{if(event==='INITIAL_SESSION')return;setTimeout(()=>void applySession(session),0);});
+  if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
+void bootstrap();

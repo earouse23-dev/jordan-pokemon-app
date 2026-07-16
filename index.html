@@ -11,11 +11,31 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
+  <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
+    <div class="auth-card">
+      <div class="auth-brand"><span class="wordmark-gem" aria-hidden="true"><i></i></span><span>Mica</span></div>
+      <p class="eyebrow">Private collector portfolio</p>
+      <h1 id="authTitle">Sign in to your collection</h1>
+      <p>Your cards, purchase lots, and transactions are protected by your Supabase account.</p>
+      <form id="passwordAuthForm" class="auth-form">
+        <div class="field"><label for="authEmail">Email</label><input id="authEmail" name="email" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="authPassword">Password</label><input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="8" required></div>
+        <button class="primary" type="submit" id="passwordSignIn">Sign in</button>
+        <button class="secondary" type="button" id="passwordSignUp">Create account</button>
+      </form>
+      <div class="auth-divider"><span>or</span></div>
+      <form id="magicLinkForm" class="auth-form auth-magic">
+        <label for="magicEmail">Email me a secure sign-in link</label>
+        <div><input id="magicEmail" name="email" type="email" autocomplete="email" required placeholder="you@example.com"><button type="submit">Send magic link</button></div>
+      </form>
+      <p class="auth-message" id="authMessage" role="status" aria-live="polite"></p>
+    </div>
+  </section>
   <div class="app-shell" id="appShell">
     <header class="app-header">
       <button class="wordmark" type="button" data-route="collection" aria-label="Mica home">
@@ -57,6 +77,12 @@
           </div>
           <p class="valuation-note" id="valuationNote">Based on matching market prices. <button id="methodButton" type="button">How it works</button></p>
         </section>
+        <div class="portfolio-detail-grid" aria-label="Portfolio performance details">
+          <div><span>Return</span><strong id="portfolioReturn">—</strong></div>
+          <div><span>Realized gain/loss</span><strong id="realizedGain">—</strong></div>
+          <div><span>Raw / graded</span><strong id="allocationSummary">—</strong></div>
+          <div><span>Fresh valuations</span><strong id="freshCoverage">—</strong></div>
+        </div>
 
         <div class="view-tabs" role="tablist" aria-label="Collection view">
           <button class="view-tab active" type="button" role="tab" aria-selected="true" data-ledger-view="all">All cards <span id="allCount">0</span></button>
@@ -160,6 +186,10 @@
         </div>
         <h2 class="section-heading">What changed</h2>
         <div id="moversList" class="movers-list"></div>
+        <h2 class="section-heading">Portfolio positions</h2>
+        <div id="positionRankings" class="movers-list"></div>
+        <h2 class="section-heading">Recent activity</h2>
+        <div id="recentActivity" class="movers-list"></div>
         <div class="data-boundary"><strong>No sales history connected</strong><p>Mica does not infer completed sales from active listings. Add a licensed sales-history provider when approved.</p></div>
       </section>
 
@@ -205,6 +235,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script type="module" src="app.js?v=12"></script>
+  <script src="app-config.js?v=13"></script>
+  <script type="module" src="app.js?v=13"></script>
 </body>
 </html>

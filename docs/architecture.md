@@ -1,28 +1,44 @@
 # Architecture
 
-## Current slice
+## Client
 
-Dependency-free ES modules, semantic HTML, custom CSS, localStorage, service-worker shell/image cache, and deterministic fixtures. `lib/core.js` contains testable valuation/search/CSV rules; `app.js` handles presentation and local orchestration.
+The mobile PWA uses bundled ES modules, semantic HTML, custom CSS, Chart.js, Supabase Auth/Data API persistence, and a service-worker shell/image cache. `lib/domain.js`, `lib/portfolio.js`, and `lib/core.js` contain testable identity, valuation, FIFO, integer-money, search, and CSV rules. `app.js` handles presentation and authenticated orchestration.
 
-## Production target
+Collection records never fall back to local demo storage. The browser receives only the Supabase URL and publishable key. Secret/service and provider credentials remain server-side.
 
-Static/PWA client → authenticated Supabase functions → provider-neutral catalog/identification/pricing adapters → external providers. PostgreSQL is the system of record; private Storage holds temporary captures; scheduled functions sync catalog/prices and delete expired scans.
+## Data flow
 
-UI never consumes provider response schemas. Functions validate normalized output, enforce entitlements/rate limits, cache by provider/product/window, log structured health without PII, and return partial results.
+```text
+Mobile PWA → Supabase Auth → ownership RLS → collection items / transactions / FIFO lots
+          ↘ Vercel Functions → provider adapters → PkmnPrices / TCGdex
+Vercel Cron → secured price sync → immutable normalized observations → charts / valuation
+```
 
-`api/cards.js` accepts bounded identity lookups, prefers condition-specific JustTCG data when a server-only key is configured, and falls back to public TCGdex TCGplayer/Cardmarket market fields. It rate-limits callers, times out upstream requests, returns partial results, and emits CDN-cacheable provider-neutral quotes. `api/catalog.js` supplies multilingual TCGdex search and `api/sales.js` gates linked completed sales behind a separately licensed provider. The service worker always sends `/api/` requests to the network.
+PostgreSQL is the system of record. Transactional, `security invoker` RPCs create a position plus its first purchase lot and allocate sales against the oldest locked lots. Every mutation derives the owner from `auth.uid()`.
 
-`supabase/functions/sync-catalog` is the resumable system-of-record importer. A service-role caller supplies a language and page; the function fetches bounded TCGdex batches, normalizes sets/cards/variants/images/external IDs, stores compatible positive market observations, records coverage, and returns the next cursor. It cannot be invoked by browser or authenticated-user tokens. PostgreSQL deduplicates provider observations and an internal `pg_cron` job refreshes daily OHLC/average metrics hourly.
+## Provider boundaries
 
-`catalog_sync_targets` and `dispatch_catalog_sync()` form the backfill control plane. A minute cron claims up to three different language pages with row locks, invokes the importer asynchronously through `pg_net`, retries abandoned/failed claims, and restarts completed language cycles after their configured refresh interval. The dispatcher returns without claiming work unless its project URL and service-role JWT exist in Vault.
+- PkmnPrices: primary current raw/graded pricing, available history, and licensed sold evidence.
+- TCGdex: multilingual catalog, sets, identity, variants, images, and compatible raw TCGplayer/Cardmarket comparison.
+- JustTCG: optional configured raw fallback.
+- Alt and Card Ladder: disabled until licensed API access is supplied; never scraped.
 
-## Modules
+UI and financial code consume normalized internal observations only. Raw/graded state, variant, finish, edition, condition, grader, grade, language, market, currency, source, and freshness remain explicit.
 
-- `types/providers.ts`: normalized provider capabilities and contracts.
-- `supabase/schema.sql`: identity, catalog, collection/copies, scans/candidates, pricing, valuations, jobs, health, and RLS.
-- `supabase/functions/sync-catalog`: service-role multilingual catalog and baseline-price ingestion.
-- `lib/core.js`: pure financial, search, freshness, and CSV safety functions.
-- `tests/`: unit verification independent of live APIs.
+## Synchronization
 
-See ADR 0001 for why the existing PWA stack was retained.
+`api/price-sync.js` is called daily by Vercel Cron. It verifies the bearer secret, reads actively owned canonical cards with a server-only Supabase client, requests PkmnPrices, stores immutable deduplicated observations, and updates provider diagnostics. Partial failures preserve previous valid data.
 
+The existing `supabase/functions/sync-catalog` remains the resumable multilingual catalog importer. Catalog and pricing synchronization are separate jobs with separate status records.
+
+## Security
+
+- Email/password primary authentication and secondary magic links.
+- Explicit Data API grants for authenticated tables.
+- RLS on every public table.
+- Ownership predicates on collection items, transactions, purchase lots, and FIFO allocations.
+- Admin diagnostics use `app_metadata.role`, never user-editable metadata.
+- Provider and service secrets never enter the browser bundle.
+- Future transaction dates are rejected in UI validation, RPCs, and table constraints.
+
+See [implementation plan](implementation-plan-market-portfolio.md) and [security review](security-review.md).
