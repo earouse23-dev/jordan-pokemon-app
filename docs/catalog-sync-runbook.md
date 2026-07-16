@@ -1,5 +1,22 @@
 # Catalog sync runbook
 
+## Smart catalog search
+
+`/api/catalog` uses TCGdex for multilingual card identity. The server parses a collector's natural query before calling TCGdex: card-name terms are sent as `name`, collector numbers as `localId`, recognized set names as `set.name`, set codes as `set.id`, and the denominator in `151/165` as `set.cardCount.official`. Never send a mixed query such as `Mew ex 151/165` as one `name` value.
+
+The adapter makes a narrow exact request plus relaxed fallback requests, deduplicates provider IDs, fetches full card records, and ranks locally. Ranking considers exact name, set, local number, official set size, set code, rarity/finish hints, image availability, and selected language. The normalized result preserves the real TCGdex ID and includes confidence plus human-readable match reasons. It does not guess IDs from legacy local seed formats.
+
+Release smoke searches:
+
+- `Mew ex 151/165` -> `sv03.5-151` first.
+- `151/165` -> local number 151 results, including Mew ex from 151.
+- `Charizard 4/102` -> Base Set Charizard first.
+- `Greninja 214/167` -> Twilight Masquerade Greninja ex first.
+- `Pikachu 151` -> Pikachu in set 151; `151` is not treated as its local number.
+- Repeat one query with `language=ja` and confirm every upstream card request stays under `/v2/ja/cards`.
+
+When these fail, inspect the returned `parsedQuery` and normalized `match.reasons` before changing UI matching. A local static preview cannot execute Vercel routes and may use the small offline fixture catalog; provider-backed acceptance must call the server route or adapter directly.
+
 ## Security boundary
 
 The deployed `sync-catalog` Edge Function requires a valid Supabase service-role JWT at the gateway and verifies the JWT role again in the function. Never put that token in source control, browser code, logs, screenshots, or a public scheduler. An unauthenticated production request must return `401`.

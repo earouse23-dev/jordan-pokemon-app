@@ -1,4 +1,5 @@
 import { fetchJustTcgLookup, normalizeJustTcgCard } from '../lib/providers/justtcg.js';
+import { fetchPkmnPricesLookup, normalizePkmnPricesCard } from '../lib/providers/pkmnprices.js';
 import { fetchTcgdexPricingLookup, normalizeTcgdexPricingCard } from '../lib/providers/tcgdex.js';
 
 const windows = new Map();
@@ -34,6 +35,7 @@ function parseLookups(request) {
   for (const raw of input) {
     const lookup = {
       clientId: String(raw?.clientId || '').trim(),
+      pkmnpricesId: String(raw?.pkmnpricesId || '').trim(),
       justtcgId: String(raw?.justtcgId || '').trim(),
       tcgplayerId: String(raw?.tcgplayerId || '').trim(),
       tcgdexId: String(raw?.tcgdexId || '').trim(),
@@ -42,7 +44,7 @@ function parseLookups(request) {
       number: String(raw?.number || '').trim(),
     };
     if (!lookup.clientId || seen.has(lookup.clientId)) continue;
-    const hasDirectId = /^[A-Za-z0-9-]{1,100}$/.test(lookup.justtcgId) || /^\d{1,12}$/.test(lookup.tcgplayerId) || /^[A-Za-z0-9.-]+-[A-Za-z0-9.-]+$/.test(lookup.tcgdexId);
+    const hasDirectId = /^\d{1,12}$/.test(lookup.pkmnpricesId) || /^[A-Za-z0-9-]{1,100}$/.test(lookup.justtcgId) || /^\d{1,12}$/.test(lookup.tcgplayerId) || /^[A-Za-z0-9.-]+-[A-Za-z0-9.-]+$/.test(lookup.tcgdexId);
     const hasSearch = SAFE_TEXT.test(lookup.name) && (!lookup.set || SAFE_TEXT.test(lookup.set)) && (!lookup.number || SAFE_TEXT.test(lookup.number));
     if (!hasDirectId && !hasSearch) return null;
     seen.add(lookup.clientId);
@@ -61,7 +63,8 @@ export default async function handler(request, response) {
   const lookups = parseLookups(request);
   if (!lookups) return send(response, 400, { error: 'Provide 1 to 8 valid card lookups.' });
 
-  const apiKey = process.env.JUSTTCG_API_KEY || process.env.PRICING_PROVIDER_API_KEY;
+  const pkmnPricesKey = process.env.PKMNPRICES_API_KEY || (process.env.PRICING_PROVIDER === 'pkmnprices' ? process.env.PRICING_PROVIDER_API_KEY : '');
+  const justTcgKey = process.env.JUSTTCG_API_KEY || (process.env.PRICING_PROVIDER === 'justtcg' ? process.env.PRICING_PROVIDER_API_KEY : '');
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9_000);
@@ -69,11 +72,20 @@ export default async function handler(request, response) {
   try {
     const cardsByClientId = new Map();
     const providers = new Set();
-    if (apiKey) {
-      const primary = await Promise.allSettled(lookups.map(lookup => fetchJustTcgLookup(apiKey, lookup, controller.signal)));
+    if (pkmnPricesKey) {
+      const primary = await Promise.allSettled(lookups.map(lookup => fetchPkmnPricesLookup(pkmnPricesKey, lookup, controller.signal)));
       primary.forEach((result, index) => {
         if (result.status !== 'fulfilled' || !result.value.card) return;
-        const card = normalizeJustTcgCard(result.value.card, retrievedAt, lookups[index].clientId);
+        const card = normalizePkmnPricesCard(result.value.card, result.value.history, retrievedAt, lookups[index].clientId, result.value.historyStatus);
+        cardsByClientId.set(card.providerCardId, card); providers.add('pkmnprices');
+      });
+    }
+    if (justTcgKey) {
+      const justTcgFallbacks = lookups.filter(lookup => !cardsByClientId.has(lookup.clientId));
+      const fallback = await Promise.allSettled(justTcgFallbacks.map(lookup => fetchJustTcgLookup(justTcgKey, lookup, controller.signal)));
+      fallback.forEach((result, index) => {
+        if (result.status !== 'fulfilled' || !result.value.card) return;
+        const card = normalizeJustTcgCard(result.value.card, retrievedAt, justTcgFallbacks[index].clientId);
         cardsByClientId.set(card.providerCardId, card); providers.add('justtcg');
       });
     }
@@ -86,14 +98,14 @@ export default async function handler(request, response) {
     });
     const cards = [...cardsByClientId.values()];
     const unavailable = lookups.filter(lookup => !cardsByClientId.has(lookup.clientId)).map(lookup => lookup.clientId);
-    if (!cards.length) return send(response, 502, { error: 'No pricing provider responded.', providers: ['justtcg', 'tcgdex'], unavailable });
+    if (!cards.length) return send(response, 502, { error: 'No pricing provider responded.', providers: ['pkmnprices', 'justtcg', 'tcgdex'], unavailable });
     return send(response, 200, { cards, unavailable, retrievedAt, providers: [...providers], partial: unavailable.length > 0 }, {
       'Cache-Control': 's-maxage=900, stale-while-revalidate=3600',
       'CDN-Cache-Control': 'max-age=900',
     });
   } catch (error) {
     console.error('[api/cards] provider request errored', { name: error?.name || 'Error' });
-    return send(response, 502, { error: 'The pricing providers did not respond in time.', providers: ['justtcg', 'tcgdex'] });
+    return send(response, 502, { error: 'The pricing providers did not respond in time.', providers: ['pkmnprices', 'justtcg', 'tcgdex'] });
   } finally {
     clearTimeout(timeout);
   }
