@@ -52,9 +52,12 @@ test("offline runtime caching is bounded and APIs remain network-only", () => {
 
 test("installable app metadata uses a scoped standalone shell", () => {
   assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.orientation, "any");
   assert.equal(manifest.start_url, "./");
   assert.equal(manifest.scope, "./");
   assert.ok(manifest.icons.some((icon) => icon.purpose.includes("maskable")));
+  assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
+  assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
 });
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {
