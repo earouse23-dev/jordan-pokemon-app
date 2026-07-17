@@ -637,7 +637,7 @@ function renderDetail() {
   $('#addLibraryButton')?.addEventListener('click', () => openQuickAddSheet(item));
   $('#watchCardButton')?.addEventListener('click', () => openWatchlistSheet(item,watched));
   $('#editWatchButton')?.addEventListener('click', () => openWatchlistSheet(item,watched));
-  $('#favoriteCopyButton')?.addEventListener('click', () => toggleFavorite(item));
+  $('#favoriteCopyButton')?.addEventListener('click', () => void toggleFavorite(item));
   $('#removeCopyButton')?.addEventListener('click', () => openDeleteCopySheet(item));
   $('#recordSaleButton')?.addEventListener('click',()=>openSaleSheet(item));
   $('#recordPurchaseButton')?.addEventListener('click',()=>openPurchaseLotSheet(item));
@@ -739,16 +739,23 @@ async function reloadPortfolio(focusId=null) {
   state.items=await loadPortfolio(supabase);renderCollection();renderInsights();if(focusId){state.detailId=focusId;state.detailCard=state.items.find(item=>item.uid===focusId)||null;state.detailReturnRoute='collection';routeTo('detail');}await refreshLivePricing();
 }
 
-function toggleFavorite(item) {
-  toast(`${item.name} is already safely stored in your authenticated portfolio.`);
-  return;
-  const tags=[...(item.tags||[])];
+async function toggleFavorite(item) {
+  const originalTags=[...(item.tags||[])];
+  const tags=[...originalTags];
   const index=tags.findIndex(tag=>String(tag).toLowerCase()==='favorites');
   if(index===-1)tags.push('Favorites');else tags.splice(index,1);
   state.items=state.items.map(candidate=>candidate.uid===item.uid?{...candidate,tags}:candidate);
-  const updated=state.items.find(candidate=>candidate.uid===item.uid);
-  state.detailCard=updated;
-  const saved=saveItems();renderCollection();renderDetail();toast(saved?(index===-1?'Added to favorites':'Removed from favorites'):'Changed for this session · device storage unavailable');
+  state.detailCard=state.items.find(candidate=>candidate.uid===item.uid)||state.detailCard;
+  renderCollection();renderDetail();
+  try{
+    await updatePosition(supabase,item.uid,{tags});
+    toast(index===-1?'Added to Favorites':'Removed from Favorites');
+  }catch(error){
+    state.items=state.items.map(candidate=>candidate.uid===item.uid?{...candidate,tags:originalTags}:candidate);
+    state.detailCard=state.items.find(candidate=>candidate.uid===item.uid)||state.detailCard;
+    renderCollection();renderDetail();
+    toast(`Could not update Favorites: ${error.message||'Unknown error'}`);
+  }
 }
 
 function openDeleteCopySheet(item) {

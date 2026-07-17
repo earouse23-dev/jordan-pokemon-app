@@ -17,6 +17,13 @@ const watchlistMigration = await readFile(
   ),
   "utf8",
 );
+const collectionTagsMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260717213000_add_collection_tags.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -87,6 +94,17 @@ test("watchlist rows are private, authenticated, and protected on every mutation
   assert.match(
     watchlistMigration,
     /grant select,insert,update,delete[\s\S]+to authenticated/i,
+  );
+});
+
+test("portfolio tags default safely and support indexed favorite filtering", () => {
+  assert.match(
+    collectionTagsMigration,
+    /add column if not exists tags text\[\] not null default '\{\}'::text\[\]/i,
+  );
+  assert.match(
+    collectionTagsMigration,
+    /create index if not exists collection_items_tags_gin_idx[\s\S]+using gin\s*\(tags\)/i,
   );
 });
 

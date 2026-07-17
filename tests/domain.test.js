@@ -29,7 +29,11 @@ import {
   toMinorUnits,
   validateAcquisition,
 } from "../lib/portfolio.js";
-import { hydratePosition, hydrateWatchlistEntry } from "../lib/supabase-data.js";
+import {
+  hydratePosition,
+  hydrateWatchlistEntry,
+  updatePosition,
+} from "../lib/supabase-data.js";
 
 test("normalizes provider raw conditions while retaining the original label", () => {
   assert.deepEqual(normalizeRawCondition("NM"), {
@@ -93,6 +97,7 @@ test("position hydration attaches FIFO basis and realized gain to each sale", ()
       raw_condition: "near_mint",
       quantity: 0,
       currency: "USD",
+      tags: ["Favorites"],
     },
     [
       {
@@ -115,6 +120,32 @@ test("position hydration attaches FIFO basis and realized gain to each sale", ()
   );
   assert.equal(position.transactions[0].allocatedCost, 80);
   assert.equal(position.transactions[0].realizedGain, 55);
+  assert.deepEqual(position.tags, ["Favorites"]);
+});
+
+test("position updates only send fields the user changed", async () => {
+  let updated;
+  let matchedId;
+  const client = {
+    from(table) {
+      assert.equal(table, "collection_items");
+      return {
+        update(payload) {
+          updated = payload;
+          return {
+            async eq(column, id) {
+              assert.equal(column, "id");
+              matchedId = id;
+              return { error: null };
+            },
+          };
+        },
+      };
+    },
+  };
+  await updatePosition(client, "position-1", { tags: ["Favorites"] });
+  assert.deepEqual(updated, { tags: ["Favorites"] });
+  assert.equal(matchedId, "position-1");
 });
 
 test("canonical identity separates same-name cards by set, language, number, and variant", () => {
