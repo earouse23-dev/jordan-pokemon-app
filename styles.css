@@ -286,6 +286,23 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .set-checklist span strong { font-size: 10px; }
 .set-checklist span small { margin-top: 3px; color: var(--muted); font-size: 8px; }
 .set-checklist b { color: var(--copper); font-size: 9px; }
+.sale-planner { padding: 16px; border: 1px solid #ceddd2; border-radius: 9px; background: linear-gradient(145deg,rgba(228,238,231,.7),rgba(255,255,255,.35)); }
+.planner-intro { margin: -2px 0 14px; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.sale-planner-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.planner-fee-note { margin: 10px 0; color: var(--faint); font-size: 8px; }
+.sale-plan-output { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line-dark); border-radius: 7px; overflow: hidden; background: rgba(255,255,255,.62); }
+.sale-plan-output > div:not(.unavailable-panel) { min-height: 66px; padding: 11px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.sale-plan-output > div:nth-child(even) { border-right: 0; }
+.sale-plan-output span, .sale-plan-output strong { display: block; }
+.sale-plan-output span { color: var(--faint); font-size: 8px; text-transform: uppercase; letter-spacing: .04em; }
+.sale-plan-output strong { margin-top: 5px; font: 700 14px "Manrope"; font-variant-numeric: tabular-nums; }
+.sale-plan-output .positive strong, .sale-plan-output .target strong { color: #28603f; }
+.sale-plan-output .negative strong { color: var(--danger); }
+.sale-plan-output .target { background: #edf4e8; }
+.sale-plan-output > div:last-child:nth-child(4n+3) { grid-column: span 2; }
+.sale-plan-output .unavailable-panel { grid-column: 1/-1; }
+.planner-record { width: 100%; min-height: 48px; margin-top: 10px; border: 0; border-radius: 6px; background: var(--pine); color: white; font-size: 10px; font-weight: 700; }
+.planner-record:disabled { background: #a7ada9; cursor: not-allowed; }
 .quick-add-fields { display: grid; grid-template-columns: 100px 1fr; gap: 11px; }
 .optional-details { margin: 3px 0 13px; padding: 11px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .optional-details summary { color: var(--pine-2); font-size: 10px; font-weight: 700; cursor: pointer; }
@@ -560,6 +577,10 @@ body:not(.authenticated) .app-shell { display: none; }
   .trade-owned-list { grid-template-columns: 1fr 1fr; column-gap: 18px; }
   .set-checklist { display: grid; grid-template-columns: 1fr 1fr; column-gap: 18px; }
   .set-checklist .find-empty { grid-column: 1/-1; }
+  .sale-planner-inputs { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .sale-plan-output { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .sale-plan-output > div:nth-child(even) { border-right: 1px solid var(--line); }
+  .sale-plan-output > div:nth-child(4n) { border-right: 0; }
 }
 @media (min-width: 1024px) {
   #main { margin-left: 92px; min-height: calc(100dvh - 62px); }

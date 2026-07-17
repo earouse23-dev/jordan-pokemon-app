@@ -19,6 +19,7 @@ import {
   gradingEstimate,
   gradingDecision,
   tradeAnalysis,
+  salePlan,
   holdingDays,
   positionPerformance,
   toMinorUnits,
@@ -306,6 +307,31 @@ test("trade analysis totals both sides and recommends balancing cash", () => {
     }).verdict,
     "balanced",
   );
+});
+
+test("sale planner reports fees, net proceeds, profit, and break-even price", () => {
+  assert.deepEqual(
+    salePlan({
+      quantity: 2,
+      salePriceEach: "100.00",
+      feePercent: "10",
+      shipping: "5.00",
+      otherCosts: "2.50",
+      costBasisMinor: 12000,
+      targetProfit: "50.00",
+    }),
+    {
+      grossMinor: 20000,
+      marketplaceFeesMinor: 2000,
+      netProceedsMinor: 17250,
+      costBasisMinor: 12000,
+      profitMinor: 5250,
+      roiPercent: 43.75,
+      breakEvenPriceEachMinor: 7084,
+      targetPriceEachMinor: 9862,
+    },
+  );
+  assert.equal(salePlan({quantity:1,salePriceEach:"10",feePercent:100}),null);
 });
 
 test("future acquisition dates are rejected without override", () => {
