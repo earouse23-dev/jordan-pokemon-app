@@ -310,6 +310,9 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .business-review button > small { margin-top: 4px; color: var(--muted); font-size: 8px; line-height: 1.35; }
 .business-review button > b { margin-top: auto; padding-top: 8px; color: var(--pine-2); font-size: 9px; }
 .business-review button:disabled { opacity: .62; cursor: default; }
+.share-performance { min-height: 44px; display: flex; align-items: center; gap: 9px; color: var(--pine); font-size: 10px; font-weight: 700; }
+.share-performance input { width: 18px; height: 18px; accent-color: var(--pine); }
+.share-preview { max-height: 42dvh; overflow: auto; margin: 8px 0 12px; padding: 14px; border: 1px solid var(--line-dark); border-radius: 7px; background: #f5f3ed; color: var(--ink); font: 500 10px/1.6 "DM Sans",sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; }
 .quick-add-fields { display: grid; grid-template-columns: 100px 1fr; gap: 11px; }
 .optional-details { margin: 3px 0 13px; padding: 11px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .optional-details summary { color: var(--pine-2); font-size: 10px; font-weight: 700; cursor: pointer; }

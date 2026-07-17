@@ -1,4 +1,4 @@
-import { money, calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch } from './lib/core.js';
+import { money, calculateTotals, collectionToCsv, parseCollectionCsv, portfolioSnapshot, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
 import { acquisitionFromTotal, allocateFifo, gradingDecision, gradingEstimate, portfolioReview, positionPerformance, salePlan, tradeAnalysis, validateAcquisition } from './lib/portfolio.js';
@@ -904,6 +904,14 @@ function exportCsv() {
   const blob=new Blob([collectionToCsv(state.items)],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=`mica-collection-${new Date().toISOString().slice(0,10)}.csv`; link.click(); URL.revokeObjectURL(url); toast('Library backup downloaded');
 }
 
+function openSharePortfolioSheet() {
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Share a portfolio snapshot</h2><p>Preview exactly what leaves Mica.</p></div><button class="sheet-close" aria-label="Close">×</button></div><label class="share-performance"><input id="sharePerformance" type="checkbox"> Include recorded cost basis and known gain/loss</label><pre class="share-preview" id="sharePreview"></pre><div class="simple-note"><strong>Private by default.</strong><br>Notes, storage locations, certification numbers, purchase dates, account details, and transaction history are never included.</div><div class="sheet-actions"><button class="secondary" id="copyPortfolioSnapshot" type="button">Copy summary</button>${navigator.share?'<button class="primary" id="nativeSharePortfolio" type="button">Share…</button>':''}</div>`);
+  const text=()=>portfolioSnapshot(state.items,{includePerformance:$('#sharePerformance').checked});
+  const update=()=>{$('#sharePreview').textContent=text();};
+  const copy=async()=>{try{await navigator.clipboard.writeText(text());toast('Portfolio summary copied');}catch{toast('Copy is unavailable in this browser');}};
+  $('#sharePerformance').addEventListener('change',update);$('#copyPortfolioSnapshot').addEventListener('click',copy);$('#nativeSharePortfolio')?.addEventListener('click',async()=>{const button=$('#nativeSharePortfolio');button.disabled=true;try{await navigator.share({title:'My Mica Pokémon collection',text:text()});toast('Portfolio snapshot shared');}catch(error){if(error?.name!=='AbortError')toast('Sharing is unavailable right now');}finally{button.disabled=false;}});update();
+}
+
 function handleCsv(file) {
   const reader=new FileReader();reader.onerror=()=>toast('Mica could not read that CSV');reader.onload=()=>{
     const {records,errors}=parseCollectionCsv(String(reader.result));
@@ -1135,7 +1143,7 @@ function bindEvents() {
   $('#cameraInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
   $('#galleryInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
   $('#sheetBackdrop').addEventListener('click',closeSheet);
-  $('#exportButton').addEventListener('click',exportCsv); $('#importButton').addEventListener('click',()=>$('#csvInput').click());
+  $('#exportButton').addEventListener('click',exportCsv); $('#importButton').addEventListener('click',()=>$('#csvInput').click());$('#sharePortfolioButton').addEventListener('click',openSharePortfolioSheet);
   $('#csvInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';if(file)handleCsv(file);});
   $$('[data-info]').forEach(button=>button.addEventListener('click',()=>openInfo(button.dataset.info)));
   $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));

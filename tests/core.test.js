@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch, money, safeCsvCell } from '../lib/core.js';
+import { calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch, money, portfolioSnapshot, safeCsvCell } from '../lib/core.js';
 
 test('portfolio totals respect quantity and exclude unpriced values', () => {
   const totals = calculateTotals([{quantity:2,cost:10,price:15},{quantity:3,cost:4,price:null}]);
@@ -16,6 +16,15 @@ test('gain coverage excludes copies with unknown cost instead of treating them a
   assert.equal(totals.gainCoverage,2);
 });
 test('money preserves explicit currency',()=>{ assert.equal(money(12.5,'EUR'),'€12.50'); });
+test('share snapshot omits private fields and only includes performance by opt in',()=>{
+  const items=[{name:'Charizard',set:'Base Set',number:'4/102',quantity:1,cost:100,price:150,notes:'private note',location:'safe',certificationNumber:'123'}];
+  const standard=portfolioSnapshot(items,{date:'2026-07-17'});
+  assert.match(standard,/Estimated market value: \$150\.00/);
+  assert.doesNotMatch(standard,/private note|safe|123|cost basis|gain\/loss/i);
+  const performance=portfolioSnapshot(items,{includePerformance:true,date:'2026-07-17'});
+  assert.match(performance,/Recorded cost basis: \$100\.00/);
+  assert.match(performance,/Known gain\/loss: \+\$50\.00/);
+});
 test('staleness uses the configured threshold',()=>{
   const now=new Date('2026-07-12T00:00:00Z').getTime();
   assert.equal(isStale('2026-07-01',now,7),true); assert.equal(isStale('2026-07-10',now,7),false);
