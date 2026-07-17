@@ -443,6 +443,7 @@ test("trade summary shares deal terms without private portfolio fields", () => {
           number: "4/102",
           quantity: 1,
           valuePerCard: "100.00",
+          context: "PSA 10",
           notes: "private note",
           location: "Safe A1",
           costBasis: 25,
@@ -455,6 +456,7 @@ test("trade summary shares deal terms without private portfolio fields", () => {
           number: "2/102",
           quantity: 1,
           valuePerCard: "120.00",
+          context: "Raw · Near Mint",
         },
       ],
       giveCash: "5.00",
@@ -462,7 +464,10 @@ test("trade summary shares deal terms without private portfolio fields", () => {
     },
     { date: "2026-07-17" },
   );
-  assert.match(text, /Charizard[\s\S]+Blastoise[\s\S]+receive \$15\.00 more/i);
+  assert.match(
+    text,
+    /Charizard[\s\S]+PSA 10[\s\S]+Blastoise[\s\S]+receive \$15\.00 more/i,
+  );
   assert.doesNotMatch(text, /private note|Safe A1|cost basis/i);
 });
 

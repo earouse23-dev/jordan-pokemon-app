@@ -640,6 +640,7 @@ body:not(.authenticated) .app-shell { display: none; }
 .trade-item-inputs input { width: 100%; min-height: 40px; margin-top: 4px; padding: 8px 9px; border: 1px solid var(--line-dark); border-radius: 4px; background: white; }
 .trade-item-inputs .money-input { margin-top: 4px; }
 .trade-item-inputs .money-input input { margin-top: 0; border-radius: 0 4px 4px 0; }
+.trade-item-inputs .trade-context { grid-column: 1/-1; }
 .trade-remove { position: absolute; top: 9px; right: 8px; width: 34px; height: 34px; border: 0; background: transparent; color: var(--faint); font-size: 20px; }
 .trade-cash { margin: 0; padding: 12px 14px; background: rgba(255,255,255,.45); }
 .trade-add { margin-top: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
