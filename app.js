@@ -1,7 +1,7 @@
 import { money, calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
-import { acquisitionTotal, positionPerformance, validateAcquisition } from './lib/portfolio.js';
+import { acquisitionFromTotal, gradingEstimate, positionPerformance, validateAcquisition } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, deletePosition, loadDiagnostics, loadPortfolio, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition } from './lib/supabase-data.js';
 
@@ -34,6 +34,31 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp
 const languageName = code => ({en:'English',ja:'Japanese',fr:'French',de:'German',es:'Spanish',it:'Italian',pt:'Portuguese','zh-tw':'Traditional Chinese',id:'Indonesian',th:'Thai'})[String(code || '').toLowerCase()] || String(code || 'English');
 const optionalNumber = value => String(value ?? '').trim()==='' ? null : Number(value);
 const normalizeIdentity = value => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+
+const gradingServices = {
+  PSA: [
+    { name:'Value', fee:32.99, note:'No membership required' },
+    { name:'Value Plus', fee:49.99 },
+    { name:'Value Max', fee:64.99 },
+    { name:'Regular', fee:79.99 },
+    { name:'Value Bulk', fee:24.99, minimum:20, note:'Collectors Club · 20-card minimum' },
+  ],
+  CGC: [
+    { name:'Economy', fee:20 },
+    { name:'Standard', fee:55 },
+    { name:'Express', fee:100 },
+    { name:'Bulk', fee:17, minimum:25, note:'25-card minimum' },
+  ],
+  BGS: [
+    { name:'Base · no subgrades', fee:14.95 },
+    { name:'Base · with subgrades', fee:17.95 },
+    { name:'Standard', fee:34.95 },
+    { name:'Express', fee:79.95 },
+  ],
+  TAG: [
+    { name:'Basic', fee:22, minimum:10, note:'10-card minimum' },
+  ],
+};
 
 function saveItems() {
   return Boolean(state.session);
@@ -117,9 +142,9 @@ function mountPriceChart(item) {
   const providers=[...new Set(history.map(point=>point.provider))];const colors=['#1f4f43','#9a6b2f','#315f86','#744f79'];
   const datasets=providers.map((provider,index)=>({label:provider,data:history.filter(point=>point.provider===provider).map(point=>({x:point.recordedAt.slice(0,10),y:point.amount})),borderColor:colors[index%colors.length],backgroundColor:colors[index%colors.length],pointRadius:2,tension:.18,spanGaps:true}));
   const purchases=(item.transactions||[]).filter(transaction=>transaction.type==='purchase');
-  if(purchases.length)datasets.push({label:'Purchases',type:'scatter',data:purchases.map(transaction=>({x:transaction.date,y:transaction.unitPrice,transaction})),pointRadius:7,pointStyle:'triangle',backgroundColor:'#b14e43',borderColor:'#fff',borderWidth:1});
+  if(purchases.length)datasets.push({label:'Your entry points',type:'scatter',data:purchases.map(transaction=>({x:transaction.date,y:transaction.quantity?transaction.totalCost/transaction.quantity:transaction.unitPrice,transaction})),pointRadius:7,pointStyle:'triangle',backgroundColor:'#b14e43',borderColor:'#fff',borderWidth:1});
   if(item.costBasis&&item.quantity){const labels=[...new Set([...history.map(point=>point.recordedAt.slice(0,10)),...purchases.map(point=>point.date)])].sort();datasets.push({label:'Remaining cost basis / card',data:labels.map(date=>({x:date,y:item.costBasis/item.quantity})),borderColor:'#7a746a',borderDash:[5,5],pointRadius:0,borderWidth:1});}
-  chartInstance=new Chart(canvas,{type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,parsing:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label(context){const transaction=context.raw?.transaction;return transaction?`Purchased ${transaction.date}: ${money(transaction.unitPrice,transaction.currency)} each · ${transaction.quantity} · total ${money(transaction.totalCost,transaction.currency)}`:`${context.dataset.label}: ${money(context.parsed.y,item.currency||'USD')}`;}}}},scales:{x:{type:'category',grid:{display:false},ticks:{maxTicksLimit:6}},y:{ticks:{callback:value=>money(value,item.currency||'USD')},grid:{color:'rgba(60,70,65,.08)'}}}}});
+  chartInstance=new Chart(canvas,{type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,parsing:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label(context){const transaction=context.raw?.transaction;return transaction?`Bought ${transaction.date}: ${money(transaction.totalCost,transaction.currency)} total · ${transaction.quantity} card${transaction.quantity===1?'':'s'}`:`${context.dataset.label}: ${money(context.parsed.y,item.currency||'USD')}`;}}}},scales:{x:{type:'category',grid:{display:false},ticks:{maxTicksLimit:6}},y:{ticks:{callback:value=>money(value,item.currency||'USD')},grid:{color:'rgba(60,70,65,.08)'}}}}});
   $$('[data-chart-range]').forEach(button=>button.addEventListener('click',()=>{state.chartRange=button.dataset.chartRange;renderDetail();}));
 }
 
@@ -143,6 +168,31 @@ function renderSales(item) {
     return `<div class="unavailable-panel">${copy}${item.salesStatus==='error'?'<br><button class="inline-retry" id="retrySalesButton" type="button">Try sales again</button>':''}</div>`;
   }
   return `<div class="sales-list">${sales.slice(0,5).map(sale => `<a class="sale-row" href="${esc(sale.sourceUrl)}" target="_blank" rel="noreferrer"><div><strong>${esc(sale.title)}</strong><span>${esc(sale.soldAt)} · ${esc(sale.gradingCompany ? `${sale.gradingCompany} ${sale.grade}` : 'Raw')}</span></div><b>${money(sale.amount, sale.currency)}</b></a>`).join('')}</div>`;
+}
+
+function renderGradingEstimator() {
+  const defaultService = gradingServices.PSA[0];
+  return `<section class="detail-section grading-estimator" aria-labelledby="gradingEstimatorTitle">
+    <div class="detail-section-head"><h2 id="gradingEstimatorTitle">Grading cost estimator</h2><span>Plan a submission</span></div>
+    <p class="estimator-intro">See an estimated all-in grading cost before you submit this card.</p>
+    <div class="estimator-grid">
+      <div class="field"><label for="estimateGrader">Grading company</label><select id="estimateGrader">${Object.keys(gradingServices).map(value=>`<option>${value}</option>`).join('')}</select></div>
+      <div class="field"><label for="estimateService">Service tier</label><select id="estimateService">${gradingServices.PSA.map((service,index)=>`<option value="${index}">${esc(service.name)} · ${money(service.fee)}</option>`).join('')}</select></div>
+      <div class="field"><label for="estimateQuantity">Cards in submission</label><input id="estimateQuantity" type="number" inputmode="numeric" min="1" max="999" step="1" value="1"></div>
+    </div>
+    <details class="estimate-trip-costs"><summary>Add shipping and insurance</summary><div class="estimator-grid"><div class="field"><label for="estimateShipping">Round-trip shipping</label><input id="estimateShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateInsurance">Insurance</label><input id="estimateInsurance" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></details>
+    <div class="estimate-result" aria-live="polite"><div><span>Estimated all-in total</span><strong id="estimateTotal">${money(defaultService.fee)}</strong></div><div><span>Estimated per card</span><strong id="estimatePerCard">${money(defaultService.fee)}</strong></div></div>
+    <p class="estimate-note" id="estimateNote">${esc(defaultService.note || 'No listed submission minimum')}</p>
+    <p class="estimate-disclaimer">Planning estimate only. Service availability, declared-value limits, memberships, taxes, shipping, and insurance can change. Fees last checked July 2026; confirm with the grader before submitting.</p>
+  </section>`;
+}
+
+function bindGradingEstimator() {
+  const grader=$('#estimateGrader');const service=$('#estimateService');const quantity=$('#estimateQuantity');const shipping=$('#estimateShipping');const insurance=$('#estimateInsurance');
+  if(!grader||!service||!quantity||!shipping||!insurance)return;
+  const fillServices=()=>{service.innerHTML=gradingServices[grader.value].map((entry,index)=>`<option value="${index}">${esc(entry.name)} · ${money(entry.fee)}</option>`).join('');update();};
+  const update=()=>{const entry=gradingServices[grader.value][Number(service.value)||0];const count=Number(quantity.value);const total=gradingEstimate({serviceFee:entry.fee,quantity:count,shipping:shipping.value,insurance:insurance.value});const perCard=total===null||!Number.isInteger(count)||count<1?null:total/count;$('#estimateTotal').textContent=total===null?'Check amounts':money(total/100);$('#estimatePerCard').textContent=perCard===null?'—':money(perCard/100);const minimum=entry.minimum&&count<entry.minimum?`This tier requires at least ${entry.minimum} cards. Add ${entry.minimum-count} more or choose another tier.`:entry.note||'No listed submission minimum.';$('#estimateNote').textContent=minimum;$('#estimateNote').classList.toggle('estimate-warning',Boolean(entry.minimum&&count<entry.minimum));};
+  grader.addEventListener('change',fillServices);[service,quantity,shipping,insurance].forEach(input=>input.addEventListener('input',update));update();
 }
 
 async function loadSales(item, force=false) {
@@ -215,11 +265,11 @@ function renderCollection() {
     : `${pricedCount} of ${state.items.length} preview prices`;
   $('.status-label').innerHTML = `<i></i> ${pricingLabel}`;
   const syncLabels = {
-    loading:'Prices updating', live:'Prices current', partial:'Partial prices', error:'Local only', demo:'Preview data',
+    loading:'Prices updating', live:'Prices current', partial:'Some prices missing', error:'Pricing unavailable', demo:'Preview prices',
   };
-  const syncLabel = state.storageStatus==='error' ? 'Session only' : syncLabels[state.pricingStatus] || 'Local only';
+  const syncLabel = state.storageStatus==='error' ? 'Session only' : `Cloud saved · ${syncLabels[state.pricingStatus] || 'Prices ready'}`;
   $('#syncState span:last-child').textContent = syncLabel;
-  $('#syncState').setAttribute('aria-label', state.storageStatus==='error' ? 'Session only. Device storage is unavailable, so changes may be lost when this page closes.' : `${syncLabel}. Collection changes are saved on this device.`);
+  $('#syncState').setAttribute('aria-label', state.storageStatus==='error' ? 'Session only. Changes may be lost when this page closes.' : `Portfolio saved to your account. ${syncLabels[state.pricingStatus] || 'Pricing ready'}. Select to refresh prices.`);
   let visible = state.items.filter(item => matchesSearch(item, state.query));
   if (state.ledgerView === 'favorites') visible = visible.filter(item => (item.tags||[]).some(tag=>String(tag).toLowerCase()==='favorites'));
   if (state.ledgerView === 'graded') visible = visible.filter(item => item.gradingCompany || item.grade);
@@ -345,7 +395,7 @@ function renderDetail() {
   const backLabel = state.detailReturnRoute === 'collection' ? 'My library' : 'Find cards';
   const ownedSection = owned ? `<section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location || 'Location not set')}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>${item.purchaseDate ? `Bought ${esc(item.purchaseDate)}` : 'Purchase date not added'}${item.cost!==null&&item.cost!==undefined ? ` · ${money(item.cost)} each` : ' · Cost not recorded'}</span></div><b>×${item.quantity}</b></div>${item.notes?`<div class="unavailable-panel">${esc(item.notes)}</div>`:''}<button class="record-remove" id="removeCopyButton" type="button">Remove this owned record</button></section>` : '';
   const performance=owned?positionPerformance({quantityOwned:item.quantity,remainingCostBasisMinor:Math.round(Number(item.costBasis||0)*100),currentUnitPrice:displayPrice,netSaleProceedsMinor:Math.round(Number(item.netSaleProceeds||0)*100),allocatedSoldCostMinor:Math.round(Number(item.allocatedSoldCost||0)*100)}):null;
-  const positionSection=owned?`<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>${item.lots?.length||0} auditable purchase lot${item.lots?.length===1?'':'s'} · FIFO cost basis</span></div><div class="position-summary"><div><span>Total cost basis</span><strong>${money(item.costBasis,item.currency)}</strong></div><div><span>Current estimated value</span><strong>${performance.currentValueMinor===null?'Unavailable':money(performance.currentValueMinor/100,item.currency)}</strong></div><div><span>Unrealized gain/loss</span><strong>${performance.unrealizedGainMinor===null?'Unavailable':money(performance.unrealizedGainMinor/100,item.currency)}</strong></div><div><span>Return</span><strong>${performance.returnPercent===null?'Unavailable':`${performance.returnPercent>=0?'+':''}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>Realized gain/loss</span><strong>${money(performance.realizedGainMinor/100,item.currency)}</strong></div><div><span>Valuation source</span><strong>${esc(tcgQuote?.provider||'Unavailable')}</strong></div></div><div class="transaction-list">${(item.transactions||[]).map(transaction=>`<div class="transaction-row"><div><strong>${transaction.type==='purchase'?'Purchased':'Sold'} ${transaction.date}</strong><span>${transaction.quantity} at ${money(transaction.unitPrice,transaction.currency)} · ${esc(transaction.marketplace||'Marketplace not recorded')}</span></div><b>${transaction.type==='purchase'?money(transaction.totalCost,transaction.currency):money(transaction.netProceeds,transaction.currency)}</b></div>`).join('')}</div><div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button">Add purchase lot</button><button class="secondary" id="recordSaleButton" type="button">Record sale</button></div></section>`:'';
+  const positionSection=owned?`<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>${item.lots?.length||0} purchase lot${item.lots?.length===1?'':'s'} · FIFO cost basis</span></div><div class="position-summary"><div><span>Total acquisition cost</span><strong>${money(item.costBasis,item.currency)}</strong></div><div><span>Value today</span><strong>${performance.currentValueMinor===null?'Unavailable':money(performance.currentValueMinor/100,item.currency)}</strong></div><div><span>Gain / loss today</span><strong>${performance.unrealizedGainMinor===null?'Unavailable':money(performance.unrealizedGainMinor/100,item.currency)}</strong></div><div><span>Return since purchase</span><strong>${performance.returnPercent===null?'Unavailable':`${performance.returnPercent>=0?'+':''}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>First purchased</span><strong>${esc(item.purchaseDate||'Not recorded')}</strong></div><div><span>Valuation source</span><strong>${esc(tcgQuote?.provider||'Unavailable')}</strong></div></div><div class="transaction-list">${(item.transactions||[]).map(transaction=>`<div class="transaction-row"><div><strong>${transaction.type==='purchase'?'Purchased':'Sold'} ${transaction.date}</strong><span>${transaction.type==='purchase'?`${transaction.quantity} card${transaction.quantity===1?'':'s'} · total acquisition`: `${transaction.quantity} at ${money(transaction.unitPrice,transaction.currency)}`} ${transaction.marketplace?`· ${esc(transaction.marketplace)}`:''}</span></div><b>${transaction.type==='purchase'?money(transaction.totalCost,transaction.currency):money(transaction.netProceeds,transaction.currency)}</b></div>`).join('')}</div><div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button">Add another purchase</button><button class="secondary" id="recordSaleButton" type="button">Record sale</button></div></section>`:'';
   const favorite=owned&&(item.tags||[]).some(tag=>String(tag).toLowerCase()==='favorites');
   const action = owned
     ? `<div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${displayPrice==null?'Price unavailable':`${money(displayPrice)} each`}</strong></div><div class="owned-actions"><button id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}">${favorite?'Favorited':'Favorite'}</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>`
@@ -357,6 +407,7 @@ function renderDetail() {
     <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? pricingStatus === 'loading' ? 'Checking…' : 'Price unavailable' : money(displayPrice)}</strong><small>${statusCopy}</small></section>
     ${action}
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
+    ${renderGradingEstimator()}
     <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderInteractiveHistory(item)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === 'live' ? 'Completed listings' : 'Verified links when available'}</span></div>${renderSales(item)}</section>
     ${positionSection}
@@ -372,6 +423,7 @@ function renderDetail() {
   $('#recordPurchaseButton')?.addEventListener('click',()=>openPurchaseLotSheet(item));
   $('#retryPricingButton')?.addEventListener('click',()=>{if(owned)void refreshLivePricing();else{state.detailCard={...item,pricingStatus:'loading',price:null};renderDetail();void loadCardPreviewPricing(item);}});
   $('#retrySalesButton')?.addEventListener('click',()=>void loadSales(item,true));
+  bindGradingEstimator();
   mountPriceChart(item);
   void loadSales(item);
 }
@@ -396,57 +448,42 @@ function identitySnapshot(card, variant) {
 
 function openPositionSheet(card) {
   const today=new Date().toISOString().slice(0,10);const variants=Array.isArray(card.variants)&&card.variants.length?card.variants:[card.variant||'Unknown'];
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add investment position</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)} · ${esc(languageName(card.language||'en'))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to your library</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)} · ${esc(languageName(card.language||'en'))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="positionForm"><div class="form-grid">
       <div class="field full"><label for="positionVariant">Exact variant</label><select id="positionVariant" name="variant" required>${variants.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('')}</select></div>
-      <div class="field"><label for="positionState">Card state</label><select id="positionState" name="cardState"><option value="raw">Raw</option><option value="graded">Professionally graded</option></select></div>
-      <div class="field raw-position"><label for="positionCondition">Raw condition</label><select id="positionCondition" name="rawCondition"><option value="near_mint">Near Mint</option><option value="lightly_played">Lightly Played</option><option value="moderately_played">Moderately Played</option><option value="heavily_played">Heavily Played</option><option value="damaged">Damaged</option></select></div>
-      <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${['PSA','BGS','CGC','SGC'].map(value=>`<option>${value}</option>`).join('')}</select></div>
+      <div class="field"><label for="positionState">Is it graded?</label><select id="positionState" name="cardState"><option value="raw">No · raw card</option><option value="graded">Yes · professionally graded</option></select></div>
+      <div class="field raw-position"><label for="positionCondition">Condition</label><select id="positionCondition" name="rawCondition"><option value="near_mint">Near Mint</option><option value="lightly_played">Lightly Played</option><option value="moderately_played">Moderately Played</option><option value="heavily_played">Heavily Played</option><option value="damaged">Damaged</option></select></div>
+      <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${['PSA','BGS','CGC','TAG','SGC'].map(value=>`<option>${value}</option>`).join('')}</select></div>
       <div class="field graded-position" hidden><label for="positionGrade">Grade</label><input id="positionGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="10"></div>
-      <div class="field graded-position full" hidden><label for="positionCertification">Certification number · optional</label><input id="positionCertification" name="certificationNumber" maxlength="100"></div>
-      <div class="field"><label for="positionQuantity">Quantity</label><input id="positionQuantity" name="quantity" type="number" min="1" max="99999" step="1" value="1" required></div>
-      <div class="field"><label for="positionDate">Purchase date</label><input id="positionDate" name="transactionDate" type="date" max="${today}" required></div>
-      <div class="field"><label for="positionUnitPrice">Unit purchase price</label><input id="positionUnitPrice" name="unitPrice" type="number" min="0" step="0.01" value="0.00" required></div>
-      <div class="field"><label for="positionTax">Tax</label><input id="positionTax" name="tax" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field"><label for="positionShipping">Shipping</label><input id="positionShipping" name="shipping" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field"><label for="positionMarketFees">Marketplace fees</label><input id="positionMarketFees" name="marketplaceFees" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field"><label for="positionGradingFees">Grading fees</label><input id="positionGradingFees" name="gradingFees" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field"><label for="positionOtherCosts">Other acquisition costs</label><input id="positionOtherCosts" name="otherCosts" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field"><label for="positionMarketplace">Marketplace · optional</label><input id="positionMarketplace" name="marketplace" maxlength="120"></div>
-      <div class="field full"><label for="positionNotes">Notes · optional</label><textarea id="positionNotes" name="notes"></textarea></div>
+      <div class="field"><label for="positionQuantity">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div>
+      <div class="field"><label for="positionDate">When did you buy it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${today}" required></div>
+      <div class="field full acquisition-field"><label for="positionTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Enter the full amount you paid to acquire this purchase. No tax or fee breakdown needed.</small></div>
       <p class="form-error" id="positionError" role="alert"></p>
-    </div><div class="position-total"><span>Total acquisition cost</span><strong id="positionTotal">$0.00</strong></div>
-    <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Save position</button></div></form>`);
+    </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div>
+    <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Add to library</button></div></form>`);
   const form=$('#positionForm');const syncState=()=>{const graded=$('#positionState').value==='graded';$$('.graded-position',form).forEach(node=>node.hidden=!graded);$$('.raw-position',form).forEach(node=>node.hidden=graded);$('#positionGrader').required=graded;$('#positionGrade').required=graded;$('#positionCondition').required=!graded;if(graded)$('#positionCondition').value='';else{$('#positionGrader').value='';$('#positionGrade').value='';}};
   const values=()=>{const data=new FormData(form);return Object.fromEntries(data.entries());};
-  const updateTotal=()=>{const input=values();const total=acquisitionTotal(input);$('#positionTotal').textContent=total===null?'Invalid amounts':money(total/100);};
+  const updateTotal=()=>{const input=values();const breakdown=acquisitionFromTotal(input.totalAcquisitionCost,input.quantity);const count=Number(input.quantity)||0;$('#positionTotal').textContent=breakdown===null?'Enter an amount':money(breakdown.totalMinor/100);$('#positionCostSummary').textContent=`Total for ${count||0} card${count===1?'':'s'}`;};
   $('#positionState').addEventListener('change',()=>{syncState();updateTotal();});form.addEventListener('input',updateTotal);$('#positionCancel').addEventListener('click',closeSheet);syncState();updateTotal();
-  form.addEventListener('submit',async event=>{event.preventDefault();const input=values();input.quantity=Number(input.quantity);input.grade=input.cardState==='graded'?normalizeGrade(input.grade):null;input.grader=input.cardState==='graded'?normalizeGrader(input.grader).normalized:null;const validation=validateAcquisition(input,today);if(!validation.valid){$('#positionError').textContent=Object.values(validation.errors)[0];return;}const submit=form.querySelector('[type="submit"]');submit.disabled=true;$('#positionError').textContent='Saving securely…';try{const itemId=await createPosition(supabase,{...input,identity:identitySnapshot(card,input.variant),cardId:card.cardId||null,variantId:card.variantId||null,idempotencyKey:crypto.randomUUID(),currency:'USD'});closeSheet({discardHistory:true});await reloadPortfolio(itemId);toast('Position saved with a separate FIFO purchase lot');}catch(error){$('#positionError').textContent=error.message?.includes('future')?'Acquisition dates cannot be later than today.':`Could not save this position: ${error.message||'Unknown error'}`;submit.disabled=false;}});
+  form.addEventListener('submit',async event=>{event.preventDefault();const formInput=values();const breakdown=acquisitionFromTotal(formInput.totalAcquisitionCost,formInput.quantity);if(!breakdown){$('#positionError').textContent='Enter a valid total acquisition cost.';return;}const input={...formInput,...breakdown,quantity:Number(formInput.quantity)};input.grade=input.cardState==='graded'?normalizeGrade(input.grade):null;input.grader=input.cardState==='graded'?normalizeGrader(input.grader).normalized:null;const validation=validateAcquisition(input,today);if(!validation.valid){$('#positionError').textContent=Object.values(validation.errors)[0];return;}const submit=form.querySelector('[type="submit"]');submit.disabled=true;$('#positionError').textContent='Saving securely…';try{const itemId=await createPosition(supabase,{...input,identity:identitySnapshot(card,input.variant),cardId:card.cardId||null,variantId:card.variantId||null,idempotencyKey:crypto.randomUUID(),currency:'USD'});closeSheet({discardHistory:true});await reloadPortfolio(itemId);toast('Added to your library');}catch(error){$('#positionError').textContent=error.message?.includes('future')?'Acquisition dates cannot be later than today.':`Could not add this card: ${error.message||'Unknown error'}`;submit.disabled=false;}});
 }
 
 function openPurchaseLotSheet(item) {
   const today=new Date().toISOString().slice(0,10);
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add purchase lot</h2><p>${esc(item.name)} · ${esc(item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition)} · each purchase remains separate</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="purchaseLotForm"><div class="form-grid">
-      <div class="field"><label for="lotQuantity">Quantity purchased</label><input id="lotQuantity" name="quantity" type="number" min="1" max="99999" step="1" value="1" required></div>
-      <div class="field"><label for="lotDate">Purchase date</label><input id="lotDate" name="transactionDate" type="date" max="${today}" required></div>
-      <div class="field"><label for="lotUnitPrice">Unit purchase price</label><input id="lotUnitPrice" name="unitPrice" type="number" min="0" step="0.01" value="0.00" required></div>
-      <div class="field"><label for="lotTax">Tax</label><input id="lotTax" name="tax" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field"><label for="lotShipping">Shipping</label><input id="lotShipping" name="shipping" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field"><label for="lotMarketFees">Marketplace fees</label><input id="lotMarketFees" name="marketplaceFees" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field"><label for="lotGradingFees">Grading fees</label><input id="lotGradingFees" name="gradingFees" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field"><label for="lotOtherCosts">Other acquisition costs</label><input id="lotOtherCosts" name="otherCosts" type="number" min="0" step="0.01" value="0.00"></div>
-      <div class="field full"><label for="lotMarketplace">Marketplace · optional</label><input id="lotMarketplace" name="marketplace" maxlength="120"></div>
-      <div class="field full"><label for="lotNotes">Notes · optional</label><textarea id="lotNotes" name="notes"></textarea></div>
+      <div class="field"><label for="lotQuantity">How many cards?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div>
+      <div class="field"><label for="lotDate">When did you buy them?</label><input id="lotDate" name="transactionDate" type="date" max="${today}" value="${today}" required></div>
+      <div class="field full acquisition-field"><label for="lotTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="lotTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Enter everything you paid for this purchase as one total.</small></div>
       <p class="form-error" id="purchaseLotError" role="alert"></p>
-    </div><div class="position-total"><span>Total acquisition cost</span><strong id="purchaseLotTotal">$0.00</strong></div>
-    <div class="warning-panel"><strong>This creates a new FIFO lot.</strong><p>It will not be merged into an average cost. A future sale will allocate the oldest available lot first.</p></div>
-    <div class="sheet-actions"><button class="secondary" type="button" id="purchaseLotCancel">Cancel</button><button class="primary" type="submit">Save purchase lot</button></div></form>`);
+    </div><div class="position-total"><span id="purchaseLotSummary">Total for 1 card</span><strong id="purchaseLotTotal">$0.00</strong></div>
+    <div class="simple-note">This purchase stays separate so Mica can show the right entry date, cost basis, and profit later.</div>
+    <div class="sheet-actions"><button class="secondary" type="button" id="purchaseLotCancel">Cancel</button><button class="primary" type="submit">Save purchase</button></div></form>`);
   const form=$('#purchaseLotForm');
   const values=()=>Object.fromEntries(new FormData(form).entries());
-  const updateTotal=()=>{const total=acquisitionTotal(values());$('#purchaseLotTotal').textContent=total===null?'Invalid amounts':money(total/100,item.currency||'USD');};
+  const updateTotal=()=>{const input=values();const breakdown=acquisitionFromTotal(input.totalAcquisitionCost,input.quantity);const count=Number(input.quantity)||0;$('#purchaseLotTotal').textContent=breakdown===null?'Enter an amount':money(breakdown.totalMinor/100,item.currency||'USD');$('#purchaseLotSummary').textContent=`Total for ${count||0} card${count===1?'':'s'}`;};
   form.addEventListener('input',updateTotal);$('#purchaseLotCancel').addEventListener('click',closeSheet);updateTotal();
-  form.addEventListener('submit',async event=>{event.preventDefault();const input={...values(),cardState:item.cardState,rawCondition:item.cardState==='raw'?item.rawCondition:null,grader:item.cardState==='graded'?item.gradingCompany:null,grade:item.cardState==='graded'?item.grade:null};input.quantity=Number(input.quantity);const validation=validateAcquisition(input,today);if(!validation.valid){$('#purchaseLotError').textContent=Object.values(validation.errors)[0];return;}const submit=form.querySelector('[type="submit"]');submit.disabled=true;$('#purchaseLotError').textContent='Saving separate purchase lot…';try{await recordPurchaseLot(supabase,{...input,collectionItemId:item.uid,idempotencyKey:crypto.randomUUID(),currency:item.currency||'USD'});closeSheet({discardHistory:true});await reloadPortfolio(item.uid);toast('Purchase saved as a separate FIFO lot');}catch(error){$('#purchaseLotError').textContent=error.message?.includes('future')?'Acquisition dates cannot be later than today.':`Could not save this purchase: ${error.message||'Unknown error'}`;submit.disabled=false;}});
+  form.addEventListener('submit',async event=>{event.preventDefault();const formInput=values();const breakdown=acquisitionFromTotal(formInput.totalAcquisitionCost,formInput.quantity);if(!breakdown){$('#purchaseLotError').textContent='Enter a valid total acquisition cost.';return;}const input={...formInput,...breakdown,cardState:item.cardState,rawCondition:item.cardState==='raw'?item.rawCondition:null,grader:item.cardState==='graded'?item.gradingCompany:null,grade:item.cardState==='graded'?item.grade:null,quantity:Number(formInput.quantity)};const validation=validateAcquisition(input,today);if(!validation.valid){$('#purchaseLotError').textContent=Object.values(validation.errors)[0];return;}const submit=form.querySelector('[type="submit"]');submit.disabled=true;$('#purchaseLotError').textContent='Saving purchase…';try{await recordPurchaseLot(supabase,{...input,collectionItemId:item.uid,idempotencyKey:crypto.randomUUID(),currency:item.currency||'USD'});closeSheet({discardHistory:true});await reloadPortfolio(item.uid);toast('Purchase saved');}catch(error){$('#purchaseLotError').textContent=error.message?.includes('future')?'Acquisition dates cannot be later than today.':`Could not save this purchase: ${error.message||'Unknown error'}`;submit.disabled=false;}});
 }
 
 function openSaleSheet(item) {
@@ -786,7 +823,7 @@ function bindEvents() {
   $('#clearFilters').addEventListener('click',()=>{state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();});
   $('#emptyAddCard').addEventListener('click',()=>routeTo('scan'));
   $('#methodButton').addEventListener('click',openMethodSheet);
-  $('#syncState').addEventListener('click',()=>{if(state.storageStatus==='error')toast('Device storage is unavailable · changes last only for this session');else if(state.pricingStatus!=='loading')void refreshLivePricing();});
+  $('#syncState').addEventListener('click',()=>{if(state.storageStatus==='error')toast('Cloud save is unavailable · changes may last only for this session');else if(state.pricingStatus!=='loading')void refreshLivePricing();});
   $('#manualSearchButton').addEventListener('click',openManualSearch);
   $('#cameraInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
   $('#galleryInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});

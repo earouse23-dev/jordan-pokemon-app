@@ -13,8 +13,10 @@ import {
   selectValuation,
 } from "../lib/domain.js";
 import {
+  acquisitionFromTotal,
   acquisitionTotal,
   allocateFifo,
+  gradingEstimate,
   holdingDays,
   positionPerformance,
   toMinorUnits,
@@ -199,6 +201,26 @@ test("money parsing and acquisition totals use exact minor units", () => {
       otherCosts: "5.50",
     }),
     201660,
+  );
+});
+
+test("one total acquisition input preserves every cent across multiple cards", () => {
+  assert.deepEqual(acquisitionFromTotal("1000.00", 3), {
+    unitPrice: "333.33",
+    tax: "0.00",
+    shipping: "0.00",
+    marketplaceFees: "0.00",
+    gradingFees: "0.00",
+    otherCosts: "0.01",
+    totalMinor: 100000,
+  });
+  assert.equal(acquisitionFromTotal("-1", 1), null);
+});
+
+test("grading estimate combines per-card service fees with trip costs", () => {
+  assert.equal(
+    gradingEstimate({ serviceFee: "32.99", quantity: 2, shipping: "18", insurance: "7.50" }),
+    9148,
   );
 });
 
