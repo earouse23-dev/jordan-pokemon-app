@@ -361,7 +361,8 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .copy-row span { color: var(--muted); font-size: 8px; }
 .copy-row b { font-size: 10px; }
 .unavailable-panel { padding: 13px; border: 1px dashed var(--line-dark); color: var(--muted); font-size: 9px; line-height: 1.5; background: rgba(255,255,255,.28); }
-.inline-retry, .record-remove { min-height: 44px; margin-top: 8px; border: 1px solid var(--line-dark); border-radius: 4px; background: transparent; color: var(--pine-2); padding: 8px 11px; font-size: 10px; font-weight: 700; }
+.inline-retry, .record-remove, .position-new-state { min-height: 44px; margin-top: 8px; border: 1px solid var(--line-dark); border-radius: 4px; background: transparent; color: var(--pine-2); padding: 8px 11px; font-size: 10px; font-weight: 700; }
+.position-new-state { width: 100%; }
 .record-remove { color: var(--danger); }
 .history-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 4px 0 12px; }
 .history-summary div { padding: 9px; border: 1px solid var(--line); background: rgba(255,255,255,.42); }
