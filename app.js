@@ -21,7 +21,7 @@ let catalog = [
   { id:'sm115-28', name:'Pikachu', set:'Detective Pikachu', number:'10/18', rarity:'Common', variant:'Holofoil', image:'https://images.pokemontcg.io/sm115/10_hires.png', thumb:'https://images.pokemontcg.io/sm115/10.png', price:null, move:null, artist:'MPC Film', release:'2019' }
 ];
 
-const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
+const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', accountLoading:false, accountLoadError:'', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -398,6 +398,13 @@ async function openSetProgressSheet(group) {
 
 function renderCollection() {
   $('#filterButton').classList.remove('hidden');
+  const accountUnavailable=state.accountLoading||Boolean(state.accountLoadError);
+  $$('[data-route="scan"]').forEach(button=>{button.disabled=accountUnavailable;});
+  ['#exportButton','#exportCsvButton'].forEach(selector=>{const button=$(selector);if(button)button.disabled=accountUnavailable;});
+  if(accountUnavailable){
+    $('#view-collection').classList.add('empty-library');$('#cardLedger').innerHTML='';$('#resultCount').textContent=state.accountLoading?'Reconnecting…':'Cloud data unavailable';$('#collectionEmpty').classList.remove('hidden');$('#collectionEmptyTitle').textContent=state.accountLoading?'Reconnecting to your library…':"Your library couldn't load";$('#collectionEmptyCopy').textContent=state.accountLoading?'Mica is securely checking your account again.':"Your saved data was not changed. Check your connection and try again.";$('#firstCardGuide').classList.add('hidden');$('#emptyAddCard').classList.remove('hidden');$('#emptyAddCard').disabled=state.accountLoading;$('#emptyAddCard').textContent=state.accountLoading?'Reconnecting…':'Try again';$('#clearFilters').classList.add('hidden');$('#syncState span:last-child').textContent=state.accountLoading?'Reconnecting…':'Cloud unavailable';$('#syncState').setAttribute('aria-label',state.accountLoading?'Reconnecting to your cloud portfolio.':'Cloud portfolio could not load. Select to try again.');return;
+  }
+  $('#emptyAddCard').disabled=false;
   $('#view-collection').classList.toggle('empty-library',state.items.length===0&&state.ledgerView==='all');
   const totals = calculateTotals(state.items);
   const gain = totals.comparableValue - totals.comparableCost;
@@ -1192,9 +1199,9 @@ function bindEvents() {
   $('#filterButton').addEventListener('click',openFilterSheet);
   $('#sortButton').addEventListener('click',()=>{state.sort=state.sort==='value-desc'?'name':'value-desc';renderCollection();});
   $('#clearFilters').addEventListener('click',()=>{state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';state.labelFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();});
-  $('#emptyAddCard').addEventListener('click',()=>routeTo('scan'));
+  $('#emptyAddCard').addEventListener('click',()=>{if(state.accountLoadError)void retryAccountLoad();else routeTo('scan');});
   $('#methodButton').addEventListener('click',openMethodSheet);
-  $('#syncState').addEventListener('click',()=>{if(state.storageStatus==='error')toast('Cloud save is unavailable · changes may last only for this session');else if(state.pricingStatus!=='loading')void Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);});
+  $('#syncState').addEventListener('click',()=>{if(state.accountLoadError)void retryAccountLoad();else if(state.storageStatus==='error')toast('Cloud save is unavailable · changes may last only for this session');else if(state.pricingStatus!=='loading')void Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);});
   $('#manualSearchButton').addEventListener('click',openManualSearch);
   $('#cameraInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
   $('#galleryInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
@@ -1252,15 +1259,21 @@ function ensureProfileAccount() {
   applyMotionPreference();
 }
 
+async function retryAccountLoad() {
+  if(state.accountLoading||!state.session)return;state.accountLoading=true;renderCollection();
+  try{const [items,watchlist]=await Promise.all([loadPortfolio(supabase),loadWatchlist(supabase)]);state.items=items;state.watchlist=watchlist;state.storageStatus='cloud';state.accountLoadError='';state.accountLoading=false;renderCollection();renderInsights();renderTrade();toast('Your cloud portfolio is available again');await Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);}
+  catch(error){state.items=[];state.watchlist=[];state.storageStatus='error';state.accountLoadError=error.message||'Cloud portfolio unavailable';state.accountLoading=false;renderCollection();renderInsights();renderTrade();toast('Your saved data is unchanged · Mica still cannot reach it');}
+}
+
 async function applySession(session) {
   state.session=session;
   document.body.classList.toggle('authenticated',Boolean(session));
   $('#authGate').hidden=Boolean(session);
-  if(!session){state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;chartInstance?.destroy();return;}
+  if(!session){state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;state.accountLoading=false;state.accountLoadError='';chartInstance?.destroy();return;}
   if(!appEventsBound){bindEvents();appEventsBound=true;}
   ensureProfileAccount();
-  try{[state.items,state.watchlist]=await Promise.all([loadPortfolio(supabase),loadWatchlist(supabase)]);state.storageStatus='cloud';renderCollection();renderInsights();renderTrade();routeTo(location.hash&&['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});await Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);}
-  catch(error){state.items=[];state.watchlist=[];renderCollection();renderInsights();toast(`Portfolio could not load: ${error.message||'Database migration may be pending'}`);}
+  try{[state.items,state.watchlist]=await Promise.all([loadPortfolio(supabase),loadWatchlist(supabase)]);state.storageStatus='cloud';state.accountLoadError='';renderCollection();renderInsights();renderTrade();routeTo(location.hash&&['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});await Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);}
+  catch(error){state.items=[];state.watchlist=[];state.storageStatus='error';state.accountLoadError=error.message||'Cloud portfolio unavailable';renderCollection();renderInsights();renderTrade();routeTo('collection',{instant:true,history:'replace'});toast('Your saved data is unchanged · Mica could not load it');}
 }
 
 async function bootstrap() {
