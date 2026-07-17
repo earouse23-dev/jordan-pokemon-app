@@ -17,6 +17,17 @@ const watchlistMigration = await readFile(
   ),
   "utf8",
 );
+const serviceWorker = await readFile(
+  new URL("../sw.js", import.meta.url),
+  "utf8",
+);
+
+test("offline runtime caching is bounded and APIs remain network-only", () => {
+  assert.match(serviceWorker, /RUNTIME_LIMIT\s*=\s*80/);
+  assert.match(serviceWorker, /keys\.slice\(0,keys\.length-RUNTIME_LIMIT\)/);
+  assert.match(serviceWorker, /pathname\.startsWith\('\/api\/'\)[\s\S]{0,100}respondWith\(fetch\(event\.request\)\)/);
+  assert.match(serviceWorker, /request\.mode\s*===\s*'navigate'[\s\S]{0,400}caches\.match\('\.\/index\.html'\)/);
+});
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {
   for (const policy of [
