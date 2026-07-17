@@ -33,6 +33,9 @@ const accountEndpoint = await readFile(
   new URL("../api/account.js", import.meta.url),
   "utf8",
 );
+const manifest = JSON.parse(
+  await readFile(new URL("../manifest.webmanifest", import.meta.url), "utf8"),
+);
 
 test("offline runtime caching is bounded and APIs remain network-only", () => {
   assert.match(serviceWorker, /RUNTIME_LIMIT\s*=\s*80/);
@@ -45,6 +48,13 @@ test("offline runtime caching is bounded and APIs remain network-only", () => {
     serviceWorker,
     /request\.mode\s*===\s*'navigate'[\s\S]{0,400}caches\.match\('\.\/index\.html'\)/,
   );
+});
+
+test("installable app metadata uses a scoped standalone shell", () => {
+  assert.equal(manifest.display, "standalone");
+  assert.equal(manifest.start_url, "./");
+  assert.equal(manifest.scope, "./");
+  assert.ok(manifest.icons.some((icon) => icon.purpose.includes("maskable")));
 });
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {

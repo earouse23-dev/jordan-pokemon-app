@@ -7,6 +7,7 @@ import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition
 
 const supabase = createAppSupabase();
 let chartInstance = null;
+let deferredInstallPrompt = null;
 let catalog = [
   { id:'sv3pt5-199', name:'Charizard ex', set:'151', number:'199/165', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/199_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/199.png', price:null, move:null, artist:'miki kudo', release:'2023' },
   { id:'swsh7-215', name:'Umbreon VMAX', set:'Evolving Skies', number:'215/203', rarity:'Alternate Art Secret', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh7/215_hires.png', thumb:'https://images.pokemontcg.io/swsh7/215.png', price:null, move:null, artist:'KEIICHIRO ITO', release:'2021' },
@@ -936,6 +937,22 @@ function openInfo(kind) {
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${kind==='sources'?'Data sources':kind==='retention'?'Scan retention':'Privacy & deletion'}</h2></div><button class="sheet-close" aria-label="Close">×</button></div><p class="info-copy">${esc(content)}</p>`);
 }
 
+function isInstalledApp() {
+  return window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+}
+
+function updateInstallControl() {
+  const button=$('#installAppButton');if(!button)return;const installed=isInstalledApp();const ios=/iPad|iPhone|iPod/.test(navigator.userAgent);button.disabled=installed;$('#installAppState').textContent=installed?'Installed':deferredInstallPrompt?'Ready':ios?'How to':'Options';$('#installAppHelp').textContent=installed?'Mica is already installed on this device':deferredInstallPrompt?'Install with your browser’s secure app prompt':ios?'Use Safari’s Share menu, then Add to Home Screen':'See the install steps supported by this browser';
+}
+
+async function openInstallExperience() {
+  if(isInstalledApp()){toast('Mica is already installed');return;}
+  if(deferredInstallPrompt){const prompt=deferredInstallPrompt;deferredInstallPrompt=null;await prompt.prompt();const choice=await prompt.userChoice;updateInstallControl();toast(choice.outcome==='accepted'?'Mica installation started':'Installation canceled');return;}
+  const ios=/iPad|iPhone|iPod/.test(navigator.userAgent);
+  const steps=ios?'<ol><li>Open Mica in Safari.</li><li>Tap the Share button.</li><li>Choose Add to Home Screen, then confirm.</li></ol>':'<ol><li>Open your browser menu.</li><li>Choose Install Mica, Install app, or Add to Home Screen when available.</li><li>Confirm the browser prompt.</li></ol>';
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Install Mica</h2><p>Keep your portfolio one tap away.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy">${steps}<p>Once installed, the app shell can open offline. Current prices and cloud changes still require an internet connection.</p></div><div class="sheet-actions"><button class="primary" id="installStepsDone" type="button">Got it</button></div>`);$('#installStepsDone').addEventListener('click',closeSheet);
+}
+
 function openAccountDeletionSheet() {
   const email=state.session?.user?.email||'';
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Permanently delete account?</h2><p>This cannot be undone.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>Your account and linked portfolio data will be permanently removed.</strong><p>Type your account email to confirm. You can cancel without changing anything.</p></div><form id="deleteAccountForm"><div class="field"><label for="deleteAccountEmail">Type ${esc(email)}</label><input id="deleteAccountEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" required></div><p class="form-error" id="deleteAccountError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="cancelAccountDeletion" type="button">Keep my account</button><button class="danger-action" id="confirmAccountDeletion" type="submit" disabled>Delete permanently</button></div></form>`);
@@ -1239,6 +1256,7 @@ function bindEvents() {
   $('#csvInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';if(file)handleCsv(file);});
   $$('[data-info]').forEach(button=>button.addEventListener('click',()=>openInfo(button.dataset.info)));
   $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));
+  $('#installAppButton').addEventListener('click',()=>void openInstallExperience());
   $('#motionButton').addEventListener('click',()=>toast('Motion follows your device preference'));
   $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Backup or reset your card library.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetExport"><span>Download a backup<small>Save a copy of every card</small></span><b>›</b></button><button type="button" id="restoreDemo"><span>Restore preview cards<small>Replace local changes with the starter library</small></span><b>›</b></button></div>`));
   document.addEventListener('click',event=>{ if(event.target.closest('#sheetExport')){exportCsv();closeSheet();} if(event.target.closest('#restoreDemo'))openResetDemoSheet(); });
@@ -1280,6 +1298,7 @@ function ensureProfileAccount() {
   const isAdmin=state.session?.user?.app_metadata?.role==='admin';let diagnostics=$('#adminDiagnosticsButton');if(isAdmin&&!diagnostics){diagnostics=document.createElement('button');diagnostics.id='adminDiagnosticsButton';diagnostics.type='button';diagnostics.className='profile-admin';diagnostics.textContent='Pricing diagnostics and manual re-sync';$('#view-profile').insertBefore(diagnostics,$('#view-profile .legal-copy'));}else if(!isAdmin&&diagnostics){diagnostics.remove();diagnostics=null;}if(diagnostics)diagnostics.onclick=()=>void openAdminDiagnostics();
   let button=$('#signOutButton');if(!button){button=document.createElement('button');button.id='signOutButton';button.type='button';button.className='profile-signout';button.textContent='Sign out';$('#view-profile').insertBefore(button,$('#view-profile .legal-copy'));}
   button.onclick=async()=>{button.disabled=true;const {error}=await signOut(supabase);if(error){toast(error.message);button.disabled=false;}};
+  updateInstallControl();
 }
 
 async function applySession(session) {
@@ -1300,5 +1319,9 @@ async function bootstrap() {
   supabase.auth.onAuthStateChange((event,session)=>{if(event==='INITIAL_SESSION')return;setTimeout(()=>void applySession(session),0);});
   if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
+
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;updateInstallControl();});
+window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;updateInstallControl();toast('Mica installed');});
+window.matchMedia('(display-mode: standalone)').addEventListener?.('change',updateInstallControl);
 
 void bootstrap();
