@@ -1,5 +1,5 @@
-const CACHE = 'mica-shell-v17';
-const SHELL = ['./','./index.html','./styles.css?v=17','./app-config.js?v=17','./app.js?v=17','./manifest.webmanifest','./icons/icon.svg'];
+const CACHE = 'mica-shell-v18';
+const SHELL = ['./','./index.html','./styles.css?v=18','./app-config.js?v=18','./app.js?v=18','./manifest.webmanifest','./icons/icon.svg'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch', event => {

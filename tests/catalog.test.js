@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import catalogHandler from '../api/catalog.js';
-import { parseCatalogQuery, searchTcgdexCards } from '../lib/providers/tcgdex.js';
+import setHandler from '../api/set.js';
+import { fetchTcgdexSet, parseCatalogQuery, searchTcgdexCards } from '../lib/providers/tcgdex.js';
 
 const cards = [
   { id:'sv03.5-151', localId:'151', name:'Mew ex', image:'https://assets.tcgdex.net/en/sv/sv03.5/151', rarity:'Double rare', variants:{holo:true}, set:{id:'sv03.5', name:'151', cardCount:{official:165,total:207}, releaseDate:'2023-09-22'} },
@@ -98,4 +99,26 @@ test('catalog endpoint preserves the selected language and never serializes prov
     mock.restore();
     if (originalSecret === undefined) delete process.env.PKMNPRICES_API_KEY; else process.env.PKMNPRICES_API_KEY = originalSecret;
   }
+});
+
+test('set catalog returns the exact checklist and rejects invalid set identifiers', async () => {
+  const originalFetch=globalThis.fetch;
+  globalThis.fetch=async rawUrl=>{
+    const url=new URL(String(rawUrl));
+    assert.equal(url.pathname,'/v2/en/sets/base1');
+    return new Response(JSON.stringify({id:'base1',name:'Base Set',releaseDate:'1999-01-09',cardCount:{official:102,total:102},cards:cards.filter(card=>card.set.id==='base1').map(({id,localId,name,image})=>({id,localId,name,image}))}),{status:200});
+  };
+  try{
+    const set=await fetchTcgdexSet('base1','en');
+    assert.equal(set.name,'Base Set');
+    assert.equal(set.totalCount,102);
+    assert.equal(set.cards[0].number,'4/102');
+    assert.equal(set.cards[0].externalIds.tcgdex,'base1-4');
+    let body;const response={setHeader(){},status(status){this.statusCode=status;return this;},json(value){body=value;return value;}};
+    await setHandler({method:'GET',query:{setId:'base1',language:'en'}},response);
+    assert.equal(response.statusCode,200);
+    assert.equal(body.set.cards.length,2);
+    await setHandler({method:'GET',query:{setId:'../secret',language:'en'}},response);
+    assert.equal(response.statusCode,400);
+  }finally{globalThis.fetch=originalFetch;}
 });

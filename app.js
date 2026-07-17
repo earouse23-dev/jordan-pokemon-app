@@ -27,7 +27,7 @@ const seedItems = [
   { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
 ];
 
-const state = { items:[], watchlist:[], session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
+const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -309,7 +309,88 @@ function renderWatchlistRows() {
   $$('.watch-row').forEach(row=>{const open=()=>openWatchlistDetail(state.watchlist.find(item=>item.watchlistId===row.dataset.watchId));row.addEventListener('click',open);row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}});});
 }
 
+function collectorKey(value) {
+  return String(value||'').trim().toUpperCase().replace(/^([A-Z]*?)0+(\d)/,'$1$2');
+}
+
+function setIdFor(item) {
+  if(item.setId)return item.setId;
+  let external=String(item.externalIds?.tcgdex||item.id||'');
+  external=external.replace(/^tcgdex:[a-z-]+:/i,'');
+  const split=external.lastIndexOf('-');
+  return split>0?external.slice(0,split):'';
+}
+
+function collectionSetGroups() {
+  const groups=new Map();
+  for(const item of state.items.filter(item=>Number(item.quantity)>0)){
+    const language=item.language||'en';const setId=setIdFor(item);const key=`${language}:${setId||normalizeIdentity(item.set)}`;
+    if(!groups.has(key))groups.set(key,{key,setId,language,name:item.set||'Unknown set',items:[]});
+    groups.get(key).items.push(item);
+  }
+  return [...groups.values()].map(group=>{
+    const catalog=state.setCatalogs.get(group.key);const owned=new Set(group.items.map(item=>collectorKey(item.localId||String(item.number||'').split('/')[0])).filter(Boolean));
+    const denominator=Math.max(0,...group.items.map(item=>Number(String(item.number||'').split('/')[1])||0));
+    const total=catalog?.totalCount||denominator||null;const ownedInCatalog=catalog?catalog.cards.filter(card=>owned.has(collectorKey(card.localId))).length:owned.size;
+    return {...group,catalog,ownedIds:owned,ownedCount:ownedInCatalog,totalCount:total,percent:total?Math.min(100,ownedInCatalog/total*100):null};
+  }).sort((a,b)=>state.sort==='name'?a.name.localeCompare(b.name):(b.percent??-1)-(a.percent??-1)||a.name.localeCompare(b.name));
+}
+
+async function loadSetCatalog(group) {
+  if(!group?.setId||state.setCatalogs.has(group.key))return state.setCatalogs.get(group?.key)||null;
+  if(state.setCatalogLoading.has(group.key))return null;
+  state.setCatalogLoading.add(group.key);
+  try{const response=await fetch(`/api/set?setId=${encodeURIComponent(group.setId)}&language=${encodeURIComponent(group.language)}`,{headers:{Accept:'application/json'}});if(!response.ok)throw new Error('Set catalog unavailable');const payload=await response.json();state.setCatalogs.set(group.key,payload.set||null);return payload.set||null;}
+  catch{state.setCatalogs.set(group.key,null);return null;}
+  finally{state.setCatalogLoading.delete(group.key);if(state.ledgerView==='sets')renderCollection();}
+}
+
+async function refreshSetCatalogs() {
+  const pending=collectionSetGroups().filter(group=>group.setId&&!state.setCatalogs.has(group.key)).slice(0,12);
+  if(!pending.length)return;
+  await Promise.all(pending.map(loadSetCatalog));
+}
+
+function renderSetRows() {
+  let groups=collectionSetGroups().filter(group=>matchesSearch({name:group.name,set:group.name,number:group.setId},state.query));
+  $('#resultCount').textContent=`${groups.length} set${groups.length===1?'':'s'} in progress`;
+  $('#sortButton').firstChild.textContent=state.sort==='value-desc'?'Completion, high to low ':'Name, A to Z ';
+  $('#cardLedger').innerHTML=groups.map(group=>{
+    const loading=state.setCatalogLoading.has(group.key);const catalogKnown=state.setCatalogs.has(group.key);
+    const progress=group.percent===null?'0':group.percent.toFixed(group.percent<10?1:0);
+    const status=loading?'Loading exact checklist…':catalogKnown&&!group.catalog?'Checklist temporarily unavailable':group.totalCount?`${group.ownedCount} of ${group.totalCount} unique cards`:`${group.ownedCount} unique card${group.ownedCount===1?'':'s'} recorded`;
+    return `<button class="set-progress-row" type="button" data-set-key="${esc(group.key)}"><div class="set-progress-icon">${group.catalog?.logo?`<img src="${esc(group.catalog.logo)}" alt="">`:'<span aria-hidden="true">◆</span>'}</div><div class="set-progress-main"><strong>${esc(group.name)}</strong><span>${esc(status)}</span><div class="set-progress-track" aria-label="${esc(group.name)} ${progress}% complete"><i style="width:${progress}%"></i></div></div><div class="set-progress-value"><strong>${group.percent===null?'—':`${progress}%`}</strong><span>View set</span></div></button>`;
+  }).join('');
+  const trulyEmpty=collectionSetGroups().length===0;
+  $('#collectionEmpty').classList.toggle('hidden',groups.length>0);
+  $('#collectionEmptyTitle').textContent=trulyEmpty?'No sets started yet':'No sets match this search';
+  $('#collectionEmptyCopy').textContent=trulyEmpty?'Add any card and Mica will automatically start its set progress.':'Try a different set name or clear the search.';
+  $('#emptyAddCard').classList.toggle('hidden',!trulyEmpty);$('#emptyAddCard').textContent='Add a card to start';$('#clearFilters').classList.toggle('hidden',trulyEmpty);
+  $('#filterButton').classList.add('hidden');$('#filterLabel').textContent='Filter';
+  $$('[data-set-key]').forEach(button=>button.addEventListener('click',()=>openSetProgressSheet(collectionSetGroups().find(group=>group.key===button.dataset.setKey))));
+}
+
+function setSheetMarkup(group) {
+  const catalog=group.catalog;if(!catalog)return `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(group.name)}</h2><p>Set checklist</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="unavailable-panel"><strong>The exact checklist is temporarily unavailable.</strong><br>Your owned cards remain safe. Try this set again after the public catalog refreshes.</div>`;
+  return `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(catalog.name)}</h2><p>${group.ownedCount} of ${catalog.totalCount} unique cards · ${group.percent?.toFixed(1)||0}% complete</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="set-sheet-progress"><span>Set progress</span><strong>${catalog.totalCount-group.ownedCount} missing</strong><div class="set-progress-track"><i style="width:${group.percent||0}%"></i></div></div><div class="set-check-tools"><label class="search-field"><span class="sr-only">Search this set</span><input id="setChecklistSearch" type="search" placeholder="Search this set"></label><label class="missing-toggle"><input id="missingOnly" type="checkbox" checked> Missing only</label></div><div class="set-checklist" id="setChecklist" aria-live="polite"></div>`;
+}
+
+function bindSetSheet(group) {
+  $$('.sheet-close',$('#sheetContent')).forEach(button=>button.addEventListener('click',closeSheet));
+  if(!group.catalog)return;
+  const render=()=>{const query=$('#setChecklistSearch').value;const missingOnly=$('#missingOnly').checked;const cards=group.catalog.cards.filter(card=>(!missingOnly||!group.ownedIds.has(collectorKey(card.localId)))&&matchesSearch(card,query));$('#setChecklist').innerHTML=cards.length?cards.map(card=>{const owned=group.ownedIds.has(collectorKey(card.localId));return `<button type="button" data-set-card="${esc(card.externalIds.tcgdex)}"><img src="${esc(card.thumb||'./icons/icon.svg')}" alt="" loading="lazy"><span><strong>${esc(card.name)}</strong><small>#${esc(card.localId)} · ${owned?'In your library':'Missing'}</small></span><b>${owned?'View':'Find'}</b></button>`;}).join(''):'<div class="find-empty"><strong>No cards in this view</strong><span>Clear the search or show owned cards too.</span></div>';$$('[data-set-card]',$('#setChecklist')).forEach(button=>button.addEventListener('click',async()=>{const card=group.catalog.cards.find(item=>item.externalIds.tcgdex===button.dataset.setCard);button.disabled=true;button.querySelector('b').textContent='Opening…';try{const result=await searchCatalog(card.externalIds.tcgdex,group.language,1);const detailed=result.items[0];if(!detailed)throw new Error('Card unavailable');closeSheet({discardHistory:true});openCardDetail(detailed);}catch{button.disabled=false;button.querySelector('b').textContent='Retry';toast('That card could not be opened right now');}}));};
+  $('#setChecklistSearch').addEventListener('input',render);$('#missingOnly').addEventListener('change',render);render();
+}
+
+async function openSetProgressSheet(group) {
+  if(!group)return;
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(group.name)}</h2><p>Loading exact set checklist…</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="searching-cards"><i></i><span>Checking every collector number…</span></div>`);
+  await loadSetCatalog(group);const refreshed=collectionSetGroups().find(item=>item.key===group.key)||group;
+  if($('#bottomSheet').hidden)return;$('#sheetContent').innerHTML=setSheetMarkup(refreshed);bindSetSheet(refreshed);
+}
+
 function renderCollection() {
+  $('#filterButton').classList.remove('hidden');
   const totals = calculateTotals(state.items);
   const gain = totals.comparableValue - totals.comparableCost;
   const realized = state.items.reduce((sum,item)=>sum+Number(item.realizedGain||0),0);
@@ -332,6 +413,7 @@ function renderCollection() {
   $('#valuationNote').firstChild.textContent = totals.gainCoverage === totals.quantity ? 'Based on matching market prices. ' : `Gain/loss uses ${totals.gainCoverage} of ${totals.quantity} copies with both price and cost. `;
   $('#allCount').textContent = state.items.length;
   $('#watchlistCount').textContent = state.watchlist.length;
+  $('#setCount').textContent = collectionSetGroups().length;
   const pricedCount = state.items.filter(item=>item.price!=null).length;
   const pricingLabel = state.pricingStatus === 'loading' ? 'Updating live prices…'
     : state.pricingStatus === 'live' ? `${pricedCount} of ${state.items.length} live prices`
@@ -347,6 +429,11 @@ function renderCollection() {
   $('#syncState').setAttribute('aria-label', state.storageStatus==='error' ? 'Session only. Changes may be lost when this page closes.' : `Portfolio saved to your account. ${syncLabels[state.pricingStatus] || 'Pricing ready'}. Select to refresh prices.`);
   if(state.ledgerView==='watchlist'){
     renderWatchlistRows();
+    return;
+  }
+  if(state.ledgerView==='sets'){
+    renderSetRows();
+    void refreshSetCatalogs();
     return;
   }
   let visible = state.items.filter(item => matchesSearch(item, state.query));
@@ -379,6 +466,7 @@ function renderCollection() {
   $('#collectionEmptyTitle').textContent=trulyEmpty?'Your library is empty':'No cards match this view';
   $('#collectionEmptyCopy').textContent=trulyEmpty?'Search or photograph a card to add your first owned copy.':'Try clearing the search or changing your filters.';
   $('#emptyAddCard').classList.toggle('hidden',!trulyEmpty);
+  $('#emptyAddCard').textContent='Add your first card';
   $('#clearFilters').classList.toggle('hidden',trulyEmpty);
   const activeFilterCount=(state.ledgerView!=='all'?1:0)+(state.setFilter?1:0)+(state.conditionFilter?1:0);
   $('#filterLabel').textContent=activeFilterCount?`Filter · ${activeFilterCount}`:'Filter';
@@ -526,7 +614,7 @@ function openQuickAddSheet(card) {
 }
 
 function identitySnapshot(card, variant) {
-  return {providerCardId:card.id,name:card.name,set:card.set,number:card.number,language:card.language||'en',rarity:card.rarity||null,variant,
+  return {providerCardId:card.id,name:card.name,set:card.set,setId:card.setId||null,number:card.number,language:card.language||'en',rarity:card.rarity||null,variant,
     release:card.release||null,artist:card.artist||null,image:card.image||card.thumb||null,thumb:card.thumb||card.image||null,externalIds:card.externalIds||{tcgdex:card.id}};
 }
 
@@ -671,7 +759,7 @@ function openFilterSheet() {
   const source=state.ledgerView==='watchlist'?state.watchlist:state.items;
   const sets=[...new Set(source.map(item=>item.set).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Choose which cards you want to see.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
-    <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All cards</option><option value="favorites">Favorites only</option><option value="graded">Graded only</option><option value="unpriced">Needs pricing review</option><option value="watchlist">Watchlist</option></select></div>
+    <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All cards</option><option value="favorites">Favorites only</option><option value="graded">Graded only</option><option value="unpriced">Needs pricing review</option><option value="watchlist">Watchlist</option><option value="sets">Set progress</option></select></div>
     <div class="field"><label for="sheetSet">Set</label><select id="sheetSet"><option value="">Every set</option>${sets.map(set=>`<option value="${esc(set)}">${esc(set)}</option>`).join('')}</select></div>
     <div class="field"><label for="sheetCondition">Condition</label><select id="sheetCondition"><option value="">Every condition</option><option>Raw</option><option>Graded</option>${['Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged'].map(value=>`<option>${value}</option>`).join('')}</select></div>
     <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Value, high to low</option><option value="name">Name, A to Z</option></select></div>
