@@ -96,6 +96,8 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .card-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 13px/1.2 "Manrope", sans-serif; }
 .quantity { color: var(--muted); font-size: 10px; white-space: nowrap; }
 .card-set { color: var(--muted); font-size: 10px; margin-top: 3px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.card-location { margin-top: 3px; overflow: hidden; color: var(--pine-2); font-size: 8px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.card-location::before { content: "Stored · "; color: var(--faint); font-weight: 500; }
 .card-tags { display: flex; align-items: center; gap: 5px; margin-top: auto; }
 .micro-tag { max-width: 100px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; color: #666c68; background: rgba(255,255,255,.5); font-size: 8px; letter-spacing: .02em; }
 .micro-tag.graded { background: #ece6d8; color: #755c2e; border-color: #d8c9a8; }

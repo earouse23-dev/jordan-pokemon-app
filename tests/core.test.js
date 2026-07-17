@@ -32,6 +32,12 @@ test('staleness uses the configured threshold',()=>{
 test('search normalizes accents and punctuation',()=>{
   assert.equal(matchesSearch({name:'Flabébé',set:'Paldea',number:'4/102',tags:[]},'flabebe 4/102'),true);
 });
+test('library search finds grading and physical inventory details',()=>{
+  const item={name:'Charizard',set:'Base Set',number:'4/102',gradingCompany:'PSA',grade:'10',location:'Slab case A2',certificationNumber:'98765432',purchaseDate:'2025-06-25',tags:[]};
+  assert.equal(matchesSearch(item,'psa 10 a2'),true);
+  assert.equal(matchesSearch(item,'98765432'),true);
+  assert.equal(matchesSearch(item,'2025-06-25'),true);
+});
 test('CSV cells neutralize spreadsheet formulas and escape quotes',()=>{
   assert.equal(safeCsvCell('=HYPERLINK("bad")'),'"\'=HYPERLINK(""bad"")"');
   const csv=collectionToCsv([{name:'@SUM(A1)',quantity:1,tags:[]}]); assert.match(csv,/"'@SUM\(A1\)"/);
