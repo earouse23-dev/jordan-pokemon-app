@@ -310,6 +310,16 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .business-review button > small { margin-top: 4px; color: var(--muted); font-size: 8px; line-height: 1.35; }
 .business-review button > b { margin-top: auto; padding-top: 8px; color: var(--pine-2); font-size: 9px; }
 .business-review button:disabled { opacity: .62; cursor: default; }
+.review-queue-list { display: grid; gap: 7px; max-height: 58dvh; overflow: auto; }
+.review-queue-row { width: 100%; min-height: 78px; display: grid; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 10px; padding: 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); color: var(--ink); text-align: left; }
+.review-queue-row img { width: 46px; height: 62px; border-radius: 4px; object-fit: cover; background: #e5e1d8; }
+.review-queue-row > span { min-width: 0; }
+.review-queue-row > span strong,.review-queue-row > span small,.review-queue-row > span em,.review-queue-row > b,.review-queue-row > b small { display: block; }
+.review-queue-row > span strong { overflow: hidden; font: 750 10px "Manrope",sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.review-queue-row > span small { margin-top: 3px; color: var(--muted); font-size: 8px; }
+.review-queue-row > span em { margin-top: 5px; color: var(--pine-2); font-size: 8px; font-style: normal; }
+.review-queue-row > b { max-width: 120px; color: var(--pine); font: 750 10px "Manrope",sans-serif; text-align: right; }
+.review-queue-row > b small { margin-top: 5px; color: var(--copper); font-size: 7px; }
 .share-performance { min-height: 44px; display: flex; align-items: center; gap: 9px; color: var(--pine); font-size: 10px; font-weight: 700; }
 .share-performance input { width: 18px; height: 18px; accent-color: var(--pine); }
 .share-preview { max-height: 42dvh; overflow: auto; margin: 8px 0 12px; padding: 14px; border: 1px solid var(--line-dark); border-radius: 7px; background: #f5f3ed; color: var(--ink); font: 500 10px/1.6 "DM Sans",sans-serif; white-space: pre-wrap; overflow-wrap: anywhere; }
