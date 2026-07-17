@@ -317,6 +317,7 @@ function renderWatchlistRows() {
   $('#collectionEmpty').classList.toggle('hidden',visible.length>0);
   $('#collectionEmptyTitle').textContent=trulyEmpty?'Your watchlist is empty':'No watched cards match';
   $('#collectionEmptyCopy').textContent=trulyEmpty?'Find a card and choose Watch card to save a price target.':'Try clearing the search or changing your filters.';
+  $('#firstCardGuide').classList.add('hidden');
   $('#emptyAddCard').classList.toggle('hidden',!trulyEmpty);
   $('#emptyAddCard').textContent=trulyEmpty?'Find a card to watch':'Add your first card';
   $('#clearFilters').classList.toggle('hidden',trulyEmpty);
@@ -380,6 +381,7 @@ function renderSetRows() {
   $('#collectionEmpty').classList.toggle('hidden',groups.length>0);
   $('#collectionEmptyTitle').textContent=trulyEmpty?'No sets started yet':'No sets match this search';
   $('#collectionEmptyCopy').textContent=trulyEmpty?'Add any card and Mica will automatically start its set progress.':'Try a different set name or clear the search.';
+  $('#firstCardGuide').classList.toggle('hidden',!trulyEmpty);
   $('#emptyAddCard').classList.toggle('hidden',!trulyEmpty);$('#emptyAddCard').textContent='Add a card to start';$('#clearFilters').classList.toggle('hidden',trulyEmpty);
   $('#filterButton').classList.add('hidden');$('#filterLabel').textContent='Filter';
   $$('[data-set-key]').forEach(button=>button.addEventListener('click',()=>openSetProgressSheet(collectionSetGroups().find(group=>group.key===button.dataset.setKey))));
@@ -407,6 +409,7 @@ async function openSetProgressSheet(group) {
 
 function renderCollection() {
   $('#filterButton').classList.remove('hidden');
+  $('#view-collection').classList.toggle('empty-library',state.items.length===0&&state.ledgerView==='all');
   const totals = calculateTotals(state.items);
   const gain = totals.comparableValue - totals.comparableCost;
   const realized = state.items.reduce((sum,item)=>sum+Number(item.realizedGain||0),0);
@@ -480,7 +483,8 @@ function renderCollection() {
   $('#collectionEmpty').classList.toggle('hidden', visible.length > 0);
   const trulyEmpty=state.items.length===0;
   $('#collectionEmptyTitle').textContent=trulyEmpty?'Your library is empty':'No cards match this view';
-  $('#collectionEmptyCopy').textContent=trulyEmpty?'Search or photograph a card to add your first owned copy.':'Try clearing the search or changing your filters.';
+  $('#collectionEmptyCopy').textContent=trulyEmpty?'Start with one card. Mica only asks for the details that apply.':'Try clearing the search or changing your filters.';
+  $('#firstCardGuide').classList.toggle('hidden',!trulyEmpty);
   $('#emptyAddCard').classList.toggle('hidden',!trulyEmpty);
   $('#emptyAddCard').textContent='Add your first card';
   $('#clearFilters').classList.toggle('hidden',trulyEmpty);

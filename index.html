@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css?v=29">
+  <link rel="stylesheet" href="styles.css?v=30">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -114,6 +114,7 @@
           <span class="empty-mark" aria-hidden="true"></span>
           <h2 id="collectionEmptyTitle">No cards in this view</h2>
           <p id="collectionEmptyCopy">Try clearing the search or changing your filters.</p>
+          <div class="first-card-guide hidden" id="firstCardGuide" aria-label="How to add your first card"><div><b>1</b><span><strong>Find the exact card</strong><small>Search the name, set, and collector number.</small></span></div><div><b>2</b><span><strong>Tell Mica raw or graded</strong><small>Raw asks for condition. Graded asks for company and grade.</small></span></div><div><b>3</b><span><strong>Enter one total cost</strong><small>Use the full amount you paid. Mica handles the basis.</small></span></div></div>
           <button class="quick-add hidden" id="emptyAddCard" type="button">Add your first card</button>
           <button class="text-button" id="clearFilters" type="button">Clear filters</button>
         </div>
@@ -255,7 +256,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=29"></script>
-  <script type="module" src="app.js?v=29"></script>
+  <script src="app-config.js?v=30"></script>
+  <script type="module" src="app.js?v=30"></script>
 </body>
 </html>

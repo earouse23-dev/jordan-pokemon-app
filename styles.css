@@ -110,10 +110,18 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .row-move.down { color: var(--danger); }
 .row-move.none { color: var(--faint); }
 .empty-state { text-align: center; padding: 55px 25px; color: var(--muted); }
+#view-collection.empty-library .portfolio-panel,#view-collection.empty-library .portfolio-detail-grid,#view-collection.empty-library .view-tabs,#view-collection.empty-library .ledger-tools,#view-collection.empty-library .ledger-meta { display: none; }
+#view-collection.empty-library .empty-state { padding: 22px 0 36px; }
 .empty-mark { display: block; width: 35px; height: 48px; border: 1px dashed var(--faint); border-radius: 3px; margin: 0 auto 15px; transform: rotate(-4deg); }
 .empty-state h2 { font: 700 17px "Manrope"; color: var(--ink); margin: 0 0 5px; }
 .empty-state p { font-size: 12px; margin: 0 0 13px; }
 .empty-state .quick-add { display: inline-flex; align-items: center; margin: 7px 5px; }
+.first-card-guide { max-width: 680px; display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 18px auto 14px; text-align: left; }
+.first-card-guide > div { display: grid; grid-template-columns: 26px 1fr; gap: 8px; padding: 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); }
+.first-card-guide b { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: var(--mint); color: var(--pine); font: 800 10px "Manrope",sans-serif; }
+.first-card-guide strong,.first-card-guide small { display: block; }
+.first-card-guide strong { color: var(--ink); font: 750 9px/1.35 "Manrope",sans-serif; }
+.first-card-guide small { margin-top: 4px; color: var(--muted); font-size: 8px; line-height: 1.45; }
 .text-button { border: 0; background: none; padding: 6px; color: var(--pine-2); text-decoration: underline; }
 
 .discovery-view { width: 100%; }
@@ -580,6 +588,7 @@ body:not(.authenticated) .app-shell { display: none; }
 .chart-wrap { position:relative;min-height:230px;margin-top:10px; }
 .chart-wrap canvas { width:100%!important;height:230px!important; }
 @media (max-width: 620px) {
+  .first-card-guide { grid-template-columns: 1fr; }
   .grading-batch-launch { align-items: stretch; flex-direction: column; }
   .grading-batch-launch button { width: 100%; }
   .batch-grade-controls { grid-template-columns: 1fr; }
