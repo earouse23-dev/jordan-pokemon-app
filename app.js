@@ -21,21 +21,11 @@ let catalog = [
   { id:'sm115-28', name:'Pikachu', set:'Detective Pikachu', number:'10/18', rarity:'Common', variant:'Holofoil', image:'https://images.pokemontcg.io/sm115/10_hires.png', thumb:'https://images.pokemontcg.io/sm115/10.png', price:null, move:null, artist:'MPC Film', release:'2019' }
 ];
 
-const seedItems = [
-  { ...catalog[1], uid:'copy-umbreon', quantity:2, condition:'Near Mint', gradingCompany:'', grade:'', cost:670, purchaseDate:'2024-02-11', tags:['Favorites'], location:'Toploader case · A2', notes:'One clean copy, one with light edge wear.' },
-  { ...catalog[0], uid:'copy-charizard151', quantity:1, condition:'Graded', gradingCompany:'PSA', grade:'10', cost:142, purchaseDate:'2024-01-18', tags:['Graded'], location:'Slab case · 01', notes:'' },
-  { ...catalog[2], uid:'copy-charizardbase', quantity:1, condition:'Lightly Played', gradingCompany:'', grade:'', cost:210, purchaseDate:'2022-09-06', tags:['Vintage'], location:'Binder 01 · Page 2', notes:'Small whitening at lower-right edge.' },
-  { ...catalog[3], uid:'copy-mewtwo', quantity:2, condition:'Near Mint', gradingCompany:'', grade:'', cost:76, purchaseDate:'2023-06-12', tags:['Gallery'], location:'Binder 02 · Page 8', notes:'' },
-  { ...catalog[4], uid:'copy-mew', quantity:3, condition:'Near Mint', gradingCompany:'', grade:'', cost:12.25, purchaseDate:'2024-05-03', tags:['151'], location:'Binder 02 · Page 3', notes:'' },
-  { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
-];
-
 const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const languageName = code => ({en:'English',ja:'Japanese',fr:'French',de:'German',es:'Spanish',it:'Italian',pt:'Portuguese','zh-tw':'Traditional Chinese',id:'Indonesian',th:'Thai'})[String(code || '').toLowerCase()] || String(code || 'English');
-const optionalNumber = value => String(value ?? '').trim()==='' ? null : Number(value);
 const normalizeIdentity = value => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
 
 const gradingServices = {
@@ -62,10 +52,6 @@ const gradingServices = {
     { name:'Basic', fee:22, minimum:10, note:'10-card minimum' },
   ],
 };
-
-function saveItems() {
-  return Boolean(state.session);
-}
 
 function historyKey(item) {
   return [item.id, item.variant, item.condition, item.gradingCompany, item.grade].map(value => String(value || '')).join('|');
@@ -638,7 +624,7 @@ function renderDetail() {
   $('#detailBack').addEventListener('click', () => state.detailCanPop ? history.back() : routeTo(state.detailReturnRoute || (owned ? 'collection' : 'scan')));
   $('#editCopyButton')?.addEventListener('click', () => openPositionEditSheet(item));
   $('#duplicateCopyButton')?.addEventListener('click', () => openPurchaseLotSheet(item));
-  $('#addLibraryButton')?.addEventListener('click', () => openQuickAddSheet(item));
+  $('#addLibraryButton')?.addEventListener('click', () => openPositionSheet(item));
   $('#watchCardButton')?.addEventListener('click', () => openWatchlistSheet(item,watched));
   $('#editWatchButton')?.addEventListener('click', () => openWatchlistSheet(item,watched));
   $('#favoriteCopyButton')?.addEventListener('click', () => void toggleFavorite(item));
@@ -652,19 +638,6 @@ function renderDetail() {
   bindSalePlanner(owned);
   mountPriceChart(item);
   void loadSales(item);
-}
-
-function openQuickAddSheet(card) {
-  return openPositionSheet(card);
-  /* Legacy form retained below for backwards-compatible markup during cache rollover. */
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to Library</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="quickAddForm"><div class="quick-add-fields"><div class="field"><label for="quickQuantity">How many?</label><input id="quickQuantity" name="quantity" type="number" min="1" max="999" value="1" required></div><div class="field"><label for="quickCondition">Condition</label><select id="quickCondition" name="condition"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option><option>Damaged</option></select></div></div><details class="optional-details"><summary>Add purchase or storage details</summary><div class="form-grid"><div class="field"><label for="quickCost">What you paid · each</label><input id="quickCost" name="cost" type="number" min="0" step=".01" placeholder="Optional"></div><div class="field"><label for="quickLocation">Where you keep it</label><input id="quickLocation" name="location" placeholder="Binder, case, box…"></div></div></details><div class="sheet-actions"><button class="secondary" type="button" id="quickAddCancel">Not now</button><button class="primary" type="submit">Add to Library</button></div></form>`);
-  $('#quickAddCancel').addEventListener('click', closeSheet);
-  $('#quickAddForm').addEventListener('submit', event => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const added = { ...card, uid:`copy-${card.id}-${Date.now()}`, quantity:Number(data.get('quantity'))||1, condition:String(data.get('condition')), gradingCompany:'', grade:'', cost:optionalNumber(data.get('cost')), purchaseDate:'', tags:[], location:String(data.get('location')||''), notes:'' };
-    state.items.unshift(added); const saved=saveItems(); closeSheet(); renderCollection(); state.detailId=added.uid; state.detailCard=added; renderDetail(); toast(saved?'Added to your library':'Added for this session · device storage unavailable');
-  });
 }
 
 function identitySnapshot(card, variant) {
@@ -766,10 +739,6 @@ async function toggleFavorite(item) {
 function openDeleteCopySheet(item) {
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Remove position?</h2><p>${esc(item.name)} · ${esc(item.set)} ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>This removes the position, purchase lots, transactions, and FIFO allocations.</strong><p>This action cannot be undone.</p></div><div class="sheet-actions"><button class="secondary" id="keepCloudPosition" type="button">Keep position</button><button class="danger-action" id="removeCloudPosition" type="button">Remove position</button></div>`);
   $('#keepCloudPosition').addEventListener('click',closeSheet);$('#removeCloudPosition').addEventListener('click',async()=>{const button=$('#removeCloudPosition');button.disabled=true;try{await deletePosition(supabase,item.uid);closeSheet({discardHistory:true});state.detailId=null;state.detailCard=null;state.detailCanPop=false;routeTo('collection');await reloadPortfolio();toast('Position and transaction history removed');}catch(error){button.disabled=false;toast(`Could not remove position: ${error.message||'Unknown error'}`);}});
-  return;
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Remove owned record?</h2><p>${esc(item.name)} · ${esc(item.set)} ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>This removes your quantity, purchase, storage, and notes for this record.</strong><p>Your other copies and catalog search results are not affected.</p></div><div class="sheet-actions"><button class="secondary" id="keepCopyButton" type="button">Keep record</button><button class="danger-action" id="confirmRemoveCopy" type="button">Remove record</button></div>`);
-  $('#keepCopyButton').addEventListener('click',closeSheet);
-  $('#confirmRemoveCopy').addEventListener('click',()=>{state.items=state.items.filter(candidate=>candidate.uid!==item.uid);const saved=saveItems();closeSheet({discardHistory:true});state.detailId=null;state.detailCard=null;state.detailCanPop=false;routeTo('collection');renderCollection();toast(saved?'Owned record removed':'Removed for this session · device storage unavailable');});
 }
 
 function openPositionEditSheet(item) {
@@ -895,37 +864,6 @@ function openManualSearch() {
   const schedule=()=>{clearTimeout(timer);timer=setTimeout(renderResults,250);}; input.addEventListener('input',schedule); language.addEventListener('change',renderResults); input.focus();
 }
 
-function openOwnershipSheet(card, editing=false) {
-  const source = editing ? card : { ...card, uid:`copy-${card.id}-${Date.now()}`, quantity:1, condition:'Near Mint', gradingCompany:'', grade:'', cost:'', purchaseDate:'', tags:[], location:'', notes:'' };
-  const startsGraded = source.condition === 'Graded' || Boolean(source.gradingCompany);
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${editing?'Edit your card':'Add to Library'}</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="ownershipForm"><div class="form-grid">
-    <div class="field"><label for="ownQuantity">Quantity</label><input id="ownQuantity" name="quantity" type="number" min="1" max="999" required value="${Number(source.quantity)||1}"></div>
-    <div class="field"><label for="ownCondition">Condition</label><select id="ownCondition" name="condition">${['Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged','Graded'].map(v=>`<option ${source.condition===v?'selected':''}>${v}</option>`).join('')}</select></div>
-    <div class="field graded-field" ${startsGraded?'':'hidden'}><label for="ownGrader">Grading company</label><select id="ownGrader" name="gradingCompany"><option value="">Choose company</option>${['PSA','CGC','BGS'].map(v=>`<option ${source.gradingCompany===v?'selected':''}>${v}</option>`).join('')}</select></div>
-    <div class="field graded-field" ${startsGraded?'':'hidden'}><label for="ownGrade">Grade</label><input id="ownGrade" name="grade" inputmode="decimal" value="${esc(source.grade)}" placeholder="e.g. 9.5"></div>
-    <div class="field"><label for="ownCost">Purchase price · each</label><input id="ownCost" name="cost" type="number" min="0" step=".01" value="${esc(source.cost)}" placeholder="0.00"></div>
-    <div class="field"><label for="ownDate">Purchase date</label><input id="ownDate" name="purchaseDate" type="date" value="${esc(source.purchaseDate)}"></div>
-    <div class="field full"><label for="ownLocation">Storage location</label><input id="ownLocation" name="location" value="${esc(source.location)}" placeholder="Binder 01 · Page 4"></div>
-    <div class="field full"><label for="ownTags">Tags · comma separated</label><input id="ownTags" name="tags" value="${esc((source.tags||[]).join(', '))}" placeholder="Favorites, Trade binder"></div>
-    <div class="field full"><label for="ownNotes">Notes</label><textarea id="ownNotes" name="notes" placeholder="Private notes">${esc(source.notes)}</textarea></div>
-  </div><div class="sheet-actions"><button class="secondary" type="button" id="ownershipCancel">Cancel</button><button class="primary" type="submit">${editing?'Save changes':'Add to collection'}</button></div></form>`);
-  $('#ownershipCancel').addEventListener('click',closeSheet);
-  const syncGradingFields=()=>{
-    const graded=$('#ownCondition').value==='Graded';
-    $$('.graded-field').forEach(field=>field.hidden=!graded);
-    $('#ownGrader').required=graded; $('#ownGrade').required=graded;
-    if(!graded){$('#ownGrader').value='';$('#ownGrade').value='';}
-  };
-  $('#ownCondition').addEventListener('change',syncGradingFields); syncGradingFields();
-  $('#ownershipForm').addEventListener('submit',event=>{
-    event.preventDefault(); const data=new FormData(event.currentTarget); const graded=data.get('condition')==='Graded';
-    if(graded&&(!data.get('gradingCompany')||!String(data.get('grade')).trim())){toast('Add the grading company and grade');$('#ownGrader').focus();return;}
-    const updated={...source, quantity:Number(data.get('quantity')), condition:data.get('condition'), gradingCompany:graded?data.get('gradingCompany'):'', grade:graded?String(data.get('grade')).trim():'', cost:optionalNumber(data.get('cost')), purchaseDate:data.get('purchaseDate'), location:data.get('location'), tags:String(data.get('tags')).split(',').map(v=>v.trim()).filter(Boolean), notes:data.get('notes')};
-    if (editing) state.items=state.items.map(item=>item.uid===source.uid?updated:item); else state.items.unshift(updated);
-    const saved=saveItems(); closeSheet(); renderCollection(); state.detailId=updated.uid;state.detailCard=updated;routeTo('detail');toast(saved?(editing?'Record updated':'Card added to your collection'):'Saved for this session · device storage unavailable');
-  });
-}
-
 function openInfo(kind) {
   if(kind==='privacy'){
     openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Privacy & account deletion</h2><p>Your portfolio belongs to you.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p>Collection records, transaction history, purchase lots, watchlist entries, labels, and account details are private to your signed-in account.</p><p>Download a backup before deleting if you want to keep a personal copy. Deleting the account permanently removes the account and its linked portfolio data.</p></div><div class="sheet-actions"><button class="secondary" id="privacyBackup" type="button">Download backup</button><button class="danger-action" id="startAccountDeletion" type="button">Delete account…</button></div>`);
@@ -1005,12 +943,6 @@ function handleCsv(file) {
       $('.sheet-close').disabled=false;$('#cancelCsvImport').disabled=false;$('#cancelCsvImport').textContent='Close';if(failures.length){$('#importStatus').textContent=`${imported} imported · ${failures.length} issue${failures.length===1?'':'s'}. ${failures.slice(0,3).join(' · ')}`;button.textContent='Import finished';toast(`${imported} position${imported===1?'':'s'} imported; some rows need review`);}else{closeSheet({discardHistory:true});routeTo('collection');toast(`${imported} position${imported===1?'':'s'} added to your account`);}
     });
   };reader.readAsText(file);
-}
-
-function openResetDemoSheet() {
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Restore preview cards?</h2><p>This replaces your current on-device library.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>Download a backup first if you want to keep your records.</strong><p>This action cannot be undone inside Mica.</p></div><div class="sheet-actions"><button class="secondary" id="cancelRestoreDemo" type="button">Keep my library</button><button class="danger-action" id="confirmRestoreDemo" type="button">Replace library</button></div>`);
-  $('#cancelRestoreDemo').addEventListener('click',closeSheet);
-  $('#confirmRestoreDemo').addEventListener('click',()=>{state.items=structuredClone(seedItems);state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';state.labelFilter='';$('#collectionSearch').value='';const saved=saveItems();renderCollection();syncTabs();closeSheet();toast(saved?'Preview records restored':'Restored for this session · device storage unavailable');});
 }
 
 async function refreshLivePricing() {
@@ -1268,8 +1200,8 @@ function bindEvents() {
   $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));
   $('#installAppButton').addEventListener('click',()=>void openInstallExperience());
   $('#motionButton').addEventListener('click',cycleMotionPreference);
-  $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Backup or reset your card library.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetExport"><span>Download a backup<small>Save a copy of every card</small></span><b>›</b></button><button type="button" id="restoreDemo"><span>Restore preview cards<small>Replace local changes with the starter library</small></span><b>›</b></button></div>`));
-  document.addEventListener('click',event=>{ if(event.target.closest('#sheetExport')){exportCsv();closeSheet();} if(event.target.closest('#restoreDemo'))openResetDemoSheet(); });
+  $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep a portable copy of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetExport"><span>Download a backup<small>Save a copy of every card</small></span><b>›</b></button></div>`));
+  document.addEventListener('click',event=>{ if(event.target.closest('#sheetExport')){exportCsv();closeSheet();} });
   document.addEventListener('keydown',handleDialogKeydown);
   window.addEventListener('popstate',event=>{if(!$('#bottomSheet').hidden){closeSheet({fromHistory:true});return;}const route=event.state?.route||(['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection');state.detailCanPop=false;if(route==='trade')renderTrade();routeTo(route,{instant:true,history:'none'});});
   bindQuickCardSearch();

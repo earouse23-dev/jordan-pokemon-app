@@ -451,7 +451,6 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .auth-gate { min-height: 100dvh; display: grid; place-items: center; padding: 22px; background: var(--canvas); }
 .auth-gate[hidden] { display: none; }
 body:not(.authenticated) .app-shell { display: none; }
-#restoreDemo { display: none; }
 .auth-card { width: min(100%, 430px); padding: 28px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); box-shadow: 0 24px 70px rgba(22,29,26,.12); }
 .auth-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 30px; font: 800 20px "Manrope"; }
 .auth-card h1 { margin: 4px 0 8px; font: 750 28px/1.1 "Manrope"; letter-spacing: -.04em; }
