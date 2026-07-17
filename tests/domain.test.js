@@ -22,6 +22,7 @@ import {
   salePlan,
   holdingDays,
   positionPerformance,
+  portfolioReview,
   toMinorUnits,
   validateAcquisition,
 } from "../lib/portfolio.js";
@@ -332,6 +333,20 @@ test("sale planner reports fees, net proceeds, profit, and break-even price", ()
     },
   );
   assert.equal(salePlan({quantity:1,salePriceEach:"10",feePercent:100}),null);
+});
+
+test("portfolio review separates price gaps, below-cost positions, older stock, and reached targets", () => {
+  const positions=[
+    {id:'unpriced',price:null,quantity:1,costBasis:50,purchaseDate:'2026-06-01'},
+    {id:'loss',price:75,quantity:1,costBasis:100,purchaseDate:'2025-01-01'},
+    {id:'gain',price:125,quantity:1,costBasis:100,purchaseDate:'2026-06-01'},
+  ];
+  const watchlist=[{id:'hit',targetPrice:80,currentPrice:75},{id:'waiting',targetPrice:80,currentPrice:90}];
+  const review=portfolioReview(positions,watchlist,'2026-07-17');
+  assert.deepEqual(review.needsPricing.map(item=>item.id),['unpriced']);
+  assert.deepEqual(review.belowCost.map(item=>item.id),['loss']);
+  assert.deepEqual(review.olderInventory.map(item=>item.id),['loss']);
+  assert.deepEqual(review.reachedTargets.map(item=>item.id),['hit']);
 });
 
 test("future acquisition dates are rejected without override", () => {
