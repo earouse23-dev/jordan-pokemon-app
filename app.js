@@ -1,7 +1,7 @@
 import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
-import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, inventoryHealth, portfolioReview, positionPerformance, salePlan, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
+import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, inventoryHealth, portfolioReview, positionPerformance, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
 
@@ -9,7 +9,9 @@ const supabase = createAppSupabase();
 let chartInstance = null;
 let deferredInstallPrompt = null;
 let motionPreference='auto';
+let targetAlertsEnabled=false;
 try{const savedMotion=localStorage.getItem('mica-motion-preference');if(['auto','reduce','full'].includes(savedMotion))motionPreference=savedMotion;}catch{}
+try{targetAlertsEnabled=localStorage.getItem('mica-target-alerts')==='on';}catch{}
 let catalog = [
   { id:'sv3pt5-199', name:'Charizard ex', set:'151', number:'199/165', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/199_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/199.png', price:null, move:null, artist:'miki kudo', release:'2023' },
   { id:'swsh7-215', name:'Umbreon VMAX', set:'Evolving Skies', number:'215/203', rarity:'Alternate Art Secret', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh7/215_hires.png', thumb:'https://images.pokemontcg.io/swsh7/215.png', price:null, move:null, artist:'KEIICHIRO ITO', release:'2021' },
@@ -904,6 +906,18 @@ function cycleMotionPreference() {
   const modes=['auto','reduce','full'];motionPreference=modes[(modes.indexOf(motionPreference)+1)%modes.length];try{localStorage.setItem('mica-motion-preference',motionPreference);}catch{}applyMotionPreference();toast(`Motion set to ${{auto:'device preference',reduce:'reduced',full:'full'}[motionPreference]}`);
 }
 
+function updateTargetAlertControl() {
+  const button=$('#targetAlertButton');if(!button)return;const supported='Notification' in window;const permission=supported?Notification.permission:'unsupported';if(!supported){button.disabled=true;$('#targetAlertState').textContent='Unavailable';$('#targetAlertHelp').textContent='This browser does not support notifications';return;}button.disabled=false;if(permission==='denied'){targetAlertsEnabled=false;try{localStorage.setItem('mica-target-alerts','off');}catch{}$('#targetAlertState').textContent='Blocked';$('#targetAlertHelp').textContent='Allow notifications in browser settings to use target alerts';return;}$('#targetAlertState').textContent=targetAlertsEnabled&&permission==='granted'?'On':'Off';$('#targetAlertHelp').textContent=targetAlertsEnabled&&permission==='granted'?'Alerts once when a matching price crosses each target':'Alert while Mica is open and prices refresh';
+}
+
+async function notifyReachedTargets() {
+  if(!targetAlertsEnabled||!('Notification' in window)||Notification.permission!=='granted')return;let previous={};try{previous=JSON.parse(localStorage.getItem('mica-target-alert-hits')||'{}');}catch{}const {notifications,next}=targetAlertChanges(state.watchlist,previous);try{localStorage.setItem('mica-target-alert-hits',JSON.stringify(next));}catch{}for(const item of notifications){const options={body:`${item.name} is ${money(item.currentPrice,item.currency)} · your target is ${money(item.targetPrice,item.currency)}`,icon:'./icons/icon-192.png',badge:'./icons/icon-192.png',tag:`mica-target-${item.watchlistId||item.id}`,data:{url:location.origin}};try{const registration=await navigator.serviceWorker?.getRegistration?.();if(registration?.showNotification)await registration.showNotification('Mica buy target reached',options);else new Notification('Mica buy target reached',options);}catch{}}
+}
+
+async function toggleTargetAlerts() {
+  if(!('Notification' in window))return;if(targetAlertsEnabled&&Notification.permission==='granted'){targetAlertsEnabled=false;try{localStorage.setItem('mica-target-alerts','off');localStorage.removeItem('mica-target-alert-hits');}catch{}updateTargetAlertControl();toast('Buy target alerts turned off');return;}let permission=Notification.permission;if(permission==='default')permission=await Notification.requestPermission();if(permission!=='granted'){targetAlertsEnabled=false;try{localStorage.setItem('mica-target-alerts','off');}catch{}updateTargetAlertControl();toast('Notifications are blocked in this browser');return;}targetAlertsEnabled=true;try{localStorage.setItem('mica-target-alerts','on');localStorage.removeItem('mica-target-alert-hits');}catch{}updateTargetAlertControl();toast('Buy target alerts turned on');void notifyReachedTargets();
+}
+
 async function openInstallExperience() {
   if(isInstalledApp()){toast('Mica is already installed');return;}
   if(deferredInstallPrompt){const prompt=deferredInstallPrompt;deferredInstallPrompt=null;await prompt.prompt();const choice=await prompt.userChoice;updateInstallControl();toast(choice.outcome==='accepted'?'Mica installation started':'Installation canceled');return;}
@@ -1039,6 +1053,7 @@ async function refreshWatchlistPricing() {
   if(state.ledgerView==='watchlist')renderCollection();
   renderInsights();
   if(state.route==='detail'&&state.detailCard?.watchlistId){const updated=state.watchlist.find(item=>item.watchlistId===state.detailCard.watchlistId);if(updated){state.detailCard={...updated,price:updated.currentPrice};renderDetail();}}
+  void notifyReachedTargets();
 }
 
 function renderBusinessReview() {
@@ -1219,6 +1234,7 @@ function bindEvents() {
   $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));
   $('#installAppButton').addEventListener('click',()=>void openInstallExperience());
   $('#motionButton').addEventListener('click',cycleMotionPreference);
+  $('#targetAlertButton').addEventListener('click',()=>void toggleTargetAlerts());
   $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep portable copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Complete account backup<small>Cards, transaction history, purchase lots, and watchlist</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection CSV<small>Importable copy of current positions</small></span><b>›</b></button></div>`));
   document.addEventListener('click',event=>{if(event.target.closest('#sheetAccountBackup')){downloadAccountBackup();closeSheet();}if(event.target.closest('#sheetCollectionCsv')){downloadCollectionCsv();closeSheet();}});
   document.addEventListener('keydown',handleDialogKeydown);
@@ -1261,6 +1277,7 @@ function ensureProfileAccount() {
   button.onclick=async()=>{button.disabled=true;const {error}=await signOut(supabase);if(error){toast(error.message);button.disabled=false;}};
   updateInstallControl();
   applyMotionPreference();
+  updateTargetAlertControl();
 }
 
 async function retryAccountLoad() {

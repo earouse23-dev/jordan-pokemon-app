@@ -27,6 +27,7 @@ import {
   positionPerformance,
   portfolioReview,
   businessSummary,
+  targetAlertChanges,
   toMinorUnits,
   validateAcquisition,
   watchPerformance,
@@ -633,6 +634,31 @@ test("watch performance reports exact movement from the saved starting reference
   assert.equal(
     watchPerformance({ startingPrice: "0", currentPrice: "85.50" }),
     null,
+  );
+});
+
+test("target alerts fire once per crossing and reset above the buy price", () => {
+  const reached = {
+    watchlistId: "watch-1",
+    targetPrice: "90.00",
+    currentPrice: "85.00",
+    currency: "USD",
+  };
+  const first = targetAlertChanges([reached]);
+  assert.deepEqual(first.next, { "watch-1": "USD:9000" });
+  assert.equal(first.notifications.length, 1);
+  assert.equal(
+    targetAlertChanges([reached], first.next).notifications.length,
+    0,
+  );
+  const reset = targetAlertChanges(
+    [{ ...reached, currentPrice: "95.00" }],
+    first.next,
+  );
+  assert.deepEqual(reset.next, {});
+  assert.equal(
+    targetAlertChanges([reached], reset.next).notifications.length,
+    1,
   );
 });
 

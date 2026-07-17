@@ -1,7 +1,7 @@
-const SHELL_CACHE = 'mica-shell-v44';
+const SHELL_CACHE = 'mica-shell-v45';
 const RUNTIME_CACHE = 'mica-runtime-v1';
 const RUNTIME_LIMIT = 80;
-const SHELL = ['./','./index.html','./styles.css?v=44','./app-config.js?v=44','./app.js?v=44','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png'];
+const SHELL = ['./','./index.html','./styles.css?v=45','./app-config.js?v=45','./app.js?v=45','./manifest.webmanifest','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png'];
 
 async function trimRuntimeCache() {
   const cache=await caches.open(RUNTIME_CACHE);const keys=await cache.keys();if(keys.length<=RUNTIME_LIMIT)return;await Promise.all(keys.slice(0,keys.length-RUNTIME_LIMIT).map(key=>cache.delete(key)));
@@ -29,4 +29,9 @@ self.addEventListener('fetch', event => {
     if (response.ok) caches.open(SHELL_CACHE).then(cache => cache.put(event.request, response.clone()));
     return response;
   }).catch(() => caches.match(event.request).then(hit => hit || new Response('', { status: 503 }))));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(openClients=>openClients[0]?.focus()||clients.openWindow(event.notification.data?.url||self.registration.scope)));
 });
