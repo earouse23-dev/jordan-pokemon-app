@@ -463,8 +463,11 @@ body:not(.authenticated) .app-shell { display: none; }
 .business-report-head > div > span { color: var(--copper); font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
 .business-report-head h2 { margin: 4px 0; font: 800 16px "Manrope",sans-serif; }
 .business-report-head p { margin: 0; color: var(--muted); font-size: 8px; }
+.business-report-actions { display: flex; align-items: end; gap: 7px; }
 .business-report-head label { color: var(--muted); font-size: 7px; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; }
 .business-report-head select { display: block; min-height: 38px; margin-top: 4px; padding: 0 30px 0 9px; border: 1px solid var(--line-dark); border-radius: 4px; background: white; color: var(--ink); font-size: 9px; text-transform: none; }
+.business-report-actions button { min-height: 38px; padding: 0 10px; border: 1px solid var(--pine); border-radius: 4px; background: transparent; color: var(--pine); font-size: 8px; font-weight: 800; }
+.business-report-actions button:disabled { opacity: .45; cursor: default; }
 .business-report-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--line); }
 .business-report-metrics > div:not(.data-boundary) { min-width: 0; padding: 13px; background: var(--paper-strong); }
 .business-report-metrics .data-boundary { grid-column: 1/-1; margin: 0; border: 0; }
@@ -541,7 +544,8 @@ body:not(.authenticated) .app-shell { display: none; }
   .batch-grade-controls { grid-template-columns: 1fr; }
   .batch-grade-summary { grid-template-columns: repeat(2,1fr); }
   .business-report-head { align-items: stretch; flex-direction: column; }
-  .business-report-head select { width: 100%; }
+  .business-report-actions { align-items: stretch; flex-direction: column; }
+  .business-report-head select,.business-report-actions button { width: 100%; }
   .business-report-metrics { grid-template-columns: repeat(2,1fr); }
 }
 .transaction-list { display:grid;gap:7px; }

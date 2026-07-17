@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch, money, portfolioSnapshot, safeCsvCell } from '../lib/core.js';
+import { calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch, money, portfolioSnapshot, safeCsvCell, transactionReportCsv } from '../lib/core.js';
 
 test('portfolio totals respect quantity and exclude unpriced values', () => {
   const totals = calculateTotals([{quantity:2,cost:10,price:15},{quantity:3,cost:4,price:null}]);
@@ -41,4 +41,10 @@ test('CSV backup round-trips owned records without turning blank costs into zero
   const parsed=parseCollectionCsv(collectionToCsv(source));
   assert.equal(parsed.errors.length,0);
   assert.deepEqual(parsed.records,source);
+});
+test('transaction report exports period FIFO profit and neutralizes spreadsheet formulas',()=>{
+  const csv=transactionReportCsv([{name:'=Charizard',set:'Base Set',number:'4/102',currency:'USD',transactions:[{type:'purchase',date:'2026-06-01',quantity:1,unitPrice:100,totalCost:100,currency:'USD'},{type:'sale',date:'2026-07-01',quantity:1,unitPrice:150,subtotal:150,netProceeds:135,allocatedCost:80,currency:'USD',marketplace:'@market'},{type:'sale',date:'2025-01-01',quantity:1,netProceeds:10,allocatedCost:5,currency:'USD'}]}],{from:'2026-01-01',to:'2026-12-31',currency:'USD'});
+  assert.match(csv,/'=Charizard/);
+  assert.match(csv,/"55","'@market"/);
+  assert.doesNotMatch(csv,/2025-01-01/);
 });

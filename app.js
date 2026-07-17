@@ -1,4 +1,4 @@
-import { money, calculateTotals, collectionToCsv, parseCollectionCsv, portfolioSnapshot, isStale, matchesSearch } from './lib/core.js';
+import { money, calculateTotals, collectionToCsv, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
 import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, portfolioReview, positionPerformance, salePlan, tradeAnalysis, validateAcquisition } from './lib/portfolio.js';
@@ -1048,9 +1048,14 @@ function businessDates(range,today=new Date().toISOString().slice(0,10)) {
 function renderBusinessSummary() {
   const period=businessDates(state.businessRange);const summary=businessSummary(state.items,{from:period.from,to:period.to,currency:'USD'});if(!summary)return;
   $('#businessReportPeriod').textContent=`${period.label} · through ${period.to}`;
+  $('#businessExport').disabled=!summary.transactionCount;
   if(!summary.transactionCount){$('#businessReportMetrics').innerHTML='<div class="data-boundary"><strong>No transactions in this period</strong><p>Record purchases and sales to see cash flow and realized profit here.</p></div>';$('#businessReportNote').textContent='Business reporting uses only transactions you record. Market-value changes are kept separate.';return;}
   const cashClass=summary.cashFlowMinor>=0?'positive':'negative';const profitClass=summary.realizedProfitMinor>=0?'positive':'negative';$('#businessReportMetrics').innerHTML=`<div><span>Net sales</span><strong>${money(summary.netSalesMinor/100,summary.currency)}</strong><small>${summary.unitsSold} card${summary.unitsSold===1?'':'s'} sold</small></div><div><span>Acquisition spend</span><strong>${money(summary.acquisitionSpendMinor/100,summary.currency)}</strong><small>${summary.unitsPurchased} card${summary.unitsPurchased===1?'':'s'} purchased</small></div><div class="${cashClass}"><span>Cash flow</span><strong>${summary.cashFlowMinor>=0?'+':''}${money(summary.cashFlowMinor/100,summary.currency)}</strong><small>Net sales minus acquisitions</small></div><div class="${profitClass}"><span>${summary.realizedCoverage===summary.saleCount?'Realized profit':'Known realized profit'}</span><strong>${summary.realizedProfitMinor>=0?'+':''}${money(summary.realizedProfitMinor/100,summary.currency)}</strong><small>FIFO basis on ${summary.realizedCoverage} of ${summary.saleCount} sales</small></div><div><span>Selling costs</span><strong>${money(summary.sellingCostsMinor/100,summary.currency)}</strong><small>Gross sale price minus net</small></div><div><span>Activity</span><strong>${summary.transactionCount}</strong><small>${summary.purchaseCount} purchase${summary.purchaseCount===1?'':'s'} · ${summary.saleCount} sale${summary.saleCount===1?'':'s'}</small></div>`;
   $('#businessReportNote').textContent=summary.skippedCurrencyCount?`${summary.skippedCurrencyCount} transaction${summary.skippedCurrencyCount===1?' was':'s were'} excluded to avoid mixing currencies. USD is shown separately.`:'USD transactions only. Market value and unrealized gains are not counted as cash or realized profit.';
+}
+
+function downloadBusinessReport() {
+  const period=businessDates(state.businessRange);const csv=transactionReportCsv(state.items,{from:period.from,to:period.to,currency:'USD'});const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=`mica-business-${state.businessRange}-${period.to}.csv`;link.click();URL.revokeObjectURL(url);toast('Business report downloaded');
 }
 
 function renderInsights() {
@@ -1177,6 +1182,7 @@ function bindEvents() {
   $('#exportButton').addEventListener('click',exportCsv); $('#importButton').addEventListener('click',()=>$('#csvInput').click());$('#sharePortfolioButton').addEventListener('click',openSharePortfolioSheet);
   $('#batchGradingButton').addEventListener('click',openBatchGradingPlanner);
   $('#businessRange').addEventListener('change',event=>{state.businessRange=event.target.value;renderBusinessSummary();});
+  $('#businessExport').addEventListener('click',downloadBusinessReport);
   $('#csvInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';if(file)handleCsv(file);});
   $$('[data-info]').forEach(button=>button.addEventListener('click',()=>openInfo(button.dataset.info)));
   $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));
