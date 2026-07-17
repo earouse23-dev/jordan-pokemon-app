@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css?v=24">
+  <link rel="stylesheet" href="styles.css?v=25">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -190,6 +190,7 @@
         <div id="moversList" class="movers-list"></div>
         <h2 class="section-heading">Portfolio positions</h2>
         <div id="positionRankings" class="movers-list"></div>
+        <section class="inventory-health-card" aria-labelledby="inventoryHealthTitle"><div class="inventory-health-head"><span>Portfolio health</span><h2 id="inventoryHealthTitle">Concentration & aging</h2><p>See where portfolio value is concentrated and how long remaining purchase lots have tied up capital.</p></div><div id="inventoryHealth"></div><p class="inventory-health-note" id="inventoryHealthNote"></p></section>
         <section class="grading-batch-launch" aria-labelledby="batchGradingLaunchTitle"><div><span>Submission builder</span><h2 id="batchGradingLaunchTitle">Plan multiple cards together</h2><p>Share shipping and insurance across a batch, then compare expected graded value with selling raw.</p><small id="batchGradingCount">Add a raw card to begin</small></div><button id="batchGradingButton" type="button">Plan a grading batch</button></section>
         <section class="business-report" aria-labelledby="businessReportTitle"><div class="business-report-head"><div><span>Business performance</span><h2 id="businessReportTitle">Sales & cash flow</h2><p id="businessReportPeriod">Last 90 days</p></div><div class="business-report-actions"><label for="businessRange">Period<select id="businessRange"><option value="30d">30 days</option><option value="90d" selected>90 days</option><option value="ytd">Year to date</option><option value="all">All time</option></select></label><button id="businessExport" type="button" disabled>Download CSV</button></div></div><div class="business-report-metrics" id="businessReportMetrics"></div><p class="business-report-note" id="businessReportNote"></p></section>
         <h2 class="section-heading">Business review</h2>
@@ -254,7 +255,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=24"></script>
-  <script type="module" src="app.js?v=24"></script>
+  <script src="app-config.js?v=25"></script>
+  <script type="module" src="app.js?v=25"></script>
 </body>
 </html>

@@ -458,6 +458,29 @@ body:not(.authenticated) .app-shell { display: none; }
 .grading-batch-launch p { max-width: 520px; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
 .grading-batch-launch small { display: block; margin-top: 7px; color: var(--pine-2); font-size: 8px; font-weight: 750; }
 .grading-batch-launch button { flex: 0 0 auto; min-height: 42px; padding: 0 14px; border: 1px solid var(--pine); border-radius: 5px; background: var(--pine); color: white; font-size: 9px; font-weight: 800; }
+.inventory-health-card { margin: 12px 0 22px; overflow: hidden; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--paper); }
+.inventory-health-head { padding: 16px; border-bottom: 1px solid var(--line); }
+.inventory-health-head > span { color: var(--copper); font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
+.inventory-health-head h2 { margin: 4px 0; font: 800 16px "Manrope",sans-serif; }
+.inventory-health-head p { max-width: 620px; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.inventory-health-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--line); }
+.inventory-health-metrics > div { min-width: 0; padding: 13px; background: var(--paper-strong); }
+.inventory-health-metrics span,.inventory-health-metrics strong,.inventory-health-metrics small { display: block; }
+.inventory-health-metrics span { color: var(--muted); font-size: 7px; text-transform: uppercase; letter-spacing: .04em; }
+.inventory-health-metrics strong { margin-top: 5px; color: var(--pine); font: 800 15px "Manrope",sans-serif; }
+.inventory-health-metrics small { margin-top: 4px; overflow: hidden; color: var(--faint); font-size: 7px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.inventory-aging { padding: 14px; }
+.inventory-aging-title { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.inventory-aging-title strong { font: 750 10px "Manrope",sans-serif; }
+.inventory-aging-title span { color: var(--muted); font-size: 8px; }
+.inventory-age-row { display: grid; grid-template-columns: minmax(115px,1fr) 2fr; align-items: center; gap: 12px; margin-top: 9px; }
+.inventory-age-row strong,.inventory-age-row span { display: block; }
+.inventory-age-row strong { font-size: 8px; }
+.inventory-age-row span { margin-top: 2px; color: var(--muted); font-size: 7px; }
+.inventory-age-track { height: 9px; overflow: hidden; border-radius: 6px; background: #dfddd5; }
+.inventory-age-track i { display: block; height: 100%; border-radius: inherit; background: var(--pine-2); }
+.inventory-age-row.aged .inventory-age-track i { background: var(--copper); }
+.inventory-health-note { margin: 0; padding: 10px 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: 8px; line-height: 1.45; }
 .business-report { margin: 12px 0 22px; overflow: hidden; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--paper); }
 .business-report-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding: 16px; border-bottom: 1px solid var(--line); }
 .business-report-head > div > span { color: var(--copper); font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
@@ -547,6 +570,8 @@ body:not(.authenticated) .app-shell { display: none; }
   .business-report-actions { align-items: stretch; flex-direction: column; }
   .business-report-head select,.business-report-actions button { width: 100%; }
   .business-report-metrics { grid-template-columns: repeat(2,1fr); }
+  .inventory-health-metrics { grid-template-columns: 1fr; }
+  .inventory-age-row { grid-template-columns: 110px 1fr; }
 }
 .transaction-list { display:grid;gap:7px; }
 .transaction-row { display:flex;justify-content:space-between;gap:12px;padding:10px;border:1px solid var(--line);background:white;font-size:9px; }

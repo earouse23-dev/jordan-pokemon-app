@@ -22,6 +22,7 @@ import {
   tradeAnalysis,
   salePlan,
   holdingDays,
+  inventoryHealth,
   positionPerformance,
   portfolioReview,
   businessSummary,
@@ -507,6 +508,41 @@ test("FIFO allocates oldest distinct purchase lots first for partial sales", () 
   ]);
   assert.equal(result.allocatedCost, 35000);
   assert.equal(result.unallocatedQuantity, 0);
+});
+
+test("inventory health uses remaining lots for aging and exact priced positions for concentration", () => {
+  const health = inventoryHealth(
+    [
+      {
+        name: "Charizard",
+        currency: "USD",
+        quantity: 2,
+        price: 100,
+        lots: [
+          { acquiredAt: "2026-01-01", quantityRemaining: 1, remainingCost: 50 },
+          { acquiredAt: "2026-07-01", quantityRemaining: 1, remainingCost: 60 },
+        ],
+      },
+      {
+        name: "Pikachu",
+        currency: "USD",
+        quantity: 1,
+        price: 50,
+        purchaseDate: "2026-04-01",
+        costBasis: 40,
+      },
+      { name: "Mew", currency: "EUR", quantity: 1, price: 20 },
+    ],
+    { today: "2026-07-17", currency: "USD" },
+  );
+  assert.equal(health.buckets.find((bucket) => bucket.key === "0-30").quantity, 1);
+  assert.equal(health.buckets.find((bucket) => bucket.key === "91-180").quantity, 1);
+  assert.equal(health.buckets.find((bucket) => bucket.key === "181+").quantity, 1);
+  assert.equal(health.totalCostBasis, 150);
+  assert.equal(health.topPosition.name, "Charizard");
+  assert.equal(health.topPosition.sharePercent, 80);
+  assert.equal(health.topThreeSharePercent, 100);
+  assert.equal(health.skippedCurrencyPositions, 1);
 });
 
 test("performance handles quantity, partial sale, missing price, zero basis, and holding period", () => {
