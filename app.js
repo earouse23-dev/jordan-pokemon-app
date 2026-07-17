@@ -3,7 +3,7 @@ import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectR
 import Chart from 'chart.js/auto';
 import { acquisitionFromTotal, gradingDecision, gradingEstimate, positionPerformance, tradeAnalysis, validateAcquisition } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
-import { createAppSupabase, createPosition, deletePosition, loadDiagnostics, loadPortfolio, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition } from './lib/supabase-data.js';
+import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
 
 const supabase = createAppSupabase();
 let chartInstance = null;
@@ -27,7 +27,7 @@ const seedItems = [
   { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
 ];
 
-const state = { items:[], session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
+const state = { items:[], watchlist:[], session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -255,6 +255,60 @@ function routeTo(route, options={}) {
   else if (historyMode === 'replace') history.replaceState({route}, '', url);
 }
 
+function watchContextLabel(item) {
+  return item.cardState === 'graded'
+    ? `${item.gradingCompany} ${item.grade}`
+    : item.condition || 'Raw card';
+}
+
+function matchingWatchEntry(card) {
+  if (!card) return null;
+  if (card.watchlistId) return state.watchlist.find(item=>item.watchlistId===card.watchlistId) || card;
+  return state.watchlist.find(item=>item.id===card.id && (!card.variant || item.variant===card.variant)) || null;
+}
+
+function openWatchlistDetail(item) {
+  if (!item) return;
+  state.detailReturnRoute='collection';
+  state.detailCanPop=state.route!=='detail';
+  state.detailId=`watch-${item.watchlistId}`;
+  state.detailCard={...item,price:item.currentPrice,quotes:item.quotes||[],pricingUpdatedAt:item.pricingUpdatedAt};
+  routeTo('detail');
+}
+
+function renderWatchlistRows() {
+  let visible=state.watchlist.filter(item=>matchesSearch(item,state.query));
+  if(state.setFilter)visible=visible.filter(item=>item.set===state.setFilter);
+  if(state.conditionFilter==='Raw')visible=visible.filter(item=>item.cardState==='raw');
+  else if(state.conditionFilter==='Graded')visible=visible.filter(item=>item.cardState==='graded');
+  else if(state.conditionFilter)visible=visible.filter(item=>item.condition===state.conditionFilter);
+  visible.sort((a,b)=>state.sort==='name'?a.name.localeCompare(b.name):(Number(b.currentPrice??-1)-Number(a.currentPrice??-1)));
+  $('#resultCount').textContent=`${visible.length} watched card${visible.length===1?'':'s'}`;
+  $('#sortButton').firstChild.textContent=state.sort==='value-desc'?'Value, high to low ':'Name, A to Z ';
+  $('#cardLedger').innerHTML=visible.map(item=>{
+    const hasTarget=item.targetPrice!==null;
+    const targetReached=hasTarget&&item.currentPrice!==null&&Number(item.currentPrice)<=Number(item.targetPrice);
+    const targetStatus=item.pricingStatus==='loading'?'Checking current price…'
+      : item.currentPrice===null?'Exact price unavailable'
+        : targetReached?'Target reached'
+          : hasTarget?`${money(Number(item.currentPrice)-Number(item.targetPrice),item.currency)} above target`:'Current matching reference';
+    return `<article class="ledger-row watch-row" tabindex="0" role="button" aria-label="Open watched ${esc(item.name)}" data-watch-id="${esc(item.watchlistId)}">
+      <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
+      <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${targetReached?'<span class="target-hit">Buy target</span>':''}</div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span><div class="card-tags"><span class="micro-tag ${item.cardState==='graded'?'graded':''}">${esc(watchContextLabel(item))}</span><span class="micro-tag">${esc(item.variant)}</span></div></div>
+      <div class="price-cell"><span class="row-value">${item.currentPrice===null?'—':money(item.currentPrice,item.currency)}</span><span class="row-unit">${hasTarget?`Buy at ${money(item.targetPrice,item.currency)}`:'No target set'}</span><span class="row-move ${targetReached?'up':'none'}">${esc(targetStatus)}</span></div>
+    </article>`;
+  }).join('');
+  const trulyEmpty=state.watchlist.length===0;
+  $('#collectionEmpty').classList.toggle('hidden',visible.length>0);
+  $('#collectionEmptyTitle').textContent=trulyEmpty?'Your watchlist is empty':'No watched cards match';
+  $('#collectionEmptyCopy').textContent=trulyEmpty?'Find a card and choose Watch card to save a price target.':'Try clearing the search or changing your filters.';
+  $('#emptyAddCard').classList.toggle('hidden',!trulyEmpty);
+  $('#emptyAddCard').textContent=trulyEmpty?'Find a card to watch':'Add your first card';
+  $('#clearFilters').classList.toggle('hidden',trulyEmpty);
+  $('#filterLabel').textContent=(state.setFilter||state.conditionFilter)?'Filter · active':'Filter';
+  $$('.watch-row').forEach(row=>{const open=()=>openWatchlistDetail(state.watchlist.find(item=>item.watchlistId===row.dataset.watchId));row.addEventListener('click',open);row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}});});
+}
+
 function renderCollection() {
   const totals = calculateTotals(state.items);
   const gain = totals.comparableValue - totals.comparableCost;
@@ -277,6 +331,7 @@ function renderCollection() {
   $('#portfolioChange').textContent = hasProviderPricing ? `Current matching provider snapshots${partial}${costCoverage}` : `Preview pricing${partial}${costCoverage}`;
   $('#valuationNote').firstChild.textContent = totals.gainCoverage === totals.quantity ? 'Based on matching market prices. ' : `Gain/loss uses ${totals.gainCoverage} of ${totals.quantity} copies with both price and cost. `;
   $('#allCount').textContent = state.items.length;
+  $('#watchlistCount').textContent = state.watchlist.length;
   const pricedCount = state.items.filter(item=>item.price!=null).length;
   const pricingLabel = state.pricingStatus === 'loading' ? 'Updating live prices…'
     : state.pricingStatus === 'live' ? `${pricedCount} of ${state.items.length} live prices`
@@ -290,6 +345,10 @@ function renderCollection() {
   const syncLabel = state.storageStatus==='error' ? 'Session only' : `Cloud saved · ${syncLabels[state.pricingStatus] || 'Prices ready'}`;
   $('#syncState span:last-child').textContent = syncLabel;
   $('#syncState').setAttribute('aria-label', state.storageStatus==='error' ? 'Session only. Changes may be lost when this page closes.' : `Portfolio saved to your account. ${syncLabels[state.pricingStatus] || 'Pricing ready'}. Select to refresh prices.`);
+  if(state.ledgerView==='watchlist'){
+    renderWatchlistRows();
+    return;
+  }
   let visible = state.items.filter(item => matchesSearch(item, state.query));
   if (state.ledgerView === 'favorites') visible = visible.filter(item => (item.tags||[]).some(tag=>String(tag).toLowerCase()==='favorites'));
   if (state.ledgerView === 'graded') visible = visible.filter(item => item.gradingCompany || item.grade);
@@ -391,7 +450,8 @@ function renderDetail() {
   const owned = state.items.find(candidate => candidate.uid === state.detailId) || null;
   const item = owned || state.detailCard || catalog.find(candidate => candidate.id === state.detailId);
   if (!item) return routeTo('scan');
-  const conditionContext = owned || { condition:'Near Mint', gradingCompany:'', grade:'' };
+  const watched = matchingWatchEntry(item);
+  const conditionContext = owned || watched || { condition:'Near Mint', gradingCompany:'', grade:'' };
   const tcgQuote = selectReferenceQuote(item.quotes, item.variant, 'USD', conditionContext);
   const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
   const pricingStatus = item.pricingStatus || (state.pricingStatus === 'error' ? 'error' : item.price != null ? 'preview' : 'loading');
@@ -419,12 +479,14 @@ function renderDetail() {
   const favorite=owned&&(item.tags||[]).some(tag=>String(tag).toLowerCase()==='favorites');
   const action = owned
     ? `<div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${displayPrice==null?'Price unavailable':`${money(displayPrice)} each`}</strong></div><div class="owned-actions"><button id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}">${favorite?'Favorited':'Favorite'}</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>`
-    : `<div class="detail-sticky-action"><button id="addLibraryButton" type="button">Add to Library</button></div>`;
+    : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched?'Edit Watch':'Watch card'}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
+  const watchedSection=watched&&!owned?`<section class="watch-banner"><div><span>On your watchlist · ${esc(watchContextLabel(watched))}</span><strong>${watched.targetPrice===null?'No buy target set':`Buy at ${money(watched.targetPrice,watched.currency)}`}</strong><small>${watched.currentPrice===null?'Current exact price unavailable':`Current exact reference ${money(watched.currentPrice,watched.currency)}`}</small></div><button id="editWatchButton" type="button">Edit target</button></section>`:'';
   const matchDetails = !owned && item.match?.reasons?.length ? `<section class="match-explanation" aria-label="Why this card matched"><strong>${esc(item.match.confidence || 'Possible match')}</strong><span>${esc(item.match.reasons.join(' · '))}</span><small>TCGdex ID ${esc(item.externalIds?.tcgdex || item.id)}</small></section>` : '';
   $('#detailContent').innerHTML = `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
     <div class="detail-identity"><img src="${esc(item.image || item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity || 'Pokémon card')}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant || 'Unknown')}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Released</span><strong>${esc(item.release || '—')}</strong></div><div><span>Artist</span><strong>${esc(item.artist || '—')}</strong></div></div></div></div>
     ${matchDetails}
     <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? pricingStatus === 'loading' ? 'Checking…' : 'Price unavailable' : money(displayPrice)}</strong><small>${statusCopy}</small></section>
+    ${watchedSection}
     ${action}
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
     ${renderGradingEstimator(item)}
@@ -437,6 +499,8 @@ function renderDetail() {
   $('#editCopyButton')?.addEventListener('click', () => openPositionEditSheet(item));
   $('#duplicateCopyButton')?.addEventListener('click', () => openPurchaseLotSheet(item));
   $('#addLibraryButton')?.addEventListener('click', () => openQuickAddSheet(item));
+  $('#watchCardButton')?.addEventListener('click', () => openWatchlistSheet(item,watched));
+  $('#editWatchButton')?.addEventListener('click', () => openWatchlistSheet(item,watched));
   $('#favoriteCopyButton')?.addEventListener('click', () => toggleFavorite(item));
   $('#removeCopyButton')?.addEventListener('click', () => openDeleteCopySheet(item));
   $('#recordSaleButton')?.addEventListener('click',()=>openSaleSheet(item));
@@ -464,6 +528,28 @@ function openQuickAddSheet(card) {
 function identitySnapshot(card, variant) {
   return {providerCardId:card.id,name:card.name,set:card.set,number:card.number,language:card.language||'en',rarity:card.rarity||null,variant,
     release:card.release||null,artist:card.artist||null,image:card.image||card.thumb||null,thumb:card.thumb||card.image||null,externalIds:card.externalIds||{tcgdex:card.id}};
+}
+
+function openWatchlistSheet(card, existing=null) {
+  const variants=Array.isArray(card.variants)&&card.variants.length?card.variants:[card.variant||'Unknown'];
+  const context=existing?`<div class="simple-note"><strong>${esc(existing.variant)} · ${esc(watchContextLabel(existing))}</strong><br>The exact context stays fixed so target comparisons remain consistent.</div>`:`<div class="form-grid">
+      <div class="field full"><label for="watchVariant">Exact variant</label><select id="watchVariant" name="variant" required>${variants.map(value=>`<option value="${esc(value)}">${esc(value)}</option>`).join('')}</select></div>
+      <div class="field"><label for="watchState">Is the card graded?</label><select id="watchState" name="cardState"><option value="raw">No · raw card</option><option value="graded">Yes · professionally graded</option></select></div>
+      <div class="field raw-watch"><label for="watchCondition">Condition</label><select id="watchCondition" name="rawCondition"><option value="near_mint">Near Mint</option><option value="lightly_played">Lightly Played</option><option value="moderately_played">Moderately Played</option><option value="heavily_played">Heavily Played</option><option value="damaged">Damaged</option></select></div>
+      <div class="field graded-watch" hidden><label for="watchGrader">Grading company</label><select id="watchGrader" name="grader"><option value="">Choose grader</option>${['PSA','BGS','CGC','TAG','SGC'].map(value=>`<option>${value}</option>`).join('')}</select></div>
+      <div class="field graded-watch" hidden><label for="watchGrade">Grade</label><input id="watchGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="10"></div>
+    </div>`;
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${existing?'Edit watch target':'Watch this card'}</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
+    <form id="watchlistForm">${context}<div class="field acquisition-field"><label for="watchTarget">Buy at price <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="watchTarget" name="targetPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${existing?.targetPrice??''}" placeholder="Leave blank to just follow it"></div><small>Mica will flag the card when its matching market reference is at or below this amount.</small></div><div class="field"><label for="watchNotes">Notes <span class="optional-label">Optional</span></label><textarea id="watchNotes" name="notes" maxlength="2000" placeholder="Why you want it, preferred seller, trade idea…">${esc(existing?.notes||'')}</textarea></div><p class="form-error" id="watchError" role="alert"></p><div class="sheet-actions">${existing?'<button class="danger-action" id="deleteWatchButton" type="button">Remove</button>':'<button class="secondary" id="watchCancel" type="button">Cancel</button>'}<button class="primary" type="submit">${existing?'Save target':'Add to Watchlist'}</button></div></form>`);
+  const form=$('#watchlistForm');
+  const syncState=()=>{if(existing)return;const graded=$('#watchState').value==='graded';$$('.graded-watch',form).forEach(node=>node.hidden=!graded);$$('.raw-watch',form).forEach(node=>node.hidden=graded);$('#watchGrader').required=graded;$('#watchGrade').required=graded;$('#watchCondition').required=!graded;};
+  $('#watchState')?.addEventListener('change',syncState);$('#watchCancel')?.addEventListener('click',closeSheet);syncState();
+  $('#deleteWatchButton')?.addEventListener('click',async()=>{const button=$('#deleteWatchButton');button.disabled=true;$('#watchError').textContent='Removing…';try{await deleteWatchlistEntry(supabase,existing.watchlistId);state.watchlist=state.watchlist.filter(item=>item.watchlistId!==existing.watchlistId);closeSheet({discardHistory:true});state.detailId=null;state.detailCard=null;state.detailCanPop=false;state.ledgerView='watchlist';syncTabs();routeTo('collection');renderCollection();toast('Removed from Watchlist');}catch(error){button.disabled=false;$('#watchError').textContent=`Could not remove this watch: ${error.message||'Unknown error'}`;}});
+  form.addEventListener('submit',async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(form).entries());const targetPrice=data.targetPrice===''?null:Number(data.targetPrice);if(targetPrice!==null&&(!Number.isFinite(targetPrice)||targetPrice<0)){ $('#watchError').textContent='Enter a valid target price or leave it blank.';return;}const submit=form.querySelector('[type="submit"]');submit.disabled=true;$('#watchError').textContent='Saving securely…';try{
+      if(existing){const updated=await updateWatchlistEntry(supabase,existing.watchlistId,{targetPrice,notes:data.notes});state.watchlist=state.watchlist.map(item=>item.watchlistId===existing.watchlistId?{...updated,currentPrice:item.currentPrice,quotes:item.quotes,pricingStatus:item.pricingStatus,pricingUpdatedAt:item.pricingUpdatedAt}:item);}
+      else {const cardState=data.cardState;const rawCondition=cardState==='raw'?normalizeRawCondition(data.rawCondition).normalized:null;const grader=cardState==='graded'?normalizeGrader(data.grader).normalized:null;const grade=cardState==='graded'?normalizeGrade(data.grade):null;if(cardState==='graded'&&(!grader||!grade)){throw new Error('Choose a grading company and a grade from 1 to 10.');}const condition=cardState==='raw'?String(data.rawCondition).split('_').map(part=>part[0].toUpperCase()+part.slice(1)).join(' '):'Graded';const quote=selectReferenceQuote(card.quotes,data.variant,'USD',{condition,gradingCompany:grader||'',grade:grade||''});const added=await createWatchlistEntry(supabase,{userId:state.session.user.id,cardId:card.cardId||null,identity:identitySnapshot(card,data.variant),cardState,rawCondition,grader,grade,targetPrice,startingMarketPrice:quote?.amount??null,currency:'USD',notes:data.notes});state.watchlist.unshift({...added,currentPrice:quote?.amount??null,quotes:card.quotes||[],pricingStatus:quote?quoteStatus(quote):'loading',pricingUpdatedAt:quote?.observedAt||null});}
+      closeSheet({discardHistory:true});state.ledgerView='watchlist';state.query='';$('#collectionSearch').value='';syncTabs();routeTo('collection');renderCollection();toast(existing?'Watch target updated':'Added to Watchlist');if(!existing)void refreshWatchlistPricing();
+    }catch(error){submit.disabled=false;$('#watchError').textContent=error.message?.includes('duplicate')||error.code==='23505'?'This exact card and condition is already on your Watchlist.':`Could not save this watch: ${error.message||'Unknown error'}`;}});
 }
 
 function openPositionSheet(card) {
@@ -582,9 +668,10 @@ function handleDialogKeydown(event) {
 }
 
 function openFilterSheet() {
-  const sets=[...new Set(state.items.map(item=>item.set).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const source=state.ledgerView==='watchlist'?state.watchlist:state.items;
+  const sets=[...new Set(source.map(item=>item.set).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Choose which cards you want to see.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
-    <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All cards</option><option value="favorites">Favorites only</option><option value="graded">Graded only</option><option value="unpriced">Needs pricing review</option></select></div>
+    <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All cards</option><option value="favorites">Favorites only</option><option value="graded">Graded only</option><option value="unpriced">Needs pricing review</option><option value="watchlist">Watchlist</option></select></div>
     <div class="field"><label for="sheetSet">Set</label><select id="sheetSet"><option value="">Every set</option>${sets.map(set=>`<option value="${esc(set)}">${esc(set)}</option>`).join('')}</select></div>
     <div class="field"><label for="sheetCondition">Condition</label><select id="sheetCondition"><option value="">Every condition</option><option>Raw</option><option>Graded</option>${['Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged'].map(value=>`<option>${value}</option>`).join('')}</select></div>
     <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Value, high to low</option><option value="name">Name, A to Z</option></select></div>
@@ -784,6 +871,21 @@ async function refreshLivePricing() {
   }
 }
 
+async function refreshWatchlistPricing() {
+  const unique=[...new Map(state.watchlist.filter(item=>item.id).map(item=>[item.id,item])).values()];
+  if(!unique.length)return;
+  state.watchlist=state.watchlist.map(item=>({...item,pricingStatus:'loading'}));
+  if(state.ledgerView==='watchlist')renderCollection();
+  const lookups=unique.map(item=>({clientId:item.id,pkmnpricesId:item.externalIds?.pkmnprices||'',justtcgId:item.externalIds?.justtcg||'',tcgplayerId:item.externalIds?.tcgplayer||'',tcgdexId:item.externalIds?.tcgdex||'',name:item.name,set:item.set,number:item.number}));
+  try{
+    const cards=new Map();const processed=new Set();let rateLimited=false;
+    for(let start=0;start<lookups.length;start+=8){const batch=lookups.slice(start,start+8);const response=await fetch(`/api/cards?lookups=${encodeURIComponent(JSON.stringify(batch))}`,{headers:{Accept:'application/json'}});if(response.status===429){rateLimited=true;break;}if(!response.ok)throw new Error(`Watch pricing failed with ${response.status}`);const payload=await response.json();batch.forEach(lookup=>processed.add(lookup.clientId));(payload.cards||[]).forEach(card=>cards.set(card.providerCardId,card));}
+    state.watchlist=state.watchlist.map(item=>{if(!processed.has(item.id))return {...item,pricingStatus:rateLimited?'rate_limited':'error'};const card=cards.get(item.id);if(!card)return {...item,currentPrice:null,quotes:[],pricingStatus:'unavailable'};const quote=selectReferenceQuote(card.quotes,item.variant,item.currency||'USD',item);return {...item,externalIds:{...(item.externalIds||{}),...(card.externalIds||{})},currentPrice:quote?.amount??null,quotes:card.quotes||[],priceHistory:card.history||[],historyStatus:card.historyStatus||null,pricingStatus:quote?quoteStatus(quote):'unavailable',pricingUpdatedAt:quote?.observedAt||quote?.retrievedAt?.slice?.(0,10)||null};});
+  }catch{state.watchlist=state.watchlist.map(item=>({...item,pricingStatus:'error'}));}
+  if(state.ledgerView==='watchlist')renderCollection();
+  if(state.route==='detail'&&state.detailCard?.watchlistId){const updated=state.watchlist.find(item=>item.watchlistId===state.detailCard.watchlistId);if(updated){state.detailCard={...updated,price:updated.currentPrice};renderDetail();}}
+}
+
 function renderInsights() {
   const priced = state.items.filter(item => item.price != null).length;
   const ranked=[...state.items].map(item=>({item,value:item.price==null?null:Number(item.price)*Number(item.quantity),gain:item.price==null?null:Number(item.price)*Number(item.quantity)-Number(item.costBasis||0)})).sort((a,b)=>(b.value??-1)-(a.value??-1));
@@ -897,7 +999,7 @@ function bindEvents() {
   $('#clearFilters').addEventListener('click',()=>{state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();});
   $('#emptyAddCard').addEventListener('click',()=>routeTo('scan'));
   $('#methodButton').addEventListener('click',openMethodSheet);
-  $('#syncState').addEventListener('click',()=>{if(state.storageStatus==='error')toast('Cloud save is unavailable · changes may last only for this session');else if(state.pricingStatus!=='loading')void refreshLivePricing();});
+  $('#syncState').addEventListener('click',()=>{if(state.storageStatus==='error')toast('Cloud save is unavailable · changes may last only for this session');else if(state.pricingStatus!=='loading')void Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);});
   $('#manualSearchButton').addEventListener('click',openManualSearch);
   $('#cameraInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
   $('#galleryInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
@@ -953,11 +1055,11 @@ async function applySession(session) {
   state.session=session;
   document.body.classList.toggle('authenticated',Boolean(session));
   $('#authGate').hidden=Boolean(session);
-  if(!session){state.items=[];state.detailId=null;state.detailCard=null;chartInstance?.destroy();return;}
+  if(!session){state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;chartInstance?.destroy();return;}
   if(!appEventsBound){bindEvents();appEventsBound=true;}
   ensureProfileAccount();
-  try{state.items=await loadPortfolio(supabase);state.storageStatus='cloud';renderCollection();renderInsights();renderTrade();routeTo(location.hash&&['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});await refreshLivePricing();}
-  catch(error){state.items=[];renderCollection();renderInsights();toast(`Portfolio could not load: ${error.message||'Database migration may be pending'}`);}
+  try{[state.items,state.watchlist]=await Promise.all([loadPortfolio(supabase),loadWatchlist(supabase)]);state.storageStatus='cloud';renderCollection();renderInsights();renderTrade();routeTo(location.hash&&['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});await Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);}
+  catch(error){state.items=[];state.watchlist=[];renderCollection();renderInsights();toast(`Portfolio could not load: ${error.message||'Database migration may be pending'}`);}
 }
 
 async function bootstrap() {

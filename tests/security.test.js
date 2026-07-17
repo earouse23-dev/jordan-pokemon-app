@@ -10,6 +10,13 @@ const migration = await readFile(
   ),
   "utf8",
 );
+const watchlistMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260717190209_add_card_watchlist.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {
   for (const policy of [
@@ -48,6 +55,27 @@ test("additional purchases preserve a separate lot and reject future dates", () 
   assert.match(
     migration,
     /record_collection_purchase[\s\S]+?future_acquisition_date[\s\S]+?insert into public\.purchase_lots/i,
+  );
+});
+
+test("watchlist rows are private, authenticated, and protected on every mutation", () => {
+  for (const action of ["select", "insert", "update", "delete"]) {
+    assert.match(
+      watchlistMigration,
+      new RegExp(
+        `create policy "watchlist owners can ${action}"[\\s\\S]{0,180}to authenticated[\\s\\S]{0,180}auth\\.uid\\(\\)\\)=user_id`,
+        "i",
+      ),
+    );
+  }
+  assert.match(
+    watchlistMigration,
+    /watchlist owners can update[\s\S]{0,260}using \(\(select auth\.uid\(\)\)=user_id\)[\s\S]{0,100}with check \(\(select auth\.uid\(\)\)=user_id\)/i,
+  );
+  assert.match(watchlistMigration, /revoke all[\s\S]+from anon/i);
+  assert.match(
+    watchlistMigration,
+    /grant select,insert,update,delete[\s\S]+to authenticated/i,
   );
 });
 

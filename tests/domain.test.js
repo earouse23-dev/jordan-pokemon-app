@@ -24,6 +24,7 @@ import {
   toMinorUnits,
   validateAcquisition,
 } from "../lib/portfolio.js";
+import { hydrateWatchlistEntry } from "../lib/supabase-data.js";
 
 test("normalizes provider raw conditions while retaining the original label", () => {
   assert.deepEqual(normalizeRawCondition("NM"), {
@@ -39,9 +40,43 @@ test("normalizes provider raw conditions while retaining the original label", ()
 test("normalizes graders and decimal grades without merging distinct grades", () => {
   assert.equal(normalizeGrader("Beckett").normalized, "BGS");
   assert.equal(normalizeGrader("SGC").normalized, "SGC");
+  assert.equal(normalizeGrader("TAG").normalized, "TAG");
   assert.equal(normalizeGrade("9.5"), "9.5");
   assert.equal(normalizeGrade("9"), "9");
   assert.equal(normalizeGrade("9.25"), null);
+});
+
+test("watchlist hydration preserves the exact raw or graded target context", () => {
+  const watched = hydrateWatchlistEntry({
+    id: "watch-1",
+    card_id: null,
+    provider_card_id: "sv3pt5-199",
+    identity_snapshot: {
+      providerCardId: "sv3pt5-199",
+      name: "Charizard ex",
+      set: "151",
+      number: "199/165",
+      variant: "Holofoil",
+    },
+    variant_key: "Holofoil",
+    card_state: "graded",
+    raw_condition: null,
+    grader: "PSA",
+    grade: 10,
+    target_price: 250,
+    starting_market_price: 275,
+    currency: "USD",
+    notes: "Wait for a clean copy",
+    created_at: "2026-07-17T12:00:00Z",
+    updated_at: "2026-07-17T12:00:00Z",
+  });
+  assert.equal(watched.id, "sv3pt5-199");
+  assert.equal(watched.watchlistId, "watch-1");
+  assert.equal(watched.cardState, "graded");
+  assert.equal(watched.gradingCompany, "PSA");
+  assert.equal(watched.grade, "10");
+  assert.equal(watched.targetPrice, 250);
+  assert.equal(watched.currentPrice, null);
 });
 
 test("canonical identity separates same-name cards by set, language, number, and variant", () => {

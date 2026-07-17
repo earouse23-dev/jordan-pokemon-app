@@ -67,6 +67,7 @@ const required = [
   "fifo_lot_allocations",
   "price_anomalies",
   "provider_sync_status",
+  "card_watchlist",
 ];
 
 const failures = [];
@@ -107,6 +108,12 @@ if (
   )
 )
   failures.push("future transaction date database safeguard is missing");
+if (
+  !/create policy "watchlist owners can update"[\s\S]+using \(\(select auth\.uid\(\)\)=user_id\)[\s\S]+with check \(\(select auth\.uid\(\)\)=user_id\)/i.test(
+    sql,
+  )
+)
+  failures.push("watchlist update ownership RLS is missing");
 if (failures.length) {
   console.error(failures.join("\n"));
   process.exit(1);
