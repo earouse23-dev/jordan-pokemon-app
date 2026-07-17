@@ -452,6 +452,36 @@ body:not(.authenticated) .app-shell { display: none; }
 .position-summary strong { display:block;margin-top:4px;font:750 14px "Manrope"; }
 .estimator-intro { margin: -2px 0 13px; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .grading-estimator { padding: 17px; border: 1px solid #cbd9cf; border-radius: 8px; background: linear-gradient(145deg, rgba(231,238,232,.9), rgba(251,250,246,.94)); }
+.grading-batch-launch { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 12px 0 22px; padding: 18px; border: 1px solid #c7d7cb; border-radius: 8px; background: linear-gradient(145deg, rgba(231,238,232,.88), rgba(251,250,246,.96)); }
+.grading-batch-launch span { color: var(--copper); font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
+.grading-batch-launch h2 { margin: 4px 0; font: 800 16px "Manrope",sans-serif; }
+.grading-batch-launch p { max-width: 520px; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.grading-batch-launch small { display: block; margin-top: 7px; color: var(--pine-2); font-size: 8px; font-weight: 750; }
+.grading-batch-launch button { flex: 0 0 auto; min-height: 42px; padding: 0 14px; border: 1px solid var(--pine); border-radius: 5px; background: var(--pine); color: white; font-size: 9px; font-weight: 800; }
+.batch-grade-controls { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
+.batch-grade-controls .field { margin-bottom: 0; }
+.batch-grade-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 8px; }
+.batch-grade-head strong { font: 800 12px "Manrope",sans-serif; }
+.batch-grade-head span { color: var(--muted); font-size: 9px; }
+.batch-grade-list { display: grid; gap: 7px; max-height: 36dvh; overflow: auto; padding-right: 2px; }
+.batch-grade-row { padding: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); opacity: .72; }
+.batch-grade-row.selected { border-color: #a9c8b4; background: #f5faf6; opacity: 1; }
+.batch-grade-select { display: grid; grid-template-columns: 18px 38px 1fr; align-items: center; gap: 9px; cursor: pointer; }
+.batch-grade-select input { width: 18px; height: 18px; accent-color: var(--pine); }
+.batch-grade-select img { width: 38px; height: 52px; border-radius: 3px; object-fit: cover; background: #e5e1d8; }
+.batch-grade-select strong,.batch-grade-select small { display: block; }
+.batch-grade-select strong { font: 750 10px "Manrope",sans-serif; }
+.batch-grade-select small { margin-top: 3px; color: var(--muted); font-size: 8px; line-height: 1.35; }
+.batch-grade-values { display: grid; grid-template-columns: 62px 1fr 1fr; gap: 7px; margin-top: 9px; }
+.batch-grade-values > label { color: var(--muted); font-size: 7px; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
+.batch-grade-values input { width: 100%; min-height: 36px; margin-top: 4px; padding: 7px; border: 1px solid var(--line-dark); border-radius: 4px; background: white; color: var(--ink); }
+.batch-grade-values .money-input { margin-top: 4px; }
+.batch-grade-values .money-input input { margin-top: 0; padding-left: 19px; }
+.batch-grade-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; margin-top: 9px; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; background: var(--line); }
+.batch-grade-summary > div { min-width: 0; padding: 10px; background: var(--paper-strong); }
+.batch-grade-summary span,.batch-grade-summary strong { display: block; }
+.batch-grade-summary span { color: var(--muted); font-size: 7px; line-height: 1.35; text-transform: uppercase; letter-spacing: .04em; }
+.batch-grade-summary strong { margin-top: 4px; font: 750 11px "Manrope",sans-serif; }
 .estimator-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .estimator-grid .field { margin-bottom: 0; }
 .estimate-trip-costs { margin: 13px 0; padding-top: 12px; border-top: 1px solid var(--line); }
@@ -488,6 +518,12 @@ body:not(.authenticated) .app-shell { display: none; }
 .history-controls button[aria-pressed="true"] { background:var(--pine);border-color:var(--pine);color:white; }
 .chart-wrap { position:relative;min-height:230px;margin-top:10px; }
 .chart-wrap canvas { width:100%!important;height:230px!important; }
+@media (max-width: 620px) {
+  .grading-batch-launch { align-items: stretch; flex-direction: column; }
+  .grading-batch-launch button { width: 100%; }
+  .batch-grade-controls { grid-template-columns: 1fr; }
+  .batch-grade-summary { grid-template-columns: repeat(2,1fr); }
+}
 .transaction-list { display:grid;gap:7px; }
 .transaction-row { display:flex;justify-content:space-between;gap:12px;padding:10px;border:1px solid var(--line);background:white;font-size:9px; }
 .transaction-row span { display:block;color:var(--muted);margin-top:3px; }

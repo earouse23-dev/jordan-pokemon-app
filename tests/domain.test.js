@@ -18,6 +18,7 @@ import {
   allocateFifo,
   gradingEstimate,
   gradingDecision,
+  gradingBatchPlan,
   tradeAnalysis,
   salePlan,
   holdingDays,
@@ -280,6 +281,46 @@ test("grading decision reports incremental value, break-even, and owned profit",
       breakEvenGradedValuePerCardMinor: 15049,
       potentialProfitMinor: 11902,
     },
+  );
+});
+
+test("batch grading planner shares trip costs across selected raw cards", () => {
+  assert.deepEqual(
+    gradingBatchPlan({
+      items: [
+        { quantity: 2, rawValue: "40.00", expectedGradedValue: "90.00", acquisitionCost: "25.00" },
+        { quantity: 1, rawValue: "100.00", expectedGradedValue: "175.00", acquisitionCost: "70.00" },
+      ],
+      serviceFee: "20.00",
+      shipping: "18.00",
+      insurance: "7.00",
+      sellingCosts: "15.00",
+    }),
+    {
+      cardCount: 3,
+      rawValueTotalMinor: 18000,
+      expectedGradedValueTotalMinor: 35500,
+      serviceFeesMinor: 6000,
+      gradingCostMinor: 8500,
+      valueAddedMinor: 7500,
+      breakEvenAverageMinor: 9334,
+      potentialProfitMinor: 13500,
+    },
+  );
+  assert.equal(gradingBatchPlan({ items: [], serviceFee: "20.00" }), null);
+  assert.equal(
+    gradingBatchPlan({
+      items: [
+        {
+          quantity: 2,
+          availableQuantity: 1,
+          rawValue: "10",
+          expectedGradedValue: "30",
+        },
+      ],
+      serviceFee: "20.00",
+    }),
+    null,
   );
 });
 
