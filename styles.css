@@ -273,6 +273,12 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .set-progress-value { min-width: 58px; text-align: right; }
 .set-progress-value strong { color: var(--pine); font: 700 14px "Manrope"; }
 .set-progress-value span { margin-top: 4px; color: var(--copper); font-size: 8px; font-weight: 700; }
+.set-share-action { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0; padding: 11px; border: 1px solid #c7d7cb; border-radius: 6px; background: #f3f8f4; }
+.set-share-action strong,.set-share-action span { display: block; }
+.set-share-action strong { font: 750 10px "Manrope",sans-serif; }
+.set-share-action span { margin-top: 3px; color: var(--muted); font-size: 8px; line-height: 1.4; }
+.set-share-action button { flex: 0 0 auto; min-height: 36px; padding: 0 10px; border: 1px solid var(--pine); border-radius: 4px; background: transparent; color: var(--pine); font-size: 8px; font-weight: 800; }
+.set-share-action button:disabled { opacity: .5; cursor: default; }
 .set-sheet-progress { margin-bottom: 14px; padding: 13px; border-radius: 7px; background: var(--mint); }
 .set-sheet-progress > span, .set-sheet-progress > strong { font-size: 10px; }
 .set-sheet-progress > strong { float: right; color: var(--pine); }

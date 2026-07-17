@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch, money, portfolioSnapshot, safeCsvCell, transactionReportCsv } from '../lib/core.js';
+import { calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch, missingSetChecklist, money, portfolioSnapshot, safeCsvCell, transactionReportCsv } from '../lib/core.js';
 
 test('portfolio totals respect quantity and exclude unpriced values', () => {
   const totals = calculateTotals([{quantity:2,cost:10,price:15},{quantity:3,cost:4,price:null}]);
@@ -47,4 +47,11 @@ test('transaction report exports period FIFO profit and neutralizes spreadsheet 
   assert.match(csv,/'=Charizard/);
   assert.match(csv,/"55","'@market"/);
   assert.doesNotMatch(csv,/2025-01-01/);
+});
+test('missing set checklist includes only unowned collector numbers and no private collection fields',()=>{
+  const text=missingSetChecklist({name:'Base Set',totalCount:3,cards:[{localId:'1',name:'Alakazam'},{localId:'2',name:'Blastoise'},{localId:'3',name:'Chansey'}]},new Set(['2']));
+  assert.match(text,/2 of 3 cards missing/);
+  assert.match(text,/#1 Alakazam/);
+  assert.match(text,/#3 Chansey/);
+  assert.doesNotMatch(text,/Blastoise|cost|location|cert/i);
 });
