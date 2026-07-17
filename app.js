@@ -1,7 +1,7 @@
 import { money, calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
-import { acquisitionFromTotal, gradingEstimate, positionPerformance, validateAcquisition } from './lib/portfolio.js';
+import { acquisitionFromTotal, gradingDecision, gradingEstimate, positionPerformance, validateAcquisition } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, deletePosition, loadDiagnostics, loadPortfolio, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition } from './lib/supabase-data.js';
 
@@ -170,8 +170,15 @@ function renderSales(item) {
   return `<div class="sales-list">${sales.slice(0,5).map(sale => `<a class="sale-row" href="${esc(sale.sourceUrl)}" target="_blank" rel="noreferrer"><div><strong>${esc(sale.title)}</strong><span>${esc(sale.soldAt)} · ${esc(sale.gradingCompany ? `${sale.gradingCompany} ${sale.grade}` : 'Raw')}</span></div><b>${money(sale.amount, sale.currency)}</b></a>`).join('')}</div>`;
 }
 
-function renderGradingEstimator() {
+function gradingQuote(item, grader, grade) {
+  return selectReferenceQuote(item.quotes, item.variant, 'USD', { gradingCompany:grader, grade:String(grade) });
+}
+
+function renderGradingEstimator(item) {
   const defaultService = gradingServices.PSA[0];
+  const rawContext = item.gradingCompany ? { condition:'Near Mint' } : { condition:item.condition || 'Near Mint' };
+  const rawQuote = selectReferenceQuote(item.quotes, item.variant, 'USD', rawContext);
+  const gradedQuote = gradingQuote(item, 'PSA', '10');
   return `<section class="detail-section grading-estimator" aria-labelledby="gradingEstimatorTitle">
     <div class="detail-section-head"><h2 id="gradingEstimatorTitle">Grading cost estimator</h2><span>Plan a submission</span></div>
     <p class="estimator-intro">See an estimated all-in grading cost before you submit this card.</p>
@@ -180,19 +187,32 @@ function renderGradingEstimator() {
       <div class="field"><label for="estimateService">Service tier</label><select id="estimateService">${gradingServices.PSA.map((service,index)=>`<option value="${index}">${esc(service.name)} · ${money(service.fee)}</option>`).join('')}</select></div>
       <div class="field"><label for="estimateQuantity">Cards in submission</label><input id="estimateQuantity" type="number" inputmode="numeric" min="1" max="999" step="1" value="1"></div>
     </div>
-    <details class="estimate-trip-costs"><summary>Add shipping and insurance</summary><div class="estimator-grid"><div class="field"><label for="estimateShipping">Round-trip shipping</label><input id="estimateShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateInsurance">Insurance</label><input id="estimateInsurance" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></details>
+    <details class="estimate-trip-costs"><summary>Add shipping, insurance, or selling costs</summary><div class="estimator-grid"><div class="field"><label for="estimateShipping">Round-trip shipping</label><input id="estimateShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateInsurance">Insurance</label><input id="estimateInsurance" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateSellingCosts">Expected selling costs</label><input id="estimateSellingCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></details>
     <div class="estimate-result" aria-live="polite"><div><span>Estimated all-in total</span><strong id="estimateTotal">${money(defaultService.fee)}</strong></div><div><span>Estimated per card</span><strong id="estimatePerCard">${money(defaultService.fee)}</strong></div></div>
     <p class="estimate-note" id="estimateNote">${esc(defaultService.note || 'No listed submission minimum')}</p>
+    <div class="grading-decision">
+      <div class="decision-heading"><div><span>Decision tool</span><h3>Should I grade it?</h3></div><p>Compare selling raw with the value you expect after grading.</p></div>
+      <div class="estimator-grid decision-inputs">
+        <div class="field"><label for="estimateRawValue">Raw value today</label><div class="money-input"><span>$</span><input id="estimateRawValue" type="number" inputmode="decimal" min="0" step="0.01" value="${rawQuote?.amount ?? ''}" placeholder="Enter raw value"></div></div>
+        <div class="field"><label for="estimateTargetGrade">Expected grade</label><select id="estimateTargetGrade">${['10','9.5','9','8.5','8','7','6'].map(value=>`<option ${value==='10'?'selected':''}>${value}</option>`).join('')}</select></div>
+        <div class="field"><label for="estimateGradedValue">Expected graded value</label><div class="money-input"><span>$</span><input id="estimateGradedValue" type="number" inputmode="decimal" min="0" step="0.01" value="${gradedQuote?.amount ?? ''}" placeholder="Enter expected value"></div></div>
+      </div>
+      <p class="decision-source" id="decisionSource">${gradedQuote?`Using a matching ${esc(gradedQuote.gradingCompany)} ${esc(gradedQuote.grade)} market reference. Raw and graded values remain editable.`:'No matching PSA 10 reference is available. Enter the result you realistically expect.'}</p>
+      <div class="decision-verdict neutral" id="decisionVerdict" aria-live="polite"><span>Complete the values above</span><strong>Then Mica will compare both paths.</strong></div>
+      <div class="decision-metrics"><div><span>Break-even graded value</span><strong id="decisionBreakEven">—</strong></div><div><span>Value added vs raw</span><strong id="decisionValueAdded">—</strong></div><div><span>Potential profit vs your cost</span><strong id="decisionProfit">—</strong></div></div>
+    </div>
     <p class="estimate-disclaimer">Planning estimate only. Service availability, declared-value limits, memberships, taxes, shipping, and insurance can change. Fees last checked July 2026; confirm with the grader before submitting.</p>
   </section>`;
 }
 
-function bindGradingEstimator() {
-  const grader=$('#estimateGrader');const service=$('#estimateService');const quantity=$('#estimateQuantity');const shipping=$('#estimateShipping');const insurance=$('#estimateInsurance');
-  if(!grader||!service||!quantity||!shipping||!insurance)return;
-  const fillServices=()=>{service.innerHTML=gradingServices[grader.value].map((entry,index)=>`<option value="${index}">${esc(entry.name)} · ${money(entry.fee)}</option>`).join('');update();};
-  const update=()=>{const entry=gradingServices[grader.value][Number(service.value)||0];const count=Number(quantity.value);const total=gradingEstimate({serviceFee:entry.fee,quantity:count,shipping:shipping.value,insurance:insurance.value});const perCard=total===null||!Number.isInteger(count)||count<1?null:total/count;$('#estimateTotal').textContent=total===null?'Check amounts':money(total/100);$('#estimatePerCard').textContent=perCard===null?'—':money(perCard/100);const minimum=entry.minimum&&count<entry.minimum?`This tier requires at least ${entry.minimum} cards. Add ${entry.minimum-count} more or choose another tier.`:entry.note||'No listed submission minimum.';$('#estimateNote').textContent=minimum;$('#estimateNote').classList.toggle('estimate-warning',Boolean(entry.minimum&&count<entry.minimum));};
-  grader.addEventListener('change',fillServices);[service,quantity,shipping,insurance].forEach(input=>input.addEventListener('input',update));update();
+function bindGradingEstimator(item) {
+  const grader=$('#estimateGrader');const service=$('#estimateService');const quantity=$('#estimateQuantity');const shipping=$('#estimateShipping');const insurance=$('#estimateInsurance');const selling=$('#estimateSellingCosts');const rawValue=$('#estimateRawValue');const targetGrade=$('#estimateTargetGrade');const gradedValue=$('#estimateGradedValue');
+  if(!grader||!service||!quantity||!shipping||!insurance||!selling||!rawValue||!targetGrade||!gradedValue)return;
+  const acquisitionPerCard=item.uid&&item.quantity?Number(item.costBasis||0)/Number(item.quantity):null;
+  const update=()=>{const entry=gradingServices[grader.value][Number(service.value)||0];const count=Number(quantity.value);const total=gradingEstimate({serviceFee:entry.fee,quantity:count,shipping:shipping.value,insurance:insurance.value});const perCard=total===null||!Number.isInteger(count)||count<1?null:total/count;$('#estimateTotal').textContent=total===null?'Check amounts':money(total/100);$('#estimatePerCard').textContent=perCard===null?'—':money(perCard/100);const minimum=entry.minimum&&count<entry.minimum?`This tier requires at least ${entry.minimum} cards. Add ${entry.minimum-count} more or choose another tier.`:entry.note||'No listed submission minimum.';$('#estimateNote').textContent=minimum;$('#estimateNote').classList.toggle('estimate-warning',Boolean(entry.minimum&&count<entry.minimum));const decision=total===null?null:gradingDecision({rawValue:rawValue.value,expectedGradedValue:gradedValue.value,quantity:count,gradingCost:total,sellingCosts:selling.value,acquisitionCostPerCard:acquisitionPerCard});const verdict=$('#decisionVerdict');if(!decision){verdict.className='decision-verdict neutral';verdict.innerHTML='<span>Add realistic raw and graded values</span><strong>Then Mica will compare both paths.</strong>';$('#decisionBreakEven').textContent='—';$('#decisionValueAdded').textContent='—';$('#decisionProfit').textContent='—';return;}const favorable=decision.valueAddedMinor>=0;verdict.className=`decision-verdict ${favorable?'positive':'negative'}`;verdict.innerHTML=favorable?`<span>Grading may add value</span><strong>About ${money(decision.valueAddedMinor/100)} more than selling raw.</strong>`:`<span>Raw may be the stronger path</span><strong>Grading is about ${money(Math.abs(decision.valueAddedMinor)/100)} behind.</strong>`;$('#decisionBreakEven').textContent=money(decision.breakEvenGradedValuePerCardMinor/100);$('#decisionValueAdded').textContent=`${decision.valueAddedMinor>=0?'+':''}${money(decision.valueAddedMinor/100)}`;$('#decisionProfit').textContent=decision.potentialProfitMinor===null?'Add card to library':`${decision.potentialProfitMinor>=0?'+':''}${money(decision.potentialProfitMinor/100)}`;};
+  const syncExpectedQuote=()=>{const quote=gradingQuote(item,grader.value,targetGrade.value);gradedValue.value=quote?.amount??'';$('#decisionSource').textContent=quote?`Using a matching ${quote.gradingCompany} ${quote.grade} market reference. Raw and graded values remain editable.`:`No matching ${grader.value} ${targetGrade.value} reference is available. Enter the result you realistically expect.`;update();};
+  const fillServices=()=>{service.innerHTML=gradingServices[grader.value].map((entry,index)=>`<option value="${index}">${esc(entry.name)} · ${money(entry.fee)}</option>`).join('');syncExpectedQuote();};
+  grader.addEventListener('change',fillServices);targetGrade.addEventListener('change',syncExpectedQuote);gradedValue.addEventListener('input',()=>{$('#decisionSource').textContent='Using your expected graded value. Keep it conservative and account for selling costs.';update();});[service,quantity,shipping,insurance,selling,rawValue].forEach(input=>input.addEventListener('input',update));update();
 }
 
 async function loadSales(item, force=false) {
@@ -407,7 +427,7 @@ function renderDetail() {
     <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? pricingStatus === 'loading' ? 'Checking…' : 'Price unavailable' : money(displayPrice)}</strong><small>${statusCopy}</small></section>
     ${action}
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
-    ${renderGradingEstimator()}
+    ${renderGradingEstimator(item)}
     <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderInteractiveHistory(item)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === 'live' ? 'Completed listings' : 'Verified links when available'}</span></div>${renderSales(item)}</section>
     ${positionSection}
@@ -423,7 +443,7 @@ function renderDetail() {
   $('#recordPurchaseButton')?.addEventListener('click',()=>openPurchaseLotSheet(item));
   $('#retryPricingButton')?.addEventListener('click',()=>{if(owned)void refreshLivePricing();else{state.detailCard={...item,pricingStatus:'loading',price:null};renderDetail();void loadCardPreviewPricing(item);}});
   $('#retrySalesButton')?.addEventListener('click',()=>void loadSales(item,true));
-  bindGradingEstimator();
+  bindGradingEstimator(item);
   mountPriceChart(item);
   void loadSales(item);
 }

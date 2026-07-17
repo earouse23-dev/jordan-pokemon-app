@@ -17,6 +17,7 @@ import {
   acquisitionTotal,
   allocateFifo,
   gradingEstimate,
+  gradingDecision,
   holdingDays,
   positionPerformance,
   toMinorUnits,
@@ -221,6 +222,26 @@ test("grading estimate combines per-card service fees with trip costs", () => {
   assert.equal(
     gradingEstimate({ serviceFee: "32.99", quantity: 2, shipping: "18", insurance: "7.50" }),
     9148,
+  );
+});
+
+test("grading decision reports incremental value, break-even, and owned profit", () => {
+  assert.deepEqual(
+    gradingDecision({
+      rawValue: "100.00",
+      expectedGradedValue: "180.00",
+      quantity: 2,
+      gradingCost: 8098,
+      sellingCosts: "20.00",
+      acquisitionCostPerCard: "70.00",
+    }),
+    {
+      rawValueTotalMinor: 20000,
+      expectedGradedValueTotalMinor: 36000,
+      valueAddedMinor: 5902,
+      breakEvenGradedValuePerCardMinor: 15049,
+      potentialProfitMinor: 11902,
+    },
   );
 });
 
