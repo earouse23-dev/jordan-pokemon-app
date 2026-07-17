@@ -749,3 +749,9 @@ body:not(.authenticated) .app-shell { display: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto!important; animation-duration: .01ms!important; animation-iteration-count: 1!important; transition-duration: .01ms!important; }
 }
+body[data-motion="reduce"] *, body[data-motion="reduce"] *::before, body[data-motion="reduce"] *::after { scroll-behavior: auto!important; animation-duration: .01ms!important; animation-iteration-count: 1!important; transition-duration: .01ms!important; }
+body[data-motion="full"] .view { animation-duration: .22s!important; animation-iteration-count: 1!important; }
+body[data-motion="full"] .bottom-sheet { animation-duration: .24s!important; animation-iteration-count: 1!important; }
+body[data-motion="full"] .toast { animation-duration: .2s!important; animation-iteration-count: 1!important; }
+body[data-motion="full"] .searching-cards i, body[data-motion="full"] .process-list li.active i { animation-duration: .7s!important; animation-iteration-count: infinite!important; }
+body[data-motion="full"] .set-progress-track i { transition-duration: .25s!important; }

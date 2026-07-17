@@ -8,6 +8,8 @@ import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition
 const supabase = createAppSupabase();
 let chartInstance = null;
 let deferredInstallPrompt = null;
+let motionPreference='auto';
+try{const savedMotion=localStorage.getItem('mica-motion-preference');if(['auto','reduce','full'].includes(savedMotion))motionPreference=savedMotion;}catch{}
 let catalog = [
   { id:'sv3pt5-199', name:'Charizard ex', set:'151', number:'199/165', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/199_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/199.png', price:null, move:null, artist:'miki kudo', release:'2023' },
   { id:'swsh7-215', name:'Umbreon VMAX', set:'Evolving Skies', number:'215/203', rarity:'Alternate Art Secret', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh7/215_hires.png', thumb:'https://images.pokemontcg.io/swsh7/215.png', price:null, move:null, artist:'KEIICHIRO ITO', release:'2021' },
@@ -945,6 +947,14 @@ function updateInstallControl() {
   const button=$('#installAppButton');if(!button)return;const installed=isInstalledApp();const ios=/iPad|iPhone|iPod/.test(navigator.userAgent);button.disabled=installed;$('#installAppState').textContent=installed?'Installed':deferredInstallPrompt?'Ready':ios?'How to':'Options';$('#installAppHelp').textContent=installed?'Mica is already installed on this device':deferredInstallPrompt?'Install with your browser’s secure app prompt':ios?'Use Safari’s Share menu, then Add to Home Screen':'See the install steps supported by this browser';
 }
 
+function applyMotionPreference() {
+  document.body.dataset.motion=motionPreference;const label={auto:'Auto',reduce:'Reduce',full:'Full'}[motionPreference];const help={auto:'Follow your device preference · select to change',reduce:'Animations minimized on this device · select to change',full:'Use full interface motion · select to change'}[motionPreference];if($('#motionState'))$('#motionState').textContent=label;if($('#motionHelp'))$('#motionHelp').textContent=help;
+}
+
+function cycleMotionPreference() {
+  const modes=['auto','reduce','full'];motionPreference=modes[(modes.indexOf(motionPreference)+1)%modes.length];try{localStorage.setItem('mica-motion-preference',motionPreference);}catch{}applyMotionPreference();toast(`Motion set to ${{auto:'device preference',reduce:'reduced',full:'full'}[motionPreference]}`);
+}
+
 async function openInstallExperience() {
   if(isInstalledApp()){toast('Mica is already installed');return;}
   if(deferredInstallPrompt){const prompt=deferredInstallPrompt;deferredInstallPrompt=null;await prompt.prompt();const choice=await prompt.userChoice;updateInstallControl();toast(choice.outcome==='accepted'?'Mica installation started':'Installation canceled');return;}
@@ -1257,7 +1267,7 @@ function bindEvents() {
   $$('[data-info]').forEach(button=>button.addEventListener('click',()=>openInfo(button.dataset.info)));
   $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));
   $('#installAppButton').addEventListener('click',()=>void openInstallExperience());
-  $('#motionButton').addEventListener('click',()=>toast('Motion follows your device preference'));
+  $('#motionButton').addEventListener('click',cycleMotionPreference);
   $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Backup or reset your card library.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetExport"><span>Download a backup<small>Save a copy of every card</small></span><b>›</b></button><button type="button" id="restoreDemo"><span>Restore preview cards<small>Replace local changes with the starter library</small></span><b>›</b></button></div>`));
   document.addEventListener('click',event=>{ if(event.target.closest('#sheetExport')){exportCsv();closeSheet();} if(event.target.closest('#restoreDemo'))openResetDemoSheet(); });
   document.addEventListener('keydown',handleDialogKeydown);
@@ -1299,6 +1309,7 @@ function ensureProfileAccount() {
   let button=$('#signOutButton');if(!button){button=document.createElement('button');button.id='signOutButton';button.type='button';button.className='profile-signout';button.textContent='Sign out';$('#view-profile').insertBefore(button,$('#view-profile .legal-copy'));}
   button.onclick=async()=>{button.disabled=true;const {error}=await signOut(supabase);if(error){toast(error.message);button.disabled=false;}};
   updateInstallControl();
+  applyMotionPreference();
 }
 
 async function applySession(session) {
@@ -1324,4 +1335,5 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;updateInstallControl();toast('Mica installed');});
 window.matchMedia('(display-mode: standalone)').addEventListener?.('change',updateInstallControl);
 
+applyMotionPreference();
 void bootstrap();

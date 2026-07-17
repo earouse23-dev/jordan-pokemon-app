@@ -36,6 +36,10 @@ const accountEndpoint = await readFile(
 const manifest = JSON.parse(
   await readFile(new URL("../manifest.webmanifest", import.meta.url), "utf8"),
 );
+const styles = await readFile(
+  new URL("../styles.css", import.meta.url),
+  "utf8",
+);
 
 test("offline runtime caching is bounded and APIs remain network-only", () => {
   assert.match(serviceWorker, /RUNTIME_LIMIT\s*=\s*80/);
@@ -58,6 +62,18 @@ test("installable app metadata uses a scoped standalone shell", () => {
   assert.ok(manifest.icons.some((icon) => icon.purpose.includes("maskable")));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "192x192"));
   assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"));
+});
+
+test("motion preferences support device defaults and explicit reduction", () => {
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(
+    styles,
+    /body\[data-motion="reduce"\][\s\S]+animation-duration: \.01ms!important/,
+  );
+  assert.match(
+    styles,
+    /body\[data-motion="full"\] \.view[\s\S]+animation-duration: \.22s!important/,
+  );
 });
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {
