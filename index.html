@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css?v=35">
+  <link rel="stylesheet" href="styles.css?v=36">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -204,6 +204,7 @@
       <section class="view trade-view" id="view-trade" aria-labelledby="tradeTitle">
         <div class="screen-heading"><p class="eyebrow">Deal confidence</p><h1 id="tradeTitle">Trade check</h1><p>Put both sides of a trade in one place. Mica totals the agreed values and shows the difference without guessing.</p></div>
         <section class="trade-verdict neutral" id="tradeVerdict" aria-live="polite"><span>Start a trade</span><strong>Add cards to both sides to compare the deal.</strong><small id="tradeBalanceHelp">You can use market references or type the value both people agreed on.</small></section>
+        <div class="trade-share-actions"><button id="copyTradeSummary" type="button" disabled>Copy deal summary</button><span>No notes, costs, storage, or account details are shared.</span></div>
         <div class="trade-sides">
           <section class="trade-side" aria-labelledby="tradeGiveTitle"><div class="trade-side-head"><div><span>You give</span><h2 id="tradeGiveTitle">Leaving your collection</h2></div><strong id="tradeGiveTotal">$0.00</strong></div><div class="trade-items" id="tradeGiveItems"></div><div class="field trade-cash"><label for="tradeGiveCash">Cash you add</label><div class="money-input"><span>$</span><input id="tradeGiveCash" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></section>
           <section class="trade-side receive" aria-labelledby="tradeReceiveTitle"><div class="trade-side-head"><div><span>You receive</span><h2 id="tradeReceiveTitle">Coming into your collection</h2></div><strong id="tradeReceiveTotal">$0.00</strong></div><div class="trade-items" id="tradeReceiveItems"></div><div class="field trade-cash"><label for="tradeReceiveCash">Cash they add</label><div class="money-input"><span>$</span><input id="tradeReceiveCash" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></section>
@@ -256,7 +257,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=35"></script>
-  <script type="module" src="app.js?v=35"></script>
+  <script src="app-config.js?v=36"></script>
+  <script type="module" src="app.js?v=36"></script>
 </body>
 </html>

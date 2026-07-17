@@ -616,6 +616,10 @@ body:not(.authenticated) .app-shell { display: none; }
 .trade-verdict.negative { border-color: #ddbbb5; background: #f5e7e3; color: #743a35; }
 .trade-verdict.balanced { border-color: #d9c792; background: #f3eddc; color: #6f5625; }
 .trade-verdict.neutral { color: var(--ink); }
+.trade-share-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -8px 0 18px; }
+.trade-share-actions button { min-height: 42px; flex: none; border: 1px solid var(--pine); border-radius: 5px; background: transparent; color: var(--pine); padding: 7px 12px; font-size: 9px; font-weight: 750; }
+.trade-share-actions button:disabled { opacity: .45; }
+.trade-share-actions span { color: var(--muted); font-size: 8px; text-align: right; }
 .trade-sides { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .trade-side { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
 .trade-side-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; padding: 14px 15px; border-bottom: 1px solid var(--line); background: #f3e9e4; }

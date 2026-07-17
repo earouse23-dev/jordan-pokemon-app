@@ -20,6 +20,7 @@ import {
   gradingDecision,
   gradingBatchPlan,
   tradeAnalysis,
+  tradeSummary,
   salePlan,
   holdingDays,
   inventoryHealth,
@@ -325,7 +326,12 @@ test("one total acquisition input preserves every cent across multiple cards", (
 
 test("grading estimate combines per-card service fees with trip costs", () => {
   assert.equal(
-    gradingEstimate({ serviceFee: "32.99", quantity: 2, shipping: "18", insurance: "7.50" }),
+    gradingEstimate({
+      serviceFee: "32.99",
+      quantity: 2,
+      shipping: "18",
+      insurance: "7.50",
+    }),
     9148,
   );
 });
@@ -354,8 +360,18 @@ test("batch grading planner shares trip costs across selected raw cards", () => 
   assert.deepEqual(
     gradingBatchPlan({
       items: [
-        { quantity: 2, rawValue: "40.00", expectedGradedValue: "90.00", acquisitionCost: "25.00" },
-        { quantity: 1, rawValue: "100.00", expectedGradedValue: "175.00", acquisitionCost: "70.00" },
+        {
+          quantity: 2,
+          rawValue: "40.00",
+          expectedGradedValue: "90.00",
+          acquisitionCost: "25.00",
+        },
+        {
+          quantity: 1,
+          rawValue: "100.00",
+          expectedGradedValue: "175.00",
+          acquisitionCost: "70.00",
+        },
       ],
       serviceFee: "20.00",
       shipping: "18.00",
@@ -417,6 +433,39 @@ test("trade analysis totals both sides and recommends balancing cash", () => {
   );
 });
 
+test("trade summary shares deal terms without private portfolio fields", () => {
+  const text = tradeSummary(
+    {
+      giveItems: [
+        {
+          name: "Charizard",
+          set: "Base Set",
+          number: "4/102",
+          quantity: 1,
+          valuePerCard: "100.00",
+          notes: "private note",
+          location: "Safe A1",
+          costBasis: 25,
+        },
+      ],
+      receiveItems: [
+        {
+          name: "Blastoise",
+          set: "Base Set",
+          number: "2/102",
+          quantity: 1,
+          valuePerCard: "120.00",
+        },
+      ],
+      giveCash: "5.00",
+      receiveCash: "0.00",
+    },
+    { date: "2026-07-17" },
+  );
+  assert.match(text, /Charizard[\s\S]+Blastoise[\s\S]+receive \$15\.00 more/i);
+  assert.doesNotMatch(text, /private note|Safe A1|cost basis/i);
+});
+
 test("sale planner reports fees, net proceeds, profit, and break-even price", () => {
   assert.deepEqual(
     salePlan({
@@ -439,7 +488,10 @@ test("sale planner reports fees, net proceeds, profit, and break-even price", ()
       targetPriceEachMinor: 9862,
     },
   );
-  assert.equal(salePlan({quantity:1,salePriceEach:"10",feePercent:100}),null);
+  assert.equal(
+    salePlan({ quantity: 1, salePriceEach: "10", feePercent: 100 }),
+    null,
+  );
 });
 
 test("business summary reports dated cash flow and FIFO-covered profit without mixing currencies", () => {
@@ -449,10 +501,40 @@ test("business summary reports dated cash flow and FIFO-covered profit without m
         {
           currency: "USD",
           transactions: [
-            { type: "purchase", date: "2026-06-01", quantity: 2, totalCost: 100, currency: "USD" },
-            { type: "sale", date: "2026-07-01", quantity: 1, subtotal: 150, netProceeds: 135, allocatedCost: 80, currency: "USD" },
-            { type: "sale", date: "2025-01-01", quantity: 1, subtotal: 50, netProceeds: 45, allocatedCost: 30, currency: "USD" },
-            { type: "sale", date: "2026-07-02", quantity: 1, subtotal: 60, netProceeds: 55, allocatedCost: 40, currency: "EUR" },
+            {
+              type: "purchase",
+              date: "2026-06-01",
+              quantity: 2,
+              totalCost: 100,
+              currency: "USD",
+            },
+            {
+              type: "sale",
+              date: "2026-07-01",
+              quantity: 1,
+              subtotal: 150,
+              netProceeds: 135,
+              allocatedCost: 80,
+              currency: "USD",
+            },
+            {
+              type: "sale",
+              date: "2025-01-01",
+              quantity: 1,
+              subtotal: 50,
+              netProceeds: 45,
+              allocatedCost: 30,
+              currency: "USD",
+            },
+            {
+              type: "sale",
+              date: "2026-07-02",
+              quantity: 1,
+              subtotal: 60,
+              netProceeds: 55,
+              allocatedCost: 40,
+              currency: "EUR",
+            },
           ],
         },
       ],
@@ -482,17 +564,50 @@ test("business summary reports dated cash flow and FIFO-covered profit without m
 });
 
 test("portfolio review separates price gaps, below-cost positions, older stock, and reached targets", () => {
-  const positions=[
-    {id:'unpriced',price:null,quantity:1,costBasis:50,purchaseDate:'2026-06-01'},
-    {id:'loss',price:75,quantity:1,costBasis:100,purchaseDate:'2025-01-01'},
-    {id:'gain',price:125,quantity:1,costBasis:100,purchaseDate:'2026-06-01'},
+  const positions = [
+    {
+      id: "unpriced",
+      price: null,
+      quantity: 1,
+      costBasis: 50,
+      purchaseDate: "2026-06-01",
+    },
+    {
+      id: "loss",
+      price: 75,
+      quantity: 1,
+      costBasis: 100,
+      purchaseDate: "2025-01-01",
+    },
+    {
+      id: "gain",
+      price: 125,
+      quantity: 1,
+      costBasis: 100,
+      purchaseDate: "2026-06-01",
+    },
   ];
-  const watchlist=[{id:'hit',targetPrice:80,currentPrice:75},{id:'waiting',targetPrice:80,currentPrice:90}];
-  const review=portfolioReview(positions,watchlist,'2026-07-17');
-  assert.deepEqual(review.needsPricing.map(item=>item.id),['unpriced']);
-  assert.deepEqual(review.belowCost.map(item=>item.id),['loss']);
-  assert.deepEqual(review.olderInventory.map(item=>item.id),['loss']);
-  assert.deepEqual(review.reachedTargets.map(item=>item.id),['hit']);
+  const watchlist = [
+    { id: "hit", targetPrice: 80, currentPrice: 75 },
+    { id: "waiting", targetPrice: 80, currentPrice: 90 },
+  ];
+  const review = portfolioReview(positions, watchlist, "2026-07-17");
+  assert.deepEqual(
+    review.needsPricing.map((item) => item.id),
+    ["unpriced"],
+  );
+  assert.deepEqual(
+    review.belowCost.map((item) => item.id),
+    ["loss"],
+  );
+  assert.deepEqual(
+    review.olderInventory.map((item) => item.id),
+    ["loss"],
+  );
+  assert.deepEqual(
+    review.reachedTargets.map((item) => item.id),
+    ["hit"],
+  );
 });
 
 test("future acquisition dates are rejected without override", () => {
@@ -566,9 +681,18 @@ test("inventory health uses remaining lots for aging and exact priced positions 
     ],
     { today: "2026-07-17", currency: "USD" },
   );
-  assert.equal(health.buckets.find((bucket) => bucket.key === "0-30").quantity, 1);
-  assert.equal(health.buckets.find((bucket) => bucket.key === "91-180").quantity, 1);
-  assert.equal(health.buckets.find((bucket) => bucket.key === "181+").quantity, 1);
+  assert.equal(
+    health.buckets.find((bucket) => bucket.key === "0-30").quantity,
+    1,
+  );
+  assert.equal(
+    health.buckets.find((bucket) => bucket.key === "91-180").quantity,
+    1,
+  );
+  assert.equal(
+    health.buckets.find((bucket) => bucket.key === "181+").quantity,
+    1,
+  );
   assert.equal(health.totalCostBasis, 150);
   assert.equal(health.topPosition.name, "Charizard");
   assert.equal(health.topPosition.sharePercent, 80);

@@ -1,7 +1,7 @@
 import { money, calculateTotals, collectionToCsv, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
-import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, inventoryHealth, portfolioReview, positionPerformance, salePlan, tradeAnalysis, validateAcquisition } from './lib/portfolio.js';
+import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, inventoryHealth, portfolioReview, positionPerformance, salePlan, tradeAnalysis, tradeSummary, validateAcquisition } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
 
@@ -1135,7 +1135,7 @@ function tradeItemMarkup(item, side) {
 
 function updateTradeSummary() {
   const analysis=tradeAnalysis({giveItems:state.trade.give,receiveItems:state.trade.receive,giveCash:state.trade.giveCash,receiveCash:state.trade.receiveCash});
-  const verdict=$('#tradeVerdict');
+  const verdict=$('#tradeVerdict');const copyButton=$('#copyTradeSummary');copyButton.disabled=!analysis||!state.trade.give.length||!state.trade.receive.length;
   if(!analysis){$('#tradeGiveTotal').textContent='Check values';$('#tradeReceiveTotal').textContent='Check values';verdict.className='trade-verdict negative';verdict.innerHTML='<span>Check the trade values</span><strong>Quantities and values must be zero or higher.</strong><small id="tradeBalanceHelp">Fix the highlighted side, then Mica will compare the deal.</small>';return;}
   $('#tradeGiveTotal').textContent=money(analysis.giveTotalMinor/100);$('#tradeReceiveTotal').textContent=money(analysis.receiveTotalMinor/100);
   if(!state.trade.give.length||!state.trade.receive.length){verdict.className='trade-verdict neutral';verdict.innerHTML='<span>Build both sides</span><strong>Add at least one card to You give and You receive.</strong><small id="tradeBalanceHelp">You can use market references or type the value both people agreed on.</small>';return;}
@@ -1180,6 +1180,7 @@ function bindTradeUI() {
   $$('[data-trade-side]').forEach(button=>button.addEventListener('click',()=>{state.trade.addingTo=button.dataset.tradeSide;$$('[data-trade-side]').forEach(candidate=>candidate.setAttribute('aria-pressed',String(candidate===button)));}));
   $('#tradeGiveCash').addEventListener('input',event=>{state.trade.giveCash=event.target.value;updateTradeSummary();});$('#tradeReceiveCash').addEventListener('input',event=>{state.trade.receiveCash=event.target.value;updateTradeSummary();});
   $('#resetTradeButton').addEventListener('click',()=>{state.trade={give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]};input.value='';renderTrade();$('#tradeSearchResults').innerHTML='<div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing, then set the value used for this trade.</span></div>';toast('Trade cleared');});
+  $('#copyTradeSummary').addEventListener('click',async()=>{const text=tradeSummary({giveItems:state.trade.give,receiveItems:state.trade.receive,giveCash:state.trade.giveCash,receiveCash:state.trade.receiveCash});if(!text){toast('Add valid cards and values to both sides first');return;}try{await navigator.clipboard.writeText(text);toast('Deal summary copied');}catch{toast('Copy is unavailable in this browser');}});
 }
 
 function syncTabs() { $$('.view-tab').forEach(tab=>{const active=tab.dataset.ledgerView===state.ledgerView;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));}); }
