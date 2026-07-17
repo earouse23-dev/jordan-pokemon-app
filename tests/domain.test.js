@@ -18,6 +18,7 @@ import {
   allocateFifo,
   gradingEstimate,
   gradingDecision,
+  tradeAnalysis,
   holdingDays,
   positionPerformance,
   toMinorUnits,
@@ -242,6 +243,33 @@ test("grading decision reports incremental value, break-even, and owned profit",
       breakEvenGradedValuePerCardMinor: 15049,
       potentialProfitMinor: 11902,
     },
+  );
+});
+
+test("trade analysis totals both sides and recommends balancing cash", () => {
+  assert.deepEqual(
+    tradeAnalysis({
+      giveItems: [{ quantity: 2, valuePerCard: "50.00" }],
+      receiveItems: [{ quantity: 1, valuePerCard: "125.00" }],
+      giveCash: "5.00",
+      receiveCash: "0.00",
+    }),
+    {
+      giveTotalMinor: 10500,
+      receiveTotalMinor: 12500,
+      differenceMinor: 2000,
+      differencePercent: 16,
+      verdict: "in_your_favor",
+      cashToBalanceMinor: 2000,
+      cashGoesTo: "them",
+    },
+  );
+  assert.equal(
+    tradeAnalysis({
+      giveItems: [{ quantity: 1, valuePerCard: "100" }],
+      receiveItems: [{ quantity: 1, valuePerCard: "103" }],
+    }).verdict,
+    "balanced",
   );
 });
 

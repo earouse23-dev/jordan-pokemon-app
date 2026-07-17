@@ -290,7 +290,7 @@ h1 { font: 700 29px/1.12 "Manrope", sans-serif; letter-spacing: -.035em; margin:
 .sale-row span { display: block; color: var(--muted); font-size: 7px; margin-top: 3px; }
 .sale-row b { font: 700 11px "Manrope"; color: var(--pine-2); }
 
-.bottom-nav { position: fixed; z-index: 35; left: 0; right: 0; bottom: 0; min-height: calc(67px + var(--safe-bottom)); padding: 8px 11px var(--safe-bottom); background: rgba(250,249,244,.96); border-top: 1px solid var(--line-dark); backdrop-filter: blur(16px); display: grid; grid-template-columns: repeat(4,1fr); align-items: center; }
+.bottom-nav { position: fixed; z-index: 35; left: 0; right: 0; bottom: 0; min-height: calc(67px + var(--safe-bottom)); padding: 8px 11px var(--safe-bottom); background: rgba(250,249,244,.96); border-top: 1px solid var(--line-dark); backdrop-filter: blur(16px); display: grid; grid-template-columns: repeat(5,1fr); align-items: center; }
 .nav-item { border: 0; background: none; color: var(--faint); min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 8px; }
 .nav-item > svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.55; }
 .nav-item.active { color: var(--pine); font-weight: 700; }
@@ -432,6 +432,57 @@ body:not(.authenticated) .app-shell { display: none; }
 .form-error { grid-column:1/-1;color:var(--danger);font-size:9px;min-height:14px;margin:0; }
 .profile-signout { width:100%;min-height:44px;margin:14px 0;border:1px solid var(--danger);background:transparent;color:var(--danger);border-radius:5px;font-weight:750; }
 .profile-admin { width:100%;min-height:44px;margin:14px 0 0;border:1px solid var(--pine);background:transparent;color:var(--pine);border-radius:5px;font-weight:750; }
+.trade-verdict { margin-bottom: 18px; padding: 17px 18px; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--paper); }
+.trade-verdict span, .trade-verdict strong, .trade-verdict small { display: block; }
+.trade-verdict span { font-size: 8px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.trade-verdict strong { margin-top: 4px; font: 800 18px "Manrope", sans-serif; }
+.trade-verdict small { margin-top: 5px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.trade-verdict.positive { border-color: #9fc4ae; background: #deece2; color: var(--pine); }
+.trade-verdict.negative { border-color: #ddbbb5; background: #f5e7e3; color: #743a35; }
+.trade-verdict.balanced { border-color: #d9c792; background: #f3eddc; color: #6f5625; }
+.trade-verdict.neutral { color: var(--ink); }
+.trade-sides { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.trade-side { overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.trade-side-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; padding: 14px 15px; border-bottom: 1px solid var(--line); background: #f3e9e4; }
+.trade-side.receive .trade-side-head { background: #e3eee6; }
+.trade-side-head span { color: var(--copper); font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.trade-side.receive .trade-side-head span { color: var(--pine-2); }
+.trade-side-head h2 { margin: 3px 0 0; font: 750 13px "Manrope", sans-serif; }
+.trade-side-head > strong { font: 800 20px "Manrope", sans-serif; }
+.trade-items { display: grid; }
+.trade-side-empty { padding: 24px 15px; color: var(--faint); font-size: 10px; text-align: center; }
+.trade-item { position: relative; display: grid; grid-template-columns: 50px minmax(0,1fr); gap: 10px; padding: 12px 42px 12px 12px; border-bottom: 1px solid var(--line); }
+.trade-item > img { width: 50px; height: 70px; object-fit: cover; border-radius: 4px; }
+.trade-item-main strong, .trade-item-main span, .trade-item-main small { display: block; }
+.trade-item-main strong { font-size: 11px; }
+.trade-item-main span { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.trade-item-main small { margin-top: 4px; color: var(--faint); font-size: 8px; }
+.trade-item-inputs { grid-column: 1/-1; display: grid; grid-template-columns: 80px minmax(0,1fr); gap: 8px; }
+.trade-item-inputs label { color: var(--muted); font-size: 8px; font-weight: 700; }
+.trade-item-inputs input { width: 100%; min-height: 40px; margin-top: 4px; padding: 8px 9px; border: 1px solid var(--line-dark); border-radius: 4px; background: white; }
+.trade-item-inputs .money-input { margin-top: 4px; }
+.trade-item-inputs .money-input input { margin-top: 0; border-radius: 0 4px 4px 0; }
+.trade-remove { position: absolute; top: 9px; right: 8px; width: 34px; height: 34px; border: 0; background: transparent; color: var(--faint); font-size: 20px; }
+.trade-cash { margin: 0; padding: 12px 14px; background: rgba(255,255,255,.45); }
+.trade-add { margin-top: 20px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); }
+.trade-add-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.trade-add-head h2 { margin: 3px 0 0; font: 750 16px "Manrope", sans-serif; }
+.trade-add-head button { min-height: 40px; border: 1px solid var(--line-dark); border-radius: 5px; background: transparent; color: var(--muted); padding: 7px 10px; font-size: 9px; font-weight: 700; }
+.trade-side-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 11px; }
+.trade-side-toggle button { min-height: 42px; border: 1px solid var(--line-dark); border-radius: 5px; background: white; font-size: 10px; font-weight: 700; }
+.trade-side-toggle button[aria-pressed="true"] { border-color: var(--pine); background: var(--pine); color: white; }
+.trade-search-results { margin-top: 8px; }
+.trade-owned { margin-top: 16px; }
+.trade-owned-head { display: flex; justify-content: space-between; gap: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+.trade-owned-head strong { font-size: 10px; }
+.trade-owned-head span { color: var(--muted); font-size: 8px; }
+.trade-owned-list { display: grid; grid-template-columns: 1fr; }
+.trade-owned-list button { display: grid; grid-template-columns: 38px minmax(0,1fr) auto; gap: 9px; align-items: center; min-height: 61px; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; }
+.trade-owned-list img { width: 38px; height: 52px; border-radius: 3px; object-fit: cover; }
+.trade-owned-list span strong, .trade-owned-list span small { display: block; }
+.trade-owned-list span strong { font-size: 10px; }
+.trade-owned-list span small { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.trade-owned-list b { color: var(--copper); font-size: 9px; }
 
 @media (min-width: 520px) {
   .form-grid { grid-template-columns: 1fr 1fr; }
@@ -468,11 +519,15 @@ body:not(.authenticated) .app-shell { display: none; }
   .estimate-trip-costs .estimator-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .detail-identity { grid-template-columns: 160px minmax(0,1fr); gap: 26px; }
   .detail-identity img { width: 160px; }
+  .trade-sides { grid-template-columns: 1fr 1fr; }
+  .trade-item { grid-template-columns: 58px minmax(0,1fr); }
+  .trade-item > img { width: 58px; height: 81px; }
+  .trade-owned-list { grid-template-columns: 1fr 1fr; column-gap: 18px; }
 }
 @media (min-width: 1024px) {
   #main { margin-left: 92px; min-height: calc(100dvh - 62px); }
   .view { padding-bottom: 54px; }
-  .bottom-nav { top: calc(62px + var(--safe-top)); right: auto; bottom: 0; width: 92px; min-height: 0; padding: 18px 8px; border-top: 0; border-right: 1px solid var(--line-dark); grid-template-columns: 1fr; grid-template-rows: repeat(4,minmax(72px,auto)); align-content: start; gap: 5px; }
+  .bottom-nav { top: calc(62px + var(--safe-top)); right: auto; bottom: 0; width: 92px; min-height: 0; padding: 18px 8px; border-top: 0; border-right: 1px solid var(--line-dark); grid-template-columns: 1fr; grid-template-rows: repeat(5,minmax(68px,auto)); align-content: start; gap: 5px; }
   .nav-item { width: 100%; border-radius: 8px; }
   .nav-item:hover, .nav-item.active { background: rgba(220,232,223,.7); }
   .scan-nav { margin-top: 0; }

@@ -1,7 +1,7 @@
 import { money, calculateTotals, collectionToCsv, parseCollectionCsv, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
-import { acquisitionFromTotal, gradingDecision, gradingEstimate, positionPerformance, validateAcquisition } from './lib/portfolio.js';
+import { acquisitionFromTotal, gradingDecision, gradingEstimate, positionPerformance, tradeAnalysis, validateAcquisition } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, deletePosition, loadDiagnostics, loadPortfolio, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition } from './lib/supabase-data.js';
 
@@ -27,7 +27,7 @@ const seedItems = [
   { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
 ];
 
-const state = { items:[], session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all' };
+const state = { items:[], session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -799,6 +799,60 @@ function renderInsights() {
   $('#moversList').innerHTML = [...state.items].filter(i=>i.move!=null).sort((a,b)=>Math.abs(b.move)-Math.abs(a.move)).slice(0,4).map(item=>`<div class="mover"><img src="${item.thumb}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.set)} · preview fixture</span></div><b style="color:${item.move<0?'var(--danger)':''}">${item.move>=0?'+':''}${item.move.toFixed(1)}%</b></div>`).join('');
 }
 
+function tradeItemMarkup(item, side) {
+  const max = item.maxQuantity ? ` max="${item.maxQuantity}"` : '';
+  return `<article class="trade-item" data-trade-item="${esc(item.tradeId)}" data-trade-item-side="${side}"><img src="${esc(item.thumb||'./icons/icon.svg')}" alt=""><div class="trade-item-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant||'Printing unknown')}</span><small>${item.pricingStatus==='live'?'Market reference loaded':item.pricingStatus==='loading'?'Checking market reference…':'Enter the agreed value'}</small></div><div class="trade-item-inputs"><label>Qty<input data-trade-quantity type="number" inputmode="numeric" min="1"${max} step="1" value="${item.quantity}"></label><label>Value each<div class="money-input"><span>$</span><input data-trade-value type="number" inputmode="decimal" min="0" step="0.01" value="${esc(item.valuePerCard)}" placeholder="0.00"></div></label></div><button class="trade-remove" data-trade-remove type="button" aria-label="Remove ${esc(item.name)} from trade">×</button></article>`;
+}
+
+function updateTradeSummary() {
+  const analysis=tradeAnalysis({giveItems:state.trade.give,receiveItems:state.trade.receive,giveCash:state.trade.giveCash,receiveCash:state.trade.receiveCash});
+  const verdict=$('#tradeVerdict');
+  if(!analysis){$('#tradeGiveTotal').textContent='Check values';$('#tradeReceiveTotal').textContent='Check values';verdict.className='trade-verdict negative';verdict.innerHTML='<span>Check the trade values</span><strong>Quantities and values must be zero or higher.</strong><small id="tradeBalanceHelp">Fix the highlighted side, then Mica will compare the deal.</small>';return;}
+  $('#tradeGiveTotal').textContent=money(analysis.giveTotalMinor/100);$('#tradeReceiveTotal').textContent=money(analysis.receiveTotalMinor/100);
+  if(!state.trade.give.length||!state.trade.receive.length){verdict.className='trade-verdict neutral';verdict.innerHTML='<span>Build both sides</span><strong>Add at least one card to You give and You receive.</strong><small id="tradeBalanceHelp">You can use market references or type the value both people agreed on.</small>';return;}
+  const copy=analysis.verdict==='balanced'?{tone:'balanced',label:'Looks close',headline:`The two sides are within ${money(Math.abs(analysis.differenceMinor)/100)}.`}:analysis.verdict==='in_your_favor'?{tone:'positive',label:'In your favor',headline:`You receive about ${money(analysis.differenceMinor/100)} more.`}:{tone:'negative',label:'In their favor',headline:`You give about ${money(Math.abs(analysis.differenceMinor)/100)} more.`};
+  const balance=analysis.differenceMinor===0?'The agreed values are exactly even.':`${money(analysis.cashToBalanceMinor/100)} in cash to ${analysis.cashGoesTo==='them'?'them':'you'} would make the totals even.`;
+  verdict.className=`trade-verdict ${copy.tone}`;verdict.innerHTML=`<span>${copy.label}</span><strong>${copy.headline}</strong><small id="tradeBalanceHelp">${balance} Difference: ${analysis.differencePercent>=0?'+':''}${analysis.differencePercent.toFixed(1)}%.</small>`;
+}
+
+function bindTradeItemRows() {
+  $$('.trade-item').forEach(row=>{const side=row.dataset.tradeItemSide;const item=state.trade[side].find(candidate=>candidate.tradeId===row.dataset.tradeItem);row.querySelector('[data-trade-quantity]').addEventListener('input',event=>{item.quantity=Number(event.target.value);updateTradeSummary();});row.querySelector('[data-trade-value]').addEventListener('input',event=>{item.valuePerCard=event.target.value;item.pricingStatus='manual';updateTradeSummary();});row.querySelector('[data-trade-remove]').addEventListener('click',()=>{state.trade[side]=state.trade[side].filter(candidate=>candidate.tradeId!==item.tradeId);renderTrade();});});
+}
+
+function renderTrade() {
+  $('#tradeGiveItems').innerHTML=state.trade.give.length?state.trade.give.map(item=>tradeItemMarkup(item,'give')).join(''):'<div class="trade-side-empty">No cards added yet.</div>';
+  $('#tradeReceiveItems').innerHTML=state.trade.receive.length?state.trade.receive.map(item=>tradeItemMarkup(item,'receive')).join(''):'<div class="trade-side-empty">No cards added yet.</div>';
+  $('#tradeGiveCash').value=state.trade.giveCash;$('#tradeReceiveCash').value=state.trade.receiveCash;
+  $$('[data-trade-side]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tradeSide===state.trade.addingTo)));
+  const owned=state.items.filter(item=>item.quantity>0).slice(0,6);
+  $('#tradeOwned').innerHTML=owned.length?`<div class="trade-owned-head"><strong>Add from your library</strong><span>Uses the current matching reference when available.</span></div><div class="trade-owned-list">${owned.map(item=>`<button type="button" data-trade-owned="${esc(item.uid)}"><img src="${esc(item.thumb)}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition)} · ${item.price==null?'Value needed':money(item.price)}</small></span><b>Give</b></button>`).join('')}</div>`:'';
+  $$('[data-trade-owned]').forEach(button=>button.addEventListener('click',()=>addTradeCard(state.items.find(item=>item.uid===button.dataset.tradeOwned),'give',true)));
+  bindTradeItemRows();updateTradeSummary();
+}
+
+function renderTradeSearchResults() {
+  const node=$('#tradeSearchResults');const results=state.trade.searchResults;
+  node.innerHTML=results.length?results.map(item=>`<button class="quick-card-result" type="button" data-trade-card="${esc(item.id)}"><img src="${esc(item.thumb||item.image||'')}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number)}</small><em>${esc(item.variant||'Printing unknown')} · ${esc(languageName(item.language||'en'))}</em></span><b>Add</b></button>`).join(''):'<div class="find-empty"><strong>No matching cards</strong><span>Try the card name with its set or collector number.</span></div>';
+  $$('[data-trade-card]',node).forEach(button=>button.addEventListener('click',()=>addTradeCard(state.trade.searchResults.find(item=>item.id===button.dataset.tradeCard),state.trade.addingTo)));
+}
+
+async function priceTradeCard(tradeItem, card) {
+  const lookup=[{clientId:card.id,pkmnpricesId:card.externalIds?.pkmnprices||'',tcgdexId:card.externalIds?.tcgdex||'',name:card.name,set:card.set,number:card.number}];
+  try{const response=await fetch(`/api/cards?lookups=${encodeURIComponent(JSON.stringify(lookup))}`,{headers:{Accept:'application/json'}});if(!response.ok)throw new Error('pricing unavailable');const payload=await response.json();const priced=payload.cards?.[0];const quote=priced?selectReferenceQuote(priced.quotes,card.variant,'USD',{condition:'Near Mint'}):null;if(quote&&String(tradeItem.valuePerCard).trim()===''){tradeItem.valuePerCard=Number(quote.amount).toFixed(2);tradeItem.pricingStatus='live';}else tradeItem.pricingStatus=quote?'live':'unavailable';}catch{tradeItem.pricingStatus='unavailable';}if(state.route==='trade')renderTrade();
+}
+
+function addTradeCard(card, side=state.trade.addingTo, owned=false) {
+  if(!card)return;const tradeItem={tradeId:crypto.randomUUID(),cardId:card.id,name:card.name,set:card.set,number:card.number,variant:card.variant,thumb:card.thumb||card.image,quantity:1,maxQuantity:owned?Number(card.quantity):null,valuePerCard:card.price==null?'':Number(card.price).toFixed(2),pricingStatus:card.price==null?'loading':'live'};state.trade[side].push(tradeItem);renderTrade();toast(`${card.name} added to ${side==='give'?'You give':'You receive'}`);if(card.price==null)void priceTradeCard(tradeItem,card);
+}
+
+function bindTradeUI() {
+  let timer;let requestId=0;const input=$('#tradeCardSearch');
+  input.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(async()=>{const query=input.value.trim();const current=++requestId;if(query.length<2){state.trade.searchResults=[];$('#tradeSearchResults').innerHTML='<div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing, then set the value used for this trade.</span></div>';return;}$('#tradeSearchResults').innerHTML='<div class="searching-cards"><i></i><span>Finding exact printings…</span></div>';try{const result=await searchCatalog(query,'en',8);if(current!==requestId)return;state.trade.searchResults=result.items;renderTradeSearchResults();}catch{if(current!==requestId)return;state.trade.searchResults=catalog.filter(item=>matchesSearch(item,query)).slice(0,8);renderTradeSearchResults();}},220);});
+  $$('[data-trade-side]').forEach(button=>button.addEventListener('click',()=>{state.trade.addingTo=button.dataset.tradeSide;$$('[data-trade-side]').forEach(candidate=>candidate.setAttribute('aria-pressed',String(candidate===button)));}));
+  $('#tradeGiveCash').addEventListener('input',event=>{state.trade.giveCash=event.target.value;updateTradeSummary();});$('#tradeReceiveCash').addEventListener('input',event=>{state.trade.receiveCash=event.target.value;updateTradeSummary();});
+  $('#resetTradeButton').addEventListener('click',()=>{state.trade={give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]};input.value='';renderTrade();$('#tradeSearchResults').innerHTML='<div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing, then set the value used for this trade.</span></div>';toast('Trade cleared');});
+}
+
 function syncTabs() { $$('.view-tab').forEach(tab=>{const active=tab.dataset.ledgerView===state.ledgerView;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));}); }
 function toast(message) { const node=document.createElement('div');node.className='toast';node.textContent=message;$('#toastRegion').append(node);setTimeout(()=>node.remove(),3000); }
 
@@ -834,7 +888,7 @@ function bindQuickCardSearch() {
 }
 
 function bindEvents() {
-  $$('[data-route]').forEach(button=>button.addEventListener('click',()=>{const route=button.dataset.route; if(route==='insights')renderInsights();routeTo(route);}));
+  $$('[data-route]').forEach(button=>button.addEventListener('click',()=>{const route=button.dataset.route;if(route==='insights')renderInsights();if(route==='trade')renderTrade();routeTo(route);}));
   $$('.view-tab').forEach(tab=>tab.addEventListener('click',()=>{state.ledgerView=tab.dataset.ledgerView;syncTabs();renderCollection();}));
   $$('.view-tab').forEach(tab=>tab.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const tabs=$$('.view-tab');const current=tabs.indexOf(event.currentTarget);const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(current+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[next].focus();tabs[next].click();}));
   $('#collectionSearch').addEventListener('input',event=>{state.query=event.target.value;renderCollection();});
@@ -856,8 +910,9 @@ function bindEvents() {
   $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Backup or reset your card library.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetExport"><span>Download a backup<small>Save a copy of every card</small></span><b>›</b></button><button type="button" id="restoreDemo"><span>Restore preview cards<small>Replace local changes with the starter library</small></span><b>›</b></button></div>`));
   document.addEventListener('click',event=>{ if(event.target.closest('#sheetExport')){exportCsv();closeSheet();} if(event.target.closest('#restoreDemo'))openResetDemoSheet(); });
   document.addEventListener('keydown',handleDialogKeydown);
-  window.addEventListener('popstate',event=>{if(!$('#bottomSheet').hidden){closeSheet({fromHistory:true});return;}const route=event.state?.route||(['scan','insights','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection');state.detailCanPop=false;routeTo(route,{instant:true,history:'none'});});
+  window.addEventListener('popstate',event=>{if(!$('#bottomSheet').hidden){closeSheet({fromHistory:true});return;}const route=event.state?.route||(['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection');state.detailCanPop=false;if(route==='trade')renderTrade();routeTo(route,{instant:true,history:'none'});});
   bindQuickCardSearch();
+  bindTradeUI();
 }
 
 function validateImage(file) {
@@ -901,7 +956,7 @@ async function applySession(session) {
   if(!session){state.items=[];state.detailId=null;state.detailCard=null;chartInstance?.destroy();return;}
   if(!appEventsBound){bindEvents();appEventsBound=true;}
   ensureProfileAccount();
-  try{state.items=await loadPortfolio(supabase);state.storageStatus='cloud';renderCollection();renderInsights();routeTo(location.hash&&['scan','insights','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});await refreshLivePricing();}
+  try{state.items=await loadPortfolio(supabase);state.storageStatus='cloud';renderCollection();renderInsights();renderTrade();routeTo(location.hash&&['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});await refreshLivePricing();}
   catch(error){state.items=[];renderCollection();renderInsights();toast(`Portfolio could not load: ${error.message||'Database migration may be pending'}`);}
 }
 

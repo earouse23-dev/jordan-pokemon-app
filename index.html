@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-  <link rel="stylesheet" href="styles.css?v=15">
+  <link rel="stylesheet" href="styles.css?v=16">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -193,6 +193,17 @@
         <div class="data-boundary"><strong>No sales history connected</strong><p>Mica does not infer completed sales from active listings. Add a licensed sales-history provider when approved.</p></div>
       </section>
 
+      <section class="view trade-view" id="view-trade" aria-labelledby="tradeTitle">
+        <div class="screen-heading"><p class="eyebrow">Deal confidence</p><h1 id="tradeTitle">Trade check</h1><p>Put both sides of a trade in one place. Mica totals the agreed values and shows the difference without guessing.</p></div>
+        <section class="trade-verdict neutral" id="tradeVerdict" aria-live="polite"><span>Start a trade</span><strong>Add cards to both sides to compare the deal.</strong><small id="tradeBalanceHelp">You can use market references or type the value both people agreed on.</small></section>
+        <div class="trade-sides">
+          <section class="trade-side" aria-labelledby="tradeGiveTitle"><div class="trade-side-head"><div><span>You give</span><h2 id="tradeGiveTitle">Leaving your collection</h2></div><strong id="tradeGiveTotal">$0.00</strong></div><div class="trade-items" id="tradeGiveItems"></div><div class="field trade-cash"><label for="tradeGiveCash">Cash you add</label><div class="money-input"><span>$</span><input id="tradeGiveCash" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></section>
+          <section class="trade-side receive" aria-labelledby="tradeReceiveTitle"><div class="trade-side-head"><div><span>You receive</span><h2 id="tradeReceiveTitle">Coming into your collection</h2></div><strong id="tradeReceiveTotal">$0.00</strong></div><div class="trade-items" id="tradeReceiveItems"></div><div class="field trade-cash"><label for="tradeReceiveCash">Cash they add</label><div class="money-input"><span>$</span><input id="tradeReceiveCash" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></section>
+        </div>
+        <section class="trade-add" aria-labelledby="tradeAddTitle"><div class="trade-add-head"><div><p class="eyebrow">Build the deal</p><h2 id="tradeAddTitle">Add a card</h2></div><button id="resetTradeButton" type="button">Reset trade</button></div><div class="trade-side-toggle" role="group" aria-label="Choose which side receives the next card"><button type="button" data-trade-side="give" aria-pressed="true">Add to You give</button><button type="button" data-trade-side="receive" aria-pressed="false">Add to You receive</button></div><label class="find-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="tradeCardSearch" type="search" placeholder="Search card name, set, or number" autocomplete="off" aria-label="Search for a card to add to the trade"></label><div class="trade-search-results" id="tradeSearchResults"><div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing, then set the value used for this trade.</span></div></div><div class="trade-owned" id="tradeOwned"></div></section>
+        <p class="legal-copy">Trade Check is a planning tool, not an appraisal. Condition, grade, authenticity, venue, fees, and personal preference can change a fair deal.</p>
+      </section>
+
       <section class="view" id="view-profile" aria-labelledby="profileTitle">
         <div class="screen-heading"><p class="eyebrow">Account & preferences</p><h1 id="profileTitle">Your Mica account</h1><p>Your portfolio follows you across signed-in devices.</p></div>
         <div class="profile-card"><div class="profile-avatar">ME</div><div><strong>Your collection</strong><span>Securely synced to your account</span></div><span class="plan-badge">Preview</span></div>
@@ -225,6 +236,7 @@
       <button class="nav-item active" type="button" data-route="collection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5"/></svg><span>Library</span></button>
       <button class="nav-item scan-nav" type="button" data-route="scan"><span class="scan-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Add card</span></button>
       <button class="nav-item" type="button" data-route="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9M10 18V5M16 18v-7M21 18H3"/></svg><span>Market</span></button>
+      <button class="nav-item" type="button" data-route="trade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"/></svg><span>Trade</span></button>
       <button class="nav-item" type="button" data-route="profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg><span>Profile</span></button>
     </nav>
   </div>
@@ -235,7 +247,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=15"></script>
-  <script type="module" src="app.js?v=15"></script>
+  <script src="app-config.js?v=16"></script>
+  <script type="module" src="app.js?v=16"></script>
 </body>
 </html>
