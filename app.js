@@ -27,7 +27,7 @@ const seedItems = [
   { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
 ];
 
-const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
+const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -460,6 +460,7 @@ function renderCollection() {
   if (state.ledgerView === 'graded') visible = visible.filter(item => item.gradingCompany || item.grade);
   if (state.ledgerView === 'unpriced') visible = visible.filter(item => item.price == null);
   if (state.setFilter) visible = visible.filter(item => item.set === state.setFilter);
+  if (state.labelFilter) visible = visible.filter(item => (item.tags||[]).some(tag=>String(tag).toLowerCase()===state.labelFilter.toLowerCase()));
   if (state.conditionFilter === 'Raw') visible = visible.filter(item => !item.gradingCompany && item.condition !== 'Graded');
   else if (state.conditionFilter === 'Graded') visible = visible.filter(item => item.gradingCompany || item.condition === 'Graded');
   else if (state.conditionFilter) visible = visible.filter(item => item.condition === state.conditionFilter);
@@ -488,7 +489,7 @@ function renderCollection() {
   $('#emptyAddCard').classList.toggle('hidden',!trulyEmpty);
   $('#emptyAddCard').textContent='Add your first card';
   $('#clearFilters').classList.toggle('hidden',trulyEmpty);
-  const activeFilterCount=(state.ledgerView!=='all'?1:0)+(state.setFilter?1:0)+(state.conditionFilter?1:0);
+  const activeFilterCount=(state.ledgerView!=='all'?1:0)+(state.setFilter?1:0)+(state.conditionFilter?1:0)+(state.labelFilter?1:0);
   $('#filterLabel').textContent=activeFilterCount?`Filter · ${activeFilterCount}`:'Filter';
   $$('.ledger-row').forEach(row => {
     const open = () => openCardDetail(state.items.find(item => item.uid === row.dataset.id), true);
@@ -768,8 +769,9 @@ function openDeleteCopySheet(item) {
 }
 
 function openPositionEditSheet(item) {
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Edit position details</h2><p>${esc(item.name)} · financial transactions remain auditable</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" value="${esc(item.certificationNumber||'')}"></div><div class="field full"><label for="editLocation">Storage location</label><input id="editLocation" name="location" value="${esc(item.location||'')}"></div><div class="field full"><label for="editNotes">Notes</label><textarea id="editNotes" name="notes">${esc(item.notes||'')}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`);
-  $('#editCancel').addEventListener('click',closeSheet);$('#positionEditForm').addEventListener('submit',async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());const submit=event.currentTarget.querySelector('[type="submit"]');submit.disabled=true;try{await updatePosition(supabase,item.uid,{...data,status:item.status});closeSheet({discardHistory:true});await reloadPortfolio(item.uid);toast('Position details updated');}catch(error){$('#editError').textContent=`Could not update position: ${error.message||'Unknown error'}`;submit.disabled=false;}});
+  const favorite=(item.tags||[]).some(tag=>String(tag).toLowerCase()==='favorites');const labels=(item.tags||[]).filter(tag=>String(tag).toLowerCase()!=='favorites');
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Edit position details</h2><p>${esc(item.name)} · financial transactions remain auditable</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" value="${esc(item.certificationNumber||'')}"></div><div class="field full"><label for="editLocation">Storage location</label><input id="editLocation" name="location" maxlength="250" value="${esc(item.location||'')}" placeholder="Binder 1 · Page 4"></div><div class="field full"><label for="editTags">Labels <span class="optional-label">Optional</span></label><input id="editTags" name="tags" maxlength="500" value="${esc(labels.join(', '))}" placeholder="Trade binder, Grade next, For sale"><small>Separate labels with commas. Favorites is managed from the card page.</small></div><div class="field full"><label for="editNotes">Notes</label><textarea id="editNotes" name="notes" maxlength="10000">${esc(item.notes||'')}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`);
+  $('#editCancel').addEventListener('click',closeSheet);$('#positionEditForm').addEventListener('submit',async event=>{event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget).entries());const tags=[...new Map(String(data.tags||'').split(',').map(tag=>tag.trim()).filter(Boolean).map(tag=>[tag.toLowerCase(),tag])).values()].slice(0,favorite?19:20);if(tags.some(tag=>tag.length>40)){ $('#editError').textContent='Keep each label to 40 characters or fewer.';return;}if(favorite)tags.unshift('Favorites');delete data.tags;const submit=event.currentTarget.querySelector('[type="submit"]');submit.disabled=true;try{await updatePosition(supabase,item.uid,{...data,tags,status:item.status});closeSheet({discardHistory:true});await reloadPortfolio(item.uid);toast('Position details updated');}catch(error){$('#editError').textContent=`Could not update position: ${error.message||'Unknown error'}`;submit.disabled=false;}});
 }
 
 function openSheet(content, trigger=document.activeElement) {
@@ -814,15 +816,17 @@ function handleDialogKeydown(event) {
 function openFilterSheet() {
   const source=state.ledgerView==='watchlist'?state.watchlist:state.items;
   const sets=[...new Set(source.map(item=>item.set).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const labels=[...new Map(source.flatMap(item=>item.tags||[]).filter(tag=>String(tag).toLowerCase()!=='favorites').map(tag=>[String(tag).toLowerCase(),String(tag)])).values()].sort((a,b)=>a.localeCompare(b));
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Choose which cards you want to see.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All cards</option><option value="favorites">Favorites only</option><option value="graded">Graded only</option><option value="unpriced">Needs pricing review</option><option value="watchlist">Watchlist</option><option value="sets">Set progress</option></select></div>
     <div class="field"><label for="sheetSet">Set</label><select id="sheetSet"><option value="">Every set</option>${sets.map(set=>`<option value="${esc(set)}">${esc(set)}</option>`).join('')}</select></div>
     <div class="field"><label for="sheetCondition">Condition</label><select id="sheetCondition"><option value="">Every condition</option><option>Raw</option><option>Graded</option>${['Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged'].map(value=>`<option>${value}</option>`).join('')}</select></div>
+    <div class="field"><label for="sheetLabel">Label</label><select id="sheetLabel"><option value="">Every label</option>${labels.map(label=>`<option value="${esc(label)}">${esc(label)}</option>`).join('')}</select></div>
     <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Value, high to low</option><option value="name">Name, A to Z</option></select></div>
     <div class="sheet-actions"><button class="secondary" id="resetSheet">Reset</button><button class="primary" id="applySheet">Apply filters</button></div>`);
-  $('#sheetView').value=state.ledgerView; $('#sheetSet').value=state.setFilter; $('#sheetCondition').value=state.conditionFilter; $('#sheetSort').value=state.sort;
-  $('#resetSheet').addEventListener('click', () => { state.ledgerView='all';state.setFilter='';state.conditionFilter='';state.sort='value-desc';state.query='';$('#collectionSearch').value='';closeSheet();syncTabs();renderCollection(); });
-  $('#applySheet').addEventListener('click', () => { state.ledgerView=$('#sheetView').value;state.setFilter=$('#sheetSet').value;state.conditionFilter=$('#sheetCondition').value;state.sort=$('#sheetSort').value;closeSheet();syncTabs();renderCollection();toast('Collection view updated'); });
+  $('#sheetView').value=state.ledgerView; $('#sheetSet').value=state.setFilter; $('#sheetCondition').value=state.conditionFilter; $('#sheetLabel').value=state.labelFilter; $('#sheetSort').value=state.sort;
+  $('#resetSheet').addEventListener('click', () => { state.ledgerView='all';state.setFilter='';state.conditionFilter='';state.labelFilter='';state.sort='value-desc';state.query='';$('#collectionSearch').value='';closeSheet();syncTabs();renderCollection(); });
+  $('#applySheet').addEventListener('click', () => { state.ledgerView=$('#sheetView').value;state.setFilter=$('#sheetSet').value;state.conditionFilter=$('#sheetCondition').value;state.labelFilter=$('#sheetLabel').value;state.sort=$('#sheetSort').value;closeSheet();syncTabs();renderCollection();toast('Collection view updated'); });
 }
 
 function openMethodSheet() {
@@ -959,7 +963,7 @@ function handleCsv(file) {
     $('#cancelCsvImport').addEventListener('click',closeSheet);$('#addCsvImport').addEventListener('click',async()=>{
       const button=$('#addCsvImport');const fallback=$('#importFallbackDate');if(!fallback.reportValidity())return;const prepared=limited.map(prepare);const ready=prepared.filter(item=>!item.error);const failures=prepared.filter(item=>item.error).map(item=>item.error);if(!ready.length){$('#importStatus').textContent=failures.slice(0,3).join(' · ');return;}button.disabled=true;fallback.disabled=true;$('#cancelCsvImport').disabled=true;$('.sheet-close').disabled=true;let imported=0;
       for(const [index,item] of ready.entries()){ $('#importStatus').textContent=`Saving ${index+1} of ${ready.length} securely…`;try{const id=await createPosition(supabase,item.input);imported+=1;if(item.record.location||(item.record.tags||[]).length){try{await updatePosition(supabase,id,{location:item.record.location||'',tags:(item.record.tags||[]).slice(0,50)});}catch(error){failures.push(`${item.record.name}: card saved, but labels or location need review`);}}}catch(error){failures.push(`${item.record.name}: ${error.message||'could not save'}`);} }
-      try{await reloadPortfolio();}catch(error){failures.push(`Portfolio refresh: ${error.message||'try refreshing the page'}`);}state.ledgerView='all';state.query='';state.setFilter='';state.conditionFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();
+      try{await reloadPortfolio();}catch(error){failures.push(`Portfolio refresh: ${error.message||'try refreshing the page'}`);}state.ledgerView='all';state.query='';state.setFilter='';state.conditionFilter='';state.labelFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();
       $('.sheet-close').disabled=false;$('#cancelCsvImport').disabled=false;$('#cancelCsvImport').textContent='Close';if(failures.length){$('#importStatus').textContent=`${imported} imported · ${failures.length} issue${failures.length===1?'':'s'}. ${failures.slice(0,3).join(' · ')}`;button.textContent='Import finished';toast(`${imported} position${imported===1?'':'s'} imported; some rows need review`);}else{closeSheet({discardHistory:true});routeTo('collection');toast(`${imported} position${imported===1?'':'s'} added to your account`);}
     });
   };reader.readAsText(file);
@@ -968,7 +972,7 @@ function handleCsv(file) {
 function openResetDemoSheet() {
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Restore preview cards?</h2><p>This replaces your current on-device library.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>Download a backup first if you want to keep your records.</strong><p>This action cannot be undone inside Mica.</p></div><div class="sheet-actions"><button class="secondary" id="cancelRestoreDemo" type="button">Keep my library</button><button class="danger-action" id="confirmRestoreDemo" type="button">Replace library</button></div>`);
   $('#cancelRestoreDemo').addEventListener('click',closeSheet);
-  $('#confirmRestoreDemo').addEventListener('click',()=>{state.items=structuredClone(seedItems);state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';$('#collectionSearch').value='';const saved=saveItems();renderCollection();syncTabs();closeSheet();toast(saved?'Preview records restored':'Restored for this session · device storage unavailable');});
+  $('#confirmRestoreDemo').addEventListener('click',()=>{state.items=structuredClone(seedItems);state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';state.labelFilter='';$('#collectionSearch').value='';const saved=saveItems();renderCollection();syncTabs();closeSheet();toast(saved?'Preview records restored':'Restored for this session · device storage unavailable');});
 }
 
 async function refreshLivePricing() {
@@ -1065,7 +1069,7 @@ function openBusinessReviewQueue(key,items) {
   const rows=items.map((item,index)=>{let metric='';let detail='';if(key==='pricing'){metric='Needs price';detail=esc(item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition);}else if(key==='below-cost'){const value=Number(item.price||0)*Number(item.quantity||0);const gap=value-Number(item.costBasis||0);metric=`${gap>=0?'+':''}${money(gap,item.currency)}`;detail=`${money(value,item.currency)} value · ${money(item.costBasis,item.currency)} basis`;}else if(key==='older'){const days=holdingDays(item.purchaseDate);metric=days===null?'Date missing':`${days} days`;detail=`First purchased ${esc(item.purchaseDate||'date not recorded')}`;}else{metric=item.currentPrice===null?'Price missing':money(item.currentPrice,item.currency);detail=`Target ${money(item.targetPrice,item.currency)} · ${esc(item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition)}`;}return `<button class="review-queue-row" type="button" data-review-index="${index}"><img src="${esc(item.thumb||'./icons/icon.svg')}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number)}</small><em>${detail}</em></span><b>${metric}<small>Review →</small></b></button>`;}).join('');
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(config.title)}</h2><p>${items.length} item${items.length===1?'':'s'} · ${esc(config.copy)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="review-queue-list">${rows}</div>${key==='pricing'?'<div class="sheet-actions"><button class="secondary" id="showAllPriceGaps" type="button">Open filtered library</button></div>':''}`);
   $$('[data-review-index]').forEach(button=>button.addEventListener('click',()=>{const item=items[Number(button.dataset.reviewIndex)];closeSheet({discardHistory:true});if(key==='targets')openWatchlistDetail(item);else openCardDetail(item,true);}));
-  $('#showAllPriceGaps')?.addEventListener('click',()=>{closeSheet({discardHistory:true});state.ledgerView='unpriced';state.query='';state.setFilter='';state.conditionFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();routeTo('collection');});
+  $('#showAllPriceGaps')?.addEventListener('click',()=>{closeSheet({discardHistory:true});state.ledgerView='unpriced';state.query='';state.setFilter='';state.conditionFilter='';state.labelFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();routeTo('collection');});
 }
 
 function businessDates(range,today=new Date().toISOString().slice(0,10)) {
@@ -1208,7 +1212,7 @@ function bindEvents() {
   $('#collectionSearch').addEventListener('input',event=>{state.query=event.target.value;renderCollection();});
   $('#filterButton').addEventListener('click',openFilterSheet);
   $('#sortButton').addEventListener('click',()=>{state.sort=state.sort==='value-desc'?'name':'value-desc';renderCollection();});
-  $('#clearFilters').addEventListener('click',()=>{state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();});
+  $('#clearFilters').addEventListener('click',()=>{state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';state.labelFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();});
   $('#emptyAddCard').addEventListener('click',()=>routeTo('scan'));
   $('#methodButton').addEventListener('click',openMethodSheet);
   $('#syncState').addEventListener('click',()=>{if(state.storageStatus==='error')toast('Cloud save is unavailable · changes may last only for this session');else if(state.pricingStatus!=='loading')void Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);});
