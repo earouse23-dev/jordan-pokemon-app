@@ -1,4 +1,4 @@
-import { money, calculateTotals, collectionToCsv, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch } from './lib/core.js';
+import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
 import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, inventoryHealth, portfolioReview, positionPerformance, salePlan, tradeAnalysis, tradeSummary, validateAcquisition } from './lib/portfolio.js';
@@ -867,7 +867,7 @@ function openManualSearch() {
 function openInfo(kind) {
   if(kind==='privacy'){
     openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Privacy & account deletion</h2><p>Your portfolio belongs to you.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p>Collection records, transaction history, purchase lots, watchlist entries, labels, and account details are private to your signed-in account.</p><p>Download a backup before deleting if you want to keep a personal copy. Deleting the account permanently removes the account and its linked portfolio data.</p></div><div class="sheet-actions"><button class="secondary" id="privacyBackup" type="button">Download backup</button><button class="danger-action" id="startAccountDeletion" type="button">Delete account…</button></div>`);
-    $('#privacyBackup').addEventListener('click',exportCsv);$('#startAccountDeletion').addEventListener('click',openAccountDeletionSheet);return;
+    $('#privacyBackup').addEventListener('click',downloadAccountBackup);$('#startAccountDeletion').addEventListener('click',openAccountDeletionSheet);return;
   }
   const content = {
     sources:'Live quotes are requested through server-side provider adapters. PkmnPrices is preferred, with JustTCG and public TCGdex pricing used only as configured fallbacks. Every quote preserves provider IDs, condition, printing, currency, timestamps, attribution, and quality metadata. Provider keys are never sent to the browser.',
@@ -907,8 +907,16 @@ function openAccountDeletionSheet() {
   const input=$('#deleteAccountEmail');const confirm=$('#confirmAccountDeletion');input.addEventListener('input',()=>{confirm.disabled=input.value.trim().toLowerCase()!==email.toLowerCase();});$('#cancelAccountDeletion').addEventListener('click',closeSheet);$('#deleteAccountForm').addEventListener('submit',async event=>{event.preventDefault();if(input.value.trim().toLowerCase()!==email.toLowerCase())return;confirm.disabled=true;input.disabled=true;$('#cancelAccountDeletion').disabled=true;$('.sheet-close').disabled=true;$('#deleteAccountError').textContent='Deleting your account and private portfolio…';try{const response=await fetch('/api/account',{method:'DELETE',headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({confirmation:input.value.trim()})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||`Request failed with status ${response.status}`);await signOut(supabase);location.reload();}catch(error){confirm.disabled=false;input.disabled=false;$('#cancelAccountDeletion').disabled=false;$('.sheet-close').disabled=false;$('#deleteAccountError').textContent=`Account was not deleted: ${error.message||'Unknown error'}`;}});
 }
 
-function exportCsv() {
-  const blob=new Blob([collectionToCsv(state.items)],{type:'text/csv;charset=utf-8'}); const url=URL.createObjectURL(blob); const link=document.createElement('a'); link.href=url; link.download=`mica-collection-${new Date().toISOString().slice(0,10)}.csv`; link.click(); URL.revokeObjectURL(url); toast('Library backup downloaded');
+function downloadTextFile(content,type,filename) {
+  const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),0);
+}
+
+function downloadCollectionCsv() {
+  const date=new Date().toISOString().slice(0,10);downloadTextFile(collectionToCsv(state.items),'text/csv;charset=utf-8',`mica-collection-${date}.csv`);toast('Importable collection CSV downloaded');
+}
+
+function downloadAccountBackup() {
+  const exportedAt=new Date().toISOString();const date=exportedAt.slice(0,10);const content=accountBackupJson({items:state.items,watchlist:state.watchlist,accountEmail:state.session?.user?.email||'',exportedAt});downloadTextFile(content,'application/json;charset=utf-8',`mica-account-backup-${date}.json`);toast('Complete account backup downloaded');
 }
 
 function openSharePortfolioSheet() {
@@ -1191,7 +1199,7 @@ function bindEvents() {
   $('#cameraInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
   $('#galleryInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
   $('#sheetBackdrop').addEventListener('click',closeSheet);
-  $('#exportButton').addEventListener('click',exportCsv); $('#importButton').addEventListener('click',()=>$('#csvInput').click());$('#sharePortfolioButton').addEventListener('click',openSharePortfolioSheet);
+  $('#exportButton').addEventListener('click',downloadAccountBackup);$('#exportCsvButton').addEventListener('click',downloadCollectionCsv); $('#importButton').addEventListener('click',()=>$('#csvInput').click());$('#sharePortfolioButton').addEventListener('click',openSharePortfolioSheet);
   $('#batchGradingButton').addEventListener('click',openBatchGradingPlanner);
   $('#businessRange').addEventListener('change',event=>{state.businessRange=event.target.value;renderBusinessSummary();});
   $('#businessExport').addEventListener('click',downloadBusinessReport);
@@ -1200,8 +1208,8 @@ function bindEvents() {
   $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));
   $('#installAppButton').addEventListener('click',()=>void openInstallExperience());
   $('#motionButton').addEventListener('click',cycleMotionPreference);
-  $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep a portable copy of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetExport"><span>Download a backup<small>Save a copy of every card</small></span><b>›</b></button></div>`));
-  document.addEventListener('click',event=>{ if(event.target.closest('#sheetExport')){exportCsv();closeSheet();} });
+  $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep portable copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Complete account backup<small>Cards, transaction history, purchase lots, and watchlist</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection CSV<small>Importable copy of current positions</small></span><b>›</b></button></div>`));
+  document.addEventListener('click',event=>{if(event.target.closest('#sheetAccountBackup')){downloadAccountBackup();closeSheet();}if(event.target.closest('#sheetCollectionCsv')){downloadCollectionCsv();closeSheet();}});
   document.addEventListener('keydown',handleDialogKeydown);
   window.addEventListener('popstate',event=>{if(!$('#bottomSheet').hidden){closeSheet({fromHistory:true});return;}const route=event.state?.route||(['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection');state.detailCanPop=false;if(route==='trade')renderTrade();routeTo(route,{instant:true,history:'none'});});
   bindQuickCardSearch();
