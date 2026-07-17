@@ -1,7 +1,7 @@
 import { money, calculateTotals, collectionToCsv, parseCollectionCsv, portfolioSnapshot, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
-import { acquisitionFromTotal, allocateFifo, gradingBatchPlan, gradingDecision, gradingEstimate, portfolioReview, positionPerformance, salePlan, tradeAnalysis, validateAcquisition } from './lib/portfolio.js';
+import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, portfolioReview, positionPerformance, salePlan, tradeAnalysis, validateAcquisition } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
 
@@ -27,7 +27,7 @@ const seedItems = [
   { ...catalog[5], uid:'copy-espeon', quantity:1, condition:'Moderately Played', gradingCompany:'', grade:'', cost:58, purchaseDate:'2021-11-20', tags:['Needs pricing'], location:'Binder 01 · Page 9', notes:'Pricing unavailable for selected printing and condition.' }
 ];
 
-const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
+const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -1039,6 +1039,20 @@ function renderBusinessReview() {
   $$('[data-business-review]').forEach(button=>button.addEventListener('click',()=>{const key=button.dataset.businessReview;if(key==='pricing'){state.ledgerView='unpriced';state.query='';state.setFilter='';state.conditionFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();routeTo('collection');return;}if(key==='targets'){openWatchlistDetail(review.reachedTargets[0]);return;}const item=(key==='below-cost'?review.belowCost:review.olderInventory)[0];if(item)openCardDetail(item,true);}));
 }
 
+function businessDates(range,today=new Date().toISOString().slice(0,10)) {
+  if(range==='all')return {from:'0000-01-01',to:today,label:'All time'};
+  if(range==='ytd')return {from:`${today.slice(0,4)}-01-01`,to:today,label:'Year to date'};
+  const days=range==='30d'?30:90;const start=new Date(`${today}T00:00:00Z`);start.setUTCDate(start.getUTCDate()-(days-1));return {from:start.toISOString().slice(0,10),to:today,label:`Last ${days} days`};
+}
+
+function renderBusinessSummary() {
+  const period=businessDates(state.businessRange);const summary=businessSummary(state.items,{from:period.from,to:period.to,currency:'USD'});if(!summary)return;
+  $('#businessReportPeriod').textContent=`${period.label} · through ${period.to}`;
+  if(!summary.transactionCount){$('#businessReportMetrics').innerHTML='<div class="data-boundary"><strong>No transactions in this period</strong><p>Record purchases and sales to see cash flow and realized profit here.</p></div>';$('#businessReportNote').textContent='Business reporting uses only transactions you record. Market-value changes are kept separate.';return;}
+  const cashClass=summary.cashFlowMinor>=0?'positive':'negative';const profitClass=summary.realizedProfitMinor>=0?'positive':'negative';$('#businessReportMetrics').innerHTML=`<div><span>Net sales</span><strong>${money(summary.netSalesMinor/100,summary.currency)}</strong><small>${summary.unitsSold} card${summary.unitsSold===1?'':'s'} sold</small></div><div><span>Acquisition spend</span><strong>${money(summary.acquisitionSpendMinor/100,summary.currency)}</strong><small>${summary.unitsPurchased} card${summary.unitsPurchased===1?'':'s'} purchased</small></div><div class="${cashClass}"><span>Cash flow</span><strong>${summary.cashFlowMinor>=0?'+':''}${money(summary.cashFlowMinor/100,summary.currency)}</strong><small>Net sales minus acquisitions</small></div><div class="${profitClass}"><span>${summary.realizedCoverage===summary.saleCount?'Realized profit':'Known realized profit'}</span><strong>${summary.realizedProfitMinor>=0?'+':''}${money(summary.realizedProfitMinor/100,summary.currency)}</strong><small>FIFO basis on ${summary.realizedCoverage} of ${summary.saleCount} sales</small></div><div><span>Selling costs</span><strong>${money(summary.sellingCostsMinor/100,summary.currency)}</strong><small>Gross sale price minus net</small></div><div><span>Activity</span><strong>${summary.transactionCount}</strong><small>${summary.purchaseCount} purchase${summary.purchaseCount===1?'':'s'} · ${summary.saleCount} sale${summary.saleCount===1?'':'s'}</small></div>`;
+  $('#businessReportNote').textContent=summary.skippedCurrencyCount?`${summary.skippedCurrencyCount} transaction${summary.skippedCurrencyCount===1?' was':'s were'} excluded to avoid mixing currencies. USD is shown separately.`:'USD transactions only. Market value and unrealized gains are not counted as cash or realized profit.';
+}
+
 function renderInsights() {
   const priced = state.items.filter(item => item.price != null).length;
   const ranked=[...state.items].map(item=>({item,value:item.price==null?null:Number(item.price)*Number(item.quantity),gain:item.price==null?null:Number(item.price)*Number(item.quantity)-Number(item.costBasis||0)})).sort((a,b)=>(b.value??-1)-(a.value??-1));
@@ -1046,6 +1060,7 @@ function renderInsights() {
   const rawCount=state.items.filter(item=>!item.gradingCompany).reduce((sum,item)=>sum+Number(item.quantity||0),0);$('#batchGradingCount').textContent=rawCount?`${rawCount} raw card${rawCount===1?'':'s'} available`:'Add a raw card to begin';
   const recent=state.items.flatMap(item=>(item.transactions||[]).map(transaction=>({item,transaction}))).sort((a,b)=>b.transaction.date.localeCompare(a.transaction.date)).slice(0,6);
   $('#recentActivity').innerHTML=recent.length?recent.map(({item,transaction})=>`<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${transaction.type==='purchase'?'Purchased':'Sold'} ${esc(item.name)}</strong><span>${esc(transaction.date)} · ${transaction.quantity} at ${money(transaction.unitPrice,transaction.currency)}</span></div><b>${transaction.type==='purchase'?money(transaction.totalCost,transaction.currency):money(transaction.netProceeds,transaction.currency)}</b></div>`).join(''):'<div class="data-boundary"><strong>No transactions yet</strong><p>Purchases and sales will appear here.</p></div>';
+  renderBusinessSummary();
   renderBusinessReview();
   if (['live','partial'].includes(state.pricingStatus)) {
     $('.insight-feature').innerHTML = `<div class="insight-kicker">${state.pricingStatus==='partial'?'Partial':'Live'} pricing status</div><strong>${priced} of ${state.items.length} cards priced</strong><span>Exact-printing matches only · ${state.items.length-priced} need review</span><div class="unavailable-panel">Price trends appear after matching prices have been collected over time.</div>`;
@@ -1161,6 +1176,7 @@ function bindEvents() {
   $('#sheetBackdrop').addEventListener('click',closeSheet);
   $('#exportButton').addEventListener('click',exportCsv); $('#importButton').addEventListener('click',()=>$('#csvInput').click());$('#sharePortfolioButton').addEventListener('click',openSharePortfolioSheet);
   $('#batchGradingButton').addEventListener('click',openBatchGradingPlanner);
+  $('#businessRange').addEventListener('change',event=>{state.businessRange=event.target.value;renderBusinessSummary();});
   $('#csvInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';if(file)handleCsv(file);});
   $$('[data-info]').forEach(button=>button.addEventListener('click',()=>openInfo(button.dataset.info)));
   $('#currencyButton').addEventListener('click',()=>toast('USD display currency · source currencies preserved'));

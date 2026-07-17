@@ -458,6 +458,23 @@ body:not(.authenticated) .app-shell { display: none; }
 .grading-batch-launch p { max-width: 520px; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
 .grading-batch-launch small { display: block; margin-top: 7px; color: var(--pine-2); font-size: 8px; font-weight: 750; }
 .grading-batch-launch button { flex: 0 0 auto; min-height: 42px; padding: 0 14px; border: 1px solid var(--pine); border-radius: 5px; background: var(--pine); color: white; font-size: 9px; font-weight: 800; }
+.business-report { margin: 12px 0 22px; overflow: hidden; border: 1px solid var(--line-dark); border-radius: 8px; background: var(--paper); }
+.business-report-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding: 16px; border-bottom: 1px solid var(--line); }
+.business-report-head > div > span { color: var(--copper); font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
+.business-report-head h2 { margin: 4px 0; font: 800 16px "Manrope",sans-serif; }
+.business-report-head p { margin: 0; color: var(--muted); font-size: 8px; }
+.business-report-head label { color: var(--muted); font-size: 7px; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; }
+.business-report-head select { display: block; min-height: 38px; margin-top: 4px; padding: 0 30px 0 9px; border: 1px solid var(--line-dark); border-radius: 4px; background: white; color: var(--ink); font-size: 9px; text-transform: none; }
+.business-report-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--line); }
+.business-report-metrics > div:not(.data-boundary) { min-width: 0; padding: 13px; background: var(--paper-strong); }
+.business-report-metrics .data-boundary { grid-column: 1/-1; margin: 0; border: 0; }
+.business-report-metrics span,.business-report-metrics strong,.business-report-metrics small { display: block; }
+.business-report-metrics span { color: var(--muted); font-size: 7px; line-height: 1.3; text-transform: uppercase; letter-spacing: .04em; }
+.business-report-metrics strong { margin-top: 5px; font: 800 14px "Manrope",sans-serif; }
+.business-report-metrics small { margin-top: 4px; color: var(--faint); font-size: 7px; line-height: 1.35; }
+.business-report-metrics .positive strong { color: var(--pine-2); }
+.business-report-metrics .negative strong { color: var(--danger); }
+.business-report-note { margin: 0; padding: 10px 13px; color: var(--muted); font-size: 8px; line-height: 1.45; }
 .batch-grade-controls { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; }
 .batch-grade-controls .field { margin-bottom: 0; }
 .batch-grade-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 8px; }
@@ -523,6 +540,9 @@ body:not(.authenticated) .app-shell { display: none; }
   .grading-batch-launch button { width: 100%; }
   .batch-grade-controls { grid-template-columns: 1fr; }
   .batch-grade-summary { grid-template-columns: repeat(2,1fr); }
+  .business-report-head { align-items: stretch; flex-direction: column; }
+  .business-report-head select { width: 100%; }
+  .business-report-metrics { grid-template-columns: repeat(2,1fr); }
 }
 .transaction-list { display:grid;gap:7px; }
 .transaction-row { display:flex;justify-content:space-between;gap:12px;padding:10px;border:1px solid var(--line);background:white;font-size:9px; }

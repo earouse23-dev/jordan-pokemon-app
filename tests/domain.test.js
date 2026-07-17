@@ -24,10 +24,11 @@ import {
   holdingDays,
   positionPerformance,
   portfolioReview,
+  businessSummary,
   toMinorUnits,
   validateAcquisition,
 } from "../lib/portfolio.js";
-import { hydrateWatchlistEntry } from "../lib/supabase-data.js";
+import { hydratePosition, hydrateWatchlistEntry } from "../lib/supabase-data.js";
 
 test("normalizes provider raw conditions while retaining the original label", () => {
   assert.deepEqual(normalizeRawCondition("NM"), {
@@ -80,6 +81,39 @@ test("watchlist hydration preserves the exact raw or graded target context", () 
   assert.equal(watched.grade, "10");
   assert.equal(watched.targetPrice, 250);
   assert.equal(watched.currentPrice, null);
+});
+
+test("position hydration attaches FIFO basis and realized gain to each sale", () => {
+  const position = hydratePosition(
+    {
+      id: "position-1",
+      identity_snapshot: { name: "Charizard" },
+      card_state: "raw",
+      raw_condition: "near_mint",
+      quantity: 0,
+      currency: "USD",
+    },
+    [
+      {
+        id: "sale-1",
+        transaction_type: "sale",
+        transaction_date: "2026-07-01",
+        quantity: 1,
+        subtotal: 150,
+        net_proceeds: 135,
+        currency: "USD",
+      },
+    ],
+    [],
+    [
+      {
+        sale_transaction_id: "sale-1",
+        allocated_cost: 80,
+      },
+    ],
+  );
+  assert.equal(position.transactions[0].allocatedCost, 80);
+  assert.equal(position.transactions[0].realizedGain, 55);
 });
 
 test("canonical identity separates same-name cards by set, language, number, and variant", () => {
@@ -374,6 +408,45 @@ test("sale planner reports fees, net proceeds, profit, and break-even price", ()
     },
   );
   assert.equal(salePlan({quantity:1,salePriceEach:"10",feePercent:100}),null);
+});
+
+test("business summary reports dated cash flow and FIFO-covered profit without mixing currencies", () => {
+  assert.deepEqual(
+    businessSummary(
+      [
+        {
+          currency: "USD",
+          transactions: [
+            { type: "purchase", date: "2026-06-01", quantity: 2, totalCost: 100, currency: "USD" },
+            { type: "sale", date: "2026-07-01", quantity: 1, subtotal: 150, netProceeds: 135, allocatedCost: 80, currency: "USD" },
+            { type: "sale", date: "2025-01-01", quantity: 1, subtotal: 50, netProceeds: 45, allocatedCost: 30, currency: "USD" },
+            { type: "sale", date: "2026-07-02", quantity: 1, subtotal: 60, netProceeds: 55, allocatedCost: 40, currency: "EUR" },
+          ],
+        },
+      ],
+      { from: "2026-01-01", to: "2026-12-31", currency: "USD" },
+    ),
+    {
+      currency: "USD",
+      transactionCount: 2,
+      purchaseCount: 1,
+      saleCount: 1,
+      unitsPurchased: 2,
+      unitsSold: 1,
+      acquisitionSpendMinor: 10000,
+      grossSalesMinor: 15000,
+      netSalesMinor: 13500,
+      sellingCostsMinor: 1500,
+      cashFlowMinor: 3500,
+      realizedProfitMinor: 5500,
+      realizedCoverage: 1,
+      skippedCurrencyCount: 1,
+    },
+  );
+  assert.equal(
+    businessSummary([], { from: "2026-12-31", to: "2026-01-01" }),
+    null,
+  );
 });
 
 test("portfolio review separates price gaps, below-cost positions, older stock, and reached targets", () => {
