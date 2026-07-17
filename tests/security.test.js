@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import accountHandler from "../api/account.js";
 import priceSyncHandler from "../api/price-sync.js";
 
 const migration = await readFile(
@@ -28,12 +29,22 @@ const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
 );
+const accountEndpoint = await readFile(
+  new URL("../api/account.js", import.meta.url),
+  "utf8",
+);
 
 test("offline runtime caching is bounded and APIs remain network-only", () => {
   assert.match(serviceWorker, /RUNTIME_LIMIT\s*=\s*80/);
   assert.match(serviceWorker, /keys\.slice\(0,keys\.length-RUNTIME_LIMIT\)/);
-  assert.match(serviceWorker, /pathname\.startsWith\('\/api\/'\)[\s\S]{0,100}respondWith\(fetch\(event\.request\)\)/);
-  assert.match(serviceWorker, /request\.mode\s*===\s*'navigate'[\s\S]{0,400}caches\.match\('\.\/index\.html'\)/);
+  assert.match(
+    serviceWorker,
+    /pathname\.startsWith\('\/api\/'\)[\s\S]{0,100}respondWith\(fetch\(event\.request\)\)/,
+  );
+  assert.match(
+    serviceWorker,
+    /request\.mode\s*===\s*'navigate'[\s\S]{0,400}caches\.match\('\.\/index\.html'\)/,
+  );
 });
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {
@@ -164,4 +175,40 @@ test("manual price synchronization requires an authenticated administrator", asy
   } finally {
     process.env = original;
   }
+});
+
+test("account deletion rejects unauthenticated requests before user lookup", async () => {
+  const original = { ...process.env };
+  Object.assign(process.env, {
+    NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SECRET_KEY: "server-secret",
+  });
+  let body;
+  const response = {
+    setHeader() {},
+    status(status) {
+      this.statusCode = status;
+      return this;
+    },
+    json(value) {
+      body = value;
+      return value;
+    },
+  };
+  try {
+    await accountHandler({ method: "DELETE", headers: {} }, response);
+    assert.equal(response.statusCode, 401);
+    assert.equal(body.error, "Authentication required");
+  } finally {
+    process.env = original;
+  }
+});
+
+test("account deletion verifies the bearer identity and matching email before admin deletion", () => {
+  assert.match(
+    accountEndpoint,
+    /auth\.getUser\(bearerToken\)[\s\S]+confirmation[^]*identity\.user\.email[^]*auth\.admin\.deleteUser\(identity\.user\.id\)/,
+  );
+  assert.match(accountEndpoint, /request\.method !== "DELETE"/);
+  assert.doesNotMatch(accountEndpoint, /supabaseSecretKey[^]*response\.json/);
 });

@@ -923,12 +923,22 @@ function openOwnershipSheet(card, editing=false) {
 }
 
 function openInfo(kind) {
+  if(kind==='privacy'){
+    openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Privacy & account deletion</h2><p>Your portfolio belongs to you.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p>Collection records, transaction history, purchase lots, watchlist entries, labels, and account details are private to your signed-in account.</p><p>Download a backup before deleting if you want to keep a personal copy. Deleting the account permanently removes the account and its linked portfolio data.</p></div><div class="sheet-actions"><button class="secondary" id="privacyBackup" type="button">Download backup</button><button class="danger-action" id="startAccountDeletion" type="button">Delete account…</button></div>`);
+    $('#privacyBackup').addEventListener('click',exportCsv);$('#startAccountDeletion').addEventListener('click',openAccountDeletionSheet);return;
+  }
   const content = {
     sources:'Live quotes are requested through server-side provider adapters. PkmnPrices is preferred, with JustTCG and public TCGdex pricing used only as configured fallbacks. Every quote preserves provider IDs, condition, printing, currency, timestamps, attribution, and quality metadata. Provider keys are never sent to the browser.',
     retention:'Original scan uploads should be private and deleted after identification or within 24 hours. Derived crops should be removed within 7 days unless the user explicitly saves one. This preview processes the image only in the browser.',
     privacy:'Collection records are private. Production uses Supabase Auth, ownership-based Row Level Security, private storage, data export, and an account-deletion workflow. Never place service-role credentials in the client.'
   }[kind];
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${kind==='sources'?'Data sources':kind==='retention'?'Scan retention':'Privacy & deletion'}</h2></div><button class="sheet-close" aria-label="Close">×</button></div><p class="info-copy">${esc(content)}</p>`);
+}
+
+function openAccountDeletionSheet() {
+  const email=state.session?.user?.email||'';
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Permanently delete account?</h2><p>This cannot be undone.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>Your account and linked portfolio data will be permanently removed.</strong><p>Type your account email to confirm. You can cancel without changing anything.</p></div><form id="deleteAccountForm"><div class="field"><label for="deleteAccountEmail">Type ${esc(email)}</label><input id="deleteAccountEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" required></div><p class="form-error" id="deleteAccountError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="cancelAccountDeletion" type="button">Keep my account</button><button class="danger-action" id="confirmAccountDeletion" type="submit" disabled>Delete permanently</button></div></form>`);
+  const input=$('#deleteAccountEmail');const confirm=$('#confirmAccountDeletion');input.addEventListener('input',()=>{confirm.disabled=input.value.trim().toLowerCase()!==email.toLowerCase();});$('#cancelAccountDeletion').addEventListener('click',closeSheet);$('#deleteAccountForm').addEventListener('submit',async event=>{event.preventDefault();if(input.value.trim().toLowerCase()!==email.toLowerCase())return;confirm.disabled=true;input.disabled=true;$('#cancelAccountDeletion').disabled=true;$('.sheet-close').disabled=true;$('#deleteAccountError').textContent='Deleting your account and private portfolio…';try{const response=await fetch('/api/account',{method:'DELETE',headers:{Authorization:`Bearer ${state.session.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({confirmation:input.value.trim()})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||`Request failed with status ${response.status}`);await signOut(supabase);location.reload();}catch(error){confirm.disabled=false;input.disabled=false;$('#cancelAccountDeletion').disabled=false;$('.sheet-close').disabled=false;$('#deleteAccountError').textContent=`Account was not deleted: ${error.message||'Unknown error'}`;}});
 }
 
 function exportCsv() {

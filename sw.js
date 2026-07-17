@@ -1,7 +1,7 @@
-const SHELL_CACHE = 'mica-shell-v33';
+const SHELL_CACHE = 'mica-shell-v34';
 const RUNTIME_CACHE = 'mica-runtime-v1';
 const RUNTIME_LIMIT = 80;
-const SHELL = ['./','./index.html','./styles.css?v=33','./app-config.js?v=33','./app.js?v=33','./manifest.webmanifest','./icons/icon.svg'];
+const SHELL = ['./','./index.html','./styles.css?v=34','./app-config.js?v=34','./app.js?v=34','./manifest.webmanifest','./icons/icon.svg'];
 
 async function trimRuntimeCache() {
   const cache=await caches.open(RUNTIME_CACHE);const keys=await cache.keys();if(keys.length<=RUNTIME_LIMIT)return;await Promise.all(keys.slice(0,keys.length-RUNTIME_LIMIT).map(key=>cache.delete(key)));
