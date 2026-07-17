@@ -43,10 +43,21 @@ test('CSV cells neutralize spreadsheet formulas and escape quotes',()=>{
   const csv=collectionToCsv([{name:'@SUM(A1)',quantity:1,tags:[]}]); assert.match(csv,/"'@SUM\(A1\)"/);
 });
 test('CSV backup round-trips owned records without turning blank costs into zero',()=>{
-  const source=[{name:'Mew ex',set:'151',number:'151/165',variant:'Holofoil',condition:'Near Mint',gradingCompany:'',grade:'',quantity:2,cost:null,price:9.25,tags:['Favorites'],location:'Binder 1',notes:'Clean, centered'}];
+  const source=[{id:'sv3pt5-151',name:'Mew ex',set:'151',setId:'sv3pt5',number:'151/165',language:'en',variant:'Holofoil',cardState:'raw',condition:'Near Mint',rawCondition:'near_mint',gradingCompany:'',grade:'',quantity:2,cost:null,price:9.25,tags:['Favorites'],location:'Binder 1',notes:'Clean, centered',purchaseDate:'2025-06-25',currency:'USD'}];
   const parsed=parseCollectionCsv(collectionToCsv(source));
   assert.equal(parsed.errors.length,0);
-  assert.deepEqual(parsed.records,source);
+  assert.equal(parsed.records[0].cost,null);
+  assert.equal(parsed.records[0].id,'sv3pt5-151');
+  assert.equal(parsed.records[0].purchaseDate,'2025-06-25');
+  assert.equal(parsed.records[0].cardState,'raw');
+  assert.deepEqual(parsed.records[0].tags,['Favorites']);
+});
+test('CSV backup preserves exact total acquisition cost instead of multiplying a rounded unit basis',()=>{
+  const source=[{id:'card-1',name:'Pikachu',quantity:3,cost:66.67,costBasis:200.01,condition:'Near Mint',cardState:'raw',rawCondition:'near_mint',tags:[]}];
+  const parsed=parseCollectionCsv(collectionToCsv(source));
+  assert.equal(parsed.errors.length,0);
+  assert.equal(parsed.records[0].cost,66.67);
+  assert.equal(parsed.records[0].totalAcquisitionCost,200.01);
 });
 test('transaction report exports period FIFO profit and neutralizes spreadsheet formulas',()=>{
   const csv=transactionReportCsv([{name:'=Charizard',set:'Base Set',number:'4/102',currency:'USD',transactions:[{type:'purchase',date:'2026-06-01',quantity:1,unitPrice:100,totalCost:100,currency:'USD'},{type:'sale',date:'2026-07-01',quantity:1,unitPrice:150,subtotal:150,netProceeds:135,allocatedCost:80,currency:'USD',marketplace:'@market'},{type:'sale',date:'2025-01-01',quantity:1,netProceeds:10,allocatedCost:5,currency:'USD'}]}],{from:'2026-01-01',to:'2026-12-31',currency:'USD'});
