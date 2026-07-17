@@ -460,7 +460,7 @@ body:not(.authenticated) .app-shell { display: none; }
 .auth-form button { min-height: 44px; margin-top: 8px; border-radius: 5px; font-weight: 750; }
 .auth-form .primary { border: 1px solid var(--pine); color: white; background: var(--pine); }
 .auth-form .secondary { border: 1px solid var(--line-dark); color: var(--ink); background: transparent; }
-.auth-divider { display: flex; align-items: center; gap: 10px; margin: 20px 0; color: var(--faint); font-size: 9px; text-transform: uppercase; }
+.auth-divider { display: flex; align-items: center; gap: 10px; margin: 20px 0; color: var(--muted); font-size: 9px; text-transform: uppercase; }
 .auth-divider::before,.auth-divider::after { content:""; height: 1px; flex: 1; background: var(--line); }
 .auth-magic { margin-top: 0; }
 .auth-magic > label { color: var(--muted); font-size: 10px; font-weight: 700; }

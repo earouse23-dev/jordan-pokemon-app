@@ -11,12 +11,12 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=45">
+  <link rel="stylesheet" href="styles.css?v=46">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <section class="auth-gate" id="authGate" aria-labelledby="authTitle">
+  <a class="skip-link" id="skipLink" href="#authGate">Skip to content</a>
+  <main class="auth-gate" id="authGate" tabindex="-1" aria-labelledby="authTitle">
     <div class="auth-card">
       <div class="auth-brand"><span class="wordmark-gem" aria-hidden="true"><i></i></span><span>Mica</span></div>
       <p class="eyebrow">Private collector portfolio</p>
@@ -35,7 +35,7 @@
       </form>
       <p class="auth-message" id="authMessage" role="status" aria-live="polite"></p>
     </div>
-  </section>
+  </main>
   <div class="app-shell" id="appShell">
     <header class="app-header">
       <button class="wordmark" type="button" data-route="collection" aria-label="Mica home">
@@ -260,7 +260,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=45"></script>
-  <script type="module" src="app.js?v=45"></script>
+  <script src="app-config.js?v=46"></script>
+  <script type="module" src="app.js?v=46"></script>
 </body>
 </html>

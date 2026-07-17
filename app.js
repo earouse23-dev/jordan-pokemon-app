@@ -1288,6 +1288,7 @@ async function retryAccountLoad() {
 
 async function applySession(session) {
   state.session=session;
+  $('#skipLink').setAttribute('href',session?'#main':'#authGate');
   document.body.classList.toggle('authenticated',Boolean(session));
   $('#authGate').hidden=Boolean(session);
   if(!session){state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;state.accountLoading=false;state.accountLoadError='';chartInstance?.destroy();return;}
