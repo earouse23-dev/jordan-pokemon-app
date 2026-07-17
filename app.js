@@ -1,7 +1,7 @@
 import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import Chart from 'chart.js/auto';
-import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, inventoryHealth, portfolioReview, positionPerformance, salePlan, tradeAnalysis, tradeSummary, validateAcquisition } from './lib/portfolio.js';
+import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, inventoryHealth, portfolioReview, positionPerformance, salePlan, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
 
@@ -292,6 +292,8 @@ function renderWatchlistRows() {
   $('#cardLedger').innerHTML=visible.map(item=>{
     const hasTarget=item.targetPrice!==null;
     const targetReached=hasTarget&&item.currentPrice!==null&&Number(item.currentPrice)<=Number(item.targetPrice);
+    const performance=watchPerformance({startingPrice:item.startingMarketPrice,currentPrice:item.currentPrice});
+    const movement=performance?`${performance.changeMinor>=0?'+':'−'}${money(Math.abs(performance.changeMinor)/100,item.currency)} (${performance.changePercent>=0?'+':''}${performance.changePercent.toFixed(1)}%) since watch`:null;
     const targetStatus=item.pricingStatus==='loading'?'Checking current price…'
       : item.currentPrice===null?'Exact price unavailable'
         : targetReached?'Target reached'
@@ -299,7 +301,7 @@ function renderWatchlistRows() {
     return `<article class="ledger-row watch-row" tabindex="0" role="button" aria-label="Open watched ${esc(item.name)}" data-watch-id="${esc(item.watchlistId)}">
       <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${targetReached?'<span class="target-hit">Buy target</span>':''}</div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span><div class="card-tags"><span class="micro-tag ${item.cardState==='graded'?'graded':''}">${esc(watchContextLabel(item))}</span><span class="micro-tag">${esc(item.variant)}</span></div></div>
-      <div class="price-cell"><span class="row-value">${item.currentPrice===null?'—':money(item.currentPrice,item.currency)}</span><span class="row-unit">${hasTarget?`Buy at ${money(item.targetPrice,item.currency)}`:'No target set'}</span><span class="row-move ${targetReached?'up':'none'}">${esc(targetStatus)}</span></div>
+      <div class="price-cell"><span class="row-value">${item.currentPrice===null?'—':money(item.currentPrice,item.currency)}</span><span class="row-unit">${hasTarget?`Buy at ${money(item.targetPrice,item.currency)}`:'No target set'}</span><span class="row-move ${performance?(performance.changeMinor>0?'up':performance.changeMinor<0?'down':'none'):targetReached?'up':'none'}">${esc(movement||targetStatus)}</span></div>
     </article>`;
   }).join('');
   const trulyEmpty=state.watchlist.length===0;
@@ -612,7 +614,9 @@ function renderDetail() {
   const action = owned
     ? `<div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${displayPrice==null?'Price unavailable':`${money(displayPrice)} each`}</strong></div><div class="owned-actions"><button id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}">${favorite?'Favorited':'Favorite'}</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>`
     : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched?'Edit Watch':'Watch card'}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
-  const watchedSection=watched&&!owned?`<section class="watch-banner"><div><span>On your watchlist · ${esc(watchContextLabel(watched))}</span><strong>${watched.targetPrice===null?'No buy target set':`Buy at ${money(watched.targetPrice,watched.currency)}`}</strong><small>${watched.currentPrice===null?'Current exact price unavailable':`Current exact reference ${money(watched.currentPrice,watched.currency)}`}</small></div><button id="editWatchButton" type="button">Edit target</button></section>`:'';
+  const watchedPerformance=watched?watchPerformance({startingPrice:watched.startingMarketPrice,currentPrice:watched.currentPrice}):null;
+  const watchedMovement=watchedPerformance?` · ${watchedPerformance.changeMinor>=0?'+':'−'}${money(Math.abs(watchedPerformance.changeMinor)/100,watched.currency)} (${watchedPerformance.changePercent>=0?'+':''}${watchedPerformance.changePercent.toFixed(1)}%) since watch`:'';
+  const watchedSection=watched&&!owned?`<section class="watch-banner"><div><span>On your watchlist · ${esc(watchContextLabel(watched))}</span><strong>${watched.targetPrice===null?'No buy target set':`Buy at ${money(watched.targetPrice,watched.currency)}`}</strong><small>${watched.currentPrice===null?'Current exact price unavailable':`Current exact reference ${money(watched.currentPrice,watched.currency)}${esc(watchedMovement)}`}</small></div><button id="editWatchButton" type="button">Edit target</button></section>`:'';
   const matchDetails = !owned && item.match?.reasons?.length ? `<section class="match-explanation" aria-label="Why this card matched"><strong>${esc(item.match.confidence || 'Possible match')}</strong><span>${esc(item.match.reasons.join(' · '))}</span><small>TCGdex ID ${esc(item.externalIds?.tcgdex || item.id)}</small></section>` : '';
   $('#detailContent').innerHTML = `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
     <div class="detail-identity"><img src="${esc(item.image || item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity || 'Pokémon card')}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant || 'Unknown')}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Released</span><strong>${esc(item.release || '—')}</strong></div><div><span>Artist</span><strong>${esc(item.artist || '—')}</strong></div></div></div></div>

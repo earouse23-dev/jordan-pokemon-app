@@ -29,6 +29,7 @@ import {
   businessSummary,
   toMinorUnits,
   validateAcquisition,
+  watchPerformance,
 } from "../lib/portfolio.js";
 import {
   hydratePosition,
@@ -612,6 +613,26 @@ test("portfolio review separates price gaps, below-cost positions, older stock, 
   assert.deepEqual(
     review.reachedTargets.map((item) => item.id),
     ["hit"],
+  );
+});
+
+test("watch performance reports exact movement from the saved starting reference", () => {
+  assert.deepEqual(
+    watchPerformance({ startingPrice: "100.00", currentPrice: "85.50" }),
+    {
+      startingMinor: 10000,
+      currentMinor: 8550,
+      changeMinor: -1450,
+      changePercent: -14.5,
+    },
+  );
+  assert.equal(
+    watchPerformance({ startingPrice: null, currentPrice: "85.50" }),
+    null,
+  );
+  assert.equal(
+    watchPerformance({ startingPrice: "0", currentPrice: "85.50" }),
+    null,
   );
 });
 
