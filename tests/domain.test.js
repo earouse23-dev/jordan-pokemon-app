@@ -28,6 +28,7 @@ import {
   positionPerformance,
   portfolioReview,
   businessSummary,
+  blendedPosition,
   targetAlertChanges,
   toMinorUnits,
   validateAcquisition,
@@ -325,6 +326,36 @@ test("one total acquisition input preserves every cent across multiple cards", (
     totalMinor: 100000,
   });
   assert.equal(acquisitionFromTotal("-1", 1), null);
+});
+
+test("additional purchases preview the blended remaining position", () => {
+  assert.deepEqual(
+    blendedPosition({
+      currentQuantity: 2,
+      currentCostBasis: "200.00",
+      newQuantity: 1,
+      newTotalCost: "70.00",
+      currentUnitPrice: "120.00",
+    }),
+    {
+      quantity: 3,
+      costBasisMinor: 27000,
+      averageCostMinor: 9000,
+      currentAverageCostMinor: 10000,
+      averageChangeMinor: -1000,
+      marketValueMinor: 36000,
+      unrealizedGainMinor: 9000,
+    },
+  );
+  assert.equal(
+    blendedPosition({
+      currentQuantity: 2,
+      currentCostBasis: null,
+      newQuantity: 1,
+      newTotalCost: "70.00",
+    }),
+    null,
+  );
 });
 
 test("grading estimate combines per-card service fees with trip costs", () => {
