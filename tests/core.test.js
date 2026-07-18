@@ -9,10 +9,63 @@ import {
   matchesSearch,
   missingSetChecklist,
   money,
+  ownedCardSummary,
   portfolioSnapshot,
+  sameCatalogCard,
   safeCsvCell,
   transactionReportCsv,
 } from "../lib/core.js";
+
+test("catalog ownership matches provider IDs and exact fallback identity", () => {
+  const card = {
+    id: "tcgdex:en:base1-4",
+    externalIds: { tcgdex: "base1-4" },
+    name: "Charizard",
+    set: "Base Set",
+    number: "4/102",
+    language: "en",
+  };
+  assert.equal(
+    sameCatalogCard(card, {
+      id: "stored-position",
+      externalIds: { tcgdex: "base1-4" },
+    }),
+    true,
+  );
+  assert.equal(
+    sameCatalogCard(card, {
+      name: "Charizard",
+      set: "Base Set",
+      number: "4/102",
+      language: "en",
+    }),
+    true,
+  );
+  assert.equal(
+    sameCatalogCard(card, {
+      name: "Charizard",
+      set: "Base Set",
+      number: "4/102",
+      language: "ja",
+    }),
+    false,
+  );
+  assert.deepEqual(
+    ownedCardSummary(card, [
+      { ...card, quantity: 2 },
+      { ...card, id: "second-position", quantity: 1 },
+      { ...card, id: "sold-out", quantity: 0 },
+      {
+        ...card,
+        id: "different",
+        externalIds: { tcgdex: "base1-6" },
+        number: "6/102",
+        quantity: 5,
+      },
+    ]),
+    { quantity: 3, positions: 2 },
+  );
+});
 
 test("portfolio totals respect quantity and exclude unpriced values", () => {
   const totals = calculateTotals([

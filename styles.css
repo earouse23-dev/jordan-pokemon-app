@@ -151,6 +151,8 @@ h1 { font: 700 29px/1.12 var(--font-sans); letter-spacing: -.035em; margin: 0; }
 .quick-card-result > span, .catalog-result > span { min-width: 0; }
 .quick-card-result .match-reason, .catalog-result .match-reason { display: block; margin-top: 6px; color: var(--pine-2); font-style: normal; line-height: 1.35; }
 .quick-card-result .match-reason strong, .catalog-result .match-reason strong { display: inline; color: var(--pine-2); }
+.quick-card-result .owned-search-status,.catalog-result .owned-search-status { display: block; width: fit-content; margin-top: 6px; padding: 3px 6px; border-radius: 3px; background: #e1eee4; color: var(--pine); font-size: 8px; line-height: 1.35; }
+.quick-card-result .owned-search-status strong,.catalog-result .owned-search-status strong { display: inline; color: var(--pine); font-size: inherit; }
 .result-filters { display: flex; gap: 7px; overflow-x: auto; padding: 8px 0; border-bottom: 1px solid var(--line); scrollbar-width: none; }
 .result-filters button { flex: none; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 22px; background: var(--paper); color: var(--muted); font-size: 9px; font-weight: 700; }
 .result-filters button[aria-pressed="true"] { background: var(--pine); border-color: var(--pine); color: white; }
