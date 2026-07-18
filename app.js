@@ -208,6 +208,7 @@ function bindGradingEstimator(item) {
 }
 
 function openBatchGradingPlanner() {
+  if(!requireAccountData())return;
   const rawItems=state.items.filter(item=>!item.gradingCompany&&Number(item.quantity)>0);
   if(!rawItems.length){openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Batch grading planner</h2><p>Build one submission from raw cards you already own.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="find-empty"><strong>No raw cards in your library</strong><span>Add a raw card first, then Mica can compare a grading batch with selling those cards raw.</span></div><div class="sheet-actions"><button class="primary" id="batchAddRawCard" type="button">Add a raw card</button></div>`);$('#batchAddRawCard').addEventListener('click',()=>{closeSheet({discardHistory:true});routeTo('scan');});return;}
   const initialGrader='PSA';const initialGrade='10';
@@ -403,9 +404,9 @@ async function openSetProgressSheet(group) {
 
 function renderCollection() {
   $('#filterButton').classList.remove('hidden');
-  const accountUnavailable=state.accountLoading||Boolean(state.accountLoadError);
+  const accountUnavailable=accountDataUnavailable();
   $$('[data-route="scan"]').forEach(button=>{button.disabled=accountUnavailable;});
-  ['#exportButton','#exportCsvButton','#insuranceReportButton'].forEach(selector=>{const button=$(selector);if(button)button.disabled=accountUnavailable;});
+  ['#moreButton','#sharePortfolioButton','#importButton','#exportButton','#exportCsvButton','#insuranceReportButton','#batchGradingButton'].forEach(selector=>{const button=$(selector);if(button)button.disabled=accountUnavailable;});
   if(accountUnavailable){
     $('#view-collection').classList.add('empty-library');$('#cardLedger').innerHTML='';$('#resultCount').textContent=state.accountLoading?'Reconnecting…':'Cloud data unavailable';$('#collectionEmpty').classList.remove('hidden');$('#collectionEmptyTitle').textContent=state.accountLoading?'Reconnecting to your library…':"Your library couldn't load";$('#collectionEmptyCopy').textContent=state.accountLoading?'Mica is securely checking your account again.':"Your saved data was not changed. Check your connection and try again.";$('#firstCardGuide').classList.add('hidden');$('#emptyAddCard').classList.remove('hidden');$('#emptyAddCard').disabled=state.accountLoading;$('#emptyAddCard').textContent=state.accountLoading?'Reconnecting…':'Try again';$('#clearFilters').classList.add('hidden');$('#syncState span:last-child').textContent=state.accountLoading?'Reconnecting…':'Cloud unavailable';$('#syncState').setAttribute('aria-label',state.accountLoading?'Reconnecting to your cloud portfolio.':'Cloud portfolio could not load. Select to try again.');return;
   }
@@ -937,21 +938,29 @@ function downloadTextFile(content,type,filename) {
   const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),0);
 }
 
+function accountDataUnavailable() { return state.accountLoading||Boolean(state.accountLoadError); }
+function requireAccountData() { if(!accountDataUnavailable())return true;toast('Reconnect to your cloud library before using this feature');return false; }
+
 function downloadCollectionCsv() {
+  if(!requireAccountData())return false;
   const date=new Date().toISOString().slice(0,10);downloadTextFile(collectionToCsv(state.items),'text/csv;charset=utf-8',`mica-collection-${date}.csv`);toast('Importable collection CSV downloaded');
+  return true;
 }
 
 function downloadAccountBackup() {
+  if(!requireAccountData())return false;
   const exportedAt=new Date().toISOString();const date=exportedAt.slice(0,10);const content=accountBackupJson({items:state.items,watchlist:state.watchlist,accountEmail:state.session?.user?.email||'',exportedAt});downloadTextFile(content,'application/json;charset=utf-8',`mica-account-backup-${date}.json`);toast('Complete account backup downloaded');
+  return true;
 }
 
 function openInsuranceReport() {
-  if(state.accountLoading||state.accountLoadError){toast('Reconnect to your cloud library before creating a report');return;}
+  if(!requireAccountData())return;
   const date=new Date().toISOString().slice(0,10);const totals=calculateTotals(state.items);const documentation=insuranceDocumentation(state.items);const rows=[...state.items].sort((a,b)=>(itemValue(b)??-1)-(itemValue(a)??-1)).map(item=>{const context=item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition||'Raw condition not recorded';const basis=item.costBasis===null||item.costBasis===undefined?null:Number(item.costBasis);const value=item.price===null||item.price===undefined?null:Number(item.price)*Number(item.quantity||0);return `<article class="insurance-row"><img src="${esc(item.thumb||item.image||'./icons/icon.svg')}" alt="${esc(item.name)} catalog reference"><div class="insurance-card-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant||'Printing unknown')}</span><small>${esc(context)} · ${Number(item.quantity)||0} owned</small>${item.certificationNumber?`<small>Certification ${esc(item.certificationNumber)}</small>`:''}${item.location?`<small>Stored at ${esc(item.location)}</small>`:''}${item.notes?`<p>${esc(item.notes)}</p>`:''}</div><div class="insurance-values"><span>Acquisition<strong>${basis===null?'Not recorded':money(basis,item.currency)}</strong></span><span>Current reference<strong>${value===null?'Unavailable':money(value,item.currency)}</strong></span></div></article>`;}).join('');
   openSheet(`<div class="insurance-report"><div class="sheet-heading"><div><h2 id="sheetTitle">Insurance inventory report</h2><p>Private account record · ${date}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="insurance-owner"><span>Prepared for</span><strong>${esc(state.session?.user?.email||'Mica account holder')}</strong><small>${documentation.cards} card${documentation.cards===1?'':'s'} across ${documentation.positions} position${documentation.positions===1?'':'s'}</small></div><div class="insurance-summary"><div><span>Current reference value</span><strong>${money(totals.value)}</strong><small>${totals.unpriced?`${totals.unpriced} card${totals.unpriced===1?'':'s'} excluded without an exact price`:'Every card has a matching reference'}</small></div><div><span>Recorded acquisition basis</span><strong>${totals.costKnown?money(totals.cost):'Unavailable'}</strong><small>${totals.unknownCost?`${totals.unknownCost} card${totals.unknownCost===1?'':'s'} missing cost`:'Cost recorded for every card'}</small></div></div><div class="insurance-documentation"><strong>Documentation check</strong><span>${documentation.missingLocation} position${documentation.missingLocation===1?'':'s'} missing storage · ${documentation.missingCertification} graded position${documentation.missingCertification===1?'':'s'} missing certification · ${documentation.missingPrice} missing current price</span></div><div class="insurance-list">${rows||'<div class="find-empty"><strong>No positions to report</strong><span>Add a card to your library before creating an insurance inventory.</span></div>'}</div><p class="insurance-disclaimer">Catalog images help identify printings but are not proof of ownership, authenticity, condition, or possession. Market references are estimates, not appraisals. Add your own photographs, receipts, and professional valuations to an insurer submission when required.</p><div class="sheet-actions insurance-actions"><button class="secondary" id="insuranceClose" type="button">Close</button><button class="primary" id="printInsuranceReport" type="button" ${state.items.length?'':'disabled'}>Print / Save PDF</button></div></div>`);$('#insuranceClose').addEventListener('click',closeSheet);$('#printInsuranceReport').addEventListener('click',()=>window.print());
 }
 
 function openSharePortfolioSheet() {
+  if(!requireAccountData())return;
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Share a portfolio snapshot</h2><p>Preview exactly what leaves Mica.</p></div><button class="sheet-close" aria-label="Close">×</button></div><label class="share-performance"><input id="sharePerformance" type="checkbox"> Include recorded cost basis and known gain/loss</label><pre class="share-preview" id="sharePreview"></pre><div class="simple-note"><strong>Private by default.</strong><br>Notes, storage locations, certification numbers, purchase dates, account details, and transaction history are never included.</div><div class="sheet-actions"><button class="secondary" id="copyPortfolioSnapshot" type="button">Copy summary</button>${navigator.share?'<button class="primary" id="nativeSharePortfolio" type="button">Share…</button>':''}</div>`);
   const text=()=>portfolioSnapshot(state.items,{includePerformance:$('#sharePerformance').checked});
   const update=()=>{$('#sharePreview').textContent=text();};
@@ -960,6 +969,7 @@ function openSharePortfolioSheet() {
 }
 
 function handleCsv(file) {
+  if(!requireAccountData())return;
   const reader=new FileReader();reader.onerror=()=>toast('Mica could not read that CSV');reader.onload=()=>{
     const {records,errors}=parseCollectionCsv(String(reader.result));
     if(!records.length){toast(errors[0]||'No importable rows found');return;}
@@ -1099,6 +1109,7 @@ function renderBusinessSummary() {
 }
 
 function downloadBusinessReport() {
+  if(!requireAccountData())return;
   const period=businessDates(state.businessRange);const csv=transactionReportCsv(state.items,{from:period.from,to:period.to,currency:'USD'});const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=`mica-business-${state.businessRange}-${period.to}.csv`;link.click();URL.revokeObjectURL(url);toast('Business report downloaded');
 }
 
@@ -1243,8 +1254,8 @@ function bindEvents() {
   $('#installAppButton').addEventListener('click',()=>void openInstallExperience());
   $('#motionButton').addEventListener('click',cycleMotionPreference);
   $('#targetAlertButton').addEventListener('click',()=>void toggleTargetAlerts());
-  $('#moreButton').addEventListener('click',()=>openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep portable copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Complete account backup<small>Cards, transaction history, purchase lots, and watchlist</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection CSV<small>Importable copy of current positions</small></span><b>›</b></button></div>`));
-  document.addEventListener('click',event=>{if(event.target.closest('#sheetAccountBackup')){downloadAccountBackup();closeSheet();}if(event.target.closest('#sheetCollectionCsv')){downloadCollectionCsv();closeSheet();}});
+  $('#moreButton').addEventListener('click',()=>{if(!requireAccountData())return;openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep portable copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Complete account backup<small>Cards, transaction history, purchase lots, and watchlist</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection CSV<small>Importable copy of current positions</small></span><b>›</b></button></div>`);});
+  document.addEventListener('click',event=>{if(event.target.closest('#sheetAccountBackup')&&downloadAccountBackup())closeSheet();if(event.target.closest('#sheetCollectionCsv')&&downloadCollectionCsv())closeSheet();});
   document.addEventListener('keydown',handleDialogKeydown);
   window.addEventListener('popstate',event=>{if(!$('#bottomSheet').hidden){closeSheet({fromHistory:true});return;}const route=event.state?.route||(['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection');state.detailCanPop=false;if(route==='trade')renderTrade();routeTo(route,{instant:true,history:'none'});});
   bindQuickCardSearch();
@@ -1302,8 +1313,9 @@ async function applySession(session) {
   if(!session){state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;state.accountLoading=false;state.accountLoadError='';chartInstance?.destroy();return;}
   if(!appEventsBound){bindEvents();appEventsBound=true;}
   ensureProfileAccount();
-  try{[state.items,state.watchlist]=await Promise.all([loadPortfolio(supabase),loadWatchlist(supabase)]);state.storageStatus='cloud';state.accountLoadError='';renderCollection();renderInsights();renderTrade();routeTo(location.hash&&['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});await Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);}
-  catch(error){state.items=[];state.watchlist=[];state.storageStatus='error';state.accountLoadError=error.message||'Cloud portfolio unavailable';renderCollection();renderInsights();renderTrade();routeTo('collection',{instant:true,history:'replace'});toast('Your saved data is unchanged · Mica could not load it');}
+  state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;state.pricingStatus='idle';state.pricingRetrievedAt=null;state.accountLoading=true;state.accountLoadError='';renderCollection();renderInsights();renderTrade();routeTo(location.hash&&['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});
+  try{[state.items,state.watchlist]=await Promise.all([loadPortfolio(supabase),loadWatchlist(supabase)]);state.storageStatus='cloud';state.accountLoading=false;state.accountLoadError='';renderCollection();renderInsights();renderTrade();await Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);}
+  catch(error){state.items=[];state.watchlist=[];state.storageStatus='error';state.accountLoading=false;state.accountLoadError=error.message||'Cloud portfolio unavailable';renderCollection();renderInsights();renderTrade();routeTo('collection',{instant:true,history:'replace'});toast('Your saved data is unchanged · Mica could not load it');}
 }
 
 async function bootstrap() {
