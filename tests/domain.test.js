@@ -24,6 +24,7 @@ import {
   salePlan,
   holdingDays,
   inventoryHealth,
+  insuranceDocumentation,
   positionPerformance,
   portfolioReview,
   businessSummary,
@@ -659,6 +660,39 @@ test("target alerts fire once per crossing and reset above the buy price", () =>
   assert.equal(
     targetAlertChanges([reached], reset.next).notifications.length,
     1,
+  );
+});
+
+test("insurance documentation identifies missing ownership records", () => {
+  assert.deepEqual(
+    insuranceDocumentation([
+      {
+        quantity: 2,
+        cardState: "graded",
+        gradingCompany: "PSA",
+        certificationNumber: "123",
+        location: "Safe A1",
+        costBasis: 200,
+        price: 150,
+      },
+      {
+        quantity: 1,
+        cardState: "graded",
+        gradingCompany: "CGC",
+        certificationNumber: "",
+        location: "",
+        costBasis: null,
+        price: null,
+      },
+    ]),
+    {
+      positions: 2,
+      cards: 3,
+      missingLocation: 1,
+      missingCertification: 1,
+      missingCost: 1,
+      missingPrice: 1,
+    },
   );
 });
 

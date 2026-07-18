@@ -467,6 +467,29 @@ body:not(.authenticated) .app-shell { display: none; }
 .auth-magic input { min-width: 0; min-height: 44px; padding: 9px 10px; border: 1px solid var(--line-dark); border-radius: 5px; }
 .auth-magic button { border: 1px solid var(--pine); color: var(--pine); background: transparent; padding: 0 13px; }
 .auth-message { min-height: 18px; margin: 16px 0 0; color: var(--danger); font-size: 10px; }
+.insurance-owner { display: grid; gap: 3px; margin-bottom: 12px; padding: 13px 14px; border: 1px solid var(--line); border-radius: 6px; background: white; }
+.insurance-owner span,.insurance-summary span,.insurance-values > span { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .06em; }
+.insurance-owner strong { font: 750 13px var(--font-sans); }
+.insurance-owner small { color: var(--muted); font-size: 9px; }
+.insurance-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.insurance-summary > div { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); }
+.insurance-summary strong,.insurance-summary small { display: block; }
+.insurance-summary strong { margin-top: 4px; font: 800 16px var(--font-sans); color: var(--pine); }
+.insurance-summary small { margin-top: 5px; color: var(--muted); font-size: 8px; line-height: 1.4; }
+.insurance-documentation { margin-bottom: 14px; padding: 10px 12px; border-left: 3px solid var(--gold); background: #f4eddf; font-size: 9px; line-height: 1.5; }
+.insurance-documentation strong,.insurance-documentation span { display: block; }
+.insurance-documentation span { margin-top: 3px; color: var(--muted); }
+.insurance-list { border-top: 1px solid var(--line-dark); }
+.insurance-row { display: grid; grid-template-columns: 52px minmax(0,1fr) auto; gap: 11px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.insurance-row > img { width: 52px; aspect-ratio: 63/88; object-fit: cover; border-radius: 3px; }
+.insurance-card-main { min-width: 0; }
+.insurance-card-main strong,.insurance-card-main span,.insurance-card-main small { display: block; }
+.insurance-card-main strong { font: 750 11px var(--font-sans); }
+.insurance-card-main span,.insurance-card-main small { margin-top: 3px; color: var(--muted); font-size: 8px; line-height: 1.35; }
+.insurance-card-main p { margin: 6px 0 0; font-size: 8px; line-height: 1.4; overflow-wrap: anywhere; }
+.insurance-values { display: grid; gap: 8px; min-width: 104px; text-align: right; }
+.insurance-values strong { display: block; margin-top: 2px; color: var(--ink); font: 750 10px var(--font-sans); text-transform: none; letter-spacing: 0; }
+.insurance-disclaimer { margin: 14px 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
 .portfolio-detail-grid { display: grid; grid-template-columns: 1fr 1fr; margin: -12px 0 18px; border: 1px solid var(--line); border-top: 0; background: var(--paper); }
 .portfolio-detail-grid > div { min-height: 62px; padding: 12px; border-top: 1px solid var(--line); }
 .portfolio-detail-grid > div:nth-child(odd) { border-right: 1px solid var(--line); }
@@ -755,3 +778,15 @@ body[data-motion="full"] .bottom-sheet { animation-duration: .24s!important; ani
 body[data-motion="full"] .toast { animation-duration: .2s!important; animation-iteration-count: 1!important; }
 body[data-motion="full"] .searching-cards i, body[data-motion="full"] .process-list li.active i { animation-duration: .7s!important; animation-iteration-count: infinite!important; }
 body[data-motion="full"] .set-progress-track i { transition-duration: .25s!important; }
+
+@media print {
+  @page { margin: 12mm; }
+  html,body { min-width: 0; background: white; color: #111; }
+  body > *:not(#bottomSheet) { display: none!important; }
+  #bottomSheet { display: block!important; position: static; width: auto; max-height: none; overflow: visible; padding: 0; border-radius: 0; box-shadow: none; animation: none; transform: none; }
+  #bottomSheet .sheet-handle,#bottomSheet .sheet-close,#bottomSheet .insurance-actions { display: none!important; }
+  .insurance-report { font-size: 10pt; }
+  .insurance-row { break-inside: avoid; grid-template-columns: 46px minmax(0,1fr) 120px; }
+  .insurance-row > img { width: 46px; }
+  .insurance-disclaimer { font-size: 7pt; }
+}
