@@ -1,12 +1,12 @@
 import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
-import Chart from 'chart.js/auto';
 import { acquisitionFromTotal, allocateFifo, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, inventoryHealth, portfolioReview, positionPerformance, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
 
 const supabase = createAppSupabase();
 let chartInstance = null;
+let chartMountVersion = 0;
 let deferredInstallPrompt = null;
 let motionPreference='auto';
 let targetAlertsEnabled=false;
@@ -126,8 +126,8 @@ function renderInteractiveHistory(item) {
     <div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="Historical ${esc(context)} prices with purchase entry markers"></canvas></div>`;
 }
 
-function mountPriceChart(item) {
-  const canvas=$('#positionChart');if(!canvas)return;chartInstance?.destroy();
+async function mountPriceChart(item) {
+  const version=++chartMountVersion;chartInstance?.destroy();chartInstance=null;const canvas=$('#positionChart');if(!canvas)return;
   const days={'1m':31,'3m':93,'6m':186,'1y':366}[state.chartRange];const cutoff=days?Date.now()-days*86_400_000:0;
   const history=historyForItem(item).filter(point=>new Date(point.recordedAt).getTime()>=cutoff);
   const providers=[...new Set(history.map(point=>point.provider))];const colors=['#1f4f43','#9a6b2f','#315f86','#744f79'];
@@ -135,6 +135,7 @@ function mountPriceChart(item) {
   const purchases=(item.transactions||[]).filter(transaction=>transaction.type==='purchase');
   if(purchases.length)datasets.push({label:'Your entry points',type:'scatter',data:purchases.map(transaction=>({x:transaction.date,y:transaction.quantity?transaction.totalCost/transaction.quantity:transaction.unitPrice,transaction})),pointRadius:7,pointStyle:'triangle',backgroundColor:'#b14e43',borderColor:'#fff',borderWidth:1});
   if(item.costBasis&&item.quantity){const labels=[...new Set([...history.map(point=>point.recordedAt.slice(0,10)),...purchases.map(point=>point.date)])].sort();datasets.push({label:'Remaining cost basis / card',data:labels.map(date=>({x:date,y:item.costBasis/item.quantity})),borderColor:'#7a746a',borderDash:[5,5],pointRadius:0,borderWidth:1});}
+  const {default:Chart}=await import('chart.js/auto');if(version!==chartMountVersion||!canvas.isConnected)return;
   chartInstance=new Chart(canvas,{type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,parsing:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label(context){const transaction=context.raw?.transaction;return transaction?`Bought ${transaction.date}: ${money(transaction.totalCost,transaction.currency)} total · ${transaction.quantity} card${transaction.quantity===1?'':'s'}`:`${context.dataset.label}: ${money(context.parsed.y,item.currency||'USD')}`;}}}},scales:{x:{type:'category',grid:{display:false},ticks:{maxTicksLimit:6}},y:{ticks:{callback:value=>money(value,item.currency||'USD')},grid:{color:'rgba(60,70,65,.08)'}}}}});
   $$('[data-chart-range]').forEach(button=>button.addEventListener('click',()=>{state.chartRange=button.dataset.chartRange;renderDetail();}));
 }

@@ -28,7 +28,10 @@ await build({
   format: "esm",
   platform: "browser",
   target: ["es2022"],
-  outfile: fileURLToPath(new URL("../dist/app.js", import.meta.url)),
+  outdir: fileURLToPath(dist),
+  entryNames: "[name]",
+  chunkNames: "chunks/[name]-[hash]",
+  splitting: true,
   minify: true,
   sourcemap: true,
 });
