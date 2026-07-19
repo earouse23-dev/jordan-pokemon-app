@@ -623,6 +623,19 @@ body:not(.authenticated) .app-shell { display: none; }
 .history-controls button[aria-pressed="true"] { background:var(--pine);border-color:var(--pine);color:white; }
 .chart-wrap { position:relative;min-height:230px;margin-top:10px; }
 .chart-wrap canvas { width:100%!important;height:230px!important; }
+.entry-points { margin-bottom: 13px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: white; }
+.entry-points-head { display: flex; justify-content: space-between; gap: 16px; padding: 11px 12px; background: #edf3ee; }
+.entry-points-head > div:last-child { text-align: right; }
+.entry-points-head span,.entry-points-head strong { display: block; }
+.entry-points-head span { color: var(--muted); font-size: 8px; text-transform: uppercase; }
+.entry-points-head strong { margin-top: 3px; font: 750 10px var(--font-sans); }
+.entry-point-row { display: grid; grid-template-columns: minmax(0,1fr) 92px 92px; gap: 8px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
+.entry-point-row > div { min-width: 0; }
+.entry-point-row > div:not(:first-child) { text-align: right; }
+.entry-point-row strong,.entry-point-row span,.entry-point-row small { display: block; }
+.entry-point-row > div:first-child strong { font: 750 10px var(--font-sans); }
+.entry-point-row span,.entry-point-row small { color: var(--muted); font-size: 8px; line-height: 1.4; }
+.entry-point-row > div:not(:first-child) strong { margin-top: 2px; font: 750 10px var(--font-sans); }
 @media (max-width: 620px) {
   .first-card-guide { grid-template-columns: 1fr; }
   .grading-batch-launch { align-items: stretch; flex-direction: column; }
@@ -781,6 +794,7 @@ body:not(.authenticated) .app-shell { display: none; }
   .decision-heading { display: block; }
   .decision-heading p { margin-top: 7px; text-align: left; }
   .decision-metrics { grid-template-columns: 1fr; }
+  .entry-point-row { grid-template-columns: minmax(0,1fr) 76px 76px; gap: 6px; padding-left: 9px; padding-right: 9px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto!important; animation-duration: .01ms!important; animation-iteration-count: 1!important; transition-duration: .01ms!important; }

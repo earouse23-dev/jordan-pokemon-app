@@ -27,6 +27,7 @@ import {
   insuranceDocumentation,
   positionPerformance,
   portfolioReview,
+  purchaseEntryPoints,
   businessSummary,
   blendedPosition,
   targetAlertChanges,
@@ -355,6 +356,54 @@ test("additional purchases preview the blended remaining position", () => {
       newTotalCost: "70.00",
     }),
     null,
+  );
+});
+
+test("purchase entry points compare each lot with the current exact price", () => {
+  assert.deepEqual(
+    purchaseEntryPoints(
+      [
+        {
+          type: "purchase",
+          date: "2026-06-25",
+          quantity: 2,
+          totalCost: 1000,
+        },
+        {
+          type: "sale",
+          date: "2026-07-01",
+          quantity: 1,
+          totalCost: 1,
+        },
+        {
+          type: "purchase",
+          date: "2026-05-01",
+          quantity: 1,
+          unitPrice: 400,
+        },
+      ],
+      600,
+    ),
+    [
+      {
+        date: "2026-05-01",
+        quantity: 1,
+        totalCostMinor: 40000,
+        unitCostMinor: 40000,
+        currentUnitPriceMinor: 60000,
+        changeMinor: 20000,
+        returnPercent: 50,
+      },
+      {
+        date: "2026-06-25",
+        quantity: 2,
+        totalCostMinor: 100000,
+        unitCostMinor: 50000,
+        currentUnitPriceMinor: 60000,
+        changeMinor: 10000,
+        returnPercent: 20,
+      },
+    ],
   );
 });
 

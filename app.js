@@ -1,6 +1,6 @@
 import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch, ownedCardSummary, sameCatalogCard } from './lib/core.js';
 import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
-import { acquisitionFromTotal, allocateFifo, blendedPosition, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, insuranceDocumentation, inventoryHealth, portfolioReview, positionPerformance, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
+import { acquisitionFromTotal, allocateFifo, blendedPosition, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, insuranceDocumentation, inventoryHealth, portfolioReview, positionPerformance, purchaseEntryPoints, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
 
@@ -114,13 +114,20 @@ function renderHistory(item) {
     <div class="chart-dates"><span>${esc(first.recordedAt.slice(0,10))}</span><span>${esc(last.recordedAt.slice(0,10))}</span></div>`;
 }
 
-function renderInteractiveHistory(item) {
+function renderEntryPoints(item,currentPrice=item.price) {
+  const entries=purchaseEntryPoints(item.transactions||[],currentPrice);if(!entries.length)return '';
+  const currency=item.currency||'USD';const current=currentPrice===null||currentPrice===undefined?null:Number(currentPrice);
+  return `<section class="entry-points" aria-label="Your purchase entry points"><div class="entry-points-head"><div><span>Your entry points</span><strong>${entries.length} purchase${entries.length===1?'':'s'} recorded</strong></div><div><span>Current exact reference</span><strong>${current===null?'Unavailable':`${money(current,currency)} each`}</strong></div></div><div class="entry-point-list">${entries.map(entry=>`<div class="entry-point-row"><div><strong>${esc(entry.date||'Date not recorded')}</strong><span>${entry.quantity} card${entry.quantity===1?'':'s'} · ${money(entry.totalCostMinor/100,currency)} total</span></div><div><span>Entry · each</span><strong>${money(entry.unitCostMinor/100,currency)}</strong></div><div><span>Change · each</span><strong>${entry.changeMinor===null?'Unavailable':`${entry.changeMinor>=0?'+':''}${money(entry.changeMinor/100,currency)}`}</strong><small>${entry.returnPercent===null?'':`${entry.returnPercent>=0?'+':''}${entry.returnPercent.toFixed(1)}%`}</small></div></div>`).join('')}</div></section>`;
+}
+
+function renderInteractiveHistory(item,currentPrice=item.price) {
   const history = historyForItem(item);
-  if (item.historyStatus === 'plan_required' && history.length < 2) return `<div class="unavailable-panel"><strong>Price history is plan-limited.</strong><br>The connected PkmnPrices key can return current prices, but historical observations require a higher provider plan. Mica does not invent a trend.</div>`;
-  if (history.length < 2) return `<div class="unavailable-panel">Not enough exact ${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)} observations exist for a chart. A raw or different-grade series is never substituted.</div>`;
+  const entryPoints=renderEntryPoints(item,currentPrice);
+  if (item.historyStatus === 'plan_required' && history.length < 2) return `${entryPoints}<div class="unavailable-panel"><strong>Price history is plan-limited.</strong><br>The connected PkmnPrices key can return current prices, but historical observations require a higher provider plan. Your recorded entry points remain visible without Pro.</div>`;
+  if (history.length < 2) return `${entryPoints}<div class="unavailable-panel">Not enough exact ${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)} observations exist for a chart. Your real purchase entries remain visible; a raw or different-grade series is never substituted.</div>`;
   const values=history.map(point=>point.amount);const min=Math.min(...values);const max=Math.max(...values);const average=values.reduce((sum,value)=>sum+value,0)/values.length;const last=history.at(-1);
   const context=item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition;
-  return `<div class="history-summary"><div><span>Observed average</span><strong>${money(average,last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min,last.currency)}–${money(max,last.currency)}</strong></div><div><span>Samples</span><strong>${history.length} observations</strong></div></div>
+  return `${entryPoints}<div class="history-summary"><div><span>Observed average</span><strong>${money(average,last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min,last.currency)}–${money(max,last.currency)}</strong></div><div><span>Samples</span><strong>${history.length} observations</strong></div></div>
     <div class="history-controls" role="group" aria-label="Price history range">${[['1m','1 month'],['3m','3 months'],['6m','6 months'],['1y','1 year'],['all','All']].map(([value,label])=>`<button type="button" data-chart-range="${value}" aria-pressed="${String(state.chartRange===value)}">${label}</button>`).join('')}</div>
     <p class="chart-context">Exact series: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. Provider observations remain separate.</p>
     <div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="Historical ${esc(context)} prices with purchase entry markers"></canvas></div>`;
@@ -631,7 +638,7 @@ function renderDetail() {
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
     ${renderGradingEstimator(item)}
     ${owned?renderSalePlanner(item,displayPrice):''}
-    <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderInteractiveHistory(item)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderInteractiveHistory(item,displayPrice)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === 'live' ? 'Completed listings' : 'Verified links when available'}</span></div>${renderSales(item)}</section>
     ${positionSection}
     ${ownedSection}
