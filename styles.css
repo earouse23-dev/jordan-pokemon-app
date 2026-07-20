@@ -371,6 +371,21 @@ h1 { font: 700 29px/1.12 var(--font-sans); letter-spacing: -.035em; margin: 0; }
 .card-facts strong { margin-top: 3px; overflow-wrap: anywhere; font: 750 10px var(--font-sans); }
 .card-fact-copy,.card-flavor { margin: 10px 0 0; font-size: 9px; line-height: 1.55; }
 .card-flavor { color: var(--muted); font-style: italic; }
+.offer-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.offer-market { min-width: 0; border: 1px solid var(--line); background: rgba(255,255,255,.42); }
+.offer-market-head { display: flex; justify-content: space-between; gap: 10px; padding: 10px 11px; border-bottom: 1px solid var(--line); }
+.offer-market-head strong { font: 750 11px var(--font-sans); }
+.offer-market-head span { color: var(--muted); font-size: 8px; text-align: right; }
+.offer-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 11px; border-bottom: 1px solid var(--line); }
+.offer-row:last-child { border-bottom: 0; }
+.offer-row > div { min-width: 0; }
+.offer-row strong,.offer-row span,.offer-row small,.offer-price b { display: block; }
+.offer-row strong { overflow-wrap: anywhere; font-size: 10px; }
+.offer-row span,.offer-row small { margin-top: 3px; color: var(--muted); font-size: 7px; line-height: 1.35; }
+.offer-price { flex: none; text-align: right; }
+.offer-price b { color: var(--pine); font: 800 11px var(--font-sans); }
+.offer-empty { padding: 14px 11px; color: var(--muted); font-size: 9px; }
+.offer-disclaimer { margin: 9px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
 .source-value { text-align: right; }
 .source-value b { font: 700 13px var(--font-sans); }
 .source-value small { display: block; color: var(--faint); font-size: 8px; margin-top: 2px; }
@@ -654,6 +669,7 @@ body:not(.authenticated) .app-shell { display: none; }
 .entry-point-row span,.entry-point-row small { color: var(--muted); font-size: 8px; line-height: 1.4; }
 .entry-point-row > div:not(:first-child) strong { margin-top: 2px; font: 750 10px var(--font-sans); }
 @media (max-width: 620px) {
+  .offer-grid { grid-template-columns: 1fr; }
   .first-card-guide { grid-template-columns: 1fr; }
   .grading-batch-launch { align-items: stretch; flex-direction: column; }
   .grading-batch-launch button { width: 100%; }

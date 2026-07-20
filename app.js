@@ -101,6 +101,17 @@ function renderCardMetadata(item) {
   return `<section class="detail-section"><div class="detail-section-head"><h2>Card details</h2><span>PkmnPrices card record</span></div><div class="card-facts">${facts.map(([label,value])=>`<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join('')}</div>${(data.attacks||[]).length?`<p class="card-fact-copy"><strong>Attacks</strong> · ${esc(data.attacks.join(' · '))}</p>`:''}${data.flavorText?`<p class="card-flavor">${esc(data.flavorText)}</p>`:''}</section>`;
 }
 
+function renderMarketplaceOffers(item) {
+  const offers=item.offers||[];const statuses=item.offerStatuses||{};
+  const statusCopy=marketplace=>statuses[marketplace]==='plan_required'?'Current key lacks access':statuses[marketplace]==='rate_limited'?'Rate limited':statuses[marketplace]==='unavailable'?'Unavailable':'No matching asks';
+  const groups=['tcgplayer','cardmarket'].map(marketplace=>{
+    const rows=offers.filter(offer=>offer.marketplace===marketplace);const label=marketplace==='tcgplayer'?'TCGplayer':'Cardmarket';
+    return `<div class="offer-market"><div class="offer-market-head"><strong>${label}</strong><span>${rows.length?`${rows.length} lowest matching ask${rows.length===1?'':'s'}`:statusCopy(marketplace)}</span></div>${rows.length?rows.slice(0,5).map(offer=>{const badges=[offer.badges?.direct?'Direct':'',offer.badges?.gold?'Gold':'',offer.badges?.verified?'Verified':''].filter(Boolean);const seller=[offer.sellerRating!==null&&offer.sellerRating!==undefined?`${offer.sellerRating}% rating`:'',offer.sellerSales?`${offer.sellerSales} sales`:''].filter(Boolean).join(' · ');const context=[offer.printing,offer.condition,offer.language].filter(Boolean).join(' · ');return `<div class="offer-row"><div><strong>${esc(offer.seller||'Marketplace seller')}</strong><span>${esc(context||'Listing context unavailable')}</span>${seller?`<small>${esc(seller)}</small>`:''}${badges.length?`<small>${esc(badges.join(' · '))}</small>`:''}${offer.note?`<small>${esc(offer.note)}</small>`:''}</div><div class="offer-price"><b>${money(offer.total,offer.currency)}</b><span>${offer.shipping===null?'Listed price':offer.shipping?`${money(offer.amount,offer.currency)} + ${money(offer.shipping,offer.currency)} ship`:'Shipping included'}</span>${offer.quantity?`<small>${offer.quantity} available</small>`:''}</div></div>`;}).join(''):`<div class="offer-empty">${statusCopy(marketplace)}</div>`}</div>`;
+  }).join('');
+  const context=item.gradingCompany?'These are raw-card asking prices, not slab comparables. Use the graded ladder and completed sales for this copy.':'These are active seller asks, not completed sales or guaranteed value.';
+  return `<section class="detail-section"><div class="detail-section-head"><h2>Live marketplace offers</h2><span>Active asks · lowest first</span></div>${item.offersStatus==='loading'?'<div class="unavailable-panel">Loading exact-printing seller offers…</div>':item.offersStatus==='unconfigured'?'<div class="pro-data-empty"><strong>Ready for live offers</strong><p>Connect PkmnPrices to populate TCGplayer and Cardmarket seller asks here.</p></div>':item.offersStatus==='error'?'<div class="unavailable-panel">Live offers are temporarily unavailable.<br><button class="inline-retry" id="retryOffersButton" type="button">Try offers again</button></div>':`<div class="offer-grid">${groups}</div>`}<p class="offer-disclaimer">${context}</p></section>`;
+}
+
 function historyForItem(item) {
   const finish = finishForVariant(item.variant);
   const exact = (item.priceHistory || []).filter(point => {
@@ -256,6 +267,14 @@ async function loadSales(item, force=false) {
     else { item.salesStatus = 'live'; item.sales = payload.sales || []; }
   } catch { item.salesStatus = 'error'; item.sales = []; }
   if (state.route === 'detail' && (state.detailId === item.uid || state.detailId === item.id)) renderDetail();
+}
+
+async function loadOffers(item,force=false){
+  if(item.offersStatus&&!force)return;item.offersStatus='loading';if(state.route==='detail'&&(state.detailId===item.uid||state.detailId===item.id))renderDetail();
+  const lookup={clientId:item.id,pkmnpricesId:item.externalIds?.pkmnprices||'',tcgplayerId:item.externalIds?.tcgplayer||'',name:item.name,set:item.set,number:item.number,language:item.language||'en',condition:item.gradingCompany?'':item.condition||'Near Mint',variant:item.variant||'Normal'};
+  try{const response=await fetch(`/api/offers?lookup=${encodeURIComponent(JSON.stringify(lookup))}`,{headers:{Accept:'application/json'}});const payload=await response.json().catch(()=>({}));if(response.status===503){item.offersStatus='unconfigured';item.offers=[];item.offerStatuses={};}else if(!response.ok){item.offersStatus='error';item.offers=[];item.offerStatuses={};}else{item.offersStatus='live';item.offers=payload.offers||[];item.offerStatuses=payload.statuses||{};}}
+  catch{item.offersStatus='error';item.offers=[];item.offerStatuses={};}
+  if(state.route==='detail'&&(state.detailId===item.uid||state.detailId===item.id))renderDetail();
 }
 
 function routeTo(route, options={}) {
@@ -655,6 +674,7 @@ function renderDetail() {
     ${watchedSection}
     ${action}
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
+    ${renderMarketplaceOffers(item)}
     ${renderGradedPriceLadder(item)}
     ${renderCardMetadata(item)}
     ${renderGradingEstimator(item)}
@@ -677,10 +697,12 @@ function renderDetail() {
   $('#addDifferentPositionButton')?.addEventListener('click',()=>openPositionSheet(item));
   $('#retryPricingButton')?.addEventListener('click',()=>{if(owned)void refreshLivePricing();else{state.detailCard={...item,pricingStatus:'loading',price:null};renderDetail();void loadCardPreviewPricing(item);}});
   $('#retrySalesButton')?.addEventListener('click',()=>void loadSales(item,true));
+  $('#retryOffersButton')?.addEventListener('click',()=>void loadOffers(item,true));
   bindGradingEstimator(item);
   bindSalePlanner(owned);
   mountPriceChart(item);
   void loadSales(item);
+  void loadOffers(item);
 }
 
 function identitySnapshot(card, variant) {

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import handler from "../api/cards.js";
+import offersHandler from "../api/offers.js";
 import salesHandler from "../api/sales.js";
 import {
   finishForVariant,
@@ -15,8 +16,10 @@ import {
   normalizePrinting,
 } from "../lib/providers/justtcg.js";
 import {
+  fetchPkmnPricesOffers,
   fetchPkmnPricesLookup,
   normalizePkmnPricesCard,
+  normalizePkmnPricesOffer,
   normalizePkmnPricesSale,
 } from "../lib/providers/pkmnprices.js";
 import {
@@ -295,6 +298,156 @@ test("normalizes PkmnPrices card quotes and daily history into the shared pricin
       observedAt: "2026-04-15T00:00:00Z",
     },
   ]);
+});
+
+test("normalizes marketplace asks without presenting them as completed sales", () => {
+  assert.deepEqual(
+    normalizePkmnPricesOffer(
+      {
+        listing_id: 123,
+        printing: "Holofoil",
+        condition: "Near Mint",
+        language: "English",
+        price: 279.99,
+        shipping_price: 4.5,
+        seller_name: "TopTierCards",
+        seller_rating: 99.8,
+        seller_sales: "50,000+",
+        quantity: 3,
+        listing_type: "standard",
+        direct_seller: true,
+        gold_seller: true,
+        verified_seller: true,
+        custom_title: "Pack fresh",
+        updated_at: "2026-06-10T14:22:00Z",
+      },
+      "tcgplayer",
+    ),
+    {
+      provider: "pkmnprices",
+      marketplace: "tcgplayer",
+      providerListingId: "123",
+      amount: 279.99,
+      shipping: 4.5,
+      total: 284.49,
+      currency: "USD",
+      condition: "Near Mint",
+      language: "English",
+      printing: "Holofoil",
+      seller: "TopTierCards",
+      sellerRating: 99.8,
+      sellerSales: "50,000+",
+      quantity: 3,
+      listingType: "standard",
+      badges: { direct: true, gold: true, verified: true },
+      note: "Pack fresh",
+      updatedAt: "2026-06-10T14:22:00Z",
+    },
+  );
+  assert.equal(
+    normalizePkmnPricesOffer({ price: 10 }, "ebay"),
+    null,
+  );
+});
+
+test("loads exact-printing TCGplayer and Cardmarket asks independently", async () => {
+  const originalFetch = globalThis.fetch;
+  const requested = [];
+  globalThis.fetch = async (url, options) => {
+    const value = String(url);
+    requested.push(value);
+    assert.equal(options.headers["X-API-Key"], "offer-secret");
+    if (value.includes("/listings/tcgplayer"))
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 1,
+              price: 25,
+              shipping_price: 1,
+              condition: "Near Mint",
+              printing: "Holofoil",
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    return new Response(
+      JSON.stringify({ error: { message: "Permission required" } }),
+      { status: 403 },
+    );
+  };
+  try {
+    const result = await fetchPkmnPricesOffers(
+      "offer-secret",
+      {
+        pkmnpricesId: "4521",
+        language: "ja",
+        condition: "Near Mint",
+        variant: "Unlimited Holofoil",
+      },
+    );
+    assert.equal(result.offers.length, 1);
+    assert.deepEqual(result.statuses, {
+      tcgplayer: "live",
+      cardmarket: "plan_required",
+    });
+    assert.equal(
+      requested.every(
+        (url) =>
+          url.includes("language=Japanese") &&
+          url.includes("sort=price_asc") &&
+          url.includes("limit=5"),
+      ),
+      true,
+    );
+    assert.equal(
+      requested.some((url) => url.includes("printing=Holofoil")),
+      true,
+    );
+    assert.equal(
+      requested.some((url) => url.includes("variant=Holofoil")),
+      true,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("offers endpoint reports missing provider configuration without exposing keys", async () => {
+  const originalKey = process.env.PKMNPRICES_API_KEY;
+  delete process.env.PKMNPRICES_API_KEY;
+  let body;
+  const response = {
+    setHeader() {},
+    status(status) {
+      this.statusCode = status;
+      return this;
+    },
+    json(value) {
+      body = value;
+      return value;
+    },
+  };
+  try {
+    const lookup = JSON.stringify({
+      clientId: "base1-4",
+      name: "Charizard",
+      set: "Base Set",
+      number: "4/102",
+      condition: "Near Mint",
+      variant: "Holofoil",
+    });
+    await offersHandler(
+      { method: "GET", query: { lookup }, headers: {}, socket: {} },
+      response,
+    );
+    assert.equal(response.statusCode, 503);
+    assert.equal(body.provider, "pkmnprices");
+  } finally {
+    if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;
+    else process.env.PKMNPRICES_API_KEY = originalKey;
+  }
 });
 
 test("reports PkmnPrices history plan limits without fabricating observations", async () => {
