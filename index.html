@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=61">
+  <link rel="stylesheet" href="styles.css?v=62">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -89,9 +89,12 @@
           <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="favorites">Favorites</button>
           <button class="view-tab advanced-workspace" type="button" role="tab" aria-selected="false" data-ledger-view="graded">Graded</button>
           <button class="view-tab advanced-workspace" type="button" role="tab" aria-selected="false" data-ledger-view="unpriced">Needs review</button>
+          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="for-sale">For sale <span id="forSaleCount">0</span></button>
           <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="watchlist">Watchlist <span id="watchlistCount">0</span></button>
           <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="sets">Sets <span id="setCount">0</span></button>
         </div>
+
+        <section class="seller-desk hidden" id="sellerDesk" aria-live="polite"></section>
 
         <div class="ledger-tools">
           <label class="search-field">
@@ -140,6 +143,7 @@
         <button class="sealed-search-launch" id="sealedSearchButton" type="button"><span><strong>Find sealed products</strong><small>Booster boxes, ETBs, tins, bundles, and collections</small></span><b>Search →</b></button>
         <div class="search-options"><label for="quickSearchLanguage">Card language</label><select id="quickSearchLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div>
         <div class="quick-results" id="quickSearchResults" aria-live="polite"><div class="find-empty"><strong>Find the exact printing</strong><span>Results show the set and card number so you can pick the right one.</span></div></div>
+        <section class="intake-queue-bar hidden" id="intakeQueueBar" aria-live="polite"><div><span>Rapid intake</span><strong id="intakeQueueCount">0 exact cards queued</strong></div><button id="reviewIntakeQueue" type="button">Review & add</button></section>
         <p class="simple-privacy">Photo assist stays on this device, is not uploaded, and is not saved to your library.</p>
       </section>
 
@@ -283,7 +287,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=61"></script>
-  <script type="module" src="app.js?v=61"></script>
+  <script src="app-config.js?v=62"></script>
+  <script type="module" src="app.js?v=62"></script>
 </body>
 </html>

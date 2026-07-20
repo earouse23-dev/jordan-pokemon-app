@@ -247,7 +247,7 @@ export default async function handler(request, response) {
     .select(
       "id,user_id,card_id,variant_id,identity_snapshot,card_state,raw_condition,grader,grade,currency",
     )
-    .eq("status", "owned")
+    .in("status", ["owned", "listed"])
     .neq("card_state", "sealed")
     .limit(50);
   if (error)

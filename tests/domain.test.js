@@ -22,6 +22,8 @@ import {
   tradeAnalysis,
   tradeSummary,
   salePlan,
+  buyOfferPlan,
+  listingReadiness,
   holdingDays,
   inventoryHealth,
   insuranceDocumentation,
@@ -282,6 +284,52 @@ test("position updates only send fields the user changed", async () => {
   await updatePosition(client, "position-1", { tags: ["Favorites"] });
   assert.deepEqual(updated, { tags: ["Favorites"] });
   assert.equal(matchedId, "position-1");
+});
+
+test("seller listing fields hydrate and update without leaking into unrelated writes", async () => {
+  const position = hydratePosition({
+    id: "listing-1",
+    identity_snapshot: { name: "Pikachu" },
+    card_state: "raw",
+    raw_condition: "near_mint",
+    quantity: 1,
+    status: "listed",
+    asking_price: "125.50",
+    listing_venue: "Card show",
+    listed_at: "2026-07-18",
+    price_reviewed_at: "2026-07-20",
+    currency: "USD",
+  });
+  assert.equal(position.askingPrice, 125.5);
+  assert.equal(position.listingVenue, "Card show");
+  assert.equal(position.listedAt, "2026-07-18");
+  assert.equal(position.priceReviewedAt, "2026-07-20");
+
+  let updated;
+  const client = {
+    from() {
+      return {
+        update(payload) {
+          updated = payload;
+          return { async eq() { return { error: null }; } };
+        },
+      };
+    },
+  };
+  await updatePosition(client, "listing-1", {
+    status: "listed",
+    askingPrice: "130.00",
+    listingVenue: "eBay",
+    listedAt: "2026-07-19",
+    priceReviewedAt: "2026-07-20",
+  });
+  assert.deepEqual(updated, {
+    status: "listed",
+    asking_price: "130.00",
+    listing_venue: "eBay",
+    listed_at: "2026-07-19",
+    price_reviewed_at: "2026-07-20",
+  });
 });
 
 test("canonical identity separates same-name cards by set, language, number, and variant", () => {
@@ -709,6 +757,57 @@ test("sale planner reports fees, net proceeds, profit, and break-even price", ()
   assert.equal(
     salePlan({ quantity: 1, salePriceEach: "10", feePercent: 100 }),
     null,
+  );
+});
+
+test("buy offer planner protects a target ROI and previews a proposed deal", () => {
+  assert.deepEqual(
+    buyOfferPlan({
+      quantity: 2,
+      expectedResaleEach: "100.00",
+      feePercent: "10",
+      otherSellingCosts: "10.00",
+      targetRoiPercent: "25",
+      plannedOfferEach: "60.00",
+    }),
+    {
+      grossMinor: 20000,
+      marketplaceFeesMinor: 2000,
+      otherSellingCostsMinor: 1000,
+      netBeforeAcquisitionMinor: 17000,
+      maxAcquisitionMinor: 13600,
+      maxOfferEachMinor: 6800,
+      plannedOfferTotalMinor: 12000,
+      projectedProfitMinor: 5000,
+      projectedRoiPercent: 41.66666666666667,
+    },
+  );
+  assert.equal(
+    buyOfferPlan({ quantity: 1, expectedResaleEach: "10", feePercent: 100 }),
+    null,
+  );
+});
+
+test("seller readiness finds incomplete and price-drifted active listings", () => {
+  assert.deepEqual(
+    listingReadiness(
+      [
+        { status: "listed", quantity: 2, askingPrice: 110, price: 100, listingVenue: "eBay", priceReviewedAt: "2026-07-19" },
+        { status: "listed", quantity: 1, askingPrice: null, price: 50, listingVenue: "", priceReviewedAt: "" },
+        { status: "owned", quantity: 4, askingPrice: 20, price: 20 },
+      ],
+      "2026-07-20",
+    ),
+    {
+      positions: 2,
+      units: 3,
+      askingValueMinor: 22000,
+      marketValueMinor: 25000,
+      pricedPositions: 2,
+      missingAsk: 1,
+      missingVenue: 1,
+      needsReview: 2,
+    },
   );
 });
 

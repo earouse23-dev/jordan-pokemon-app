@@ -9,6 +9,10 @@ Research checked 2026-07-20. Competitor behavior is used as product inspiration,
 | PriceCharting | Grade-specific values, visible sold comparables and documented outlier/recency methodology | Show condition tiers and disclose how bad or mismatched sales are filtered |
 | TCGplayer | Strong condition/printing taxonomy and marketplace-specific market price | Never collapse finish or condition into one ambiguous price |
 | Cardmarket | European currency/condition context | Preserve source currency and region; conversion is a separate derived view |
+| CardShow Pro | Floor-first inventory, asking price, status/location, offline show mode, expenses and tax-ready reporting | A dealer needs decisions and inventory state at the table, not just a collection chart |
+| FlipBook | Show mode, fast sale/buy/trade logging, inventory and import review | High-volume intake should preserve a review checkpoint instead of silently accepting matches |
+| VendBuddy | Real profit, label workflows, show expenses and price-drift repricing queues | Repricing must be actionable and tied to each active listing |
+| Double Holo | Vendor inventory, price labels and profit-and-loss tools | Seller work belongs beside the owned card, not in a disconnected spreadsheet |
 
 ## July 20 competitive rotation
 
@@ -24,23 +28,27 @@ Sources checked:
 - [TCGplayer app FAQ](https://help.tcgplayer.com/hc/en-us/articles/115009506407-TCGplayer-App-FAQ)
 - [PriceCharting collection tracker](https://www.pricecharting.com/page/collection-tracker)
 - [PriceCharting sales tracking](https://blog.pricecharting.com/2026/03/track-sales-from-your-collection.html)
+- [CardShow Pro](https://cardshowpro.app/)
+- [FlipBook](https://www.getflipbook.app/)
+- [VendBuddy](https://www.vendbuddy.app/)
+- [Double Holo Vendor Hub](https://www.doubleholo.com/vendor-hub)
 
 ## Three-persona critique
 
-| User | Main risk in a typical tracker | Mica response in v61 |
+| User | Main risk in a typical tracker | Mica response in v62 |
 |---|---|---|
-| New collector | Too many professional controls and confusion between market value and cash value | Guided workspace keeps the essentials visible and explains the boundary; seller tools remain one tap away |
-| Side-hustle seller | Headline value ignores selling discount, venue fee, shipping, and basis | Portfolio take-home planner shows reference, expected gross, fees/costs, net, profit, ROI, break-even, and coverage |
-| Full-time dealer | Slow repeated intake and low information density | Pro desk uses denser inventory rows; raw, graded, and sealed saves include a rapid “Save + add another” path |
+| New collector | Too many professional controls and confusion between market value and cash value | Guided workspace keeps the essentials visible; the buy guardrail explains a responsible ceiling from the exact price and desired return |
+| Side-hustle seller | Headline value ignores selling discount, venue fee, shipping, and basis | Take-home and deal planners show fees, costs, net, profit, ROI and break-even; listing state persists with ask, venue and review date |
+| Full-time dealer | Slow repeated intake, stale asking prices and low information density | Rapid intake queues exact printings; Seller desk totals asks vs market and flags 10% drift or reviews older than seven days |
 
 ## Mica versus Collectr
 
 | Capability | Collectr advantage | Mica advantage / response |
 |---|---|---|
 | Camera recognition | Mature scanner and high-volume consumer usage | Photo assist stays private and Mica refuses to claim recognition until a licensed, measurable service exists |
-| Repeated intake | Fast scan/add loop | v61 returns directly to the correct card or sealed search after each saved item |
+| Repeated intake | Fast scan/add loop | v62 queues multiple exact printings, then advances through the minimal applicable details and one total cost per card |
 | Portfolio presentation | Highly polished stock-style overview | Exact-context evidence, honest missing-price coverage, entry points, and durable owner-scoped history |
-| Seller economics | Users report the displayed value can overstate realizable cash | v61 take-home scenario converts reference value into editable gross, fee, cost, net, profit, ROI, and break-even views |
+| Seller economics | Users report the displayed value can overstate realizable cash | v62 adds editable take-home and deal guardrails plus durable asking price, venue, listed date and repricing review state |
 | User range | One broadly consumer-oriented interface | Guided, Growing seller, and Pro desk depths use the same underlying ledger without changing calculations |
 | Business records | Collection tracking and export | FIFO lots, realized profit, transaction reporting, sale planning, inventory aging, and CSV/JSON portability |
 

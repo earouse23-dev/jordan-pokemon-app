@@ -400,3 +400,10 @@ grant usage on schema public to authenticated;
 grant select, insert, update, delete on public.profiles, public.collections, public.collection_items, public.owned_copies, public.collection_tags, public.collection_item_tags, public.saved_views, public.card_scans, public.scan_feedback, public.purchase_transactions, public.sale_transactions, public.import_jobs, public.export_jobs to authenticated;
 grant select on public.subscriptions, public.usage_events, public.scan_candidates, public.valuation_snapshots, public.card_sets, public.set_external_ids, public.cards, public.card_variants, public.card_external_ids, public.variant_external_ids, public.card_images, public.catalog_coverage_snapshots, public.price_sources, public.price_products, public.price_snapshots, public.price_daily_metrics, public.sales_records to authenticated;
 
+-- Seller workflow additions are owner-protected by the collection_items RLS policy above.
+alter table public.collection_items
+  add column if not exists asking_price numeric(14,2) check (asking_price is null or asking_price >= 0),
+  add column if not exists listing_venue text check (listing_venue is null or char_length(listing_venue) <= 100),
+  add column if not exists listed_at date check (listed_at is null or listed_at <= current_date),
+  add column if not exists price_reviewed_at date check (price_reviewed_at is null or price_reviewed_at <= current_date);
+create index if not exists collection_items_owner_active_listing_idx on public.collection_items(user_id,status,listed_at desc) where status='listed';

@@ -167,6 +167,22 @@ h1 { font: 700 29px/1.12 var(--font-sans); letter-spacing: -.035em; margin: 0; }
 .quick-card-result small { margin-top: 4px; color: var(--muted); font-size: 10px; }
 .quick-card-result em { margin-top: 8px; color: var(--pine-2); font-size: 9px; font-style: normal; }
 .quick-card-result b { color: var(--pine); font-size: 10px; }
+.quick-card-result-wrap { position: relative; border-bottom: 1px solid var(--line); }
+.quick-card-result-wrap .quick-card-result { padding-right: 74px; border-bottom: 0; }
+.queue-card-button { position: absolute; right: 2px; top: 50%; min-width: 62px; min-height: 40px; transform: translateY(-50%); border: 1px solid #b9cdbd; border-radius: 5px; background: #edf4e8; color: var(--pine); font-size: 9px; font-weight: 750; }
+.intake-queue-bar { position: sticky; bottom: 76px; z-index: 8; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; padding: 11px 12px; border: 1px solid #a8c2ad; border-radius: 8px; background: #173f33; color: white; box-shadow: 0 12px 30px rgba(14,43,34,.22); }
+.intake-queue-bar span,.intake-queue-bar strong { display: block; }
+.intake-queue-bar span { color: #bfd2c5; font-size: 8px; text-transform: uppercase; letter-spacing: .05em; }
+.intake-queue-bar strong { margin-top: 3px; font-size: 10px; }
+.intake-queue-bar button { min-height: 40px; padding: 0 11px; border: 0; border-radius: 5px; background: white; color: var(--pine); font-size: 9px; font-weight: 750; }
+.intake-list { display: grid; gap: 8px; }
+.intake-row { display: grid; grid-template-columns: 48px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 9px; border: 1px solid var(--line); border-radius: 7px; }
+.intake-row img { width: 48px; height: 67px; object-fit: cover; border-radius: 4px; }
+.intake-row strong,.intake-row span { display: block; }
+.intake-row span { margin-top: 4px; color: var(--muted); font-size: 8px; line-height: 1.4; }
+.intake-row-actions { display: grid; gap: 5px; }
+.intake-row-actions button { min-height: 36px; padding: 0 9px; border: 1px solid var(--line-dark); border-radius: 4px; background: white; color: var(--pine); font-size: 8px; font-weight: 700; }
+.intake-row-actions .remove { color: var(--danger); }
 .find-empty { padding: 38px 20px; text-align: center; }
 .find-empty strong, .find-empty span { display: block; }
 .find-empty strong { font: 700 14px var(--font-sans); }
@@ -347,6 +363,19 @@ body[data-workspace="pro"] .card-ledger { gap: 5px; }
 .sale-plan-output .unavailable-panel { grid-column: 1/-1; }
 .planner-record { width: 100%; min-height: 48px; margin-top: 10px; border: 0; border-radius: 6px; background: var(--pine); color: white; font-size: 10px; font-weight: 700; }
 .planner-record:disabled { background: #a7ada9; cursor: not-allowed; }
+.deal-planner { border-color: #b9d1bd; background: linear-gradient(145deg,#eef5e9,rgba(255,255,255,.45)); }
+.listing-edit-fields { padding: 12px; border: 1px solid #c7d9ca; border-radius: 7px; background: #f1f6ed; }
+.listing-edit-fields > p { margin: 9px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
+.seller-desk { margin: 0 0 16px; padding: 15px; border: 1px solid #bfd2c2; border-radius: 9px; background: linear-gradient(145deg,#edf4e8,#fff); }
+.seller-desk-head { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.seller-desk-head span,.seller-desk-head strong { display: block; }
+.seller-desk-head span,.seller-desk-grid span { color: var(--faint); font-size: 8px; text-transform: uppercase; letter-spacing: .04em; }
+.seller-desk-head strong { margin-top: 4px; font-size: 13px; }
+.seller-desk-head b { padding: 5px 7px; border-radius: 4px; background: #dfeadd; color: var(--pine); font-size: 8px; }
+.seller-desk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 12px; border: 1px solid var(--line); background: var(--line); }
+.seller-desk-grid > div { padding: 10px; background: rgba(255,255,255,.72); }
+.seller-desk-grid strong { display: block; margin-top: 4px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.seller-desk > p { margin: 10px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
 .action-center-heading { margin-top: 18px; }
 .business-review { display: grid; grid-template-columns: 1fr; gap: 9px; margin-bottom: 26px; }
 .action-center-summary,.action-center-clear,.action-center-empty { position: relative; padding: 15px; border: 1px solid #cbdccf; border-radius: 9px; background: linear-gradient(145deg,#e8f1ea,#f8f6ef); }
