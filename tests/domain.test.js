@@ -95,6 +95,37 @@ test("watchlist hydration preserves the exact raw or graded target context", () 
   assert.equal(watched.currentPrice, null);
 });
 
+test("watchlist hydration preserves an exact sealed product target", () => {
+  const watched = hydrateWatchlistEntry({
+    id: "sealed-watch",
+    card_id: null,
+    provider_card_id: "sealed:5678",
+    identity_snapshot: {
+      providerCardId: "sealed:5678",
+      name: "Crown Zenith Elite Trainer Box",
+      set: "Crown Zenith",
+      variant: "Sealed product",
+      productType: "elite_trainer_box",
+      externalIds: { pkmnpricesSealed: 5678 },
+    },
+    variant_key: "Sealed product",
+    card_state: "sealed",
+    raw_condition: null,
+    grader: null,
+    grade: null,
+    target_price: 70,
+    starting_market_price: 85,
+    currency: "USD",
+    created_at: "2026-07-20T12:00:00Z",
+    updated_at: "2026-07-20T12:00:00Z",
+  });
+  assert.equal(watched.id, "sealed:5678");
+  assert.equal(watched.cardState, "sealed");
+  assert.equal(watched.condition, "Sealed");
+  assert.equal(watched.productType, "elite_trainer_box");
+  assert.deepEqual(watched.externalIds, { pkmnpricesSealed: 5678 });
+});
+
 test("position hydration attaches FIFO basis and realized gain to each sale", () => {
   const position = hydratePosition(
     {

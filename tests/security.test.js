@@ -32,6 +32,13 @@ const sealedMigration = await readFile(
   ),
   "utf8",
 );
+const sealedWatchlistMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260720201731_support_sealed_watchlist.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -170,6 +177,19 @@ test("sealed positions reuse the invoker-owned portfolio instead of a public sid
   );
   assert.doesNotMatch(sealedMigration, /create table/i);
   assert.doesNotMatch(sealedMigration, /security definer/i);
+});
+
+test("sealed watch targets reuse the existing owner-protected watchlist", () => {
+  assert.match(
+    sealedWatchlistMigration,
+    /card_watchlist_card_state_check[\s\S]+card_state in \('raw','graded','sealed'\)/i,
+  );
+  assert.match(
+    sealedWatchlistMigration,
+    /card_state='sealed' and raw_condition is null and grader is null and grade is null/i,
+  );
+  assert.doesNotMatch(sealedWatchlistMigration, /create table/i);
+  assert.doesNotMatch(sealedWatchlistMigration, /grant |create policy/i);
 });
 
 test("scheduled price synchronization rejects unauthenticated requests before provider access", async () => {
