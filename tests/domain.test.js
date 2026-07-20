@@ -30,6 +30,7 @@ import {
   portfolioActions,
   purchaseEntryPoints,
   businessSummary,
+  liquidationPlan,
   blendedPosition,
   targetAlertChanges,
   toMinorUnits,
@@ -933,6 +934,64 @@ test("insurance documentation identifies missing ownership records", () => {
       missingPrice: 1,
     },
   );
+});
+
+test("liquidation planning separates reference value from realistic take-home", () => {
+  const result = liquidationPlan(
+    [
+      {
+        name: "Charizard",
+        set: "Base Set",
+        number: "4/102",
+        condition: "Near Mint",
+        quantity: 2,
+        price: "100.00",
+        costBasis: "120.00",
+        currency: "USD",
+      },
+      {
+        name: "Umbreon",
+        quantity: 1,
+        price: null,
+        costBasis: "50.00",
+        currency: "USD",
+      },
+      {
+        name: "Pikachu",
+        quantity: 3,
+        price: "10.00",
+        costBasis: "15.00",
+        currency: "EUR",
+      },
+    ],
+    {
+      referencePercent: 90,
+      feePercent: 10,
+      totalSellingCosts: "5.00",
+    },
+  );
+  assert.equal(result.referenceValueMinor, 20000);
+  assert.equal(result.expectedGrossMinor, 18000);
+  assert.equal(result.marketplaceFeesMinor, 1800);
+  assert.equal(result.netProceedsMinor, 15700);
+  assert.equal(result.profitMinor, 3700);
+  assert.equal(result.roiPercent, 3700 / 12000 * 100);
+  assert.equal(result.pricedUnits, 2);
+  assert.equal(result.unpricedUnits, 1);
+  assert.equal(result.skippedCurrencyUnits, 3);
+  assert.equal(result.rows.length, 1);
+});
+
+test("liquidation planning does not claim profit with incomplete basis", () => {
+  const result = liquidationPlan([
+    { name: "Known", quantity: 1, price: 25, costBasis: 10, currency: "USD" },
+    { name: "Unknown", quantity: 2, price: 5, costBasis: null, currency: "USD" },
+  ]);
+  assert.equal(result.netProceedsMinor, 3500);
+  assert.equal(result.knownCostBasisMinor, 1000);
+  assert.equal(result.unknownBasisUnits, 2);
+  assert.equal(result.profitMinor, null);
+  assert.equal(result.breakEvenReferencePercent, null);
 });
 
 test("future acquisition dates are rejected without override", () => {

@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=60">
+  <link rel="stylesheet" href="styles.css?v=61">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -87,8 +87,8 @@
         <div class="view-tabs" role="tablist" aria-label="Collection view">
           <button class="view-tab active" type="button" role="tab" aria-selected="true" data-ledger-view="all">All items <span id="allCount">0</span></button>
           <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="favorites">Favorites</button>
-          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="graded">Graded</button>
-          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="unpriced">Needs review</button>
+          <button class="view-tab advanced-workspace" type="button" role="tab" aria-selected="false" data-ledger-view="graded">Graded</button>
+          <button class="view-tab advanced-workspace" type="button" role="tab" aria-selected="false" data-ledger-view="unpriced">Needs review</button>
           <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="watchlist">Watchlist <span id="watchlistCount">0</span></button>
           <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="sets">Sets <span id="setCount">0</span></button>
         </div>
@@ -182,7 +182,8 @@
       </section>
 
       <section class="view" id="view-insights" aria-labelledby="insightsTitle">
-        <div class="screen-heading"><p class="eyebrow">Your collection</p><h1 id="insightsTitle">Market</h1><p>See what needs attention, how your inventory is performing, and where prices come from.</p></div>
+        <div class="screen-heading"><p class="eyebrow">Your collection</p><h1 id="insightsTitle">Market</h1><p id="insightsIntro">See what needs attention, how your inventory is performing, and where prices come from.</p></div>
+        <section class="workspace-lens" id="workspaceLens"><div><span>Guided workspace</span><strong>The essentials are up front</strong><small>Market value, realistic take-home, and simple next steps stay visible. Seller reporting is one tap away.</small></div><button id="workspaceExpand" type="button">Show seller tools</button></section>
         <div class="insight-feature">
           <div class="insight-kicker">Pricing status</div>
           <strong>Connecting to provider…</strong>
@@ -194,12 +195,23 @@
         <div id="moversList" class="movers-list"></div>
         <h2 class="section-heading">Portfolio positions</h2>
         <div id="positionRankings" class="movers-list"></div>
-        <section class="inventory-health-card" aria-labelledby="inventoryHealthTitle"><div class="inventory-health-head"><span>Portfolio health</span><h2 id="inventoryHealthTitle">Concentration & aging</h2><p>See where portfolio value is concentrated and how long remaining purchase lots have tied up capital.</p></div><div id="inventoryHealth"></div><p class="inventory-health-note" id="inventoryHealthNote"></p></section>
-        <section class="grading-batch-launch" aria-labelledby="batchGradingLaunchTitle"><div><span>Submission builder</span><h2 id="batchGradingLaunchTitle">Plan multiple cards together</h2><p>Share shipping and insurance across a batch, then compare expected graded value with selling raw.</p><small id="batchGradingCount">Add a raw card to begin</small></div><button id="batchGradingButton" type="button">Plan a grading batch</button></section>
-        <section class="business-report" aria-labelledby="businessReportTitle"><div class="business-report-head"><div><span>Business performance</span><h2 id="businessReportTitle">Sales & cash flow</h2><p id="businessReportPeriod">Last 90 days</p></div><div class="business-report-actions"><label for="businessRange">Period<select id="businessRange"><option value="30d">30 days</option><option value="90d" selected>90 days</option><option value="ytd">Year to date</option><option value="all">All time</option></select></label><button id="businessExport" type="button" disabled>Download CSV</button></div></div><div class="business-report-metrics" id="businessReportMetrics"></div><p class="business-report-note" id="businessReportNote"></p></section>
-        <h2 class="section-heading">Recent activity</h2>
-        <div id="recentActivity" class="movers-list"></div>
-        <div class="data-boundary"><strong>No sales history connected</strong><p>Mica does not infer completed sales from active listings. Add a licensed sales-history provider when approved.</p></div>
+        <section class="liquidation-planner" aria-labelledby="liquidationTitle">
+          <div class="liquidation-head">
+            <div><span>Exit scenario</span><h2 id="liquidationTitle">What could I actually take home?</h2><p>Turn matching market references into a realistic sale estimate. Your assumptions stay on this device and nothing is listed or sold.</p></div>
+            <button id="liquidationExport" type="button" disabled>Download scenario CSV</button>
+          </div>
+          <div class="liquidation-controls">
+            <label>Expected sale price<small>Percent of shown reference</small><div class="suffix-input"><input id="liquidationReferencePercent" type="number" inputmode="decimal" min="0" max="500" step="0.1" value="100"><span>%</span></div></label>
+            <label>Selling fee<small>Use your venue's current rate</small><div class="suffix-input"><input id="liquidationFeePercent" type="number" inputmode="decimal" min="0" max="99.9" step="0.1" value="0"><span>%</span></div></label>
+            <label>Total other selling costs<small>Shipping, supplies, travel, or insurance</small><div class="money-input"><span>$</span><input id="liquidationSellingCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></label>
+          </div>
+          <div id="liquidationOutput" class="liquidation-output" aria-live="polite"></div>
+          <p id="liquidationNote" class="liquidation-note">Starts at 100% of reference with no fee assumed. Enter the actual terms you expect; Mica does not hard-code a marketplace rate.</p>
+        </section>
+        <section class="inventory-health-card advanced-workspace" aria-labelledby="inventoryHealthTitle"><div class="inventory-health-head"><span>Portfolio health</span><h2 id="inventoryHealthTitle">Concentration & aging</h2><p>See where portfolio value is concentrated and how long remaining purchase lots have tied up capital.</p></div><div id="inventoryHealth"></div><p class="inventory-health-note" id="inventoryHealthNote"></p></section>
+        <section class="grading-batch-launch advanced-workspace" aria-labelledby="batchGradingLaunchTitle"><div><span>Submission builder</span><h2 id="batchGradingLaunchTitle">Plan multiple cards together</h2><p>Share shipping and insurance across a batch, then compare expected graded value with selling raw.</p><small id="batchGradingCount">Add a raw card to begin</small></div><button id="batchGradingButton" type="button">Plan a grading batch</button></section>
+        <section class="business-report advanced-workspace" aria-labelledby="businessReportTitle"><div class="business-report-head"><div><span>Business performance</span><h2 id="businessReportTitle">Sales & cash flow</h2><p id="businessReportPeriod">Last 90 days</p></div><div class="business-report-actions"><label for="businessRange">Period<select id="businessRange"><option value="30d">30 days</option><option value="90d" selected>90 days</option><option value="ytd">Year to date</option><option value="all">All time</option></select></label><button id="businessExport" type="button" disabled>Download CSV</button></div></div><div class="business-report-metrics" id="businessReportMetrics"></div><p class="business-report-note" id="businessReportNote"></p></section>
+        <div class="advanced-workspace"><h2 class="section-heading">Recent activity</h2><div id="recentActivity" class="movers-list"></div><div class="data-boundary"><strong>No sales history connected</strong><p>Mica does not infer completed sales from active listings. Add a licensed sales-history provider when approved.</p></div></div>
       </section>
 
       <section class="view trade-view" id="view-trade" aria-labelledby="tradeTitle">
@@ -217,6 +229,15 @@
       <section class="view" id="view-profile" aria-labelledby="profileTitle">
         <div class="screen-heading"><p class="eyebrow">Account & preferences</p><h1 id="profileTitle">Your Mica account</h1><p>Your portfolio follows you across signed-in devices.</p></div>
         <div class="profile-card"><div class="profile-avatar">ME</div><div><strong>Your collection</strong><span>Securely synced to your account</span></div><span class="plan-badge">Preview</span></div>
+        <div class="settings-group workspace-settings">
+          <h2>Workspace depth · this device</h2>
+          <div class="workspace-options" role="group" aria-label="Choose how much detail Mica shows">
+            <button type="button" data-workspace-mode="guided" aria-pressed="false"><span><strong>Guided</strong><small>Plain language and essential collection decisions</small></span><b>New collector</b></button>
+            <button type="button" data-workspace-mode="growth" aria-pressed="false"><span><strong>Growing seller</strong><small>Portfolio tools, grading, sales, and profit reporting</small></span><b>Side hustle</b></button>
+            <button type="button" data-workspace-mode="pro" aria-pressed="false"><span><strong>Pro desk</strong><small>All tools with denser inventory views for daily work</small></span><b>Full time</b></button>
+          </div>
+          <p id="workspaceModeHelp">Change this any time. Your cards and calculations never change—only the amount of detail on screen.</p>
+        </div>
         <div class="settings-group">
           <h2>Collection</h2>
           <button type="button" id="sharePortfolioButton"><span>Share a portfolio snapshot<small>Privacy-safe summary with an exact preview</small></span><b>›</b></button>
@@ -262,7 +283,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=60"></script>
-  <script type="module" src="app.js?v=60"></script>
+  <script src="app-config.js?v=61"></script>
+  <script type="module" src="app.js?v=61"></script>
 </body>
 </html>
