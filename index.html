@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f3f0e8">
+  <meta name="theme-color" content="#f4f7fb">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Mica">
@@ -11,7 +11,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=62">
+  <link rel="stylesheet" href="styles.css?v=63">
+  <link rel="stylesheet" href="themes.css?v=63">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -42,7 +43,9 @@
         <span class="wordmark-gem" aria-hidden="true"><i></i></span>
         <span>Mica</span>
       </button>
+      <div class="header-context"><strong id="headerSection">Dashboard</strong><span id="headerSubtitle">Your collection at a glance</span></div>
       <div class="header-actions">
+        <button class="theme-quick-switch" type="button" id="themeQuickSwitch" aria-label="Switch to analytics dark interface"><i aria-hidden="true"></i><span id="themeQuickLabel">Clean</span></button>
         <button class="sync-state" type="button" id="syncState" aria-label="Pricing and save status" aria-live="polite">
           <span class="sync-dot"></span><span>Preview data</span>
         </button>
@@ -233,6 +236,14 @@
       <section class="view" id="view-profile" aria-labelledby="profileTitle">
         <div class="screen-heading"><p class="eyebrow">Account & preferences</p><h1 id="profileTitle">Your Mica account</h1><p>Your portfolio follows you across signed-in devices.</p></div>
         <div class="profile-card"><div class="profile-avatar">ME</div><div><strong>Your collection</strong><span>Securely synced to your account</span></div><span class="plan-badge">Preview</span></div>
+        <div class="settings-group appearance-settings">
+          <h2>Interface style · this device</h2>
+          <div class="theme-options" role="group" aria-label="Choose Mica's interface style">
+            <button type="button" data-ui-theme-option="clean" aria-pressed="false"><span class="theme-preview clean-preview" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Clean modern</strong><small>Concept 2 · bright, spacious, and easy to scan</small></span><b>Light</b></button>
+            <button type="button" data-ui-theme-option="analytics" aria-pressed="false"><span class="theme-preview analytics-preview" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Analytics focused</strong><small>Concept 5 · dark, compact, and data forward</small></span><b>Dark</b></button>
+          </div>
+          <p id="uiThemeHelp">Change this any time. Your collection and calculations stay exactly the same.</p>
+        </div>
         <div class="settings-group workspace-settings">
           <h2>Workspace depth · this device</h2>
           <div class="workspace-options" role="group" aria-label="Choose how much detail Mica shows">
@@ -287,7 +298,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=62"></script>
-  <script type="module" src="app.js?v=62"></script>
+  <script src="app-config.js?v=63"></script>
+  <script type="module" src="app.js?v=63"></script>
 </body>
 </html>

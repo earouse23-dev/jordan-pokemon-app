@@ -65,6 +65,18 @@ const styles = await readFile(
   new URL("../styles.css", import.meta.url),
   "utf8",
 );
+const themes = await readFile(
+  new URL("../themes.css", import.meta.url),
+  "utf8",
+);
+const appShell = await readFile(
+  new URL("../index.html", import.meta.url),
+  "utf8",
+);
+const appSource = await readFile(
+  new URL("../app.js", import.meta.url),
+  "utf8",
+);
 
 test("offline runtime caching is bounded and APIs remain network-only", () => {
   assert.match(serviceWorker, /RUNTIME_LIMIT\s*=\s*80/);
@@ -99,6 +111,17 @@ test("motion preferences support device defaults and explicit reduction", () => 
     styles,
     /body\[data-motion="full"\] \.view[\s\S]+animation-duration: \.22s!important/,
   );
+});
+
+test("clean modern and analytics focused interfaces are selectable and persistent", () => {
+  assert.match(appShell, /data-ui-theme-option="clean"/);
+  assert.match(appShell, /data-ui-theme-option="analytics"/);
+  assert.match(appShell, /themes\.css\?v=63/);
+  assert.match(appSource, /localStorage\.setItem\('mica-ui-theme',theme\)/);
+  assert.match(themes, /body\[data-ui-theme="clean"\]/);
+  assert.match(themes, /body\[data-ui-theme="analytics"\]/);
+  assert.match(serviceWorker, /mica-shell-v63/);
+  assert.match(serviceWorker, /themes\.css\?v=63/);
 });
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {

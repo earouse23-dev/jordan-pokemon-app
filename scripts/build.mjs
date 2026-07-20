@@ -15,6 +15,7 @@ await mkdir(dist, { recursive: true });
 for (const item of [
   "index.html",
   "styles.css",
+  "themes.css",
   "manifest.webmanifest",
   "sw.js",
   "icons",

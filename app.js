@@ -11,9 +11,11 @@ let deferredInstallPrompt = null;
 let motionPreference='auto';
 let targetAlertsEnabled=false;
 let workspaceMode='growth';
+let uiTheme='clean';
 try{const savedMotion=localStorage.getItem('mica-motion-preference');if(['auto','reduce','full'].includes(savedMotion))motionPreference=savedMotion;}catch{}
 try{targetAlertsEnabled=localStorage.getItem('mica-target-alerts')==='on';}catch{}
 try{const savedWorkspace=localStorage.getItem('mica-workspace-mode');if(['guided','growth','pro'].includes(savedWorkspace))workspaceMode=savedWorkspace;}catch{}
+try{const savedTheme=localStorage.getItem('mica-ui-theme');if(['clean','analytics'].includes(savedTheme))uiTheme=savedTheme;}catch{}
 let catalog = [
   { id:'sv3pt5-199', name:'Charizard ex', set:'151', number:'199/165', rarity:'Special Illustration Rare', variant:'Holofoil', image:'https://images.pokemontcg.io/sv3pt5/199_hires.png', thumb:'https://images.pokemontcg.io/sv3pt5/199.png', price:null, move:null, artist:'miki kudo', release:'2023' },
   { id:'swsh7-215', name:'Umbreon VMAX', set:'Evolving Skies', number:'215/203', rarity:'Alternate Art Secret', variant:'Holofoil', image:'https://images.pokemontcg.io/swsh7/215_hires.png', thumb:'https://images.pokemontcg.io/swsh7/215.png', price:null, move:null, artist:'KEIICHIRO ITO', release:'2021' },
@@ -88,6 +90,19 @@ function applyWorkspaceMode(mode,{announce=false}={}) {
   if($('#workspaceModeHelp'))$('#workspaceModeHelp').textContent=`${copy.help} Your data and calculations do not change.`;
   if(mode==='guided'&&['graded','unpriced'].includes(state.ledgerView)){state.ledgerView='all';syncTabs();renderCollection();}
   if(announce)toast(`${copy.title} selected`);
+}
+
+function applyUiTheme(theme,{announce=false}={}) {
+  if(!['clean','analytics'].includes(theme))return;
+  uiTheme=theme;document.body.dataset.uiTheme=theme;document.documentElement.style.colorScheme=theme==='analytics'?'dark':'light';
+  try{localStorage.setItem('mica-ui-theme',theme);}catch{}
+  const dark=theme==='analytics';const label=dark?'Analytics':'Clean';
+  const meta=$('meta[name="theme-color"]');if(meta)meta.content=dark?'#0b0d0e':'#f4f7fb';
+  $$('[data-ui-theme-option]').forEach(button=>{const active=button.dataset.uiThemeOption===theme;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
+  if($('#themeQuickLabel'))$('#themeQuickLabel').textContent=label;
+  if($('#themeQuickSwitch'))$('#themeQuickSwitch').setAttribute('aria-label',dark?'Switch to clean modern interface':'Switch to analytics dark interface');
+  if($('#uiThemeHelp'))$('#uiThemeHelp').textContent=dark?'Analytics focused uses the Concept 5 dark workspace with compact data panels. Your data does not change.':'Clean modern uses the Concept 2 bright workspace with airy cards and blue actions. Your data does not change.';
+  if(announce)toast(`${dark?'Analytics focused · Concept 5':'Clean modern · Concept 2'} selected`);
 }
 
 function quoteStatus(quote) {
@@ -328,6 +343,8 @@ function routeTo(route, options={}) {
     if (active) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
   });
   $('.bottom-nav').classList.toggle('hidden', route === 'detail');
+  const headerCopy={collection:['Dashboard','Your collection at a glance'],scan:['Add items','Find exact cards and sealed products'],insights:['Market analytics','Performance, profit, and pricing signals'],trade:['Trade check','Compare both sides before you agree'],profile:['Settings','Account, workspace, and appearance'],detail:['Card details','Exact identity, evidence, and decisions']}[route]||['Mica','Your collection workspace'];
+  if($('#headerSection'))$('#headerSection').textContent=headerCopy[0];if($('#headerSubtitle'))$('#headerSubtitle').textContent=headerCopy[1];
   if (route === 'detail') renderDetail();
   window.scrollTo({top:0, behavior: options.instant ? 'auto' : 'smooth'});
   if (changed && options.focus !== false) requestAnimationFrame(()=>$('#main').focus({preventScroll:true}));
@@ -1491,6 +1508,8 @@ function bindEvents() {
   ['#liquidationReferencePercent','#liquidationFeePercent','#liquidationSellingCosts'].forEach(selector=>$(selector).addEventListener('input',renderLiquidationPlanner));
   $('#liquidationExport').addEventListener('click',downloadLiquidationScenario);
   $$('[data-workspace-mode]').forEach(button=>button.addEventListener('click',()=>applyWorkspaceMode(button.dataset.workspaceMode,{announce:true})));
+  $$('[data-ui-theme-option]').forEach(button=>button.addEventListener('click',()=>applyUiTheme(button.dataset.uiThemeOption,{announce:true})));
+  $('#themeQuickSwitch').addEventListener('click',()=>applyUiTheme(uiTheme==='clean'?'analytics':'clean',{announce:true}));
   $('#workspaceExpand').addEventListener('click',()=>applyWorkspaceMode('growth',{announce:true}));
   $('#csvInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';if(file)handleCsv(file);});
   $$('[data-info]').forEach(button=>button.addEventListener('click',()=>openInfo(button.dataset.info)));
@@ -1505,6 +1524,7 @@ function bindEvents() {
   bindQuickCardSearch();
   bindTradeUI();
   applyWorkspaceMode(workspaceMode);
+  applyUiTheme(uiTheme);
 }
 
 function validateImage(file) {
@@ -1575,5 +1595,6 @@ window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();def
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;updateInstallControl();toast('Mica installed');});
 window.matchMedia('(display-mode: standalone)').addEventListener?.('change',updateInstallControl);
 
+applyUiTheme(uiTheme);
 applyMotionPreference();
 void bootstrap();
