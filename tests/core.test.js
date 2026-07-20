@@ -212,6 +212,31 @@ test("CSV backup preserves exact total acquisition cost instead of multiplying a
   assert.equal(parsed.records[0].cost, 66.67);
   assert.equal(parsed.records[0].totalAcquisitionCost, 200.01);
 });
+test("CSV backup round-trips sealed products without reclassifying them as raw", () => {
+  const source = [
+    {
+      id: "sealed:5678",
+      name: "Crown Zenith Elite Trainer Box",
+      set: "Crown Zenith",
+      language: "en",
+      variant: "Sealed",
+      cardState: "sealed",
+      productType: "elite_trainer_box",
+      condition: "Sealed",
+      quantity: 2,
+      cost: 80,
+      costBasis: 160,
+      tags: [],
+    },
+  ];
+  const parsed = parseCollectionCsv(collectionToCsv(source));
+  assert.equal(parsed.errors.length, 0);
+  assert.equal(parsed.records[0].id, "sealed:5678");
+  assert.equal(parsed.records[0].cardState, "sealed");
+  assert.equal(parsed.records[0].productType, "elite_trainer_box");
+  assert.equal(parsed.records[0].rawCondition, undefined);
+  assert.equal(parsed.records[0].gradingCompany, "");
+});
 test("complete account backup includes private ledger, lots, and watchlist without auth secrets", () => {
   const json = accountBackupJson({
     accountEmail: "collector@example.com",

@@ -90,6 +90,7 @@ function renderQuoteRow(quote, label) {
 }
 
 function renderGradedPriceLadder(item) {
+  if(item.cardState==='sealed')return '';
   const rows=gradedPriceLadder(item.quotes,item.variant,'USD');const ownedGrade=item.gradingCompany?`${String(item.gradingCompany).toUpperCase()}:${item.grade}`:'';
   const content=rows.length?`<div class="grade-ladder">${rows.map(row=>`<div class="grade-ladder-row${ownedGrade===`${row.grader}:${row.grade}`?' current':''}"><div><strong>${esc(row.grader)} ${esc(row.grade)}</strong><span>${esc(row.priceType)} · ${esc(row.provider)}${row.observedAt?` · ${esc(String(row.observedAt).slice(0,10))}`:''}</span></div><b>${money(row.amount,row.currency)}</b></div>`).join('')}</div>`:`<div class="pro-data-empty"><strong>Ready for graded pricing</strong><p>When PkmnPrices returns matching graded quotes, PSA, BGS, and CGC grades will appear here automatically. Mica will never substitute a different printing or invent a grade value.</p></div>`;
   return `<section class="detail-section"><div class="detail-section-head"><h2>Graded value ladder</h2><span>${rows.length?`${rows.length} exact grade reference${rows.length===1?'':'s'}`:'PkmnPrices-ready'}</span></div>${content}</section>`;
@@ -102,6 +103,7 @@ function renderCardMetadata(item) {
 }
 
 function renderMarketplaceOffers(item) {
+  if(item.cardState==='sealed')return '';
   const offers=item.offers||[];const statuses=item.offerStatuses||{};
   const statusCopy=marketplace=>statuses[marketplace]==='plan_required'?'Current key lacks access':statuses[marketplace]==='rate_limited'?'Rate limited':statuses[marketplace]==='unavailable'?'Unavailable':'No matching asks';
   const groups=['tcgplayer','cardmarket'].map(marketplace=>{
@@ -140,7 +142,8 @@ function renderHistory(item) {
 function renderEntryPoints(item,currentPrice=item.price) {
   const entries=purchaseEntryPoints(item.transactions||[],currentPrice);if(!entries.length)return '';
   const currency=item.currency||'USD';const current=currentPrice===null||currentPrice===undefined?null:Number(currentPrice);
-  return `<section class="entry-points" aria-label="Your purchase entry points"><div class="entry-points-head"><div><span>Your entry points</span><strong>${entries.length} purchase${entries.length===1?'':'s'} recorded</strong></div><div><span>Current exact reference</span><strong>${current===null?'Unavailable':`${money(current,currency)} each`}</strong></div></div><div class="entry-point-list">${entries.map(entry=>`<div class="entry-point-row"><div><strong>${esc(entry.date||'Date not recorded')}</strong><span>${entry.quantity} card${entry.quantity===1?'':'s'} · ${money(entry.totalCostMinor/100,currency)} total</span></div><div><span>Entry · each</span><strong>${money(entry.unitCostMinor/100,currency)}</strong></div><div><span>Change · each</span><strong>${entry.changeMinor===null?'Unavailable':`${entry.changeMinor>=0?'+':''}${money(entry.changeMinor/100,currency)}`}</strong><small>${entry.returnPercent===null?'':`${entry.returnPercent>=0?'+':''}${entry.returnPercent.toFixed(1)}%`}</small></div></div>`).join('')}</div></section>`;
+  const noun=item.cardState==='sealed'?'product':'card';
+  return `<section class="entry-points" aria-label="Your purchase entry points"><div class="entry-points-head"><div><span>Your entry points</span><strong>${entries.length} purchase${entries.length===1?'':'s'} recorded</strong></div><div><span>Current exact reference</span><strong>${current===null?'Unavailable':`${money(current,currency)} each`}</strong></div></div><div class="entry-point-list">${entries.map(entry=>`<div class="entry-point-row"><div><strong>${esc(entry.date||'Date not recorded')}</strong><span>${entry.quantity} ${noun}${entry.quantity===1?'':'s'} · ${money(entry.totalCostMinor/100,currency)} total</span></div><div><span>Entry · each</span><strong>${money(entry.unitCostMinor/100,currency)}</strong></div><div><span>Change · each</span><strong>${entry.changeMinor===null?'Unavailable':`${entry.changeMinor>=0?'+':''}${money(entry.changeMinor/100,currency)}`}</strong><small>${entry.returnPercent===null?'':`${entry.returnPercent>=0?'+':''}${entry.returnPercent.toFixed(1)}%`}</small></div></div>`).join('')}</div></section>`;
 }
 
 function renderInteractiveHistory(item,currentPrice=item.price) {
@@ -166,7 +169,7 @@ async function mountPriceChart(item) {
   if(purchases.length)datasets.push({label:'Your entry points',type:'scatter',data:purchases.map(transaction=>({x:transaction.date,y:transaction.quantity?transaction.totalCost/transaction.quantity:transaction.unitPrice,transaction})),pointRadius:7,pointStyle:'triangle',backgroundColor:'#b14e43',borderColor:'#fff',borderWidth:1});
   if(item.costBasis&&item.quantity){const labels=[...new Set([...history.map(point=>point.recordedAt.slice(0,10)),...purchases.map(point=>point.date)])].sort();datasets.push({label:'Remaining cost basis / card',data:labels.map(date=>({x:date,y:item.costBasis/item.quantity})),borderColor:'#7a746a',borderDash:[5,5],pointRadius:0,borderWidth:1});}
   const {default:Chart}=await import('chart.js/auto');if(version!==chartMountVersion||!canvas.isConnected)return;
-  chartInstance=new Chart(canvas,{type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,parsing:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label(context){const transaction=context.raw?.transaction;if(transaction)return `Bought ${transaction.date}: ${money(transaction.totalCost,transaction.currency)} total · ${transaction.quantity} card${transaction.quantity===1?'':'s'}`;const point=context.raw?.point;const lines=[`${context.dataset.label}: ${money(context.parsed.y,item.currency||'USD')}`];if(point?.low&&point?.high)lines.push(`Range ${money(point.low,point.currency)}–${money(point.high,point.currency)}`);const count=Number(point?.saleCount)||Number(point?.quality?.saleCount)||0;if(count)lines.push(`${count} reported sale${count===1?'':'s'}`);return lines;}}}},scales:{x:{type:'category',grid:{display:false},ticks:{maxTicksLimit:6}},y:{ticks:{callback:value=>money(value,item.currency||'USD')},grid:{color:'rgba(60,70,65,.08)'}}}}});
+  chartInstance=new Chart(canvas,{type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,parsing:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label(context){const transaction=context.raw?.transaction;if(transaction){const noun=item.cardState==='sealed'?'product':'card';return `Bought ${transaction.date}: ${money(transaction.totalCost,transaction.currency)} total · ${transaction.quantity} ${noun}${transaction.quantity===1?'':'s'}`;}const point=context.raw?.point;const lines=[`${context.dataset.label}: ${money(context.parsed.y,item.currency||'USD')}`];if(point?.low&&point?.high)lines.push(`Range ${money(point.low,point.currency)}–${money(point.high,point.currency)}`);const count=Number(point?.saleCount)||Number(point?.quality?.saleCount)||0;if(count)lines.push(`${count} reported sale${count===1?'':'s'}`);return lines;}}}},scales:{x:{type:'category',grid:{display:false},ticks:{maxTicksLimit:6}},y:{ticks:{callback:value=>money(value,item.currency||'USD')},grid:{color:'rgba(60,70,65,.08)'}}}}});
   $$('[data-chart-range]').forEach(button=>button.addEventListener('click',()=>{state.chartRange=button.dataset.chartRange;renderDetail();}));
 }
 
@@ -239,7 +242,7 @@ function bindGradingEstimator(item) {
 
 function openBatchGradingPlanner() {
   if(!requireAccountData())return;
-  const rawItems=state.items.filter(item=>!item.gradingCompany&&Number(item.quantity)>0);
+  const rawItems=state.items.filter(item=>item.cardState!=='sealed'&&!item.gradingCompany&&Number(item.quantity)>0);
   if(!rawItems.length){openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Batch grading planner</h2><p>Build one submission from raw cards you already own.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="find-empty"><strong>No raw cards in your library</strong><span>Add a raw card first, then Mica can compare a grading batch with selling those cards raw.</span></div><div class="sheet-actions"><button class="primary" id="batchAddRawCard" type="button">Add a raw card</button></div>`);$('#batchAddRawCard').addEventListener('click',()=>{closeSheet({discardHistory:true});routeTo('scan');});return;}
   const initialGrader='PSA';const initialGrade='10';
   const preselected=new Set(rawItems.map((item,index)=>item.price!=null&&gradingQuote(item,initialGrader,initialGrade)?index:null).filter(index=>index!==null));if(!preselected.size)preselected.add(0);
@@ -372,7 +375,7 @@ function setIdFor(item) {
 
 function collectionSetGroups() {
   const groups=new Map();
-  for(const item of state.items.filter(item=>Number(item.quantity)>0)){
+  for(const item of state.items.filter(item=>item.cardState!=='sealed'&&Number(item.quantity)>0)){
     const language=item.language||'en';const setId=setIdFor(item);const key=`${language}:${setId||normalizeIdentity(item.set)}`;
     if(!groups.has(key))groups.set(key,{key,setId,language,name:item.set||'Unknown set',items:[]});
     groups.get(key).items.push(item);
@@ -453,17 +456,18 @@ function renderCollection() {
   const totals = calculateTotals(state.items);
   const gain = totals.comparableValue - totals.comparableCost;
   const realized = state.items.reduce((sum,item)=>sum+Number(item.realizedGain||0),0);
-  const rawCount = state.items.filter(item=>!item.gradingCompany).reduce((sum,item)=>sum+Number(item.quantity||0),0);
+  const rawCount = state.items.filter(item=>item.cardState!=='sealed'&&!item.gradingCompany).reduce((sum,item)=>sum+Number(item.quantity||0),0);
   const gradedCount = state.items.filter(item=>item.gradingCompany).reduce((sum,item)=>sum+Number(item.quantity||0),0);
+  const sealedCount=state.items.filter(item=>item.cardState==='sealed').reduce((sum,item)=>sum+Number(item.quantity||0),0);
   const portfolioReturn = totals.comparableCost > 0 ? gain / totals.comparableCost * 100 : null;
   $('#portfolioValue').textContent = money(totals.value);
   $('#costBasis').textContent = totals.costKnown ? money(totals.cost) : '—';
   $('#unrealized').textContent = totals.gainCoverage ? `${gain >= 0 ? '+' : ''}${money(gain)}` : '—';
   $('#gainLabel').textContent = totals.gainCoverage === totals.quantity ? 'Gain / loss' : 'Known gain / loss';
-  $('#ownedCount').textContent = `${totals.quantity} card${totals.quantity === 1 ? '' : 's'}`;
+  $('#ownedCount').textContent = `${totals.quantity} item${totals.quantity === 1 ? '' : 's'}`;
   $('#portfolioReturn').textContent = portfolioReturn===null?'—':`${portfolioReturn>=0?'+':''}${portfolioReturn.toFixed(1)}%`;
   $('#realizedGain').textContent = `${realized>=0?'+':''}${money(realized)}`;
-  $('#allocationSummary').textContent = `${rawCount} / ${gradedCount}`;
+  $('#allocationSummary').textContent = `${rawCount} / ${gradedCount} / ${sealedCount}`;
   $('#freshCoverage').textContent = `${totals.priced} of ${totals.quantity}`;
   const partial = totals.unpriced ? ` · ${totals.unpriced} unpriced card${totals.unpriced === 1 ? '' : 's'} excluded` : '';
   const costCoverage = totals.unknownCost ? ` · ${totals.unknownCost} missing purchase cost` : '';
@@ -501,11 +505,12 @@ function renderCollection() {
   if (state.ledgerView === 'unpriced') visible = visible.filter(item => item.price == null);
   if (state.setFilter) visible = visible.filter(item => item.set === state.setFilter);
   if (state.labelFilter) visible = visible.filter(item => (item.tags||[]).some(tag=>String(tag).toLowerCase()===state.labelFilter.toLowerCase()));
-  if (state.conditionFilter === 'Raw') visible = visible.filter(item => !item.gradingCompany && item.condition !== 'Graded');
+  if (state.conditionFilter === 'Raw') visible = visible.filter(item => item.cardState!=='sealed'&&!item.gradingCompany && item.condition !== 'Graded');
   else if (state.conditionFilter === 'Graded') visible = visible.filter(item => item.gradingCompany || item.condition === 'Graded');
+  else if(state.conditionFilter==='Sealed')visible=visible.filter(item=>item.cardState==='sealed');
   else if (state.conditionFilter) visible = visible.filter(item => item.condition === state.conditionFilter);
   visible.sort((a,b) => state.sort === 'value-desc' ? (itemValue(b) ?? -1) - (itemValue(a) ?? -1) : a.name.localeCompare(b.name));
-  $('#resultCount').textContent = `${visible.length} card${visible.length === 1 ? '' : 's'}`;
+  $('#resultCount').textContent = `${visible.length} item${visible.length === 1 ? '' : 's'}`;
   $('#sortButton').firstChild.textContent = state.sort === 'value-desc' ? 'Value, high to low ' : 'Name, A to Z ';
   $('#cardLedger').innerHTML = visible.map(item => {
     const total = itemValue(item);
@@ -514,7 +519,7 @@ function renderCollection() {
     const movementLabel = item.pricingStatus === 'live' || item.price == null || !hasMovement
       ? priceStatusText(item)
       : `${item.move >= 0 ? '↑' : '↓'} ${Math.abs(item.move).toFixed(1)}% preview`;
-    const tags = [item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition, ...(item.tags || []).slice(0,1)];
+    const tags = [item.cardState==='sealed'?'Sealed':item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition, ...(item.tags || []).slice(0,1)];
     return `<article class="ledger-row" tabindex="0" role="button" aria-label="Open ${esc(item.name)}, ${total == null ? 'price unavailable' : money(total)}" data-id="${esc(item.uid)}">
       <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity)||0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span>${item.location?`<span class="card-location" title="Storage location">${esc(item.location)}</span>`:''}<div class="card-tags">${tags.map((tag,i)=>`<span class="micro-tag ${i===0&&item.gradingCompany?'graded':''} ${item.price==null?'warn':''}">${esc(tag)}</span>`).join('')}</div></div>
@@ -545,7 +550,12 @@ function openCardDetail(card, preferOwned=false) {
   state.detailId = owned?.uid || card.id;
   state.detailCard = owned || card;
   routeTo('detail');
-  if (owned) void loadOwnedDetailPricing(owned); else void loadCardPreviewPricing(card);
+  if((owned||card).cardState==='sealed')void loadSealedDetailPricing(owned||card);else if (owned) void loadOwnedDetailPricing(owned); else void loadCardPreviewPricing(card);
+}
+
+async function loadSealedDetailPricing(item){
+  const id=item.externalIds?.pkmnpricesSealed||String(item.id||'').replace(/^sealed:/,'');if(!/^\d{1,12}$/.test(String(id)))return;
+  try{const response=await fetch(`/api/sealed?id=${encodeURIComponent(id)}`,{headers:{Accept:'application/json'}});if(!response.ok)return;const payload=await response.json();const product=payload.product;if(!product)return;const quote=selectReferenceQuote(product.quotes,'Sealed product',item.currency||'USD',{});const updated={...item,...product,uid:item.uid,quantity:item.quantity,costBasis:item.costBasis,cost:item.cost,currency:item.currency||'USD',transactions:item.transactions,lots:item.lots,location:item.location,notes:item.notes,tags:item.tags,status:item.status,price:quote?.amount??null,pricingStatus:quote?quoteStatus(quote):'unavailable',pricingUpdatedAt:quote?.observedAt||quote?.retrievedAt?.slice?.(0,10)||null};if(item.uid)state.items=state.items.map(candidate=>candidate.uid===item.uid?updated:candidate);if(state.detailId===item.uid||state.detailId===item.id)state.detailCard=updated;renderCollection();if(state.route==='detail')renderDetail();}catch{}
 }
 
 async function loadCardPreviewPricing(card) {
@@ -589,8 +599,9 @@ function plannedSaleBasis(item,quantity) {
 
 function renderSalePlanner(item,displayPrice) {
   if(!item)return '';
+  const noun=item.cardState==='sealed'?'Products':'Cards';
   return `<section class="detail-section sale-planner" aria-labelledby="salePlannerTitle"><div class="detail-section-head"><h2 id="salePlannerTitle">Plan a sale</h2><span>Preview before recording</span></div><p class="planner-intro">See what you could keep after fees and costs. Nothing is saved until you choose Record this sale.</p><div class="sale-planner-inputs">
-    <div class="field"><label for="planSaleQuantity">Cards to sell</label><input id="planSaleQuantity" type="number" inputmode="numeric" min="1" max="${item.quantity}" step="1" value="1"></div>
+    <div class="field"><label for="planSaleQuantity">${noun} to sell</label><input id="planSaleQuantity" type="number" inputmode="numeric" min="1" max="${item.quantity}" step="1" value="1"></div>
     <div class="field"><label for="planSalePrice">Expected price · each</label><div class="money-input"><span>$</span><input id="planSalePrice" type="number" inputmode="decimal" min="0" step="0.01" value="${displayPrice==null?'':Number(displayPrice).toFixed(2)}" placeholder="0.00"></div></div>
     <div class="field"><label for="planFeePercent">Marketplace fee %</label><input id="planFeePercent" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="0" placeholder="Enter current venue fee"></div>
     <div class="field"><label for="planShipping">Shipping you pay</label><div class="money-input"><span>$</span><input id="planShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
@@ -633,8 +644,9 @@ function renderDetail() {
   const owned = state.items.find(candidate => candidate.uid === state.detailId) || null;
   const item = owned || state.detailCard || catalog.find(candidate => candidate.id === state.detailId);
   if (!item) return routeTo('scan');
+  const sealed=item.cardState==='sealed'||Boolean(item.productType);
   const watched = matchingWatchEntry(item);
-  const conditionContext = owned || watched || { condition:'Near Mint', gradingCompany:'', grade:'' };
+  const conditionContext = sealed ? {} : owned || watched || { condition:'Near Mint', gradingCompany:'', grade:'' };
   const tcgQuote = selectReferenceQuote(item.quotes, item.variant, 'USD', conditionContext);
   const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
   const pricingStatus = item.pricingStatus || (state.pricingStatus === 'error' ? 'error' : item.price != null ? 'preview' : 'loading');
@@ -651,14 +663,15 @@ function renderDetail() {
           : pricingStatus === 'rate_limited' ? 'Provider rate limit reached · retry shortly'
           : pricingStatus === 'unavailable' ? 'No exact-printing quote available' : 'Checking this exact printing';
   const sourceRows = ['live','stale'].includes(pricingStatus)
-    ? `${renderQuoteRow(tcgQuote, tcgQuote?.provider === 'justtcg' ? 'JustTCG market' : 'TCGplayer market')}${renderQuoteRow(cardmarketQuote, 'Cardmarket')}`
+    ? `${renderQuoteRow(tcgQuote, sealed?'TCGplayer sealed market':tcgQuote?.provider === 'justtcg' ? 'JustTCG market' : 'TCGplayer market')}${renderQuoteRow(cardmarketQuote, sealed?'Cardmarket sealed market':'Cardmarket')}`
     : pricingStatus === 'preview' || (pricingStatus === 'error' && previewPrice != null)
       ? `<div class="price-source"><div><strong>Preview fixture</strong><span>${esc(item.variant || 'Printing unknown')} · USD</span><span>${pricingStatus === 'error' ? 'The live provider could not be reached.' : 'Live refresh has not completed.'}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo data · not live</small></div></div>`
       : `<div class="unavailable-panel">${pricingStatus === 'unavailable' ? 'No matching market price is available for this printing, finish, and condition yet. Mica did not substitute another card.' : pricingStatus === 'rate_limited' ? 'The pricing provider asked Mica to slow down. No value is being guessed.' : pricingStatus === 'error' ? 'The pricing provider could not be reached. No value is being guessed.' : 'Loading the latest matching market price…'}${['error','rate_limited'].includes(pricingStatus)?'<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>':''}</div>`;
   const backLabel = ({collection:'My library',insights:'Market',trade:'Trade check',profile:'Profile'})[state.detailReturnRoute] || 'Find cards';
   const ownedSection = owned ? `<section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location || 'Location not set')}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>${item.purchaseDate ? `Bought ${esc(item.purchaseDate)}` : 'Purchase date not added'}${item.cost!==null&&item.cost!==undefined ? ` · ${money(item.cost)} each` : ' · Cost not recorded'}</span></div><b>×${item.quantity}</b></div>${item.notes?`<div class="unavailable-panel">${esc(item.notes)}</div>`:''}<button class="record-remove" id="removeCopyButton" type="button">Remove this owned record</button></section>` : '';
   const performance=owned?positionPerformance({quantityOwned:item.quantity,remainingCostBasisMinor:Math.round(Number(item.costBasis||0)*100),currentUnitPrice:displayPrice,netSaleProceedsMinor:Math.round(Number(item.netSaleProceeds||0)*100),allocatedSoldCostMinor:Math.round(Number(item.allocatedSoldCost||0)*100)}):null;
-  const positionSection=owned?`<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>${item.lots?.length||0} purchase lot${item.lots?.length===1?'':'s'} · FIFO cost basis</span></div><div class="position-summary"><div><span>Total acquisition cost</span><strong>${money(item.costBasis,item.currency)}</strong></div><div><span>Value today</span><strong>${performance.currentValueMinor===null?'Unavailable':money(performance.currentValueMinor/100,item.currency)}</strong></div><div><span>Gain / loss today</span><strong>${performance.unrealizedGainMinor===null?'Unavailable':money(performance.unrealizedGainMinor/100,item.currency)}</strong></div><div><span>Return since purchase</span><strong>${performance.returnPercent===null?'Unavailable':`${performance.returnPercent>=0?'+':''}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>First purchased</span><strong>${esc(item.purchaseDate||'Not recorded')}</strong></div><div><span>Valuation source</span><strong>${esc(tcgQuote?.provider||'Unavailable')}</strong></div></div><div class="transaction-list">${(item.transactions||[]).map(transaction=>`<div class="transaction-row"><div><strong>${transaction.type==='purchase'?'Purchased':'Sold'} ${transaction.date}</strong><span>${transaction.type==='purchase'?`${transaction.quantity} card${transaction.quantity===1?'':'s'} · total acquisition`: `${transaction.quantity} at ${money(transaction.unitPrice,transaction.currency)}`} ${transaction.marketplace?`· ${esc(transaction.marketplace)}`:''}</span></div><b>${transaction.type==='purchase'?money(transaction.totalCost,transaction.currency):money(transaction.netProceeds,transaction.currency)}</b></div>`).join('')}</div><div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button">Add another purchase</button><button class="secondary" id="recordSaleButton" type="button">Record sale</button></div><button class="position-new-state" id="addDifferentPositionButton" type="button">Add this card with a different condition or grade</button></section>`:'';
+  const unitNoun=sealed?'product':'card';
+  const positionSection=owned?`<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>${item.lots?.length||0} purchase lot${item.lots?.length===1?'':'s'} · FIFO cost basis</span></div><div class="position-summary"><div><span>Total acquisition cost</span><strong>${money(item.costBasis,item.currency)}</strong></div><div><span>Value today</span><strong>${performance.currentValueMinor===null?'Unavailable':money(performance.currentValueMinor/100,item.currency)}</strong></div><div><span>Gain / loss today</span><strong>${performance.unrealizedGainMinor===null?'Unavailable':money(performance.unrealizedGainMinor/100,item.currency)}</strong></div><div><span>Return since purchase</span><strong>${performance.returnPercent===null?'Unavailable':`${performance.returnPercent>=0?'+':''}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>First purchased</span><strong>${esc(item.purchaseDate||'Not recorded')}</strong></div><div><span>Valuation source</span><strong>${esc(tcgQuote?.provider||'Unavailable')}</strong></div></div><div class="transaction-list">${(item.transactions||[]).map(transaction=>`<div class="transaction-row"><div><strong>${transaction.type==='purchase'?'Purchased':'Sold'} ${transaction.date}</strong><span>${transaction.type==='purchase'?`${transaction.quantity} ${unitNoun}${transaction.quantity===1?'':'s'} · total acquisition`: `${transaction.quantity} at ${money(transaction.unitPrice,transaction.currency)}`} ${transaction.marketplace?`· ${esc(transaction.marketplace)}`:''}</span></div><b>${transaction.type==='purchase'?money(transaction.totalCost,transaction.currency):money(transaction.netProceeds,transaction.currency)}</b></div>`).join('')}</div><div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button">Add another purchase</button><button class="secondary" id="recordSaleButton" type="button">Record sale</button></div><button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed?'Add as a separate sealed position':'Add this card with a different condition or grade'}</button></section>`:'';
   const favorite=owned&&(item.tags||[]).some(tag=>String(tag).toLowerCase()==='favorites');
   const action = owned
     ? `<div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${displayPrice==null?'Price unavailable':`${money(displayPrice)} each`}</strong></div><div class="owned-actions"><button id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}">${favorite?'Favorited':'Favorite'}</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>`
@@ -667,8 +680,10 @@ function renderDetail() {
   const watchedMovement=watchedPerformance?` · ${watchedPerformance.changeMinor>=0?'+':'−'}${money(Math.abs(watchedPerformance.changeMinor)/100,watched.currency)} (${watchedPerformance.changePercent>=0?'+':''}${watchedPerformance.changePercent.toFixed(1)}%) since watch`:'';
   const watchedSection=watched&&!owned?`<section class="watch-banner"><div><span>On your watchlist · ${esc(watchContextLabel(watched))}</span><strong>${watched.targetPrice===null?'No buy target set':`Buy at ${money(watched.targetPrice,watched.currency)}`}</strong><small>${watched.currentPrice===null?'Current exact price unavailable':`Current exact reference ${money(watched.currentPrice,watched.currency)}${esc(watchedMovement)}`}</small></div><button id="editWatchButton" type="button">Edit target</button></section>`:'';
   const matchDetails = !owned && item.match?.reasons?.length ? `<section class="match-explanation" aria-label="Why this card matched"><strong>${esc(item.match.confidence || 'Possible match')}</strong><span>${esc(item.match.reasons.join(' · '))}</span><small>TCGdex ID ${esc(item.externalIds?.tcgdex || item.id)}</small></section>` : '';
+  const productType=String(item.productType||'sealed product').replaceAll('_',' ').replace(/\b\w/g,letter=>letter.toUpperCase());
+  const detailMeta=sealed?`<div><span>Type</span><strong>${esc(productType)}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Provider ID</span><strong>${esc(item.externalIds?.pkmnpricesSealed||'—')}</strong></div><div><span>Package state</span><strong>Sealed</strong></div>`:`<div><span>Printing</span><strong>${esc(item.variant || 'Unknown')}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Released</span><strong>${esc(item.release || '—')}</strong></div><div><span>Artist</span><strong>${esc(item.artist || '—')}</strong></div>`;
   $('#detailContent').innerHTML = `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><img src="${esc(item.image || item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity || 'Pokémon card')}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant || 'Unknown')}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Released</span><strong>${esc(item.release || '—')}</strong></div><div><span>Artist</span><strong>${esc(item.artist || '—')}</strong></div></div></div></div>
+    <div class="detail-identity"><img src="${esc(item.image || item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(sealed?'Sealed product':item.rarity || 'Pokémon card')}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)}${item.number?` · ${esc(item.number)}`:''}</p><div class="detail-meta">${detailMeta}</div></div></div>
     ${matchDetails}
     <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? pricingStatus === 'loading' ? 'Checking…' : 'Price unavailable' : money(displayPrice)}</strong><small>${statusCopy}</small></section>
     ${watchedSection}
@@ -677,13 +692,13 @@ function renderDetail() {
     ${renderMarketplaceOffers(item)}
     ${renderGradedPriceLadder(item)}
     ${renderCardMetadata(item)}
-    ${renderGradingEstimator(item)}
+    ${sealed?'':renderGradingEstimator(item)}
     ${owned?renderSalePlanner(item,displayPrice):''}
     <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderInteractiveHistory(item,displayPrice)}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === 'live' ? 'Completed listings' : 'Verified links when available'}</span></div>${renderSales(item)}</section>
+    ${sealed?'<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>Not supplied for sealed products</span></div><div class="unavailable-panel">PkmnPrices currently exposes a sealed market reference, but its documented sold-listing endpoint is card-specific. Mica does not substitute card sales or active asks.</div></section>':`<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === 'live' ? 'Completed listings' : 'Verified links when available'}</span></div>${renderSales(item)}</section>`}
     ${positionSection}
     ${ownedSection}
-    <p class="legal-copy">Prices are market references, not guaranteed sale values. Condition can materially change what a card is worth.</p>`;
+    <p class="legal-copy">Prices are market references, not guaranteed sale values. ${sealed?'Packaging and seal condition':'Card condition'} can materially change realized value.</p>`;
   $('#detailBack').addEventListener('click', () => state.detailCanPop ? history.back() : routeTo(state.detailReturnRoute || (owned ? 'collection' : 'scan')));
   $('#editCopyButton')?.addEventListener('click', () => openPositionEditSheet(item));
   $('#duplicateCopyButton')?.addEventListener('click', () => openPurchaseLotSheet(item));
@@ -698,16 +713,29 @@ function renderDetail() {
   $('#retryPricingButton')?.addEventListener('click',()=>{if(owned)void refreshLivePricing();else{state.detailCard={...item,pricingStatus:'loading',price:null};renderDetail();void loadCardPreviewPricing(item);}});
   $('#retrySalesButton')?.addEventListener('click',()=>void loadSales(item,true));
   $('#retryOffersButton')?.addEventListener('click',()=>void loadOffers(item,true));
-  bindGradingEstimator(item);
+  if(!sealed)bindGradingEstimator(item);
   bindSalePlanner(owned);
   mountPriceChart(item);
-  void loadSales(item);
-  void loadOffers(item);
+  if(!sealed){void loadSales(item);void loadOffers(item);}
 }
 
 function identitySnapshot(card, variant) {
   return {providerCardId:card.id,name:card.name,set:card.set,setId:card.setId||null,number:card.number,language:card.language||'en',rarity:card.rarity||null,variant,
-    release:card.release||null,artist:card.artist||null,image:card.image||card.thumb||null,thumb:card.thumb||card.image||null,externalIds:card.externalIds||{tcgdex:card.id}};
+    release:card.release||null,artist:card.artist||null,image:card.image||card.thumb||null,thumb:card.thumb||card.image||null,productType:card.productType||null,cardState:card.cardState||null,externalIds:card.externalIds||{tcgdex:card.id}};
+}
+
+function openSealedSearch() {
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Find sealed products</h2><p>Search official PkmnPrices product records.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search sealed products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option></select></div></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search sealed inventory</strong><span>Try a set name plus booster box, ETB, tin, bundle, or collection.</span></div></div><p class="legal-copy">Product records and current prices come from PkmnPrices. Confirm the exact product and language before adding it.</p>`);
+  const input=$('#sealedQuery');const language=$('#sealedLanguage');const results=$('#sealedResults');let timer;let requestId=0;let products=[];
+  const search=async()=>{const query=input.value.trim();const current=++requestId;if(query.length<2){results.innerHTML='<div class="find-empty"><strong>Search sealed inventory</strong><span>Type at least two characters.</span></div>';return;}results.innerHTML='<div class="searching-cards"><i></i><span>Finding sealed products…</span></div>';try{const response=await fetch(`/api/sealed?q=${encodeURIComponent(query)}&language=${encodeURIComponent(language.value)}`,{headers:{Accept:'application/json'}});const payload=await response.json().catch(()=>({}));if(current!==requestId)return;if(response.status===403){results.innerHTML='<div class="pro-data-empty"><strong>Sealed housing is ready</strong><p>The current PkmnPrices key cannot search sealed products. After the plan upgrade, results will appear here without another app change.</p></div>';return;}if(!response.ok)throw new Error(payload.error||'Search unavailable');products=payload.products||[];results.innerHTML=products.length?products.map(product=>`<button class="quick-card-result" type="button" data-sealed-id="${esc(product.externalIds?.pkmnpricesSealed)}"><img src="${esc(product.thumb||'./icons/icon.svg')}" alt="${esc(product.name)}"><span><strong>${esc(product.name)}</strong><small>${esc(product.set)}</small><em>${esc(languageName(product.language))} · Sealed product</em></span><b>View</b></button>`).join(''):'<div class="find-empty"><strong>No sealed matches</strong><span>Try the set name or a simpler product description.</span></div>';$$('[data-sealed-id]',results).forEach(button=>button.addEventListener('click',async()=>{button.disabled=true;button.querySelector('b').textContent='Opening…';try{const response=await fetch(`/api/sealed?id=${encodeURIComponent(button.dataset.sealedId)}`,{headers:{Accept:'application/json'}});const payload=await response.json();if(!response.ok||!payload.product)throw new Error(payload.error||'Product unavailable');const product=payload.product;const quote=selectReferenceQuote(product.quotes,product.variant,'USD',{});const detailed={...product,price:quote?.amount??null,pricingStatus:quote?quoteStatus(quote):'unavailable',pricingUpdatedAt:quote?.observedAt||quote?.retrievedAt?.slice?.(0,10)||null};closeSheet({discardHistory:true});openCardDetail(detailed);}catch(error){button.disabled=false;button.querySelector('b').textContent='Retry';toast(error.message||'This product could not be opened');}}));}catch(error){if(current===requestId)results.innerHTML=`<div class="unavailable-panel">${esc(error.message||'Sealed search is temporarily unavailable.')}</div>`;}};
+  const schedule=()=>{clearTimeout(timer);timer=setTimeout(search,250);};input.addEventListener('input',schedule);language.addEventListener('change',search);input.focus();
+}
+
+function openSealedPositionSheet(product) {
+  const today=new Date().toISOString().slice(0,10);
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add sealed product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">When did you buy it?</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required></div><div class="field full acquisition-field"><label for="sealedTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>One total: everything paid to acquire this purchase.</small></div><div class="field full"><label for="sealedLocation">Storage location <span class="optional-label">Optional</span></label><input id="sealedLocation" name="location" maxlength="250" placeholder="Closet shelf · Bin 2"></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Case condition, seal notes, source…"></textarea></div><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><div class="sheet-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="primary" type="submit">Add to library</button></div></form>`);
+  const form=$('#sealedPositionForm');const values=()=>Object.fromEntries(new FormData(form).entries());const update=()=>{const input=values();const breakdown=acquisitionFromTotal(input.totalAcquisitionCost,input.quantity);const count=Number(input.quantity)||0;$('#sealedPositionTotal').textContent=breakdown===null?'Enter an amount':money(breakdown.totalMinor/100);$('#sealedCostSummary').textContent=`Total for ${count||0} product${count===1?'':'s'}`;};form.addEventListener('input',update);$('#sealedPositionCancel').addEventListener('click',closeSheet);update();
+  form.addEventListener('submit',async event=>{event.preventDefault();const data=values();const breakdown=acquisitionFromTotal(data.totalAcquisitionCost,data.quantity);if(!breakdown){$('#sealedPositionError').textContent='Enter a valid total acquisition cost.';return;}if(data.transactionDate>today){$('#sealedPositionError').textContent='Acquisition dates cannot be later than today.';return;}const submit=form.querySelector('[type="submit"]');submit.disabled=true;$('#sealedPositionError').textContent='Saving securely…';try{const itemId=await createPosition(supabase,{...breakdown,identity:identitySnapshot(product,'Sealed product'),cardId:null,variantId:null,cardState:'sealed',rawCondition:null,grader:null,grade:null,certificationNumber:null,quantity:Number(data.quantity),transactionDate:data.transactionDate,currency:'USD',notes:data.notes||null,idempotencyKey:crypto.randomUUID()});if(data.location)await updatePosition(supabase,itemId,{location:data.location});closeSheet({discardHistory:true});await reloadPortfolio(itemId);toast('Sealed product added to your library');}catch(error){submit.disabled=false;$('#sealedPositionError').textContent=`Could not add this product: ${error.message||'Unknown error'}`;}});
 }
 
 function openWatchlistSheet(card, existing=null) {
@@ -733,6 +761,7 @@ function openWatchlistSheet(card, existing=null) {
 }
 
 function openPositionSheet(card) {
+  if(card.cardState==='sealed'||card.productType){openSealedPositionSheet(card);return;}
   const today=new Date().toISOString().slice(0,10);const variants=Array.isArray(card.variants)&&card.variants.length?card.variants:[card.variant||'Unknown'];
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to your library</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)} · ${esc(languageName(card.language||'en'))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="positionForm"><div class="form-grid">
@@ -756,9 +785,10 @@ function openPositionSheet(card) {
 
 function openPurchaseLotSheet(item) {
   const today=new Date().toISOString().slice(0,10);
+  const sealed=item.cardState==='sealed';const noun=sealed?'product':'card';
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add purchase lot</h2><p>${esc(item.name)} · ${esc(item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition)} · each purchase remains separate</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="purchaseLotForm"><div class="form-grid">
-      <div class="field"><label for="lotQuantity">How many cards?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div>
+      <div class="field"><label for="lotQuantity">How many ${noun}s?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div>
       <div class="field"><label for="lotDate">When did you buy them?</label><input id="lotDate" name="transactionDate" type="date" max="${today}" value="${today}" required></div>
       <div class="field full acquisition-field"><label for="lotTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="lotTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Enter everything you paid for this purchase as one total.</small></div>
       <p class="form-error" id="purchaseLotError" role="alert"></p>
@@ -767,7 +797,7 @@ function openPurchaseLotSheet(item) {
     <div class="sheet-actions"><button class="secondary" type="button" id="purchaseLotCancel">Cancel</button><button class="primary" type="submit">Save purchase</button></div></form>`);
   const form=$('#purchaseLotForm');
   const values=()=>Object.fromEntries(new FormData(form).entries());
-  const updateTotal=()=>{const input=values();const breakdown=acquisitionFromTotal(input.totalAcquisitionCost,input.quantity);const count=Number(input.quantity)||0;const currency=item.currency||'USD';$('#purchaseLotTotal').textContent=breakdown===null?'Enter an amount':money(breakdown.totalMinor/100,currency);$('#purchaseLotSummary').textContent=`Total for ${count||0} card${count===1?'':'s'}`;const preview=breakdown?blendedPosition({currentQuantity:item.quantity,currentCostBasis:item.costBasis,newQuantity:count,newTotalCost:breakdown.totalMinor/100,currentUnitPrice:item.price}):null;$('#blendedPurchaseGrid').innerHTML=preview?`<div><span>Cards owned</span><strong>${preview.quantity}</strong><small>was ${Number(item.quantity)}</small></div><div><span>Total basis</span><strong>${money(preview.costBasisMinor/100,currency)}</strong><small>includes this purchase</small></div><div><span>Average cost</span><strong>${money(preview.averageCostMinor/100,currency)}</strong><small>${preview.averageChangeMinor===0?'unchanged':`${preview.averageChangeMinor<0?'down':'up'} ${money(Math.abs(preview.averageChangeMinor)/100,currency)} per card`}</small></div><div><span>Gain / loss now</span><strong>${preview.unrealizedGainMinor===null?'Price unavailable':`${preview.unrealizedGainMinor>=0?'+':''}${money(preview.unrealizedGainMinor/100,currency)}`}</strong><small>${preview.marketValueMinor===null?'needs an exact market price':`${money(preview.marketValueMinor/100,currency)} current value`}</small></div>`:`<div class="blended-purchase-empty">${item.costBasis===null||item.costBasis===undefined?'Current cost basis is incomplete, so Mica cannot calculate a blended average yet.':'Enter the purchase quantity and total cost to preview the new position.'}</div>`;};
+  const updateTotal=()=>{const input=values();const breakdown=acquisitionFromTotal(input.totalAcquisitionCost,input.quantity);const count=Number(input.quantity)||0;const currency=item.currency||'USD';$('#purchaseLotTotal').textContent=breakdown===null?'Enter an amount':money(breakdown.totalMinor/100,currency);$('#purchaseLotSummary').textContent=`Total for ${count||0} ${noun}${count===1?'':'s'}`;const preview=breakdown?blendedPosition({currentQuantity:item.quantity,currentCostBasis:item.costBasis,newQuantity:count,newTotalCost:breakdown.totalMinor/100,currentUnitPrice:item.price}):null;$('#blendedPurchaseGrid').innerHTML=preview?`<div><span>${sealed?'Products':'Cards'} owned</span><strong>${preview.quantity}</strong><small>was ${Number(item.quantity)}</small></div><div><span>Total basis</span><strong>${money(preview.costBasisMinor/100,currency)}</strong><small>includes this purchase</small></div><div><span>Average cost</span><strong>${money(preview.averageCostMinor/100,currency)}</strong><small>${preview.averageChangeMinor===0?'unchanged':`${preview.averageChangeMinor<0?'down':'up'} ${money(Math.abs(preview.averageChangeMinor)/100,currency)} per ${noun}`}</small></div><div><span>Gain / loss now</span><strong>${preview.unrealizedGainMinor===null?'Price unavailable':`${preview.unrealizedGainMinor>=0?'+':''}${money(preview.unrealizedGainMinor/100,currency)}`}</strong><small>${preview.marketValueMinor===null?'needs an exact market price':`${money(preview.marketValueMinor/100,currency)} current value`}</small></div>`:`<div class="blended-purchase-empty">${item.costBasis===null||item.costBasis===undefined?'Current cost basis is incomplete, so Mica cannot calculate a blended average yet.':'Enter the purchase quantity and total cost to preview the new position.'}</div>`;};
   form.addEventListener('input',updateTotal);$('#purchaseLotCancel').addEventListener('click',closeSheet);updateTotal();
   form.addEventListener('submit',async event=>{event.preventDefault();const formInput=values();const breakdown=acquisitionFromTotal(formInput.totalAcquisitionCost,formInput.quantity);if(!breakdown){$('#purchaseLotError').textContent='Enter a valid total acquisition cost.';return;}const input={...formInput,...breakdown,cardState:item.cardState,rawCondition:item.cardState==='raw'?item.rawCondition:null,grader:item.cardState==='graded'?item.gradingCompany:null,grade:item.cardState==='graded'?item.grade:null,quantity:Number(formInput.quantity)};const validation=validateAcquisition(input,today);if(!validation.valid){$('#purchaseLotError').textContent=Object.values(validation.errors)[0];return;}const submit=form.querySelector('[type="submit"]');submit.disabled=true;$('#purchaseLotError').textContent='Saving purchase…';try{await recordPurchaseLot(supabase,{...input,collectionItemId:item.uid,idempotencyKey:crypto.randomUUID(),currency:item.currency||'USD'});closeSheet({discardHistory:true});await reloadPortfolio(item.uid);toast('Purchase saved');}catch(error){$('#purchaseLotError').textContent=error.message?.includes('future')?'Acquisition dates cannot be later than today.':`Could not save this purchase: ${error.message||'Unknown error'}`;submit.disabled=false;}});
 }
@@ -856,9 +886,9 @@ function openFilterSheet() {
   const sets=[...new Set(source.map(item=>item.set).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const labels=[...new Map(source.flatMap(item=>item.tags||[]).filter(tag=>String(tag).toLowerCase()!=='favorites').map(tag=>[String(tag).toLowerCase(),String(tag)])).values()].sort((a,b)=>a.localeCompare(b));
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Choose which cards you want to see.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
-    <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All cards</option><option value="favorites">Favorites only</option><option value="graded">Graded only</option><option value="unpriced">Needs pricing review</option><option value="watchlist">Watchlist</option><option value="sets">Set progress</option></select></div>
+    <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All items</option><option value="favorites">Favorites only</option><option value="graded">Graded only</option><option value="unpriced">Needs pricing review</option><option value="watchlist">Watchlist</option><option value="sets">Set progress</option></select></div>
     <div class="field"><label for="sheetSet">Set</label><select id="sheetSet"><option value="">Every set</option>${sets.map(set=>`<option value="${esc(set)}">${esc(set)}</option>`).join('')}</select></div>
-    <div class="field"><label for="sheetCondition">Condition</label><select id="sheetCondition"><option value="">Every condition</option><option>Raw</option><option>Graded</option>${['Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged'].map(value=>`<option>${value}</option>`).join('')}</select></div>
+    <div class="field"><label for="sheetCondition">Condition</label><select id="sheetCondition"><option value="">Every condition</option><option>Raw</option><option>Graded</option><option>Sealed</option>${['Near Mint','Lightly Played','Moderately Played','Heavily Played','Damaged'].map(value=>`<option>${value}</option>`).join('')}</select></div>
     <div class="field"><label for="sheetLabel">Label</label><select id="sheetLabel"><option value="">Every label</option>${labels.map(label=>`<option value="${esc(label)}">${esc(label)}</option>`).join('')}</select></div>
     <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Value, high to low</option><option value="name">Name, A to Z</option></select></div>
     <div class="sheet-actions"><button class="secondary" id="resetSheet">Reset</button><button class="primary" id="applySheet">Apply filters</button></div>`);
@@ -1032,13 +1062,13 @@ function handleCsv(file) {
     const today=new Date().toISOString().slice(0,10);const limited=records.slice(0,100);const limitCopy=records.length>100?`<div class="unavailable-panel"><strong>This import is limited to 100 positions at a time.</strong><br>Only the first 100 valid rows will be processed. Split larger files so progress remains recoverable.</div>`:'';
     openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Import ${limited.length} card record${limited.length===1?'':'s'}?</h2><p>Add this file to your private cloud portfolio.</p></div><button class="sheet-close" aria-label="Close">×</button></div>${errorCopy}${limitCopy}<div class="info-copy"><p>New Mica backups preserve exact provider IDs, purchase dates, total acquisition cost, card state, certification numbers, tags, locations, and notes. Existing positions are never deleted or overwritten.</p></div><div class="field"><label for="importFallbackDate">Date for rows missing a purchase date</label><input id="importFallbackDate" type="date" max="${today}" value="${today}" required><small>Rows that already include a purchase date keep their own date.</small></div><p class="form-error" id="importStatus" role="status"></p><div class="sheet-actions import-actions"><button class="secondary" id="cancelCsvImport" type="button">Cancel</button><button class="primary" id="addCsvImport" type="button">Add to my account</button></div>`);
     const prepare=(record,index)=>{
-      const cardState=record.cardState==='graded'||Boolean(record.gradingCompany)?'graded':'raw';const rawCondition=cardState==='raw'?normalizeRawCondition(record.rawCondition||record.condition).normalized:null;const grader=cardState==='graded'?normalizeGrader(record.gradingCompany).normalized:null;const grade=cardState==='graded'?normalizeGrade(record.grade):null;const transactionDate=record.purchaseDate||$('#importFallbackDate').value;const total=record.totalAcquisitionCost??(record.cost===null?null:Number(record.cost)*Number(record.quantity));
+      const cardState=record.cardState==='sealed'?'sealed':record.cardState==='graded'||Boolean(record.gradingCompany)?'graded':'raw';const rawCondition=cardState==='raw'?normalizeRawCondition(record.rawCondition||record.condition).normalized:null;const grader=cardState==='graded'?normalizeGrader(record.gradingCompany).normalized:null;const grade=cardState==='graded'?normalizeGrade(record.grade):null;const transactionDate=record.purchaseDate||$('#importFallbackDate').value;const total=record.totalAcquisitionCost??(record.cost===null?null:Number(record.cost)*Number(record.quantity));
       if(total===null||!Number.isFinite(Number(total))||Number(total)<0)return {error:`Row ${index+2}: add a purchase price or total acquisition cost`};
       if(!/^\d{4}-\d{2}-\d{2}$/.test(transactionDate)||transactionDate>today)return {error:`Row ${index+2}: purchase date is invalid or in the future`};
       if(cardState==='raw'&&!rawCondition)return {error:`Row ${index+2}: use Near Mint, Lightly Played, Moderately Played, Heavily Played, or Damaged`};
       if(cardState==='graded'&&(!grader||!grade))return {error:`Row ${index+2}: graded cards need a valid grading company and grade`};
       if(String(record.location||'').length>250||String(record.notes||'').length>10000)return {error:`Row ${index+2}: location or notes exceed the safe length limit`};
-      const exact=catalog.find(item=>item.id===record.id)||(catalog.find(item=>normalizeIdentity(item.name)===normalizeIdentity(record.name)&&normalizeIdentity(item.set)===normalizeIdentity(record.set)&&normalizeIdentity(item.number)===normalizeIdentity(record.number)));const card={...record,...exact,id:exact?.id||record.id||`import:${normalizeIdentity(`${record.name}-${record.set}-${record.number}`)||'card'}`,language:record.language||exact?.language||'en',variant:record.variant||exact?.variant||'Unknown'};const breakdown=acquisitionFromTotal(total,record.quantity);
+      const exact=cardState==='sealed'?null:catalog.find(item=>item.id===record.id)||(catalog.find(item=>normalizeIdentity(item.name)===normalizeIdentity(record.name)&&normalizeIdentity(item.set)===normalizeIdentity(record.set)&&normalizeIdentity(item.number)===normalizeIdentity(record.number)));const sealedId=cardState==='sealed'?String(record.id||'').match(/^sealed:(\d{1,12})$/)?.[1]||null:null;const card={...record,...exact,id:exact?.id||record.id||`import:${normalizeIdentity(`${record.name}-${record.set}-${record.number}`)||'card'}`,language:record.language||exact?.language||'en',variant:record.variant||exact?.variant||(cardState==='sealed'?'Sealed':'Unknown'),productType:cardState==='sealed'?(record.productType||'sealed'):record.productType||exact?.productType||null,externalIds:cardState==='sealed'&&sealedId?{pkmnpricesSealed:Number(sealedId)}:record.externalIds||exact?.externalIds};const breakdown=acquisitionFromTotal(total,record.quantity);
       return {record,card,input:{...breakdown,identity:identitySnapshot(card,card.variant),cardId:exact?.cardId||null,variantId:exact?.variantId||null,cardState,rawCondition,grader,grade,certificationNumber:record.certificationNumber||null,quantity:Number(record.quantity),transactionDate,currency:/^[A-Z]{3}$/.test(record.currency||'USD')?record.currency:'USD',notes:record.notes||null,idempotencyKey:crypto.randomUUID()}};
     };
     $('#cancelCsvImport').addEventListener('click',closeSheet);$('#addCsvImport').addEventListener('click',async()=>{
@@ -1053,7 +1083,9 @@ function handleCsv(file) {
 async function refreshLivePricing() {
   const uniqueItems = [...new Map(state.items.filter(item => item.id).map(item => [item.id, item])).values()];
   if (!uniqueItems.length) return;
-  const lookups = uniqueItems.map(item => ({
+  const cardItems=uniqueItems.filter(item=>item.cardState!=='sealed');
+  const sealedItems=uniqueItems.filter(item=>item.cardState==='sealed');
+  const lookups = cardItems.map(item => ({
     clientId: item.id,
     pkmnpricesId: item.externalIds?.pkmnprices || '',
     justtcgId: item.externalIds?.justtcg || '',
@@ -1067,7 +1099,7 @@ async function refreshLivePricing() {
   state.pricingStatus = 'loading';
   renderCollection();
   try {
-    const cards = new Map(); const processedIds=new Set(); let partial=false; let rateLimited=false; let retrievedAt=null;
+    const cards = new Map();const sealedProducts=new Map();const processedIds=new Set();const sealedProcessed=new Set();let partial=false;let rateLimited=false;let retrievedAt=null;
     for(let start=0;start<lookups.length;start+=8){
       const batch=lookups.slice(start,start+8);
       const response = await fetch(`/api/cards?lookups=${encodeURIComponent(JSON.stringify(batch))}`, { headers: { Accept: 'application/json' } });
@@ -1078,16 +1110,21 @@ async function refreshLivePricing() {
       (payload.cards||[]).forEach(card=>cards.set(card.providerCardId,card));
       partial=partial||Boolean(payload.partial)||(payload.unavailable?.length>0);
     }
+    for(let start=0;start<sealedItems.length;start+=5){
+      const batch=sealedItems.slice(start,start+5);const results=await Promise.allSettled(batch.map(async item=>{const id=item.externalIds?.pkmnpricesSealed||String(item.id).replace(/^sealed:/,'');const response=await fetch(`/api/sealed?id=${encodeURIComponent(id)}`,{headers:{Accept:'application/json'}});if(!response.ok)throw new Error(String(response.status));const payload=await response.json();retrievedAt=payload.retrievedAt||retrievedAt;return {item,product:payload.product};}));
+      results.forEach((result,index)=>{const item=batch[index];sealedProcessed.add(item.id);if(result.status==='fulfilled'&&result.value.product)sealedProducts.set(item.id,result.value.product);else partial=true;});
+    }
     const applyPricing = item => {
-      const card = cards.get(item.id);
+      const sealed=item.cardState==='sealed';const card=sealed?sealedProducts.get(item.id):cards.get(item.id);
       const demoPrice = item.demoPrice ?? item.price;
-      if (!processedIds.has(item.id)) return rateLimited ? {...item,demoPrice,pricingStatus:item.price==null?'rate_limited':item.pricingStatus} : item;
+      const processed=sealed?sealedProcessed.has(item.id):processedIds.has(item.id);
+      if (!processed) return rateLimited ? {...item,demoPrice,pricingStatus:item.price==null?'rate_limited':item.pricingStatus} : item;
       if (!card) return { ...item, demoPrice, price:null, move:null, quotes:[], pricingStatus:'unavailable', pricingUpdatedAt:null };
       const quote = selectReferenceQuote(card.quotes, item.variant, 'USD', item);
       return {
         ...item,
         externalIds:{...(item.externalIds||{}),...(card.externalIds||{})},
-        metadata:card.metadata||item.metadata||null,
+        metadata:card.metadata||item.metadata||null,productType:card.productType||item.productType||null,
         demoPrice,
         price: quote?.amount ?? null,
         move: null,
@@ -1297,6 +1334,7 @@ function bindEvents() {
   $('#methodButton').addEventListener('click',openMethodSheet);
   $('#syncState').addEventListener('click',()=>{if(state.accountLoadError)void retryAccountLoad();else if(state.storageStatus==='error')toast('Cloud save is unavailable · changes may last only for this session');else if(state.pricingStatus!=='loading')void Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);});
   $('#manualSearchButton').addEventListener('click',openManualSearch);
+  $('#sealedSearchButton').addEventListener('click',openSealedSearch);
   $('#cameraInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
   $('#galleryInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
   $('#sheetBackdrop').addEventListener('click',closeSheet);

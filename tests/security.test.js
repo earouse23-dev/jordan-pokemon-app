@@ -25,6 +25,13 @@ const collectionTagsMigration = await readFile(
   ),
   "utf8",
 );
+const sealedMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260720195924_support_sealed_products.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -146,6 +153,23 @@ test("portfolio tags default safely and support indexed favorite filtering", () 
     collectionTagsMigration,
     /create index if not exists collection_items_tags_gin_idx[\s\S]+using gin\s*\(tags\)/i,
   );
+});
+
+test("sealed positions reuse the invoker-owned portfolio instead of a public side table", () => {
+  assert.match(
+    sealedMigration,
+    /collection_items_card_state_check[\s\S]+card_state in \('raw','graded','sealed'\)/i,
+  );
+  assert.match(
+    sealedMigration,
+    /card_state='sealed' and raw_condition is null and grader is null and grade is null/i,
+  );
+  assert.match(
+    sealedMigration,
+    /create or replace function public\.create_collection_position[\s\S]+security invoker[\s\S]+auth\.uid\(\)/i,
+  );
+  assert.doesNotMatch(sealedMigration, /create table/i);
+  assert.doesNotMatch(sealedMigration, /security definer/i);
 });
 
 test("scheduled price synchronization rejects unauthenticated requests before provider access", async () => {

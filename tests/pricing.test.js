@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import handler from "../api/cards.js";
 import offersHandler from "../api/offers.js";
+import sealedHandler from "../api/sealed.js";
 import salesHandler from "../api/sales.js";
 import {
   finishForVariant,
@@ -17,9 +18,11 @@ import {
 } from "../lib/providers/justtcg.js";
 import {
   fetchPkmnPricesOffers,
+  fetchPkmnPricesSealedSearch,
   fetchPkmnPricesLookup,
   normalizePkmnPricesCard,
   normalizePkmnPricesOffer,
+  normalizePkmnPricesSealedProduct,
   normalizePkmnPricesSale,
 } from "../lib/providers/pkmnprices.js";
 import {
@@ -444,6 +447,105 @@ test("offers endpoint reports missing provider configuration without exposing ke
     );
     assert.equal(response.statusCode, 503);
     assert.equal(body.provider, "pkmnprices");
+  } finally {
+    if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;
+    else process.env.PKMNPRICES_API_KEY = originalKey;
+  }
+});
+
+test("normalizes sealed products into the shared pricing model", () => {
+  const product = normalizePkmnPricesSealedProduct(
+    {
+      id: 5678,
+      tcg_player_id: 45123,
+      name: "Crown Zenith Elite Trainer Box",
+      image_url: "https://images.pkmnprices.com/sealed/5678.jpg",
+      set: { id: 284, name: "Crown Zenith" },
+      prices: [
+        {
+          source: "tcgplayer",
+          market_price: 189.99,
+          created_at: "2026-04-15T00:00:00Z",
+        },
+      ],
+    },
+    "2026-07-20T00:00:00Z",
+  );
+  assert.equal(product.id, "sealed:5678");
+  assert.equal(product.cardState, "sealed");
+  assert.equal(product.externalIds.pkmnpricesSealed, 5678);
+  assert.equal(product.quotes[0].finish, "sealed");
+  assert.equal(
+    selectReferenceQuote(product.quotes, "Sealed product", "USD", {}).amount,
+    189.99,
+  );
+  assert.equal(finishForVariant("Sealed product"), "sealed");
+});
+
+test("sealed search requests the documented Japanese product language", async () => {
+  const originalFetch = globalThis.fetch;
+  let requested;
+  globalThis.fetch = async (url, options) => {
+    requested = String(url);
+    assert.equal(options.headers["X-API-Key"], "sealed-secret");
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 9,
+            name: "151 Booster Box",
+            set: { id: 1, name: "Pokemon Card 151" },
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  };
+  try {
+    const products = await fetchPkmnPricesSealedSearch(
+      "sealed-secret",
+      "151 booster",
+      "ja",
+      undefined,
+      12,
+    );
+    assert.equal(products[0].id, "sealed:9");
+    assert.match(requested, /\/sealed\?/);
+    assert.match(requested, /language=jp/);
+    assert.match(requested, /per_page=12/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("sealed endpoint exposes honest unconfigured state without a provider key", async () => {
+  const originalKey = process.env.PKMNPRICES_API_KEY;
+  delete process.env.PKMNPRICES_API_KEY;
+  let body;
+  const response = {
+    setHeader() {},
+    status(status) {
+      this.statusCode = status;
+      return this;
+    },
+    json(value) {
+      body = value;
+      return value;
+    },
+  };
+  try {
+    await sealedHandler(
+      {
+        method: "GET",
+        query: { q: "Crown Zenith", language: "en" },
+        headers: {},
+        socket: {},
+      },
+      response,
+    );
+    assert.equal(response.statusCode, 503);
+    assert.equal(body.code, "provider_unconfigured");
+    assert.equal(JSON.stringify(body).includes("PKMNPRICES_API_KEY"), false);
   } finally {
     if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;
     else process.env.PKMNPRICES_API_KEY = originalKey;

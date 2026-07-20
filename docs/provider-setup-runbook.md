@@ -105,6 +105,8 @@ Current app status:
 - `/api/sales` reads `PKMNPRICES_API_KEY` for eBay sold-listing evidence.
 - `/api/offers` reads the same server-only key for exact-printing TCGplayer and
   Cardmarket seller asks. Active asks are kept separate from completed sales.
+- `/api/sealed` provides English/Japanese sealed-product search and exact
+  current pricing. Sealed positions use the same private FIFO portfolio ledger.
 - If PkmnPrices cannot match a card, the app falls back to free TCGdex aggregate
   pricing instead of guessing.
 - A sanitized live check on 2026-07-15 matched Base Set Charizard to PkmnPrices

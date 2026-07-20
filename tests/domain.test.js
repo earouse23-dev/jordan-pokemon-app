@@ -129,6 +129,47 @@ test("position hydration attaches FIFO basis and realized gain to each sale", ()
   assert.deepEqual(position.tags, ["Favorites"]);
 });
 
+test("sealed positions hydrate from the same private FIFO portfolio model", () => {
+  const position = hydratePosition(
+    {
+      id: "sealed-position",
+      identity_snapshot: {
+        providerCardId: "sealed:5678",
+        name: "Crown Zenith Elite Trainer Box",
+        set: "Crown Zenith",
+        variant: "Sealed product",
+        productType: "elite_trainer_box",
+        externalIds: { pkmnpricesSealed: 5678 },
+      },
+      card_state: "sealed",
+      raw_condition: null,
+      grader: null,
+      grade: null,
+      quantity: 2,
+      currency: "USD",
+      tags: [],
+    },
+    [],
+    [
+      {
+        id: "sealed-lot",
+        acquired_at: "2026-07-01",
+        quantity_acquired: 2,
+        quantity_remaining: 2,
+        total_cost: 160,
+        remaining_cost: 160,
+        currency: "USD",
+      },
+    ],
+    [],
+  );
+  assert.equal(position.id, "sealed:5678");
+  assert.equal(position.cardState, "sealed");
+  assert.equal(position.condition, "Sealed");
+  assert.equal(position.productType, "elite_trainer_box");
+  assert.equal(position.costBasis, 160);
+});
+
 test("position updates only send fields the user changed", async () => {
   let updated;
   let matchedId;
