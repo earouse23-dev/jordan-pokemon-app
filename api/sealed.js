@@ -92,10 +92,6 @@ export default async function handler(request, response) {
       },
     );
   } catch (error) {
-    console.error("[api/sealed] provider request failed", {
-      status: error?.status || null,
-      name: error?.name || "Error",
-    });
     if (error?.status === 403)
       return send(response, 403, {
         error: "The current PkmnPrices key cannot access sealed products.",
@@ -104,6 +100,11 @@ export default async function handler(request, response) {
       });
     if (error?.status === 404)
       return send(response, 404, { error: "Sealed product not found." });
+    if (error?.status !== 429)
+      console.error("[api/sealed] provider request failed", {
+        status: error?.status || null,
+        name: error?.name || "Error",
+      });
     const status = error?.status === 429 ? 429 : 502;
     return send(response, status, {
       error:
