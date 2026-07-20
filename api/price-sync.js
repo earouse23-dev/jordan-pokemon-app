@@ -130,8 +130,13 @@ export default async function handler(request, response) {
           name: identity.name,
           set: identity.set,
           number: identity.number,
+          language: identity.language,
         },
         controller.signal,
+        {
+          includeHistory: false,
+          includeEur: ["pro", "business"].includes(config.pkmnpricesPlan),
+        },
       );
       if (!result.card) {
         failures += 1;

@@ -11,7 +11,7 @@ Requires Node 20+.
 1. Copy `.env.example` to `.env`.
 2. Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for browser authentication.
 3. Configure `SUPABASE_SECRET_KEY` only for server-side synchronization.
-4. Configure `PKMNPRICES_API_KEY` for primary market pricing.
+4. Configure `PKMNPRICES_API_KEY` for primary market pricing. Set `PKMNPRICES_PLAN=pro` after upgrading so Mica requests the prepared 365-day history and Japanese/commercial capability path.
 5. Apply the migrations in `supabase/migrations/` to the linked Supabase project.
 6. Run:
 
@@ -70,6 +70,7 @@ See `.env.example`. Important values:
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY`
 - `PKMNPRICES_API_KEY`
+- `PKMNPRICES_PLAN` (`free`, `pro`, or `business`; defaults to `free`)
 - `TCGDEX_BASE_URL`
 - `PRICE_SYNC_SECRET` or Vercel `CRON_SECRET`
 - `PRICE_STALE_AFTER_HOURS`

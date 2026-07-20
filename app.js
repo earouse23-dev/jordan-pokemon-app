@@ -1,5 +1,5 @@
 import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch, ownedCardSummary, sameCatalogCard } from './lib/core.js';
-import { finishForVariant, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
+import { finishForVariant, gradedPriceLadder, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import { acquisitionFromTotal, allocateFifo, blendedPosition, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, insuranceDocumentation, inventoryHealth, portfolioReview, positionPerformance, purchaseEntryPoints, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
@@ -89,6 +89,18 @@ function renderQuoteRow(quote, label) {
   return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.condition || 'Condition-neutral')} · ${esc(quote.currency)}</span><span>Observed ${esc(quote.observedAt || 'date unavailable')} · retrieved ${esc(quote.retrievedAt?.slice?.(0,10) || 'date unavailable')}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
 }
 
+function renderGradedPriceLadder(item) {
+  const rows=gradedPriceLadder(item.quotes,item.variant,'USD');const ownedGrade=item.gradingCompany?`${String(item.gradingCompany).toUpperCase()}:${item.grade}`:'';
+  const content=rows.length?`<div class="grade-ladder">${rows.map(row=>`<div class="grade-ladder-row${ownedGrade===`${row.grader}:${row.grade}`?' current':''}"><div><strong>${esc(row.grader)} ${esc(row.grade)}</strong><span>${esc(row.priceType)} · ${esc(row.provider)}${row.observedAt?` · ${esc(String(row.observedAt).slice(0,10))}`:''}</span></div><b>${money(row.amount,row.currency)}</b></div>`).join('')}</div>`:`<div class="pro-data-empty"><strong>Ready for graded pricing</strong><p>When PkmnPrices returns matching graded quotes, PSA, BGS, and CGC grades will appear here automatically. Mica will never substitute a different printing or invent a grade value.</p></div>`;
+  return `<section class="detail-section"><div class="detail-section-head"><h2>Graded value ladder</h2><span>${rows.length?`${rows.length} exact grade reference${rows.length===1?'':'s'}`:'PkmnPrices-ready'}</span></div>${content}</section>`;
+}
+
+function renderCardMetadata(item) {
+  const data=item.metadata||{};const facts=[['HP',data.hp],['Stage',data.stage],['Type',data.cardType],['Weakness',data.weakness],['Resistance',data.resistance],['Retreat',data.retreatCost],['Energy',(data.energyTypes||[]).join(', ')],['Ability',data.ability]].filter(([,value])=>value!==null&&value!==undefined&&value!=='');
+  if(!facts.length&&!(data.attacks||[]).length&&!data.flavorText)return '';
+  return `<section class="detail-section"><div class="detail-section-head"><h2>Card details</h2><span>PkmnPrices card record</span></div><div class="card-facts">${facts.map(([label,value])=>`<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join('')}</div>${(data.attacks||[]).length?`<p class="card-fact-copy"><strong>Attacks</strong> · ${esc(data.attacks.join(' · '))}</p>`:''}${data.flavorText?`<p class="card-flavor">${esc(data.flavorText)}</p>`:''}</section>`;
+}
+
 function historyForItem(item) {
   const finish = finishForVariant(item.variant);
   const exact = (item.priceHistory || []).filter(point => {
@@ -125,9 +137,9 @@ function renderInteractiveHistory(item,currentPrice=item.price) {
   const entryPoints=renderEntryPoints(item,currentPrice);
   if (item.historyStatus === 'plan_required' && history.length < 2) return `${entryPoints}<div class="unavailable-panel"><strong>Price history is plan-limited.</strong><br>The connected PkmnPrices key can return current prices, but historical observations require a higher provider plan. Your recorded entry points remain visible without Pro.</div>`;
   if (history.length < 2) return `${entryPoints}<div class="unavailable-panel">Not enough exact ${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)} observations exist for a chart. Your real purchase entries remain visible; a raw or different-grade series is never substituted.</div>`;
-  const values=history.map(point=>point.amount);const min=Math.min(...values);const max=Math.max(...values);const average=values.reduce((sum,value)=>sum+value,0)/values.length;const last=history.at(-1);
+  const values=history.map(point=>point.amount);const lows=history.map(point=>Number(point.low)).filter(value=>Number.isFinite(value)&&value>0);const highs=history.map(point=>Number(point.high)).filter(value=>Number.isFinite(value)&&value>0);const min=Math.min(...values,...lows);const max=Math.max(...values,...highs);const average=values.reduce((sum,value)=>sum+value,0)/values.length;const last=history.at(-1);const saleCount=history.reduce((sum,point)=>sum+(Number(point.saleCount)||Number(point.quality?.saleCount)||0),0);
   const context=item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition;
-  return `${entryPoints}<div class="history-summary"><div><span>Observed average</span><strong>${money(average,last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min,last.currency)}–${money(max,last.currency)}</strong></div><div><span>Samples</span><strong>${history.length} observations</strong></div></div>
+  return `${entryPoints}<div class="history-summary"><div><span>Observed average</span><strong>${money(average,last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min,last.currency)}–${money(max,last.currency)}</strong></div><div><span>Daily samples</span><strong>${history.length} observations</strong></div>${saleCount?`<div><span>Reported sales</span><strong>${saleCount}</strong></div>`:''}</div>
     <div class="history-controls" role="group" aria-label="Price history range">${[['1m','1 month'],['3m','3 months'],['6m','6 months'],['1y','1 year'],['all','All']].map(([value,label])=>`<button type="button" data-chart-range="${value}" aria-pressed="${String(state.chartRange===value)}">${label}</button>`).join('')}</div>
     <p class="chart-context">Exact series: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. Provider observations remain separate.</p>
     <div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="Historical ${esc(context)} prices with purchase entry markers"></canvas></div>`;
@@ -138,12 +150,12 @@ async function mountPriceChart(item) {
   const days={'1m':31,'3m':93,'6m':186,'1y':366}[state.chartRange];const cutoff=days?Date.now()-days*86_400_000:0;
   const history=historyForItem(item).filter(point=>new Date(point.recordedAt).getTime()>=cutoff);
   const providers=[...new Set(history.map(point=>point.provider))];const colors=['#1f4f43','#9a6b2f','#315f86','#744f79'];
-  const datasets=providers.map((provider,index)=>({label:provider,data:history.filter(point=>point.provider===provider).map(point=>({x:point.recordedAt.slice(0,10),y:point.amount})),borderColor:colors[index%colors.length],backgroundColor:colors[index%colors.length],pointRadius:2,tension:.18,spanGaps:true}));
+  const datasets=providers.map((provider,index)=>({label:provider,data:history.filter(point=>point.provider===provider).map(point=>({x:point.recordedAt.slice(0,10),y:point.amount,point})),borderColor:colors[index%colors.length],backgroundColor:colors[index%colors.length],pointRadius:2,tension:.18,spanGaps:true}));
   const purchases=(item.transactions||[]).filter(transaction=>transaction.type==='purchase');
   if(purchases.length)datasets.push({label:'Your entry points',type:'scatter',data:purchases.map(transaction=>({x:transaction.date,y:transaction.quantity?transaction.totalCost/transaction.quantity:transaction.unitPrice,transaction})),pointRadius:7,pointStyle:'triangle',backgroundColor:'#b14e43',borderColor:'#fff',borderWidth:1});
   if(item.costBasis&&item.quantity){const labels=[...new Set([...history.map(point=>point.recordedAt.slice(0,10)),...purchases.map(point=>point.date)])].sort();datasets.push({label:'Remaining cost basis / card',data:labels.map(date=>({x:date,y:item.costBasis/item.quantity})),borderColor:'#7a746a',borderDash:[5,5],pointRadius:0,borderWidth:1});}
   const {default:Chart}=await import('chart.js/auto');if(version!==chartMountVersion||!canvas.isConnected)return;
-  chartInstance=new Chart(canvas,{type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,parsing:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label(context){const transaction=context.raw?.transaction;return transaction?`Bought ${transaction.date}: ${money(transaction.totalCost,transaction.currency)} total · ${transaction.quantity} card${transaction.quantity===1?'':'s'}`:`${context.dataset.label}: ${money(context.parsed.y,item.currency||'USD')}`;}}}},scales:{x:{type:'category',grid:{display:false},ticks:{maxTicksLimit:6}},y:{ticks:{callback:value=>money(value,item.currency||'USD')},grid:{color:'rgba(60,70,65,.08)'}}}}});
+  chartInstance=new Chart(canvas,{type:'line',data:{datasets},options:{responsive:true,maintainAspectRatio:false,parsing:false,interaction:{mode:'nearest',intersect:false},plugins:{legend:{display:true,labels:{usePointStyle:true,boxWidth:8}},tooltip:{callbacks:{label(context){const transaction=context.raw?.transaction;if(transaction)return `Bought ${transaction.date}: ${money(transaction.totalCost,transaction.currency)} total · ${transaction.quantity} card${transaction.quantity===1?'':'s'}`;const point=context.raw?.point;const lines=[`${context.dataset.label}: ${money(context.parsed.y,item.currency||'USD')}`];if(point?.low&&point?.high)lines.push(`Range ${money(point.low,point.currency)}–${money(point.high,point.currency)}`);const count=Number(point?.saleCount)||Number(point?.quality?.saleCount)||0;if(count)lines.push(`${count} reported sale${count===1?'':'s'}`);return lines;}}}},scales:{x:{type:'category',grid:{display:false},ticks:{maxTicksLimit:6}},y:{ticks:{callback:value=>money(value,item.currency||'USD')},grid:{color:'rgba(60,70,65,.08)'}}}}});
   $$('[data-chart-range]').forEach(button=>button.addEventListener('click',()=>{state.chartRange=button.dataset.chartRange;renderDetail();}));
 }
 
@@ -160,7 +172,7 @@ function renderSales(item) {
     const copy = item.salesStatus === 'unconfigured'
       ? 'No licensed sold-listing provider is connected. Active listings are not presented as completed sales.'
       : item.salesStatus === 'plan_required'
-        ? 'The connected PkmnPrices key is valid, but linked sold evidence requires a Pro or higher plan.'
+        ? 'The connected PkmnPrices key is valid, but its current plan does not allow linked sold evidence for this request.'
         : item.salesStatus === 'error'
           ? 'The sold-data provider could not be reached. This is not evidence that the card has no sales.'
           : 'No verified sales matched this exact raw/graded context. A broader card sale is not substituted.';
@@ -234,7 +246,7 @@ async function loadSales(item, force=false) {
   if (item.salesStatus && !force) return;
   item.salesStatus = 'loading';
   if (state.route === 'detail' && (state.detailId === item.uid || state.detailId === item.id)) renderDetail();
-  const lookup = { clientId:item.id, pkmnpricesId:item.externalIds?.pkmnprices || '', name:item.name, set:item.set, number:item.number };
+  const lookup = { clientId:item.id, pkmnpricesId:item.externalIds?.pkmnprices || '', name:item.name, set:item.set, number:item.number, language:item.language||'en', grader:item.gradingCompany||'', grade:item.grade||'' };
   try {
     const response = await fetch(`/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}`, { headers:{ Accept:'application/json' } });
     const payload = await response.json().catch(() => ({}));
@@ -514,16 +526,16 @@ function openCardDetail(card, preferOwned=false) {
   state.detailId = owned?.uid || card.id;
   state.detailCard = owned || card;
   routeTo('detail');
-  if (!owned && !card.quotes?.length) void loadCardPreviewPricing(card);
+  if (owned) void loadOwnedDetailPricing(owned); else void loadCardPreviewPricing(card);
 }
 
 async function loadCardPreviewPricing(card) {
-  const lookup = [{ clientId:card.id, pkmnpricesId:card.externalIds?.pkmnprices || '', tcgdexId:card.externalIds?.tcgdex || '', name:card.name, set:card.set, number:card.number }];
+  const lookup = [{ clientId:card.id, pkmnpricesId:card.externalIds?.pkmnprices || '', tcgdexId:card.externalIds?.tcgdex || '', name:card.name, set:card.set, number:card.number, language:card.language||'en' }];
   try {
-    const response = await fetch(`/api/cards?lookups=${encodeURIComponent(JSON.stringify(lookup))}`, { headers:{Accept:'application/json'} });
+    const response = await fetch(`/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(lookup))}`, { headers:{Accept:'application/json'} });
     if (!response.ok) {
       if (state.detailId !== card.id) return;
-      state.detailCard={...card,price:null,pricingStatus:response.status===429?'rate_limited':'error'};
+      state.detailCard={...card,pricingStatus:card.price==null?(response.status===429?'rate_limited':'error'):card.pricingStatus,historyStatus:card.historyStatus||'unavailable'};
       renderDetail();
       return;
     }
@@ -531,15 +543,22 @@ async function loadCardPreviewPricing(card) {
     const priced = payload.cards?.[0];
     if (!priced || state.detailId !== card.id) return;
     const quote = selectReferenceQuote(priced.quotes, card.variant, 'USD', { condition:'Near Mint' });
-    const updated = { ...card, externalIds:{...(card.externalIds||{}),...(priced.externalIds||{})}, price:quote?.amount ?? null, quotes:priced.quotes || [], priceHistory:priced.history || [], historyStatus:priced.historyStatus || null, pricingStatus:quote?quoteStatus(quote):'unavailable', pricingUpdatedAt:quote?.observedAt || quote?.retrievedAt?.slice(0,10) || null };
+    const updated = { ...card, externalIds:{...(card.externalIds||{}),...(priced.externalIds||{})}, metadata:priced.metadata||card.metadata||null, priceCapabilities:payload.capabilities||null, price:quote?.amount ?? null, quotes:priced.quotes || [], priceHistory:priced.history || [], historyStatus:priced.historyStatus || null, pricingStatus:quote?quoteStatus(quote):'unavailable', pricingUpdatedAt:quote?.observedAt || quote?.retrievedAt?.slice(0,10) || null };
     catalog = catalog.map(item => item.id === card.id ? updated : item);
     state.detailCard = updated;
     renderDetail();
   } catch {
     if (state.detailId !== card.id) return;
-    state.detailCard = { ...card, price:null, pricingStatus:'error' };
+    state.detailCard = { ...card, pricingStatus:card.price==null?'error':card.pricingStatus, historyStatus:card.historyStatus||'unavailable' };
     renderDetail();
   }
+}
+
+async function loadOwnedDetailPricing(item) {
+  const lookup=[{clientId:item.id,pkmnpricesId:item.externalIds?.pkmnprices||'',justtcgId:item.externalIds?.justtcg||'',tcgplayerId:item.externalIds?.tcgplayer||'',tcgdexId:item.externalIds?.tcgdex||'',name:item.name,set:item.set,number:item.number,language:item.language||'en'}];
+  try{
+    const response=await fetch(`/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(lookup))}`,{headers:{Accept:'application/json'}});if(!response.ok)return;const payload=await response.json();const priced=payload.cards?.[0];if(!priced||state.detailId!==item.uid)return;const quote=selectReferenceQuote(priced.quotes,item.variant,item.currency||'USD',item);const updated={...item,externalIds:{...(item.externalIds||{}),...(priced.externalIds||{})},metadata:priced.metadata||item.metadata||null,priceCapabilities:payload.capabilities||null,price:quote?.amount??null,quotes:priced.quotes||[],historyStatus:priced.historyStatus||null,priceHistory:mergePriceHistory(item.priceHistory||[],priced.history||[]),pricingStatus:quote?quoteStatus(quote):'unavailable',pricingUpdatedAt:quote?.observedAt||quote?.retrievedAt?.slice?.(0,10)||null};state.items=state.items.map(candidate=>candidate.uid===item.uid?updated:candidate);state.detailCard=updated;renderCollection();renderDetail();
+  }catch{}
 }
 
 function plannedSaleBasis(item,quantity) {
@@ -636,6 +655,8 @@ function renderDetail() {
     ${watchedSection}
     ${action}
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
+    ${renderGradedPriceLadder(item)}
+    ${renderCardMetadata(item)}
     ${renderGradingEstimator(item)}
     ${owned?renderSalePlanner(item,displayPrice):''}
     <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderInteractiveHistory(item,displayPrice)}</section>
@@ -1019,6 +1040,7 @@ async function refreshLivePricing() {
     name: item.name,
     set: item.set,
     number: item.number,
+    language: item.language || 'en',
   }));
   state.pricingStatus = 'loading';
   renderCollection();
@@ -1043,6 +1065,7 @@ async function refreshLivePricing() {
       return {
         ...item,
         externalIds:{...(item.externalIds||{}),...(card.externalIds||{})},
+        metadata:card.metadata||item.metadata||null,
         demoPrice,
         price: quote?.amount ?? null,
         move: null,
@@ -1073,11 +1096,11 @@ async function refreshWatchlistPricing() {
   if(!unique.length)return;
   state.watchlist=state.watchlist.map(item=>({...item,pricingStatus:'loading'}));
   if(state.ledgerView==='watchlist')renderCollection();
-  const lookups=unique.map(item=>({clientId:item.id,pkmnpricesId:item.externalIds?.pkmnprices||'',justtcgId:item.externalIds?.justtcg||'',tcgplayerId:item.externalIds?.tcgplayer||'',tcgdexId:item.externalIds?.tcgdex||'',name:item.name,set:item.set,number:item.number}));
+  const lookups=unique.map(item=>({clientId:item.id,pkmnpricesId:item.externalIds?.pkmnprices||'',justtcgId:item.externalIds?.justtcg||'',tcgplayerId:item.externalIds?.tcgplayer||'',tcgdexId:item.externalIds?.tcgdex||'',name:item.name,set:item.set,number:item.number,language:item.language||'en'}));
   try{
     const cards=new Map();const processed=new Set();let rateLimited=false;
     for(let start=0;start<lookups.length;start+=8){const batch=lookups.slice(start,start+8);const response=await fetch(`/api/cards?lookups=${encodeURIComponent(JSON.stringify(batch))}`,{headers:{Accept:'application/json'}});if(response.status===429){rateLimited=true;break;}if(!response.ok)throw new Error(`Watch pricing failed with ${response.status}`);const payload=await response.json();batch.forEach(lookup=>processed.add(lookup.clientId));(payload.cards||[]).forEach(card=>cards.set(card.providerCardId,card));}
-    state.watchlist=state.watchlist.map(item=>{if(!processed.has(item.id))return {...item,pricingStatus:rateLimited?'rate_limited':'error'};const card=cards.get(item.id);if(!card)return {...item,currentPrice:null,quotes:[],pricingStatus:'unavailable'};const quote=selectReferenceQuote(card.quotes,item.variant,item.currency||'USD',item);return {...item,externalIds:{...(item.externalIds||{}),...(card.externalIds||{})},currentPrice:quote?.amount??null,quotes:card.quotes||[],priceHistory:card.history||[],historyStatus:card.historyStatus||null,pricingStatus:quote?quoteStatus(quote):'unavailable',pricingUpdatedAt:quote?.observedAt||quote?.retrievedAt?.slice?.(0,10)||null};});
+    state.watchlist=state.watchlist.map(item=>{if(!processed.has(item.id))return {...item,pricingStatus:rateLimited?'rate_limited':'error'};const card=cards.get(item.id);if(!card)return {...item,currentPrice:null,quotes:[],pricingStatus:'unavailable'};const quote=selectReferenceQuote(card.quotes,item.variant,item.currency||'USD',item);return {...item,externalIds:{...(item.externalIds||{}),...(card.externalIds||{})},metadata:card.metadata||item.metadata||null,currentPrice:quote?.amount??null,quotes:card.quotes||[],priceHistory:card.history||[],historyStatus:card.historyStatus||null,pricingStatus:quote?quoteStatus(quote):'unavailable',pricingUpdatedAt:quote?.observedAt||quote?.retrievedAt?.slice?.(0,10)||null};});
   }catch{state.watchlist=state.watchlist.map(item=>({...item,pricingStatus:'error'}));}
   if(state.ledgerView==='watchlist')renderCollection();
   renderInsights();
@@ -1189,7 +1212,7 @@ function renderTradeSearchResults() {
 }
 
 async function priceTradeCard(tradeItem, card) {
-  const lookup=[{clientId:card.id,pkmnpricesId:card.externalIds?.pkmnprices||'',tcgdexId:card.externalIds?.tcgdex||'',name:card.name,set:card.set,number:card.number}];
+  const lookup=[{clientId:card.id,pkmnpricesId:card.externalIds?.pkmnprices||'',tcgdexId:card.externalIds?.tcgdex||'',name:card.name,set:card.set,number:card.number,language:card.language||'en'}];
   try{const response=await fetch(`/api/cards?lookups=${encodeURIComponent(JSON.stringify(lookup))}`,{headers:{Accept:'application/json'}});if(!response.ok)throw new Error('pricing unavailable');const payload=await response.json();const priced=payload.cards?.[0];const quote=priced?selectReferenceQuote(priced.quotes,card.variant,'USD',{condition:'Near Mint'}):null;if(quote&&String(tradeItem.valuePerCard).trim()===''){tradeItem.valuePerCard=Number(quote.amount).toFixed(2);tradeItem.pricingStatus='live';}else tradeItem.pricingStatus=quote?'live':'unavailable';}catch{tradeItem.pricingStatus='unavailable';}if(state.route==='trade')renderTrade();
 }
 

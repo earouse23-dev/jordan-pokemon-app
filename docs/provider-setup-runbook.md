@@ -87,9 +87,11 @@ Setup:
 Where it goes:
 
 - Local testing: create a private `.env` file from `.env.example` and set
-  `PKMNPRICES_API_KEY=...`.
+  `PKMNPRICES_API_KEY=...` and `PKMNPRICES_PLAN=free`.
 - Vercel: add `PKMNPRICES_API_KEY` to Production, Preview, and Development
-  environments.
+  environments. When the subscription is upgraded, set `PKMNPRICES_PLAN=pro`
+  and redeploy; the app will use the prepared Pro data path without a code or
+  schema change.
 - Supabase Edge Functions: add a separate secret only if a Supabase function will
   call PkmnPrices directly.
 
@@ -97,6 +99,9 @@ Current app status:
 
 - `/api/cards` reads `PKMNPRICES_API_KEY` and uses PkmnPrices as the primary
   current-price/history provider.
+- The provider adapter already normalizes raw and graded price rows, 365-day
+  history with daily low/high/sale counts, Japanese lookups, and complete card
+  metadata. `PKMNPRICES_PLAN=pro` activates the larger history window.
 - `/api/sales` reads `PKMNPRICES_API_KEY` for eBay sold-listing evidence.
 - If PkmnPrices cannot match a card, the app falls back to free TCGdex aggregate
   pricing instead of guessing.
@@ -210,6 +215,7 @@ Important limit:
    - `PRICING_PROVIDER=pkmnprices`
    - `SALES_PROVIDER=pkmnprices`
    - `PKMNPRICES_API_KEY=...`
+   - `PKMNPRICES_PLAN=free` (change to `pro` only after the account upgrade)
 3. Leave keys blank for providers you have not purchased or approved yet.
 4. Start the app and search for:
    - Base Set Charizard 4/102
