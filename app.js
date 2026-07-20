@@ -1,6 +1,6 @@
 import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch, ownedCardSummary, sameCatalogCard } from './lib/core.js';
 import { finishForVariant, gradedPriceLadder, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
-import { acquisitionFromTotal, allocateFifo, blendedPosition, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, insuranceDocumentation, inventoryHealth, portfolioReview, positionPerformance, purchaseEntryPoints, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
+import { acquisitionFromTotal, allocateFifo, blendedPosition, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, insuranceDocumentation, inventoryHealth, portfolioActions, portfolioReview, positionPerformance, purchaseEntryPoints, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
 
@@ -469,7 +469,7 @@ function renderCollection() {
   $('#realizedGain').textContent = `${realized>=0?'+':''}${money(realized)}`;
   $('#allocationSummary').textContent = `${rawCount} / ${gradedCount} / ${sealedCount}`;
   $('#freshCoverage').textContent = `${totals.priced} of ${totals.quantity}`;
-  const partial = totals.unpriced ? ` · ${totals.unpriced} unpriced card${totals.unpriced === 1 ? '' : 's'} excluded` : '';
+  const partial = totals.unpriced ? ` · ${totals.unpriced} unpriced item${totals.unpriced === 1 ? '' : 's'} excluded` : '';
   const costCoverage = totals.unknownCost ? ` · ${totals.unknownCost} missing purchase cost` : '';
   const hasProviderPricing = ['live','partial'].includes(state.pricingStatus);
   $('#portfolioChange').textContent = hasProviderPricing ? `Current matching provider snapshots${partial}${costCoverage}` : `Preview pricing${partial}${costCoverage}`;
@@ -528,11 +528,11 @@ function renderCollection() {
   }).join('');
   $('#collectionEmpty').classList.toggle('hidden', visible.length > 0);
   const trulyEmpty=state.items.length===0;
-  $('#collectionEmptyTitle').textContent=trulyEmpty?'Your library is empty':'No cards match this view';
-  $('#collectionEmptyCopy').textContent=trulyEmpty?'Start with one card. Mica only asks for the details that apply.':'Try clearing the search or changing your filters.';
+  $('#collectionEmptyTitle').textContent=trulyEmpty?'Your library is empty':'No items match this view';
+  $('#collectionEmptyCopy').textContent=trulyEmpty?'Start with one card or sealed product. Mica only asks for the details that apply.':'Try clearing the search or changing your filters.';
   $('#firstCardGuide').classList.toggle('hidden',!trulyEmpty);
   $('#emptyAddCard').classList.toggle('hidden',!trulyEmpty);
-  $('#emptyAddCard').textContent='Add your first card';
+  $('#emptyAddCard').textContent='Add your first item';
   $('#clearFilters').classList.toggle('hidden',trulyEmpty);
   const activeFilterCount=(state.ledgerView!=='all'?1:0)+(state.setFilter?1:0)+(state.conditionFilter?1:0)+(state.labelFilter?1:0);
   $('#filterLabel').textContent=activeFilterCount?`Filter · ${activeFilterCount}`:'Filter';
@@ -1169,13 +1169,10 @@ async function refreshWatchlistPricing() {
 
 function renderBusinessReview() {
   const review=portfolioReview(state.items,state.watchlist);
-  const cards=[
-    {key:'pricing',title:'Price gaps',items:review.needsPricing,copy:'Exact current reference unavailable'},
-    {key:'below-cost',title:'Below cost',items:review.belowCost,copy:'Current reference is below remaining basis'},
-    {key:'older',title:'Older inventory',items:review.olderInventory,copy:'Owned for at least 180 days'},
-    {key:'targets',title:'Buy targets',items:review.reachedTargets,copy:'Matching reference reached your target'},
-  ];
-  $('#businessReview').innerHTML=cards.map(card=>`<button type="button" data-business-review="${card.key}" ${card.items.length?'':'disabled'}><span>${esc(card.title)}</span><strong>${card.items.length||'Clear'}</strong><small>${esc(card.items.length?card.copy:'Nothing needs review')}</small><b>${card.items.length?'Review →':'✓'}</b></button>`).join('');
+  const actions=portfolioActions(state.items,state.watchlist);const signalCount=actions.reduce((sum,action)=>sum+action.items.length,0);
+  if(!state.items.length&&!state.watchlist.length){$('#businessReview').innerHTML='<div class="action-center-empty"><span>Start here</span><strong>Add your first exact item</strong><small>Search a card or sealed product, then enter one total acquisition cost. Mica will build the action queue from your real data.</small><button id="actionCenterAdd" type="button">Find an item →</button></div>';$('#actionCenterAdd').addEventListener('click',()=>routeTo('scan'));return;}
+  if(!actions.length){$('#businessReview').innerHTML='<div class="action-center-clear"><span>Today</span><strong>You’re caught up</strong><small>No reached buy targets, price gaps, below-cost positions, or inventory older than 180 days need review.</small><b>✓</b></div>';return;}
+  $('#businessReview').innerHTML=`<div class="action-center-summary"><span>Today’s queue</span><strong>${signalCount} signal${signalCount===1?'':'s'} across ${actions.length} next step${actions.length===1?'':'s'}</strong><small>Ordered by time sensitivity, data quality, downside, then inventory age.</small></div>${actions.map((action,index)=>`<button type="button" data-business-review="${action.key}" class="${index===0?'recommended':''}"><span>${index===0?'Do this first':`Priority ${index+1}`}</span><strong>${esc(action.title)}</strong><small>${action.items.length} item${action.items.length===1?'':'s'} · ${esc(action.copy)}</small><b>Review ${action.items.length} →</b></button>`).join('')}`;
   $$('[data-business-review]').forEach(button=>button.addEventListener('click',()=>{const key=button.dataset.businessReview;const items={pricing:review.needsPricing,'below-cost':review.belowCost,older:review.olderInventory,targets:review.reachedTargets}[key]||[];openBusinessReviewQueue(key,items);}));
 }
 
@@ -1219,13 +1216,13 @@ function renderInsights() {
   const ranked=[...state.items].map(item=>({item,value:item.price==null?null:Number(item.price)*Number(item.quantity),gain:item.price==null?null:Number(item.price)*Number(item.quantity)-Number(item.costBasis||0)})).sort((a,b)=>(b.value??-1)-(a.value??-1));
   $('#positionRankings').innerHTML=ranked.length?ranked.slice(0,5).map(({item,value,gain})=>`<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition)} · ${item.quantity} owned</span></div><b>${value===null?'Unavailable':`${money(value)}${gain===null?'':` · ${gain>=0?'+':''}${money(gain)}`}`}</b></div>`).join(''):'<div class="data-boundary"><strong>No positions yet</strong><p>Add an exact card and purchase lot to start portfolio analysis.</p></div>';
   renderInventoryHealth();
-  const rawCount=state.items.filter(item=>!item.gradingCompany).reduce((sum,item)=>sum+Number(item.quantity||0),0);$('#batchGradingCount').textContent=rawCount?`${rawCount} raw card${rawCount===1?'':'s'} available`:'Add a raw card to begin';
+  const rawCount=state.items.filter(item=>item.cardState!=='sealed'&&!item.gradingCompany).reduce((sum,item)=>sum+Number(item.quantity||0),0);$('#batchGradingCount').textContent=rawCount?`${rawCount} raw card${rawCount===1?'':'s'} available`:'Add a raw card to begin';
   const recent=state.items.flatMap(item=>(item.transactions||[]).map(transaction=>({item,transaction}))).sort((a,b)=>b.transaction.date.localeCompare(a.transaction.date)).slice(0,6);
   $('#recentActivity').innerHTML=recent.length?recent.map(({item,transaction})=>`<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${transaction.type==='purchase'?'Purchased':'Sold'} ${esc(item.name)}</strong><span>${esc(transaction.date)} · ${transaction.quantity} at ${money(transaction.unitPrice,transaction.currency)}</span></div><b>${transaction.type==='purchase'?money(transaction.totalCost,transaction.currency):money(transaction.netProceeds,transaction.currency)}</b></div>`).join(''):'<div class="data-boundary"><strong>No transactions yet</strong><p>Purchases and sales will appear here.</p></div>';
   renderBusinessSummary();
   renderBusinessReview();
   if (['live','partial'].includes(state.pricingStatus)) {
-    $('.insight-feature').innerHTML = `<div class="insight-kicker">${state.pricingStatus==='partial'?'Partial':'Live'} pricing status</div><strong>${priced} of ${state.items.length} cards priced</strong><span>Exact-printing matches only · ${state.items.length-priced} need review</span><div class="unavailable-panel">Price trends appear after matching prices have been collected over time.</div>`;
+    $('.insight-feature').innerHTML = `<div class="insight-kicker">${state.pricingStatus==='partial'?'Partial':'Live'} pricing status</div><strong>${priced} of ${state.items.length} items priced</strong><span>Exact-product matches only · ${state.items.length-priced} need review</span><div class="unavailable-panel">Price trends appear after matching prices have been collected over time.</div>`;
     $('#moversList').innerHTML = '<div class="data-boundary"><strong>Movement history is not available yet</strong><p>Mica will not infer a trend from one quote or from incompatible variants.</p></div>';
     return;
   }

@@ -11,7 +11,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=56">
+  <link rel="stylesheet" href="styles.css?v=57">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -21,7 +21,7 @@
       <div class="auth-brand"><span class="wordmark-gem" aria-hidden="true"><i></i></span><span>Mica</span></div>
       <p class="eyebrow">Private collector portfolio</p>
       <h1 id="authTitle">Sign in to your collection</h1>
-      <p>Your cards, purchase lots, and transactions are protected by your Supabase account.</p>
+      <p>Your cards, sealed products, purchase lots, and transactions are protected by your Supabase account.</p>
       <form id="passwordAuthForm" class="auth-form">
         <div class="field"><label for="authEmail">Email</label><input id="authEmail" name="email" type="email" autocomplete="email" required></div>
         <div class="field"><label for="authPassword">Password</label><input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="8" required></div>
@@ -54,10 +54,10 @@
       <section class="view active" id="view-collection" aria-labelledby="collectionTitle">
         <div class="collection-heading">
           <div>
-            <p class="eyebrow">Your cards</p>
+            <p class="eyebrow">Your portfolio</p>
             <h1 id="collectionTitle">My library</h1>
           </div>
-          <div class="collection-actions"><button class="quick-add" type="button" data-route="scan">+ Add card</button><button class="icon-button" id="moreButton" type="button" aria-label="More library options" aria-expanded="false">
+          <div class="collection-actions"><button class="quick-add" type="button" data-route="scan">+ Add item</button><button class="icon-button" id="moreButton" type="button" aria-label="More library options" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
           </button></div>
         </div>
@@ -73,7 +73,7 @@
           <div class="portfolio-stats">
             <div><span>You paid</span><strong id="costBasis">$0.00</strong></div>
             <div><span id="gainLabel">Gain / loss</span><strong id="unrealized">—</strong></div>
-            <div><span>Owned</span><strong id="ownedCount">0 cards</strong></div>
+            <div><span>Owned</span><strong id="ownedCount">0 items</strong></div>
           </div>
           <p class="valuation-note" id="valuationNote">Based on matching market prices. <button id="methodButton" type="button">How it works</button></p>
         </section>
@@ -97,7 +97,7 @@
           <label class="search-field">
             <span class="sr-only">Search collection</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-            <input id="collectionSearch" type="search" placeholder="Search card, grade, cert, or storage" autocomplete="off">
+            <input id="collectionSearch" type="search" placeholder="Search item, grade, cert, or storage" autocomplete="off">
           </label>
           <button class="tool-button" id="filterButton" type="button" aria-label="Filter and sort collection" aria-haspopup="dialog">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
@@ -106,16 +106,16 @@
         </div>
 
         <div class="ledger-meta">
-          <span id="resultCount">0 cards</span>
+          <span id="resultCount">0 items</span>
           <button id="sortButton" type="button">Value, high to low <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
         </div>
         <div class="card-ledger" id="cardLedger" aria-live="polite"></div>
         <div class="empty-state hidden" id="collectionEmpty">
           <span class="empty-mark" aria-hidden="true"></span>
-          <h2 id="collectionEmptyTitle">No cards in this view</h2>
+          <h2 id="collectionEmptyTitle">No items in this view</h2>
           <p id="collectionEmptyCopy">Try clearing the search or changing your filters.</p>
-          <div class="first-card-guide hidden" id="firstCardGuide" aria-label="How to add your first card"><div><b>1</b><span><strong>Find the exact card</strong><small>Search the name, set, and collector number.</small></span></div><div><b>2</b><span><strong>Tell Mica raw or graded</strong><small>Raw asks for condition. Graded asks for company and grade.</small></span></div><div><b>3</b><span><strong>Enter one total cost</strong><small>Use the full amount you paid. Mica handles the basis.</small></span></div></div>
-          <button class="quick-add hidden" id="emptyAddCard" type="button">Add your first card</button>
+          <div class="first-card-guide hidden" id="firstCardGuide" aria-label="How to add your first item"><div><b>1</b><span><strong>Find the exact item</strong><small>Search a card printing or sealed product.</small></span></div><div><b>2</b><span><strong>Add only what applies</strong><small>Cards ask raw or graded. Sealed products skip grading fields.</small></span></div><div><b>3</b><span><strong>Enter one total cost</strong><small>Use the full amount you paid. Mica handles the basis.</small></span></div></div>
+          <button class="quick-add hidden" id="emptyAddCard" type="button">Add your first item</button>
           <button class="text-button" id="clearFilters" type="button">Clear filters</button>
         </div>
       </section>
@@ -182,12 +182,14 @@
       </section>
 
       <section class="view" id="view-insights" aria-labelledby="insightsTitle">
-        <div class="screen-heading"><p class="eyebrow">Your collection</p><h1 id="insightsTitle">Market</h1><p>See which cards are moving and where prices come from.</p></div>
+        <div class="screen-heading"><p class="eyebrow">Your collection</p><h1 id="insightsTitle">Market</h1><p>See what needs attention, how your inventory is performing, and where prices come from.</p></div>
         <div class="insight-feature">
           <div class="insight-kicker">Pricing status</div>
           <strong>Connecting to provider…</strong>
           <span>Current quotes remain separate from historical movement.</span>
         </div>
+        <h2 class="section-heading action-center-heading">What should I do next?</h2>
+        <div id="businessReview" class="business-review"></div>
         <h2 class="section-heading">What changed</h2>
         <div id="moversList" class="movers-list"></div>
         <h2 class="section-heading">Portfolio positions</h2>
@@ -195,8 +197,6 @@
         <section class="inventory-health-card" aria-labelledby="inventoryHealthTitle"><div class="inventory-health-head"><span>Portfolio health</span><h2 id="inventoryHealthTitle">Concentration & aging</h2><p>See where portfolio value is concentrated and how long remaining purchase lots have tied up capital.</p></div><div id="inventoryHealth"></div><p class="inventory-health-note" id="inventoryHealthNote"></p></section>
         <section class="grading-batch-launch" aria-labelledby="batchGradingLaunchTitle"><div><span>Submission builder</span><h2 id="batchGradingLaunchTitle">Plan multiple cards together</h2><p>Share shipping and insurance across a batch, then compare expected graded value with selling raw.</p><small id="batchGradingCount">Add a raw card to begin</small></div><button id="batchGradingButton" type="button">Plan a grading batch</button></section>
         <section class="business-report" aria-labelledby="businessReportTitle"><div class="business-report-head"><div><span>Business performance</span><h2 id="businessReportTitle">Sales & cash flow</h2><p id="businessReportPeriod">Last 90 days</p></div><div class="business-report-actions"><label for="businessRange">Period<select id="businessRange"><option value="30d">30 days</option><option value="90d" selected>90 days</option><option value="ytd">Year to date</option><option value="all">All time</option></select></label><button id="businessExport" type="button" disabled>Download CSV</button></div></div><div class="business-report-metrics" id="businessReportMetrics"></div><p class="business-report-note" id="businessReportNote"></p></section>
-        <h2 class="section-heading">Business review</h2>
-        <div id="businessReview" class="business-review"></div>
         <h2 class="section-heading">Recent activity</h2>
         <div id="recentActivity" class="movers-list"></div>
         <div class="data-boundary"><strong>No sales history connected</strong><p>Mica does not infer completed sales from active listings. Add a licensed sales-history provider when approved.</p></div>
@@ -249,7 +249,7 @@
 
     <nav class="bottom-nav" aria-label="Primary navigation">
       <button class="nav-item active" type="button" data-route="collection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5"/></svg><span>Library</span></button>
-      <button class="nav-item scan-nav" type="button" data-route="scan"><span class="scan-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Add card</span></button>
+      <button class="nav-item scan-nav" type="button" data-route="scan"><span class="scan-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Add item</span></button>
       <button class="nav-item" type="button" data-route="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9M10 18V5M16 18v-7M21 18H3"/></svg><span>Market</span></button>
       <button class="nav-item" type="button" data-route="trade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"/></svg><span>Trade</span></button>
       <button class="nav-item" type="button" data-route="profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg><span>Profile</span></button>
@@ -262,7 +262,7 @@
     <div id="sheetContent"></div>
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=56"></script>
-  <script type="module" src="app.js?v=56"></script>
+  <script src="app-config.js?v=57"></script>
+  <script type="module" src="app.js?v=57"></script>
 </body>
 </html>

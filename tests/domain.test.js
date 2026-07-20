@@ -27,6 +27,7 @@ import {
   insuranceDocumentation,
   positionPerformance,
   portfolioReview,
+  portfolioActions,
   purchaseEntryPoints,
   businessSummary,
   blendedPosition,
@@ -737,6 +738,18 @@ test("portfolio review separates price gaps, below-cost positions, older stock, 
     review.reachedTargets.map((item) => item.id),
     ["hit"],
   );
+});
+
+test("portfolio actions put time-sensitive and data-quality work first", () => {
+  const positions = [
+    { id: "unpriced", price: null, quantity: 1, costBasis: 50, purchaseDate: "2026-06-01" },
+    { id: "loss", price: 75, quantity: 1, costBasis: 100, purchaseDate: "2025-01-01" },
+  ];
+  const watchlist = [{ id: "hit", targetPrice: 80, currentPrice: 75 }];
+  const actions = portfolioActions(positions, watchlist, "2026-07-17");
+  assert.deepEqual(actions.map((action) => action.key), ["targets", "pricing", "below-cost", "older"]);
+  assert.deepEqual(actions.map((action) => action.priority), [1, 2, 3, 4]);
+  assert.equal(portfolioActions([], [], "2026-07-17").length, 0);
 });
 
 test("watch performance reports exact movement from the saved starting reference", () => {
