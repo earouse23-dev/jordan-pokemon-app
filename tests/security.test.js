@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import accountHandler from "../api/account.js";
-import priceSyncHandler from "../api/price-sync.js";
+import priceSyncHandler, {
+  compatibleHistory,
+  positionObservationRow,
+  positionHistoryRows,
+} from "../api/price-sync.js";
 
 const migration = await readFile(
   new URL(
@@ -35,6 +39,13 @@ const sealedMigration = await readFile(
 const sealedWatchlistMigration = await readFile(
   new URL(
     "../supabase/migrations/20260720201731_support_sealed_watchlist.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const positionHistoryMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260720203942_add_position_price_history.sql",
     import.meta.url,
   ),
   "utf8",
@@ -190,6 +201,130 @@ test("sealed watch targets reuse the existing owner-protected watchlist", () => 
   );
   assert.doesNotMatch(sealedWatchlistMigration, /create table/i);
   assert.doesNotMatch(sealedWatchlistMigration, /grant |create policy/i);
+});
+
+test("durable position history is owner-readable and service-writable only", () => {
+  assert.match(
+    positionHistoryMigration,
+    /alter table public\.position_price_observations enable row level security/i,
+  );
+  assert.match(
+    positionHistoryMigration,
+    /create policy "position price history owners can read"[\s\S]+to authenticated[\s\S]+\(select auth\.uid\(\)\)=user_id/i,
+  );
+  assert.match(
+    positionHistoryMigration,
+    /revoke all on public\.position_price_observations from public,anon,authenticated/i,
+  );
+  assert.match(
+    positionHistoryMigration,
+    /grant select on public\.position_price_observations to authenticated/i,
+  );
+  assert.match(
+    positionHistoryMigration,
+    /get_portfolio_price_history[\s\S]+security invoker/i,
+  );
+  assert.doesNotMatch(positionHistoryMigration, /security definer/i);
+});
+
+test("scheduled history keeps only the owned condition or grade context", () => {
+  const raw = {
+    id: "position-1",
+    user_id: "user-1",
+    identity_snapshot: { variant: "Holofoil" },
+    card_state: "raw",
+    raw_condition: "near_mint",
+    grader: null,
+    grade: null,
+    currency: "USD",
+  };
+  const points = [
+    {
+      provider: "ebay",
+      providerVariantId: "nm",
+      currency: "USD",
+      condition: "Near Mint",
+      finish: "holofoil",
+      gradingCompany: null,
+      grade: null,
+      amount: 100,
+      recordedAt: "2026-07-01T00:00:00Z",
+      granularity: "day",
+    },
+    {
+      provider: "ebay",
+      providerVariantId: "lp",
+      currency: "USD",
+      condition: "Lightly Played",
+      finish: "holofoil",
+      gradingCompany: null,
+      grade: null,
+      amount: 80,
+      recordedAt: "2026-07-01T00:00:00Z",
+      granularity: "day",
+    },
+    {
+      provider: "ebay",
+      providerVariantId: "psa10",
+      currency: "USD",
+      condition: null,
+      finish: "holofoil",
+      gradingCompany: "PSA",
+      grade: "10",
+      amount: 1000,
+      recordedAt: "2026-07-01T00:00:00Z",
+      granularity: "day",
+    },
+  ];
+  assert.deepEqual(compatibleHistory(raw, points), [points[0]]);
+  const row = positionObservationRow(raw, points[0]);
+  assert.equal(row.user_id, "user-1");
+  assert.equal(row.collection_item_id, "position-1");
+  assert.equal(row.raw_condition, "near_mint");
+  assert.equal(row.grader, "");
+  assert.equal(row.amount, 100);
+});
+
+test("scheduled history persists current pricing without an internal catalog UUID", () => {
+  const position = {
+    id: "search-position",
+    user_id: "user-1",
+    card_id: null,
+    variant_id: null,
+    identity_snapshot: {
+      providerCardId: "tcgdex:en:base1-4",
+      variant: "Holofoil",
+    },
+    card_state: "raw",
+    raw_condition: "near_mint",
+    grader: null,
+    grade: null,
+    currency: "USD",
+  };
+  const normalized = {
+    quotes: [
+      {
+        provider: "tcgplayer",
+        providerVariantId: "4521:tcgplayer:Near Mint:Holofoil::",
+        currency: "USD",
+        condition: "Near Mint",
+        finish: "holofoil",
+        gradingCompany: null,
+        grade: null,
+        priceType: "market",
+        amount: 285,
+        observedAt: "2026-07-20T00:00:00Z",
+        quality: { aggregator: "pkmnprices" },
+      },
+    ],
+    history: [],
+  };
+  const result = positionHistoryRows(position, normalized);
+  assert.equal(result.quote.amount, 285);
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].collection_item_id, "search-position");
+  assert.equal(result.rows[0].provider, "tcgplayer");
+  assert.equal(result.rows[0].valuation_type, "market");
 });
 
 test("scheduled price synchronization rejects unauthenticated requests before provider access", async () => {

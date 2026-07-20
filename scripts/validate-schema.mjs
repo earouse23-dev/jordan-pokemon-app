@@ -68,6 +68,7 @@ const required = [
   "price_anomalies",
   "provider_sync_status",
   "card_watchlist",
+  "position_price_observations",
 ];
 
 const failures = [];

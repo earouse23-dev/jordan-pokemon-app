@@ -161,6 +161,62 @@ test("position hydration attaches FIFO basis and realized gain to each sale", ()
   assert.deepEqual(position.tags, ["Favorites"]);
 });
 
+test("position hydration restores durable exact-series price history", () => {
+  const position = hydratePosition(
+    {
+      id: "position-history",
+      identity_snapshot: { name: "Charizard", variant: "Holofoil" },
+      card_state: "graded",
+      raw_condition: null,
+      grader: "PSA",
+      grade: 10,
+      quantity: 1,
+      currency: "USD",
+      tags: [],
+    },
+    [],
+    [],
+    [],
+    [
+      {
+        provider: "ebay",
+        provider_variant_id: "4521:ebay:holo:PSA:10",
+        currency: "USD",
+        provider_condition: null,
+        finish: "holofoil",
+        grader: "PSA",
+        grade: 10,
+        grade_label: "10",
+        amount: "1200.50",
+        price_low: "1100",
+        price_high: "1300",
+        sales_count: 4,
+        observed_at: "2026-07-01T00:00:00Z",
+        granularity: "day",
+        quality: { aggregator: "pkmnprices" },
+      },
+    ],
+  );
+  assert.deepEqual(position.priceHistory, [
+    {
+      provider: "ebay",
+      providerVariantId: "4521:ebay:holo:PSA:10",
+      currency: "USD",
+      condition: null,
+      finish: "holofoil",
+      gradingCompany: "PSA",
+      grade: "10",
+      amount: 1200.5,
+      low: 1100,
+      high: 1300,
+      saleCount: 4,
+      recordedAt: "2026-07-01T00:00:00Z",
+      granularity: "day",
+      quality: { aggregator: "pkmnprices" },
+    },
+  ]);
+});
+
 test("sealed positions hydrate from the same private FIFO portfolio model", () => {
   const position = hydratePosition(
     {
@@ -773,13 +829,31 @@ test("portfolio review separates price gaps, below-cost positions, older stock, 
 
 test("portfolio actions put time-sensitive and data-quality work first", () => {
   const positions = [
-    { id: "unpriced", price: null, quantity: 1, costBasis: 50, purchaseDate: "2026-06-01" },
-    { id: "loss", price: 75, quantity: 1, costBasis: 100, purchaseDate: "2025-01-01" },
+    {
+      id: "unpriced",
+      price: null,
+      quantity: 1,
+      costBasis: 50,
+      purchaseDate: "2026-06-01",
+    },
+    {
+      id: "loss",
+      price: 75,
+      quantity: 1,
+      costBasis: 100,
+      purchaseDate: "2025-01-01",
+    },
   ];
   const watchlist = [{ id: "hit", targetPrice: 80, currentPrice: 75 }];
   const actions = portfolioActions(positions, watchlist, "2026-07-17");
-  assert.deepEqual(actions.map((action) => action.key), ["targets", "pricing", "below-cost", "older"]);
-  assert.deepEqual(actions.map((action) => action.priority), [1, 2, 3, 4]);
+  assert.deepEqual(
+    actions.map((action) => action.key),
+    ["targets", "pricing", "below-cost", "older"],
+  );
+  assert.deepEqual(
+    actions.map((action) => action.priority),
+    [1, 2, 3, 4],
+  );
   assert.equal(portfolioActions([], [], "2026-07-17").length, 0);
 });
 

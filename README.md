@@ -56,7 +56,7 @@ The PkmnPrices account currently configured in this workspace can return current
 
 ## Scheduled synchronization
 
-Vercel calls `GET /api/price-sync` daily at 05:00 UTC. The endpoint requires the exact bearer value in `PRICE_SYNC_SECRET` or `CRON_SECRET`, loads actively owned canonical cards, requests PkmnPrices server-side, and inserts immutable normalized observations. Duplicate observations are retained once through a database unique index; partial failures update provider diagnostics without deleting prior valid data.
+Vercel calls `GET /api/price-sync` daily at 05:00 UTC. The endpoint requires the exact bearer value in `PRICE_SYNC_SECRET` or `CRON_SECRET`, loads actively owned card positions, requests PkmnPrices server-side, and inserts immutable normalized observations. Position-scoped history works even when a searched card has not yet been mapped to an internal catalog UUID. Duplicate observations are retained once through a database unique constraint; partial failures update provider diagnostics without deleting prior valid data. Pro and Business plans backfill up to 365 days of exact compatible history; the free plan still accumulates genuine current observations over time.
 
 Users whose Supabase `app_metadata.role` is `admin` receive a protected profile action for provider health, ambiguous or missing mappings, open anomalies, and manual re-sync. The manual `POST /api/price-sync` path validates the caller's Supabase access token and admin role on the server; the cron secret is never sent to the browser.
 
