@@ -1,5 +1,5 @@
 import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch, ownedCardSummary, sameCatalogCard } from './lib/core.js';
-import { finishForVariant, gradedPriceLadder, mergePriceHistory, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
+import { finishForVariant, gradedPriceLadder, mergePriceHistory, priceMovement, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import { acquisitionFromTotal, allocateFifo, blendedPosition, businessSummary, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, insuranceDocumentation, inventoryHealth, portfolioActions, portfolioReview, positionPerformance, purchaseEntryPoints, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
@@ -23,7 +23,7 @@ let catalog = [
   { id:'sm115-28', name:'Pikachu', set:'Detective Pikachu', number:'10/18', rarity:'Common', variant:'Holofoil', image:'https://images.pokemontcg.io/sm115/10_hires.png', thumb:'https://images.pokemontcg.io/sm115/10.png', price:null, move:null, artist:'MPC Film', release:'2019' }
 ];
 
-const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, storageStatus:'cloud', accountLoading:false, accountLoadError:'', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
+const state = { items:[], watchlist:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, movementStatus:'idle', storageStatus:'cloud', accountLoading:false, accountLoadError:'', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -114,15 +114,34 @@ function renderMarketplaceOffers(item) {
   return `<section class="detail-section"><div class="detail-section-head"><h2>Live marketplace offers</h2><span>Active asks · lowest first</span></div>${item.offersStatus==='loading'?'<div class="unavailable-panel">Loading exact-printing seller offers…</div>':item.offersStatus==='unconfigured'?'<div class="pro-data-empty"><strong>Ready for live offers</strong><p>Connect PkmnPrices to populate TCGplayer and Cardmarket seller asks here.</p></div>':item.offersStatus==='error'?'<div class="unavailable-panel">Live offers are temporarily unavailable.<br><button class="inline-retry" id="retryOffersButton" type="button">Try offers again</button></div>':`<div class="offer-grid">${groups}</div>`}<p class="offer-disclaimer">${context}</p></section>`;
 }
 
-function historyForItem(item) {
+function historySeriesForItem(item) {
   const finish = finishForVariant(item.variant);
   const exact = (item.priceHistory || []).filter(point => {
     if (point.finish !== finish) return false;
+    if (point.currency && point.currency !== (item.currency || 'USD')) return false;
     if (item.gradingCompany) return String(point.gradingCompany || '').toUpperCase() === item.gradingCompany.toUpperCase() && String(point.grade ?? '') === String(item.grade);
     return !point.gradingCompany && (!point.condition || point.condition === item.condition);
   });
-  return exact
-    .sort((left, right) => new Date(left.recordedAt) - new Date(right.recordedAt));
+  const reference=selectReferenceQuote(item.quotes||[],item.variant,item.currency||'USD',item);
+  const referenceKey=reference?[reference.provider,reference.providerVariantId||'',reference.currency].join('|'):null;
+  const groups=new Map();
+  for(const point of exact){const key=[point.provider||'unknown',point.providerVariantId||'',point.currency||item.currency||'USD'].join('|');if(!groups.has(key))groups.set(key,{key,provider:point.provider||'unknown',currency:point.currency||item.currency||'USD',points:[],isReference:key===referenceKey});groups.get(key).points.push(point);}
+  return [...groups.values()].map(series=>({...series,points:series.points.sort((left,right)=>new Date(left.recordedAt)-new Date(right.recordedAt))})).sort((left,right)=>Number(right.isReference)-Number(left.isReference)||right.points.length-left.points.length||new Date(right.points.at(-1)?.recordedAt||0)-new Date(left.points.at(-1)?.recordedAt||0));
+}
+
+function movementForItem(item,days=30) {
+  const reference=selectReferenceQuote(item.quotes||[],item.variant,item.currency||'USD',item);
+  for(const series of historySeriesForItem(item)){
+    const movement=priceMovement(series.points,{days,asOf:series.isReference?(item.pricingUpdatedAt||reference?.observedAt||reference?.retrievedAt):series.points.at(-1)?.recordedAt,currentAmount:series.isReference?item.price:null});
+    if(movement)return {...movement,provider:series.provider,currency:series.currency,isReference:series.isReference};
+  }
+  return null;
+}
+
+function historyForItem(item) {
+  const series=historySeriesForItem(item);
+  const movementSeries=series.find(candidate=>priceMovement(candidate.points,{days:30,asOf:candidate.points.at(-1)?.recordedAt}));
+  return (movementSeries||series.find(candidate=>candidate.points.length>=2)||series[0])?.points||[];
 }
 
 function renderHistory(item) {
@@ -519,9 +538,9 @@ function renderCollection() {
     const total = itemValue(item);
     const moveClass = item.move == null ? 'none' : item.move >= 0 ? 'up' : 'down';
     const hasMovement = Number.isFinite(Number(item.move));
-    const movementLabel = item.pricingStatus === 'live' || item.price == null || !hasMovement
-      ? priceStatusText(item)
-      : `${item.move >= 0 ? '↑' : '↓'} ${Math.abs(item.move).toFixed(1)}% preview`;
+    const movementLabel = item.price != null && hasMovement
+      ? `${item.move >= 0 ? '↑' : '↓'} ${Math.abs(item.move).toFixed(1)}% · 30 days`
+      : priceStatusText(item);
     const tags = [item.cardState==='sealed'?'Sealed':item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition, ...(item.tags || []).slice(0,1)];
     return `<article class="ledger-row" tabindex="0" role="button" aria-label="Open ${esc(item.name)}, ${total == null ? 'price unavailable' : money(total)}" data-id="${esc(item.uid)}">
       <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
@@ -575,7 +594,7 @@ async function loadCardPreviewPricing(card) {
     const priced = payload.cards?.[0];
     if (!priced || state.detailId !== card.id) return;
     const quote = selectReferenceQuote(priced.quotes, card.variant, 'USD', { condition:'Near Mint' });
-    const updated = { ...card, externalIds:{...(card.externalIds||{}),...(priced.externalIds||{})}, metadata:priced.metadata||card.metadata||null, priceCapabilities:payload.capabilities||null, price:quote?.amount ?? null, quotes:priced.quotes || [], priceHistory:priced.history || [], historyStatus:priced.historyStatus || null, pricingStatus:quote?quoteStatus(quote):'unavailable', pricingUpdatedAt:quote?.observedAt || quote?.retrievedAt?.slice(0,10) || null };
+    const updated = { ...card, externalIds:{...(card.externalIds||{}),...(priced.externalIds||{})}, metadata:priced.metadata||card.metadata||null, priceCapabilities:payload.capabilities||null, price:quote?.amount ?? null, quotes:priced.quotes || [], priceHistory:recordPriceObservation(card,quote,priced.history||[]), historyStatus:priced.historyStatus || null, pricingStatus:quote?quoteStatus(quote):'unavailable', pricingUpdatedAt:quote?.observedAt || quote?.retrievedAt?.slice(0,10) || null };
     catalog = catalog.map(item => item.id === card.id ? updated : item);
     state.detailCard = updated;
     renderDetail();
@@ -589,7 +608,7 @@ async function loadCardPreviewPricing(card) {
 async function loadOwnedDetailPricing(item) {
   const lookup=[{clientId:item.id,pkmnpricesId:item.externalIds?.pkmnprices||'',justtcgId:item.externalIds?.justtcg||'',tcgplayerId:item.externalIds?.tcgplayer||'',tcgdexId:item.externalIds?.tcgdex||'',name:item.name,set:item.set,number:item.number,language:item.language||'en'}];
   try{
-    const response=await fetch(`/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(lookup))}`,{headers:{Accept:'application/json'}});if(!response.ok)return;const payload=await response.json();const priced=payload.cards?.[0];if(!priced||state.detailId!==item.uid)return;const quote=selectReferenceQuote(priced.quotes,item.variant,item.currency||'USD',item);const updated={...item,externalIds:{...(item.externalIds||{}),...(priced.externalIds||{})},metadata:priced.metadata||item.metadata||null,priceCapabilities:payload.capabilities||null,price:quote?.amount??null,quotes:priced.quotes||[],historyStatus:priced.historyStatus||null,priceHistory:mergePriceHistory(item.priceHistory||[],priced.history||[]),pricingStatus:quote?quoteStatus(quote):'unavailable',pricingUpdatedAt:quote?.observedAt||quote?.retrievedAt?.slice?.(0,10)||null};state.items=state.items.map(candidate=>candidate.uid===item.uid?updated:candidate);state.detailCard=updated;renderCollection();renderDetail();
+    const response=await fetch(`/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(lookup))}`,{headers:{Accept:'application/json'}});if(!response.ok)return;const payload=await response.json();const priced=payload.cards?.[0];if(!priced||state.detailId!==item.uid)return;const quote=selectReferenceQuote(priced.quotes,item.variant,item.currency||'USD',item);const pricedItem={...item,externalIds:{...(item.externalIds||{}),...(priced.externalIds||{})},metadata:priced.metadata||item.metadata||null,priceCapabilities:payload.capabilities||null,price:quote?.amount??null,quotes:priced.quotes||[],historyStatus:priced.historyStatus||null,priceHistory:recordPriceObservation(item,quote,mergePriceHistory(item.priceHistory||[],priced.history||[])),pricingStatus:quote?quoteStatus(quote):'unavailable',pricingUpdatedAt:quote?.observedAt||quote?.retrievedAt?.slice?.(0,10)||null};const movement=movementForItem(pricedItem);const updated={...pricedItem,move:movement?.changePercent??null,movement};state.items=state.items.map(candidate=>candidate.uid===item.uid?updated:candidate);state.detailCard=updated;renderCollection();renderInsights();renderDetail();
   }catch{}
 }
 
@@ -813,7 +832,7 @@ function openSaleSheet(item,defaults={}) {
 }
 
 async function reloadPortfolio(focusId=null) {
-  state.items=await loadPortfolio(supabase);renderCollection();renderInsights();if(focusId){state.detailId=focusId;state.detailCard=state.items.find(item=>item.uid===focusId)||null;state.detailReturnRoute='collection';routeTo('detail');}await refreshLivePricing();
+  state.items=await loadPortfolio(supabase);state.movementStatus='idle';renderCollection();renderInsights();if(focusId){state.detailId=focusId;state.detailCard=state.items.find(item=>item.uid===focusId)||null;state.detailReturnRoute='collection';routeTo('detail');}await refreshLivePricing();
 }
 
 async function toggleFavorite(item) {
@@ -1125,19 +1144,20 @@ async function refreshLivePricing() {
       if (!processed) return rateLimited ? {...item,demoPrice,pricingStatus:item.price==null?'rate_limited':item.pricingStatus} : item;
       if (!card) return { ...item, demoPrice, price:null, move:null, quotes:[], pricingStatus:'unavailable', pricingUpdatedAt:null };
       const quote = selectReferenceQuote(card.quotes, item.variant, 'USD', item);
-      return {
+      const updated = {
         ...item,
         externalIds:{...(item.externalIds||{}),...(card.externalIds||{})},
         metadata:card.metadata||item.metadata||null,productType:card.productType||item.productType||null,
         demoPrice,
         price: quote?.amount ?? null,
-        move: null,
         quotes: card.quotes,
         historyStatus: card.historyStatus || null,
-        priceHistory: quote ? recordPriceObservation(item, quote, card.history || []) : card.history || [],
+        priceHistory: quote ? recordPriceObservation(item, quote, mergePriceHistory(item.priceHistory||[],card.history||[])) : mergePriceHistory(item.priceHistory||[],card.history||[]),
         pricingStatus: quote ? quoteStatus(quote) : 'unavailable',
         pricingUpdatedAt: quote?.observedAt || quote?.retrievedAt?.slice(0,10) || null,
       };
+      const movement=movementForItem(updated);
+      return {...updated,move:movement?.changePercent??null,movement};
     };
     state.items = state.items.map(applyPricing);
     catalog = catalog.map(item => cards.has(item.id) ? applyPricing(item) : item);
@@ -1146,12 +1166,27 @@ async function refreshLivePricing() {
     renderCollection();
     renderInsights();
     if (state.route === 'detail') renderDetail();
+    if(state.route==='insights')void refreshMovementHistory();
   } catch {
     state.pricingStatus = 'error';
     state.items = state.items.map(item => ({...item, pricingStatus:item.price == null?'error':item.pricingStatus}));
     renderCollection();
     renderInsights();
   }
+}
+
+async function refreshMovementHistory() {
+  if(!['idle','error'].includes(state.movementStatus)||!state.items.some(item=>item.cardState!=='sealed'))return;
+  const cardItems=[...new Map(state.items.filter(item=>item.cardState!=='sealed'&&item.id).map(item=>[item.id,item])).values()];
+  const lookups=cardItems.map(item=>({clientId:item.id,pkmnpricesId:item.externalIds?.pkmnprices||'',justtcgId:item.externalIds?.justtcg||'',tcgplayerId:item.externalIds?.tcgplayer||'',tcgdexId:item.externalIds?.tcgdex||'',name:item.name,set:item.set,number:item.number,language:item.language||'en'}));
+  state.movementStatus='loading';renderInsights();
+  try{
+    const cards=new Map();let planLimited=false;let failed=false;
+    for(let start=0;start<lookups.length;start+=8){const batch=lookups.slice(start,start+8);const response=await fetch(`/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(batch))}`,{headers:{Accept:'application/json'}});if(!response.ok){failed=true;continue;}const payload=await response.json();(payload.cards||[]).forEach(card=>{cards.set(card.providerCardId,card);if(card.historyStatus==='plan_required')planLimited=true;});}
+    state.items=state.items.map(item=>{const card=cards.get(item.id);if(!card)return item;const quote=selectReferenceQuote(card.quotes,item.variant,item.currency||'USD',item);const updated={...item,externalIds:{...(item.externalIds||{}),...(card.externalIds||{})},metadata:card.metadata||item.metadata||null,priceCapabilities:card.priceCapabilities||item.priceCapabilities||null,price:quote?.amount??item.price,quotes:card.quotes||item.quotes||[],historyStatus:card.historyStatus||item.historyStatus||null,priceHistory:recordPriceObservation(item,quote,mergePriceHistory(item.priceHistory||[],card.history||[])),pricingStatus:quote?quoteStatus(quote):item.pricingStatus,pricingUpdatedAt:quote?.observedAt||quote?.retrievedAt?.slice?.(0,10)||item.pricingUpdatedAt};const movement=movementForItem(updated);return {...updated,move:movement?.changePercent??null,movement};});
+    state.movementStatus=state.items.some(item=>movementForItem(item))?'live':planLimited?'plan_required':failed?'error':'unavailable';
+  }catch{state.movementStatus='error';}
+  renderCollection();renderInsights();if(state.route==='detail')renderDetail();
 }
 
 async function refreshWatchlistPricing() {
@@ -1219,6 +1254,7 @@ function renderInventoryHealth() {
 
 function renderInsights() {
   const priced = state.items.filter(item => item.price != null).length;
+  const movements=state.items.map(item=>({item,movement:movementForItem(item)})).filter(row=>row.movement).sort((left,right)=>Math.abs(right.movement.changePercent)-Math.abs(left.movement.changePercent));
   const ranked=[...state.items].map(item=>({item,value:item.price==null?null:Number(item.price)*Number(item.quantity),gain:item.price==null?null:Number(item.price)*Number(item.quantity)-Number(item.costBasis||0)})).sort((a,b)=>(b.value??-1)-(a.value??-1));
   $('#positionRankings').innerHTML=ranked.length?ranked.slice(0,5).map(({item,value,gain})=>`<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition)} · ${item.quantity} owned</span></div><b>${value===null?'Unavailable':`${money(value)}${gain===null?'':` · ${gain>=0?'+':''}${money(gain)}`}`}</b></div>`).join(''):'<div class="data-boundary"><strong>No positions yet</strong><p>Add an exact card and purchase lot to start portfolio analysis.</p></div>';
   renderInventoryHealth();
@@ -1228,8 +1264,11 @@ function renderInsights() {
   renderBusinessSummary();
   renderBusinessReview();
   if (['live','partial'].includes(state.pricingStatus)) {
-    $('.insight-feature').innerHTML = `<div class="insight-kicker">${state.pricingStatus==='partial'?'Partial':'Live'} pricing status</div><strong>${priced} of ${state.items.length} items priced</strong><span>Exact-product matches only · ${state.items.length-priced} need review</span><div class="unavailable-panel">Price trends appear after matching prices have been collected over time.</div>`;
-    $('#moversList').innerHTML = '<div class="data-boundary"><strong>Movement history is not available yet</strong><p>Mica will not infer a trend from one quote or from incompatible variants.</p></div>';
+    const comparable=movements.filter(row=>row.movement.currency==='USD');const prior=comparable.reduce((sum,row)=>sum+row.movement.fromAmount*Number(row.item.quantity||0),0);const current=comparable.reduce((sum,row)=>sum+row.movement.toAmount*Number(row.item.quantity||0),0);const change=current-prior;const percent=prior>0?change/prior*100:null;
+    if(movements.length){$('.insight-feature').innerHTML=`<div class="insight-kicker">Verified 30-day movement</div><strong>${comparable.length?`${change>=0?'+':''}${money(change)}`:`${movements.length} comparable series`}</strong><span>${percent===null?'Exact comparable history':`${percent>=0?'+':''}${percent.toFixed(1)}% across ${comparable.length} USD position${comparable.length===1?'':'s'}`} · current quantities</span><div class="unavailable-panel">Calculated from the same printing, condition or grade, currency, and provider series. It is market movement, not realized profit.</div>`;}
+    else{$('.insight-feature').innerHTML = `<div class="insight-kicker">${state.pricingStatus==='partial'?'Partial':'Live'} pricing status</div><strong>${priced} of ${state.items.length} items priced</strong><span>Exact-product matches only · ${state.items.length-priced} need review</span><div class="unavailable-panel">${state.movementStatus==='loading'?'Loading exact historical observations…':state.movementStatus==='plan_required'?'Historical observations are ready for PkmnPrices Pro. Current prices remain available on the connected plan.':state.movementStatus==='error'?'Historical pricing could not be refreshed. Current portfolio values are unchanged.':'Price trends appear after at least 30 days of matching history exist.'}</div>`;}
+    $('#moversList').innerHTML = movements.length?movements.slice(0,6).map(({item,movement})=>{const context=item.gradingCompany?`${item.gradingCompany} ${item.grade}`:item.condition;const provider=movement.provider==='ebay'?'eBay sold':movement.provider==='tcgplayer'?'TCGplayer':movement.provider==='cardmarket'?'Cardmarket':movement.provider;return `<button type="button" class="mover mover-button" data-mover-id="${esc(item.uid)}"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(context)} · ${esc(provider)} · ${money(movement.fromAmount,movement.currency)} to ${money(movement.toAmount,movement.currency)}</span></div><b class="${movement.changePercent<0?'negative':''}">${movement.changePercent>=0?'+':''}${movement.changePercent.toFixed(1)}%</b></button>`;}).join(''):'<div class="data-boundary"><strong>No verified 30-day movement yet</strong><p>Mica needs an observation at least 30 days earlier from the same printing, condition or grade, currency, and provider series. It will not blend incompatible prices.</p></div>';
+    $$('[data-mover-id]').forEach(button=>button.addEventListener('click',()=>openCardDetail(state.items.find(item=>item.uid===button.dataset.moverId),true)));
     return;
   }
   $('.insight-feature').innerHTML = `<div class="insight-kicker">Preview movement · fixture data</div><strong>+$124.18</strong><span>Illustrative only · replaced when live comparable history exists</span>`;
@@ -1326,7 +1365,7 @@ function bindQuickCardSearch() {
 }
 
 function bindEvents() {
-  $$('[data-route]').forEach(button=>button.addEventListener('click',()=>{const route=button.dataset.route;if(route==='insights')renderInsights();if(route==='trade')renderTrade();routeTo(route);}));
+  $$('[data-route]').forEach(button=>button.addEventListener('click',()=>{const route=button.dataset.route;if(route==='insights'){renderInsights();void refreshMovementHistory();}if(route==='trade')renderTrade();routeTo(route);}));
   $$('.view-tab').forEach(tab=>tab.addEventListener('click',()=>{state.ledgerView=tab.dataset.ledgerView;syncTabs();renderCollection();}));
   $$('.view-tab').forEach(tab=>tab.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const tabs=$$('.view-tab');const current=tabs.indexOf(event.currentTarget);const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(current+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[next].focus();tabs[next].click();}));
   $('#collectionSearch').addEventListener('input',event=>{state.query=event.target.value;renderCollection();});
@@ -1335,7 +1374,7 @@ function bindEvents() {
   $('#clearFilters').addEventListener('click',()=>{state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';state.labelFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();});
   $('#emptyAddCard').addEventListener('click',()=>{if(state.accountLoadError)void retryAccountLoad();else routeTo('scan');});
   $('#methodButton').addEventListener('click',openMethodSheet);
-  $('#syncState').addEventListener('click',()=>{if(state.accountLoadError)void retryAccountLoad();else if(state.storageStatus==='error')toast('Cloud save is unavailable · changes may last only for this session');else if(state.pricingStatus!=='loading')void Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);});
+  $('#syncState').addEventListener('click',()=>{if(state.accountLoadError)void retryAccountLoad();else if(state.storageStatus==='error')toast('Cloud save is unavailable · changes may last only for this session');else if(state.pricingStatus!=='loading'){state.movementStatus='idle';void Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);}});
   $('#manualSearchButton').addEventListener('click',openManualSearch);
   $('#sealedSearchButton').addEventListener('click',openSealedSearch);
   $('#cameraInput').addEventListener('change',event=>{const file=event.target.files[0];event.target.value='';validateImage(file);});
@@ -1408,10 +1447,10 @@ async function applySession(session) {
   $('#skipLink').setAttribute('href',session?'#main':'#authGate');
   document.body.classList.toggle('authenticated',Boolean(session));
   $('#authGate').hidden=Boolean(session);
-  if(!session){state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;state.accountLoading=false;state.accountLoadError='';chartInstance?.destroy();return;}
+  if(!session){state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;state.movementStatus='idle';state.accountLoading=false;state.accountLoadError='';chartInstance?.destroy();return;}
   if(!appEventsBound){bindEvents();appEventsBound=true;}
   ensureProfileAccount();
-  state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;state.pricingStatus='idle';state.pricingRetrievedAt=null;state.accountLoading=true;state.accountLoadError='';renderCollection();renderInsights();renderTrade();routeTo(location.hash&&['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});
+  state.items=[];state.watchlist=[];state.detailId=null;state.detailCard=null;state.pricingStatus='idle';state.pricingRetrievedAt=null;state.movementStatus='idle';state.accountLoading=true;state.accountLoadError='';renderCollection();renderInsights();renderTrade();routeTo(location.hash&&['scan','insights','trade','profile'].includes(location.hash.slice(1))?location.hash.slice(1):'collection',{instant:true,history:'replace'});
   try{[state.items,state.watchlist]=await Promise.all([loadPortfolio(supabase),loadWatchlist(supabase)]);state.storageStatus='cloud';state.accountLoading=false;state.accountLoadError='';renderCollection();renderInsights();renderTrade();await Promise.all([refreshLivePricing(),refreshWatchlistPricing()]);}
   catch(error){state.items=[];state.watchlist=[];state.storageStatus='error';state.accountLoading=false;state.accountLoadError=error.message||'Cloud portfolio unavailable';renderCollection();renderInsights();renderTrade();routeTo('collection',{instant:true,history:'replace'});toast('Your saved data is unchanged · Mica could not load it');}
 }

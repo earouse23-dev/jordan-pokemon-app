@@ -220,6 +220,9 @@ h1 { font: 700 29px/1.12 var(--font-sans); letter-spacing: -.035em; margin: 0; }
 .mover strong { display: block; font-size: 11px; }
 .mover span { display: block; color: var(--muted); font-size: 9px; margin-top: 2px; }
 .mover b { font-size: 11px; color: #39735a; }
+.mover b.negative { color: var(--danger); }
+.mover-button { width: 100%; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.mover-button:hover, .mover-button:focus-visible { background: rgba(62,112,86,.06); outline: none; }
 .data-boundary { border-left: 2px solid var(--gold); padding: 10px 13px; margin-top: 22px; background: rgba(255,255,255,.45); }
 .data-boundary strong { font-size: 11px; }
 .data-boundary p { margin: 4px 0 0; color: var(--muted); font-size: 9px; line-height: 1.5; }

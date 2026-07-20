@@ -9,6 +9,7 @@ import {
   gradedPriceLadder,
   mergePriceHistory,
   normalizeCard,
+  priceMovement,
   selectCardmarketReference,
   selectReferenceQuote,
 } from "../lib/pricing.js";
@@ -139,6 +140,38 @@ test("deduplicates and orders genuine price observations without accepting zero 
   assert.equal(merged.length, 2);
   assert.equal(merged[0].amount, 10);
   assert.equal(merged[1].amount, 12);
+});
+
+test("calculates an honest period movement only with a sufficiently old baseline", () => {
+  const history = [
+    { amount: 80, recordedAt: "2026-05-30T00:00:00Z" },
+    { amount: 100, recordedAt: "2026-06-10T00:00:00Z" },
+    { amount: 115, recordedAt: "2026-07-10T00:00:00Z" },
+  ];
+  assert.deepEqual(
+    priceMovement(history, {
+      days: 30,
+      asOf: "2026-07-10T00:00:00Z",
+      currentAmount: 120,
+    }),
+    {
+      days: 30,
+      fromAmount: 100,
+      toAmount: 120,
+      changeAmount: 20,
+      changePercent: 20,
+      fromDate: "2026-06-10T00:00:00.000Z",
+      toDate: "2026-07-10T00:00:00.000Z",
+    },
+  );
+  assert.equal(
+    priceMovement(history.slice(1), {
+      days: 31,
+      asOf: "2026-07-10T00:00:00Z",
+    }),
+    null,
+  );
+  assert.equal(priceMovement([{ amount: 10, recordedAt: "bad" }]), null);
 });
 
 test("normalizes JustTCG condition, printing, timestamps, statistics and daily history", () => {
