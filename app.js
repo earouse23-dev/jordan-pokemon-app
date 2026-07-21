@@ -1,4 +1,4 @@
-import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, localIsoDate, matchesSearch, ownedCardSummary, sameCatalogCard } from './lib/core.js';
+import { money, calculateTotals, collectionToCsv, collectionWindow, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, localIsoDate, matchesSearch, ownedCardSummary, sameCatalogCard } from './lib/core.js';
 import { finishForVariant, gradedPriceLadder, mergePriceHistory, priceEvidence, priceMovement, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import { acquisitionFromTotal, allocateFifo, batchAcquisitionPlan, blendedPosition, businessSummary, buyOfferPlan, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, insuranceDocumentation, inventoryHealth, liquidationPlan, listingReadiness, portfolioActions, portfolioReview, positionPerformance, purchaseEntryPoints, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
@@ -27,7 +27,7 @@ let catalog = [
   { id:'sm115-28', name:'Pikachu', set:'Detective Pikachu', number:'10/18', rarity:'Common', variant:'Holofoil', image:'https://images.pokemontcg.io/sm115/10_hires.png', thumb:'https://images.pokemontcg.io/sm115/10.png', price:null, move:null, artist:'MPC Film', release:'2019' }
 ];
 
-const state = { items:[], watchlist:[], intakeQueue:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', bulkMode:false, bulkSelected:new Set(), visiblePositionIds:[], detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, movementStatus:'idle', storageStatus:'cloud', accountLoading:false, accountLoadError:'', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
+const state = { items:[], watchlist:[], intakeQueue:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', bulkMode:false, bulkSelected:new Set(), visiblePositionIds:[], visibleLimit:100, visibleKey:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, movementStatus:'idle', storageStatus:'cloud', accountLoading:false, accountLoadError:'', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -549,7 +549,7 @@ function renderCollection() {
   ['#moreButton','#sharePortfolioButton','#importButton','#exportButton','#exportCsvButton','#insuranceReportButton','#batchGradingButton'].forEach(selector=>{const button=$(selector);if(button)button.disabled=accountUnavailable;});
   if(accountUnavailable){
     state.bulkMode=false;state.bulkSelected.clear();syncBulkControls();
-    $('#view-collection').classList.add('empty-library');$('#cardLedger').innerHTML='';$('#resultCount').textContent=state.accountLoading?'Reconnecting…':'Cloud data unavailable';$('#collectionEmpty').classList.remove('hidden');$('#collectionEmptyTitle').textContent=state.accountLoading?'Reconnecting to your library…':"Your library couldn't load";$('#collectionEmptyCopy').textContent=state.accountLoading?'Mica is securely checking your account again.':"Your saved data was not changed. Check your connection and try again.";$('#firstCardGuide').classList.add('hidden');$('#emptyAddCard').classList.remove('hidden');$('#emptyAddCard').disabled=state.accountLoading;$('#emptyAddCard').textContent=state.accountLoading?'Reconnecting…':'Try again';$('#clearFilters').classList.add('hidden');$('#syncState span:last-child').textContent=state.accountLoading?'Reconnecting…':'Cloud unavailable';$('#syncState').setAttribute('aria-label',state.accountLoading?'Reconnecting to your cloud portfolio.':'Cloud portfolio could not load. Select to try again.');return;
+    $('#view-collection').classList.add('empty-library');$('#cardLedger').innerHTML='';$('#loadMorePositions').hidden=true;$('#resultCount').textContent=state.accountLoading?'Reconnecting…':'Cloud data unavailable';$('#collectionEmpty').classList.remove('hidden');$('#collectionEmptyTitle').textContent=state.accountLoading?'Reconnecting to your library…':"Your library couldn't load";$('#collectionEmptyCopy').textContent=state.accountLoading?'Mica is securely checking your account again.':"Your saved data was not changed. Check your connection and try again.";$('#firstCardGuide').classList.add('hidden');$('#emptyAddCard').classList.remove('hidden');$('#emptyAddCard').disabled=state.accountLoading;$('#emptyAddCard').textContent=state.accountLoading?'Reconnecting…':'Try again';$('#clearFilters').classList.add('hidden');$('#syncState span:last-child').textContent=state.accountLoading?'Reconnecting…':'Cloud unavailable';$('#syncState').setAttribute('aria-label',state.accountLoading?'Reconnecting to your cloud portfolio.':'Cloud portfolio could not load. Select to try again.');return;
   }
   $('#emptyAddCard').disabled=false;
   $('#view-collection').classList.toggle('empty-library',state.items.length===0&&state.ledgerView==='all');
@@ -593,11 +593,13 @@ function renderCollection() {
   $('#syncState').setAttribute('aria-label', state.storageStatus==='error' ? 'Session only. Changes may be lost when this page closes.' : `Portfolio saved to your account. ${syncLabels[state.pricingStatus] || 'Pricing ready'}. Select to refresh prices.`);
   if(state.ledgerView==='watchlist'){
     state.bulkMode=false;state.bulkSelected.clear();state.visiblePositionIds=[];syncBulkControls();
+    $('#loadMorePositions').hidden=true;
     renderWatchlistRows();
     return;
   }
   if(state.ledgerView==='sets'){
     state.bulkMode=false;state.bulkSelected.clear();state.visiblePositionIds=[];syncBulkControls();
+    $('#loadMorePositions').hidden=true;
     renderSetRows();
     void refreshSetCatalogs();
     return;
@@ -619,10 +621,14 @@ function renderCollection() {
   else if(state.conditionFilter==='Sealed')visible=visible.filter(item=>item.cardState==='sealed');
   else if (state.conditionFilter) visible = visible.filter(item => item.condition === state.conditionFilter);
   visible.sort((a,b) => state.sort === 'value-desc' ? (itemValue(b) ?? -1) - (itemValue(a) ?? -1) : a.name.localeCompare(b.name));
-  state.visiblePositionIds=visible.map(item=>item.uid);
-  $('#resultCount').textContent = `${visible.length} item${visible.length === 1 ? '' : 's'}`;
+  const visibleKey=JSON.stringify([state.ledgerView,state.query,state.sort,state.setFilter,state.conditionFilter,state.labelFilter]);
+  if(state.visibleKey!==visibleKey){state.visibleKey=visibleKey;state.visibleLimit=100;}
+  const windowed=collectionWindow(visible,state.visibleLimit);const displayed=windowed.displayed;
+  state.visiblePositionIds=displayed.map(item=>item.uid);
+  $('#resultCount').textContent = windowed.remaining?`Showing ${displayed.length} of ${windowed.total} items`:`${windowed.total} item${windowed.total === 1 ? '' : 's'}`;
+  const remaining=windowed.remaining;$('#loadMorePositions').hidden=remaining<=0;$('#loadMorePositions').textContent=`Show ${Math.min(100,remaining)} more · ${remaining} remaining`;
   $('#sortButton').firstChild.textContent = state.sort === 'value-desc' ? 'Value, high to low ' : 'Name, A to Z ';
-  $('#cardLedger').innerHTML = visible.map(item => {
+  $('#cardLedger').innerHTML = displayed.map(item => {
     const total = itemValue(item);
     const moveClass = item.move == null ? 'none' : item.move >= 0 ? 'up' : 'down';
     const hasMovement = Number.isFinite(Number(item.move));
@@ -1553,6 +1559,7 @@ function bindEvents() {
   $('#collectionSearch').addEventListener('input',event=>{state.query=event.target.value;renderCollection();});
   $('#filterButton').addEventListener('click',openFilterSheet);
   $('#sortButton').addEventListener('click',()=>{state.sort=state.sort==='value-desc'?'name':'value-desc';renderCollection();});
+  $('#loadMorePositions').addEventListener('click',()=>{state.visibleLimit+=100;renderCollection();});
   $('#selectPositionsButton').addEventListener('click',()=>setBulkMode(!state.bulkMode));
   $('#bulkDoneButton').addEventListener('click',()=>setBulkMode(false));
   $('#bulkOrganizeButton').addEventListener('click',openBulkOrganizeSheet);

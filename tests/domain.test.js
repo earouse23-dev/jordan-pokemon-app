@@ -44,6 +44,8 @@ import {
   bulkOrganizePositions,
   hydratePosition,
   hydrateWatchlistEntry,
+  loadRowsInChunks,
+  loadRowsInPages,
   updatePosition,
 } from "../lib/supabase-data.js";
 
@@ -380,6 +382,80 @@ test("bulk organization rejects empty, oversized, and no-op requests", async () 
       }),
     /40 characters/,
   );
+});
+
+test("large owned-row lookups use bounded filters and preserve every result", async () => {
+  const calls = [];
+  const client = {
+    from(table) {
+      const builder = {
+        rows: [],
+        select(columns) {
+          assert.equal(table, "purchase_lots");
+          assert.equal(columns, "*");
+          return this;
+        },
+        in(key, ids) {
+          assert.equal(key, "collection_item_id");
+          assert.ok(ids.length <= 200);
+          calls.push([...ids]);
+          this.rows = ids.map((id) => ({ collection_item_id: id }));
+          return this;
+        },
+        order(column) {
+          assert.equal(column, "acquired_at");
+          return Promise.resolve({ data: this.rows, error: null });
+        },
+      };
+      return builder;
+    },
+  };
+  const ids = Array.from({ length: 450 }, (_, index) => `position-${index}`);
+  const rows = await loadRowsInChunks(client, {
+    table: "purchase_lots",
+    key: "collection_item_id",
+    ids,
+    order: "acquired_at",
+  });
+  assert.equal(calls.length, 3);
+  assert.equal(rows.length, 450);
+  assert.equal(new Set(rows.map((row) => row.collection_item_id)).size, 450);
+});
+
+test("large portfolios page past the API row limit with stable ordering", async () => {
+  const ranges = [];
+  const allRows = Array.from({ length: 2050 }, (_, index) => ({ id: index }));
+  const client = {
+    from(table) {
+      assert.equal(table, "collection_items");
+      return {
+        select() {
+          return this;
+        },
+        order(column, options) {
+          assert.ok(["created_at", "id"].includes(column));
+          assert.equal(options.ascending, false);
+          return this;
+        },
+        async range(from, to) {
+          ranges.push([from, to]);
+          return { data: allRows.slice(from, to + 1), error: null };
+        },
+      };
+    },
+  };
+  const rows = await loadRowsInPages(client, {
+    table: "collection_items",
+    order: "created_at",
+    secondaryOrder: "id",
+    ascending: false,
+  });
+  assert.equal(rows.length, 2050);
+  assert.deepEqual(ranges, [
+    [0, 999],
+    [1000, 1999],
+    [2000, 2999],
+  ]);
 });
 
 test("seller listing fields hydrate and update without leaking into unrelated writes", async () => {

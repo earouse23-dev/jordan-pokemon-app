@@ -4,6 +4,7 @@ import {
   accountBackupJson,
   calculateTotals,
   collectionToCsv,
+  collectionWindow,
   parseCollectionCsv,
   isStale,
   localIsoDate,
@@ -21,6 +22,17 @@ test("local calendar dates do not roll over at UTC midnight", () => {
   const localLateEvening = new Date(2026, 6, 20, 23, 30, 0);
   assert.equal(localIsoDate(localLateEvening), "2026-07-20");
   assert.equal(localIsoDate("not-a-date"), "");
+});
+
+test("large collection windows render bounded pages without losing totals", () => {
+  const items = Array.from({ length: 250 }, (_, index) => ({ id: index }));
+  const first = collectionWindow(items, 100);
+  assert.equal(first.displayed.length, 100);
+  assert.equal(first.total, 250);
+  assert.equal(first.remaining, 150);
+  const expanded = collectionWindow(items, 200);
+  assert.equal(expanded.displayed.at(-1).id, 199);
+  assert.equal(expanded.remaining, 50);
 });
 
 test("catalog ownership matches provider IDs and exact fallback identity", () => {

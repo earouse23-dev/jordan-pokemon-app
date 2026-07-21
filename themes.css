@@ -66,6 +66,7 @@ body[data-ui-theme] .view-tab.active { border-color: var(--line); background: va
 body[data-ui-theme] .view-tab span { background: var(--mint); }
 body[data-ui-theme] .ledger-tools { margin-top: 4px; }
 body[data-ui-theme] .card-ledger { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+body[data-ui-theme] .load-more-positions { border-radius: 8px; background: var(--paper); color: var(--pine-2); }
 body[data-ui-theme] .ledger-row { padding-inline: 12px; }
 body[data-ui-theme] .ledger-row:last-child { border-bottom: 0; }
 body[data-ui-theme] .ledger-row:hover { background: color-mix(in srgb,var(--mint) 38%,transparent); }

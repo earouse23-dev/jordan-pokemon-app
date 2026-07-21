@@ -90,6 +90,7 @@ h1 { font: 700 29px/1.12 var(--font-sans); letter-spacing: -.035em; margin: 0; }
 .ledger-meta-actions #selectPositionsButton { color: var(--pine-2); font-weight: 750; }
 .ledger-meta svg { width: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .card-ledger { border-top: 1px solid var(--line-dark); }
+.load-more-positions { width: 100%; min-height: 46px; margin-top: 10px; border: 1px solid var(--line-dark); border-radius: 6px; background: var(--paper); color: var(--pine-2); font-size: 10px; font-weight: 750; }
 .ledger-row { display: grid; grid-template-columns: 50px minmax(0,1fr) auto; gap: 11px; align-items: center; min-height: 91px; padding: 11px 2px; border-bottom: 1px solid var(--line); position: relative; cursor: pointer; }
 .ledger-row:active { background: rgba(255,255,255,.35); }
 .ledger-row.bulk-mode { grid-template-columns: 30px 50px minmax(0,1fr) auto; }
@@ -898,6 +899,7 @@ body:not(.authenticated) .app-shell { display: none; }
   #view-collection > .ledger-tools,
   #view-collection > .ledger-meta,
   #view-collection > .card-ledger,
+  #view-collection > .load-more-positions,
   #view-collection > .empty-state { grid-column: 1/-1; }
   #view-collection > .portfolio-panel { grid-column: 1; min-height: 100%; }
   #view-collection > .portfolio-detail-grid { grid-column: 2; margin: 0; border-top: 1px solid var(--line); }
