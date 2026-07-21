@@ -122,6 +122,20 @@ const backdatedPortfolioLedgerMigration = await readFile(
   ),
   "utf8",
 );
+const splitPositionMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721053000_split_collection_positions.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const splitPositionBasisGuardMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721053500_require_complete_basis_before_split.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -192,7 +206,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v75/);
+  assert.match(serviceWorker, /mica-shell-v76/);
   assert.match(serviceWorker, /themes\.css\?v=70/);
 });
 
@@ -359,6 +373,45 @@ test("grading submissions are private, forward-only, and do not enter cost basis
   assert.match(
     gradingSubmissionIndexMigration,
     /grading_submissions_position_owner_idx[\s\S]+collection_item_id,user_id/,
+  );
+});
+
+test("position splits are owner-scoped, atomic, and preserve ledger meaning", () => {
+  assert.match(
+    splitPositionMigration,
+    /split_collection_position[\s\S]+security invoker[\s\S]+auth\.uid\(\)/,
+  );
+  assert.match(
+    splitPositionMigration,
+    /where item\.id=p_collection_item_id and item\.user_id=owner_id[\s\S]+for update/,
+  );
+  assert.match(
+    splitPositionMigration,
+    /sum\(lot\.quantity_remaining\)[\s\S]+fifo_lots_incomplete/,
+  );
+  assert.match(
+    splitPositionMigration,
+    /position_split[\s\S]+take_cost[\s\S]+remaining_cost=lot\.remaining_cost-take_cost/,
+  );
+  assert.match(
+    splitPositionMigration,
+    /target_submission\.estimated_total_cost[\s\S]+submission\.estimated_total_cost-split_estimate/,
+  );
+  assert.doesNotMatch(
+    splitPositionMigration,
+    /insert into public\.collection_transactions\([^;]+values\([^;]+'sale'/,
+  );
+  assert.match(
+    splitPositionMigration,
+    /revoke all on function public\.split_collection_position[\s\S]+from public,anon/,
+  );
+  assert.match(
+    splitPositionBasisGuardMigration,
+    /not new\.cost_basis_known or not new\.acquired_at_known[\s\S]+transaction\.user_id=new\.user_id[\s\S]+split_requires_complete_acquisition_history/,
+  );
+  assert.match(
+    splitPositionBasisGuardMigration,
+    /revoke all on function public\.require_complete_basis_for_position_split\(\)[\s\S]+public,anon,authenticated/,
   );
 });
 

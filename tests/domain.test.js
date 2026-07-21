@@ -54,6 +54,7 @@ import {
   recordGradingSubmission,
   recordPortfolioValuationSnapshot,
   remapCollectionPosition,
+  splitCollectionPosition,
   updateGradingSubmission,
   updatePosition,
 } from "../lib/supabase-data.js";
@@ -126,6 +127,41 @@ test("portfolio history separates market movement from purchases and sales", () 
   assert.equal(history.latest.marketChangeMinor, 20000);
   assert.ok(history.latest.returnPercent > 15);
   assert.ok(history.latest.returnPercent < 16);
+});
+
+test("position splits preserve portfolio history without creating cash flow", () => {
+  const history = marketAdjustedPortfolioHistory(
+    [
+      {
+        date: "2026-07-01",
+        total: 1000,
+        currency: "USD",
+        pricedItems: 1,
+        unpricedItems: 0,
+        freshItems: 1,
+      },
+      {
+        date: "2026-07-20",
+        total: 1100,
+        currency: "USD",
+        pricedItems: 2,
+        unpricedItems: 0,
+        freshItems: 2,
+      },
+    ],
+    [
+      {
+        type: "position_split",
+        date: "2026-07-10",
+        totalCost: 0,
+        currency: "USD",
+      },
+    ],
+  );
+  assert.equal(history.status, "ready");
+  assert.equal(history.latest.netContributionMinor, 0);
+  assert.equal(history.latest.marketChangeMinor, 10000);
+  assert.equal(history.latest.unknownFlow, false);
 });
 
 test("portfolio history withholds returns when coverage or cash flow is incomplete", () => {
@@ -545,6 +581,32 @@ test("recording a returned grade uses one atomic ledger RPC", async () => {
       p_certification_number: "12345678",
       p_notes: "Value service",
       p_idempotency_key: "grading-1",
+    },
+  });
+});
+
+test("separating copies uses one idempotent FIFO RPC", async () => {
+  let call;
+  const client = {
+    async rpc(name, input) {
+      call = { name, input };
+      return { data: "position-2", error: null };
+    },
+  };
+  const result = await splitCollectionPosition(client, {
+    collectionItemId: "position-1",
+    quantity: 2,
+    lotOrder: "newest",
+    idempotencyKey: "split-1",
+  });
+  assert.equal(result, "position-2");
+  assert.deepEqual(call, {
+    name: "split_collection_position",
+    input: {
+      p_collection_item_id: "position-1",
+      p_quantity: 2,
+      p_lot_order: "newest",
+      p_idempotency_key: "split-1",
     },
   });
 });

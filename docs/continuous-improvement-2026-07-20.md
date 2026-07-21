@@ -1,6 +1,6 @@
 # Continuous product improvement — 2026-07-20
 
-This report records nine complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
+This report records twelve complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
 
 ## Baseline
 
@@ -105,16 +105,26 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 - Live verification: Authenticated rollback tests proved same-day valuations upsert, invalid fresh coverage is rejected, anonymous execute/read remain denied, current dated cash purchases retain the baseline, backdated and zero-cost additions reset it, basis completion preserves it, identity correction resets it, and position deletion atomically removes the invalid timeline. Every test transaction rolled back. Supabase advisors report no new valuation-snapshot performance warning.
 - Result: Mica now has a more trustworthy portfolio workflow than a simple collection-value graph. Genuine historical performance begins with the first saved baseline; retroactive totals are intentionally not fabricated.
 
+## Cycle 12 — Split multi-copy positions without corrupting the ledger
+
+- Problem: Mica could track a same-result grading batch, but an aggregate position could not separate only some copies. Mixed grades or individual certification numbers still forced a fake sale/rebuy or a manual rebuild of purchase history.
+- Evidence: [Collectr users report duplicate grades being lumped together](https://www.reddit.com/r/Collectr/comments/1jpz8t7/) and [being unable to move only some duplicate copies](https://www.reddit.com/r/Collectr/comments/1u8f332/is_it_possible_to_move_only_some_duplicate_cards/). Another [feature request connects sent-to-grading status with an easy result workflow](https://www.reddit.com/r/Collectr/comments/1p5w0tc/feature_request_add_a_sent_to_grading_filter_to/), while real [multi-card submissions can return different grades](https://www.reddit.com/r/CGCCards/comments/1g5bliv/). [PSA documents multi-item submission tracking and results](https://www.psacard.com/support/faq). Repository inspection confirmed Mica warned users to use separate positions but offered no ledger-safe way to create them.
+- Change: Any complete-basis position with multiple copies now offers “Separate copies.” The owner chooses a quantity and whether the oldest FIFO copies or newest purchase copies move. One owner-scoped, idempotent, security-invoker RPC creates the second position and transfers the selected remaining lots and every cent of basis without a sale, repurchase, or copied price observation. Labels, notes, location, exact identity, condition, grader, and grade remain attached. A certification number stays only on the original so one slab number is never duplicated.
+- Grading workflow: When cards are at a grader, the active submission is divided automatically. Quantity and estimated cost are allocated proportionally to the cent, while grader, stage, dates, reference, and notes remain on both groups. Each group can then record its actual returned cost, grade, and certification independently.
+- Critique and fix: A beginner sees one operation with an explicit “no cash flow” explanation; a graded collector can preserve mixed results; a large owner chooses lot order instead of rebuilding records; a seller keeps revenue honest; and a mobile user gets the existing full-screen sheet with native inputs. Skeptical review caught two trust edges: auxiliary lot markers could clutter activity, so they are hidden from user activity while remaining durable database rows; and unknown cost/date histories could become independently unrepairable after a split, so Mica requires those details to be completed first and rolls the attempted split back atomically.
+- Live verification: Authenticated rollback tests split a three-card, $100.01 raw PSA submission into quantities two and one, divided a $50.00 estimate into $33.33 and $16.67, proved an idempotent retry made no duplicate, returned the groups as PSA 10 and PSA 9 with $20.02 and $10.01 actual costs, and finished at exactly $130.04 combined basis with no sale. A second test proved newest-first selection moved a complete $60.00 lot while leaving the older $20.00 lot. A third proved unknown acquisition history rejects the split without changing quantity or creating a child position. Every test rolled back.
+- Result: Mixed grades and selected duplicate copies are now first-class auditable positions, closing the remaining gap in Mica's grading lifecycle without turning inventory organization into financial activity.
+
 ## Verification
 
 - Formatting and diff whitespace checks
 - Source linting and JavaScript syntax/type checks
-- 134 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, grading-submission, portfolio-history, grading-ledger, and regression tests
+- 137 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, grading-submission, portfolio-history, grading-ledger, position-split, and regression tests
 - Connected Supabase table inspection with RLS enabled on every public table
 - Production build
 - Supabase security and performance advisors
 - Authenticated production browser verification at 390×844 and 1280×800
-- The in-app browser surface was unavailable during Cycles 9 and 10 after repeated availability checks; those cycles therefore used production build, local HTTP, connected Supabase rollback, and deployed-artifact verification without claiming a new visual browser pass.
+- The in-app browser surface was unavailable during Cycles 9–12 after repeated availability checks; those cycles therefore used production build, local HTTP, connected Supabase rollback, and deployed-artifact verification without claiming a new visual browser pass.
 - Clean and analytics themes, exact search/intake, collection, price confidence, bulk organization, deletion cleanup, responsive overflow, browser errors, and console regression checks
 
 ## Remaining competitive weaknesses and owner decisions

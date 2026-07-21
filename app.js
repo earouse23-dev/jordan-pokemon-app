@@ -80,6 +80,7 @@ import {
   signInWithPassword,
   signOut,
   signUpWithPassword,
+  splitCollectionPosition,
   updateGradingSubmission,
   updatePosition,
   updateWatchlistEntry,
@@ -2637,6 +2638,8 @@ function positionTransactionRow(transaction, unitNoun) {
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
     return `<div class="transaction-row"><div><strong>Returned graded ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · ${esc(transaction.gradingCompany)} ${esc(transaction.grade)} · previously ${esc(prior)}${transaction.certificationNumber ? ` · cert ${esc(transaction.certificationNumber)}` : ""}</span></div><b>+${money(transaction.gradingFees, transaction.currency)} basis</b></div>`;
   }
+  if (transaction.type === "position_split")
+    return `<div class="transaction-row"><div><strong>Copies separated ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · FIFO basis transferred · no purchase or sale</span></div><b>No cash flow</b></div>`;
   const label = String(transaction.type || "adjustment")
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -2753,7 +2756,7 @@ function renderDetail() {
       (lot) => !lot.costBasisKnown || !lot.acquisitionDateKnown,
     ) || null;
   const positionSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>${item.lots?.length || 0} purchase lot${item.lots?.length === 1 ? "" : "s"} · FIFO cost basis</span></div><div class="position-summary"><div><span>${item.gradingCompany ? "Total cost basis" : "Total acquisition cost"}</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Value today</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Gain / loss today</span><strong>${performance.unrealizedGainMinor === null ? "Needs acquisition cost" : money(performance.unrealizedGainMinor / 100, item.currency)}</strong></div><div><span>Return since purchase</span><strong>${performance.returnPercent === null ? "Unavailable" : `${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>First purchased</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Valuation source</span><strong>${esc(tcgQuote?.provider || "Unavailable")}</strong></div></div>${incompleteLot ? `<div class="warning-panel"><strong>Complete this purchase history</strong><p>Add the total cost or original date you know. Until then, Mica keeps profit and return unavailable instead of treating missing cost as $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? '<div class="simple-note" id="gradingInventoryLock"><strong>This position is at the grader.</strong><br>Record the returned grade or cancel the submission before adding copies or recording a sale.</div>' : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div><button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate sealed position" : "Add this card with a different condition or grade"}</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>${item.lots?.length || 0} purchase lot${item.lots?.length === 1 ? "" : "s"} · FIFO cost basis</span></div><div class="position-summary"><div><span>${item.gradingCompany ? "Total cost basis" : "Total acquisition cost"}</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Value today</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Gain / loss today</span><strong>${performance.unrealizedGainMinor === null ? "Needs acquisition cost" : money(performance.unrealizedGainMinor / 100, item.currency)}</strong></div><div><span>Return since purchase</span><strong>${performance.returnPercent === null ? "Unavailable" : `${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>First purchased</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Valuation source</span><strong>${esc(tcgQuote?.provider || "Unavailable")}</strong></div></div>${incompleteLot ? `<div class="warning-panel"><strong>Complete this purchase history</strong><p>Add the total cost or original date you know. Until then, Mica keeps profit and return unavailable instead of treating missing cost as $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This position is at the grader.</strong><br>${incompleteLot ? "Complete every missing acquisition cost and date before separating returned grades." : "You can separate copies to record mixed returned grades."} Adding purchases and recording sales remain paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate copies from this position</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate sealed position" : "Add this card with a different condition or grade"}</button></section>`
     : "";
   const favorite =
     owned &&
@@ -2858,6 +2861,9 @@ function renderDetail() {
   );
   $("#completePurchaseHistoryButton")?.addEventListener("click", () =>
     openCompletePurchaseHistorySheet(item, incompleteLot),
+  );
+  $("#separateCopiesButton")?.addEventListener("click", () =>
+    openSeparateCopiesSheet(item),
   );
   $("#addDifferentPositionButton")?.addEventListener("click", () =>
     openPositionSheet(item),
@@ -3693,6 +3699,71 @@ function openGradingSubmissionSheet(item, submission = null) {
   });
 }
 
+function openSeparateCopiesSheet(item) {
+  const maximum = Number(item.quantity) - 1;
+  if (!Number.isInteger(maximum) || maximum < 1) return;
+  const activeSubmission = item.activeGradingSubmission || null;
+  const idempotencyKey = crypto.randomUUID();
+  const noun = item.cardState === "sealed" ? "product" : "card";
+  const gradedCertificationNote =
+    item.cardState === "graded" && item.certificationNumber
+      ? "The original position keeps its certification number. Add the separated slab's certification number after the split."
+      : "Condition, grade, labels, location, notes, and exact card identity stay attached to both positions.";
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Separate copies</h2><p>${esc(item.name)} · split one position without a sale or repurchase</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="separateCopiesForm"><div class="form-grid">
+    <div class="field"><label for="separateCopiesQuantity">Copies to separate</label><input id="separateCopiesQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="${maximum}" step="1" value="1" required><small>Up to ${maximum}; at least one ${noun} stays here.</small></div>
+    <div class="field"><label for="separateCopiesOrder">Purchase copies to move</label><select id="separateCopiesOrder" name="lotOrder"><option value="oldest">Oldest first · FIFO</option><option value="newest">Newest first</option></select><small>Choose which purchase lots supply the separated basis.</small></div>
+    <p class="form-error" id="separateCopiesError" role="alert"></p>
+  </div><div class="warning-panel"><strong>Cost basis moves; cash flow does not.</strong><p>Mica transfers the selected remaining purchase lots exactly to a new position. ${esc(activeSubmission ? "The active grading submission and its estimated cost are also divided, so each group can receive a different returned grade." : gradedCertificationNote)}</p></div><div class="sheet-actions"><button class="secondary" type="button" id="separateCopiesCancel">Cancel</button><button class="primary" type="submit">Separate copies</button></div></form>`);
+  $("#separateCopiesCancel").addEventListener("click", closeSheet);
+  $("#separateCopiesForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(
+      new FormData(event.currentTarget).entries(),
+    );
+    const quantity = Number(data.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > maximum) {
+      $("#separateCopiesError").textContent =
+        `Enter a whole number from 1 to ${maximum}.`;
+      return;
+    }
+    const submit = event.currentTarget.querySelector('[type="submit"]');
+    submit.disabled = true;
+    $("#separateCopiesError").textContent =
+      "Transferring FIFO lots and preserving your ledger…";
+    try {
+      const newPositionId = await splitCollectionPosition(supabase, {
+        collectionItemId: item.uid,
+        quantity,
+        lotOrder: data.lotOrder,
+        idempotencyKey,
+      });
+      closeSheet({ discardHistory: true });
+      await reloadPortfolio(newPositionId);
+      toast(
+        activeSubmission
+          ? "Copies separated · record each returned grade separately"
+          : "Copies separated · FIFO basis preserved · no cash flow recorded",
+      );
+    } catch (error) {
+      const message = String(error.message || "");
+      $("#separateCopiesError").textContent = message.includes(
+        "invalid_split_quantity",
+      )
+        ? "That quantity is no longer available. Refresh and try again."
+        : message.includes("position_cannot_be_split")
+          ? "End the active listing or restore this position before separating copies."
+          : message.includes("fifo_lots_incomplete")
+            ? "This position's purchase lots need review before copies can be separated."
+            : message.includes("split_requires_complete_acquisition_history")
+              ? "Complete every missing acquisition cost and date before separating copies."
+              : message.includes("grading_submission_quantity_mismatch")
+                ? "The grading submission no longer matches this position. Refresh before retrying."
+                : `Could not separate copies: ${message || "Unknown error"}`;
+      submit.disabled = false;
+    }
+  });
+}
+
 function openGradingResultSheet(item) {
   const today = localIsoDate();
   const latestAcquisition =
@@ -3712,7 +3783,7 @@ function openGradingResultSheet(item) {
     (item.lots || []).every((lot) => lot.costBasisKnown);
   const batchNote =
     Number(item.quantity) > 1
-      ? "Every copy in this position must have the same grader and grade. Leave certification blank unless one number represents the whole position. Use separate positions when results differ."
+      ? "Every copy in this position must have the same grader and grade. If results differ, cancel and use Separate copies first. Leave certification blank unless one number represents the whole position."
       : "The original purchase stays in place; this adds only the grading cost and returned slab details.";
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Record returned grade</h2><p>${esc(item.name)} · convert this raw position without a fake sale</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingResultForm"><div class="form-grid">
     <div class="field"><label for="gradingResultGrader">Grading company</label><select id="gradingResultGrader" name="grader" required>${activeSubmission ? `<option>${esc(activeSubmission.grader)}</option>` : `<option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option>${value}</option>`).join("")}`}</select></div>
@@ -5936,6 +6007,8 @@ function renderInsights() {
                   ? "Sent to grading"
                   : transaction.type === "grading_return"
                     ? "Returned graded"
+                    : transaction.type === "position_split"
+                      ? "Copies separated"
                     : String(transaction.type).replaceAll("_", " ");
           const detail =
             transaction.type === "purchase"
@@ -5948,6 +6021,8 @@ function renderInsights() {
                   ? `${transaction.gradingCompany} ${transaction.grade} · ${money(transaction.gradingFees, transaction.currency)} added basis`
                   : transaction.type === "grading_submission"
                     ? `${transaction.gradingCompany || transaction.marketplace} · manual tracking`
+                    : transaction.type === "position_split"
+                      ? "FIFO basis transferred · no cash flow"
                     : `${transaction.quantity} recorded`;
           return `<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(label)} ${esc(item.name)}</strong><span>${esc(transaction.date || "Date not recorded")} · ${esc(detail)}</span></div><b>×${transaction.quantity}</b></div>`;
         })

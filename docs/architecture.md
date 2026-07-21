@@ -15,7 +15,7 @@ Vercel Cron → secured price sync → immutable normalized observations → cha
 Authenticated client → one private daily valuation → ledger cash-flow adjustment → portfolio performance
 ```
 
-PostgreSQL is the system of record. Transactional, `security invoker` RPCs create a position plus its first purchase lot, allocate sales against the oldest locked lots, track a raw position through its private grading-submission stages, and convert a returned raw position to its exact graded state while capitalizing the all-in grading cost across remaining lots to the cent. Every mutation derives the owner from `auth.uid()`.
+PostgreSQL is the system of record. Transactional, `security invoker` RPCs create a position plus its first purchase lot, allocate sales against the oldest locked lots, split selected copies and their active grading submission without cash flow, track a raw position through its private grading-submission stages, and convert a returned raw position to its exact graded state while capitalizing the all-in grading cost across remaining lots to the cent. Every mutation derives the owner from `auth.uid()`.
 
 ## Provider boundaries
 
@@ -43,6 +43,7 @@ The existing `supabase/functions/sync-catalog` remains the resumable multilingua
 - Future transaction dates are rejected in UI validation, RPCs, and table constraints.
 - Grading returns require a complete acquisition basis, preserve the prior raw condition in the ledger, and clear incompatible raw position-price observations atomically.
 - Active grading submissions lock inventory-changing transactions and state changes. The estimated cost never enters basis; recording the return closes the submission before the actual cost is capitalized.
+- Position splitting requires complete acquisition cost and date history, transfers selected oldest/newest remaining FIFO lots exactly, and divides an active grading submission estimate to the cent. The operation is a zero-cash-flow ledger event and never copies price observations or certification numbers.
 - Private daily portfolio snapshots retain the exact-compatible displayed total and fresh/priced/unpriced coverage. Market performance is derived against the immutable transaction ledger; backdated/unknown or zero-cost inventory additions, destructive removal, and catalog corrections restart the baseline so data-entry changes cannot masquerade as returns.
 
 See [implementation plan](implementation-plan-market-portfolio.md) and [security review](security-review.md).
