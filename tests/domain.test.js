@@ -203,6 +203,71 @@ test("position hydration attaches FIFO basis and realized gain to each sale", ()
   assert.deepEqual(position.tags, ["Favorites"]);
 });
 
+test("unknown imported basis and dates remain unknown through hydration and sales", () => {
+  const position = hydratePosition(
+    {
+      id: "position-unknown",
+      identity_snapshot: { name: "Diglett" },
+      card_state: "raw",
+      raw_condition: "lightly_played",
+      quantity: 1,
+      currency: "USD",
+      tags: [],
+    },
+    [
+      {
+        id: "purchase-unknown",
+        transaction_type: "purchase",
+        transaction_date: "2026-07-20",
+        quantity: 2,
+        unit_price: 0,
+        total_cost: 0,
+        currency: "USD",
+      },
+      {
+        id: "sale-unknown",
+        transaction_type: "sale",
+        transaction_date: "2026-07-21",
+        quantity: 1,
+        net_proceeds: 10,
+        currency: "USD",
+      },
+    ],
+    [
+      {
+        id: "lot-unknown",
+        purchase_transaction_id: "purchase-unknown",
+        acquired_at: "2026-07-20",
+        acquired_at_known: false,
+        quantity_acquired: 2,
+        quantity_remaining: 1,
+        total_cost: 0,
+        remaining_cost: 0,
+        cost_basis_known: false,
+        currency: "USD",
+      },
+    ],
+    [
+      {
+        sale_transaction_id: "sale-unknown",
+        purchase_lot_id: "lot-unknown",
+        allocated_cost: 0,
+        cost_basis_known: false,
+      },
+    ],
+  );
+  assert.equal(position.costBasis, null);
+  assert.equal(position.cost, null);
+  assert.equal(position.purchaseDate, "");
+  assert.equal(position.realizedGain, null);
+  assert.equal(position.allocatedSoldCost, null);
+  assert.equal(position.transactions[0].date, "");
+  assert.equal(position.transactions[0].totalCost, null);
+  assert.equal(position.transactions[1].realizedGain, null);
+  assert.equal(position.lots[0].remainingCost, null);
+  assert.equal(position.lots[0].costBasisKnown, false);
+});
+
 test("position hydration restores durable exact-series price history", () => {
   const position = hydratePosition(
     {
@@ -1415,6 +1480,57 @@ test("inventory health uses remaining lots for aging and exact priced positions 
   assert.equal(health.topPosition.sharePercent, 80);
   assert.equal(health.topThreeSharePercent, 100);
   assert.equal(health.skippedCurrencyPositions, 1);
+  assert.equal(health.unknownBasisQuantity, 0);
+});
+
+test("unknown FIFO basis is excluded from performance and cost-based review", () => {
+  const allocation = allocateFifo(
+    [
+      {
+        id: "unknown",
+        acquiredAt: "2026-01-01",
+        quantityAcquired: 2,
+        quantityRemaining: 2,
+        totalCostMinor: null,
+        costBasisKnown: false,
+      },
+    ],
+    1,
+  );
+  assert.equal(allocation.allocatedCost, null);
+  const performance = positionPerformance({
+    quantityOwned: 1,
+    remainingCostBasisMinor: null,
+    currentUnitPrice: "10",
+    netSaleProceedsMinor: 1000,
+    allocatedSoldCostMinor: null,
+  });
+  assert.equal(performance.currentValueMinor, 1000);
+  assert.equal(performance.unrealizedGainMinor, null);
+  assert.equal(performance.realizedGainMinor, null);
+  assert.equal(
+    portfolioReview([{ price: 1, quantity: 1, costBasis: null }]).belowCost
+      .length,
+    0,
+  );
+  assert.equal(
+    inventoryHealth([
+      {
+        currency: "USD",
+        quantity: 1,
+        price: 10,
+        lots: [
+          {
+            acquiredAt: "",
+            quantityRemaining: 1,
+            remainingCost: null,
+            costBasisKnown: false,
+          },
+        ],
+      },
+    ]).unknownBasisQuantity,
+    1,
+  );
 });
 
 test("performance handles quantity, partial sale, missing price, zero basis, and holding period", () => {

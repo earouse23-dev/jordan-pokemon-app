@@ -59,6 +59,43 @@ test("CSV import keys are stable, exact, and distinguish duplicate rows", async 
   assert.match(first, /^mica-csv-v1-[a-f0-9]{64}$/);
 });
 
+test("TCGplayer CSV exports map exact identity without inventing acquisition cost", () => {
+  const csv = [
+    "Product ID,TCGplayer Id,Product Line,Set Name,Product Name,Number,Printing,Rarity,Condition,TCG Market Price,Total Quantity",
+    '107044,2999078,Pokemon,"Base Set (Shadowless)",Diglett,047/102,Foil,Common,Lightly Played,0.73,2',
+  ].join("\n");
+  const result = parseCollectionCsv(csv);
+  assert.equal(result.source, "TCGplayer");
+  assert.equal(result.errors.length, 0);
+  assert.deepEqual(result.records[0], {
+    id: "tcgplayer:107044",
+    externalIds: { tcgplayer: "107044" },
+    name: "Diglett",
+    set: "Base Set (Shadowless)",
+    number: "047/102",
+    variant: "Holofoil",
+    condition: "Lightly Played",
+    gradingCompany: "",
+    grade: "",
+    quantity: 2,
+    cost: null,
+    price: 0.73,
+    tags: [],
+    location: "",
+    notes: "",
+    source: "TCGplayer",
+  });
+});
+
+test("cross-app CSV import rejects non-Pokémon product lines", () => {
+  const result = parseCollectionCsv(
+    "TCGplayer ID,Product Line,Product Name,Total Quantity\n123,Magic,Black Lotus,1",
+  );
+  assert.equal(result.source, "TCGplayer");
+  assert.equal(result.records.length, 0);
+  assert.match(result.errors[0], /not Pok.mon/);
+});
+
 test("bounded task runner limits concurrency and returns paused work", async () => {
   let active = 0;
   let peak = 0;

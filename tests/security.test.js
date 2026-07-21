@@ -57,6 +57,20 @@ const bulkOrganizeMigration = await readFile(
   ),
   "utf8",
 );
+const unknownBasisMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260720235900_support_unknown_acquisition_basis.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const completeUnknownBasisMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721000500_complete_unknown_acquisition_basis.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -124,7 +138,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   assert.match(appSource, /localStorage\.setItem\('mica-ui-theme',theme\)/);
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v70/);
+  assert.match(serviceWorker, /mica-shell-v71/);
   assert.match(serviceWorker, /themes\.css\?v=69/);
 });
 
@@ -137,6 +151,52 @@ test("large CSV imports are bounded, resumable, and protected from duplicate ret
   assert.match(appSource, /createImportedPosition/);
   assert.match(appSource, /idempotencyKey=await importRecordKey/);
   assert.match(appSource, /dataset\.lockClose=value\?'true':'false'/);
+});
+
+test("cross-app imports preserve unknown basis through owner-scoped FIFO", () => {
+  assert.match(
+    unknownBasisMigration,
+    /purchase_lots[\s\S]+cost_basis_known boolean not null default true/,
+  );
+  assert.match(
+    unknownBasisMigration,
+    /purchase_lots[\s\S]+acquired_at_known boolean not null default true/,
+  );
+  assert.match(
+    unknownBasisMigration,
+    /create_collection_position[\s\S]+security invoker[\s\S]+auth\.uid\(\)/,
+  );
+  assert.match(
+    unknownBasisMigration,
+    /acquisitionCostKnown'[\s\S]+insert into public\.purchase_lots[\s\S]+basis_known/,
+  );
+  assert.match(
+    unknownBasisMigration,
+    /fifo_lot_allocations[\s\S]+cost_basis_known[\s\S]+lot\.cost_basis_known/,
+  );
+});
+
+test("owners can complete unknown acquisition history without losing FIFO cents", () => {
+  assert.match(
+    completeUnknownBasisMigration,
+    /complete_unknown_purchase_lot[\s\S]+security invoker[\s\S]+auth\.uid\(\)/,
+  );
+  assert.match(
+    completeUnknownBasisMigration,
+    /purchase_lot_id=target_lot\.id[\s\S]+cost_basis_known=true/,
+  );
+  assert.match(
+    completeUnknownBasisMigration,
+    /sold_amount-allocated_so_far[\s\S]+allocated_cost=allocation_amount,cost_basis_known=true/,
+  );
+  assert.match(
+    completeUnknownBasisMigration,
+    /revoke all on function public\.complete_unknown_purchase_lot[\s\S]+from public,anon/,
+  );
+  assert.match(
+    completeUnknownBasisMigration,
+    /where lot\.id=p_purchase_lot_id and lot\.user_id=owner_id/,
+  );
 });
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {

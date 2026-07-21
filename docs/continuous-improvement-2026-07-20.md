@@ -1,6 +1,6 @@
 # Continuous product improvement — 2026-07-20
 
-This report records five complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
+This report records six complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
 
 ## Baseline
 
@@ -48,11 +48,21 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 - Critique and fix: New collectors get one clear fallback-date decision; graded collectors retain grader, decimal grade, and certification; large owners get progress and pause; sellers keep existing rows untouched; mobile users get native progress and 44px controls; and the engineer review added error-code branching, bounded concurrency, RLS-backed recovery, validation failures, and a regression test that prevents the 100-row cap from returning.
 - Result: Collection migration now scales to the same 5,000-row order as a major incumbent, remains recoverable under partial network failure, and does not trade speed for duplicate financial records.
 
+## Cycle 6 — Direct TCGplayer migration without fabricated profit
+
+- Problem: Mica could import its own CSV shape, but a current TCGplayer inventory export required manual column editing. More importantly, TCGplayer inventory exports do not contain historical acquisition cost or date; reading blank values as zero would overstate profit and returns.
+- Evidence: TCGplayer's current help material documents CSV export/import fields for product identity, condition, language, printing, quantity, product ID, and market price, with a 5,000-card collection limit. Collectr's documented TCGplayer migration requires emailing the CSV and waiting 2–3 business days. Current large-inventory discussions describe tens of thousands of rows blocked by required-field mismatches and weeks of manual migration. Newer import tools emphasize direct Collectr/TCGplayer mapping and import history as differentiators.
+- Change: The importer now detects current TCGplayer headers, normalizes BOM and punctuation, preserves Product ID, product name, set, collector number, language, printing, condition, and quantity, rejects non-Pokémon product lines, and never mistakes TCGplayer market price for what the owner paid. Mica and generic header aliases remain supported.
+- Accounting integrity: Missing acquisition cost and date are first-class database states. Unknown cost is excluded from current cost basis, realized gain, sale planning, below-cost review, rankings, and inventory-health totals rather than stored as apparent free inventory. Missing dates remain visibly unrecorded while a fallback date is used only to keep FIFO order deterministic.
+- Critique and fix: A beginner can upload the original file without reshaping it; a graded collector retains grader/grade/certification columns when present; a large owner keeps the 5,000-row progress, pause, retry, and idempotency behavior; a seller keeps condition and printing without confusing market reference with cost; and mobile users receive a plain count of unknown fields. Skeptical engineering review found that an honest unknown state was incomplete without a repair path, so each owner can now add one known total cost or original date later. The security-invoker RPC repairs the purchase transaction, purchase lot, identity flags, remaining basis, and any already-sold FIFO allocations while preserving every cent.
+- Security: The new columns are additive with safe defaults for existing positions. Both creation and repair derive the owner from `auth.uid()`. The repair RPC is unavailable to anonymous users, executable by authenticated users, and targets only a lot belonging to the caller. The live database reports the function as security-invoker with those privileges.
+- Result: Moving a Pokémon inventory from TCGplayer no longer requires spreadsheet surgery or turns missing bookkeeping into fake profit, and users can progressively complete their history inside Mica.
+
 ## Verification
 
 - Formatting and diff whitespace checks
 - Source linting and JavaScript syntax/type checks
-- 115 automated domain, pricing, API, security, offline, bulk, paging, import, and regression tests
+- 121 automated domain, pricing, API, security, offline, bulk, paging, import, and regression tests
 - Connected Supabase table inspection with RLS enabled on every public table
 - Production build
 - Supabase security and performance advisors
