@@ -131,6 +131,9 @@ test("price evidence scores only exact compatible context and explains disagreem
   assert.equal(graded.level,"limited");
   assert.equal(graded.sourceCount,1);
   assert.equal(graded.evidence[0].amount,400);
+  const missing=priceEvidence(quotes,"Reverse Holofoil","USD",{condition:"Near Mint"},new Date("2026-07-20T12:00:00Z").getTime());
+  assert.equal(missing.level,"unavailable");
+  assert.equal(missing.sourceCount,0);
 });
 
 test("selects compatible Cardmarket reference without mixing currencies", () => {

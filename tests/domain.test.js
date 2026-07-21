@@ -16,6 +16,7 @@ import {
   acquisitionFromTotal,
   acquisitionTotal,
   allocateFifo,
+  batchAcquisitionPlan,
   gradingEstimate,
   gradingDecision,
   gradingBatchPlan,
@@ -63,6 +64,22 @@ test("normalizes graders and decimal grades without merging distinct grades", ()
   assert.equal(normalizeGrade("9.5"), "9.5");
   assert.equal(normalizeGrade("9"), "9");
   assert.equal(normalizeGrade("9.25"), null);
+});
+
+test("batch raw intake validates every row without merging exact variants or costs", () => {
+  const plan=batchAcquisitionPlan([
+    {id:"one",variant:"Holofoil",quantity:"2",totalAcquisitionCost:"10.01"},
+    {id:"two",variant:"Reverse Holofoil",quantity:"1",totalAcquisitionCost:"4.25"},
+  ],{rawCondition:"near_mint",transactionDate:"2026-07-20"},"2026-07-20");
+  assert.equal(plan.errors.length,0);
+  assert.equal(plan.ready.length,2);
+  assert.equal(plan.ready[0].variant,"Holofoil");
+  assert.equal(plan.ready[0].totalMinor,1001);
+  assert.equal(plan.ready[1].variant,"Reverse Holofoil");
+  assert.equal(plan.ready[1].totalMinor,425);
+  const invalid=batchAcquisitionPlan([{id:"bad",variant:"",quantity:"0",totalAcquisitionCost:""}],{rawCondition:"near_mint",transactionDate:"2026-07-21"},"2026-07-20");
+  assert.equal(invalid.ready.length,0);
+  assert.ok(invalid.errors.length>=1);
 });
 
 test("watchlist hydration preserves the exact raw or graded target context", () => {

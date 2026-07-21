@@ -116,12 +116,12 @@ test("motion preferences support device defaults and explicit reduction", () => 
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=64/);
+  assert.match(appShell, /themes\.css\?v=65/);
   assert.match(appSource, /localStorage\.setItem\('mica-ui-theme',theme\)/);
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v64/);
-  assert.match(serviceWorker, /themes\.css\?v=64/);
+  assert.match(serviceWorker, /mica-shell-v65/);
+  assert.match(serviceWorker, /themes\.css\?v=65/);
 });
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {
