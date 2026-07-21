@@ -47,6 +47,7 @@ import {
   hydrateWatchlistEntry,
   loadRowsInChunks,
   loadRowsInPages,
+  recordGradingResult,
   remapCollectionPosition,
   updatePosition,
 } from "../lib/supabase-data.js";
@@ -421,6 +422,104 @@ test("catalog correction uses one atomic owner-scoped remap RPC", async () => {
       p_card_id: null,
       p_variant_id: null,
     },
+  });
+});
+
+test("recording a returned grade uses one atomic ledger RPC", async () => {
+  let call;
+  const client = {
+    async rpc(name, input) {
+      call = { name, input };
+      return { data: "position-1", error: null };
+    },
+  };
+  const result = await recordGradingResult(client, {
+    collectionItemId: "position-1",
+    transactionDate: "2026-07-20",
+    grader: "PSA",
+    grade: "10",
+    totalGradingCost: 34.99,
+    certificationNumber: "12345678",
+    notes: "Value service",
+    idempotencyKey: "grading-1",
+  });
+  assert.equal(result, "position-1");
+  assert.deepEqual(call, {
+    name: "record_grading_result",
+    input: {
+      p_collection_item_id: "position-1",
+      p_transaction_date: "2026-07-20",
+      p_grader: "PSA",
+      p_grade: "10",
+      p_total_grading_cost: 34.99,
+      p_certification_number: "12345678",
+      p_notes: "Value service",
+      p_idempotency_key: "grading-1",
+    },
+  });
+});
+
+test("grading ledger details remain visible after hydration", () => {
+  const position = hydratePosition(
+    {
+      id: "position-1",
+      identity_snapshot: { name: "Pikachu", set: "Base", number: "58" },
+      card_state: "graded",
+      raw_condition: null,
+      grader: "PSA",
+      grade: 10,
+      quantity: 1,
+      currency: "USD",
+      tags: [],
+    },
+    [
+      {
+        id: "grading-1",
+        transaction_type: "grading_return",
+        transaction_date: "2026-07-20",
+        quantity: 1,
+        unit_price: 0,
+        subtotal: 0,
+        tax: 0,
+        shipping: 0,
+        marketplace_fees: 0,
+        grading_fees: 34.99,
+        other_costs: 0,
+        total_cost: 34.99,
+        net_proceeds: null,
+        currency: "USD",
+        grading_company: "PSA",
+        grade: 10,
+        certification_number: "12345678",
+        previous_raw_condition: "near_mint",
+      },
+    ],
+  );
+  assert.deepEqual(position.transactions[0], {
+    id: "grading-1",
+    type: "grading_return",
+    date: "2026-07-20",
+    quantity: 1,
+    unitPrice: 0,
+    subtotal: 0,
+    tax: 0,
+    shipping: 0,
+    marketplaceFees: 0,
+    gradingFees: 34.99,
+    otherCosts: 0,
+    totalCost: 34.99,
+    netProceeds: null,
+    allocatedCost: null,
+    realizedGain: null,
+    currency: "USD",
+    marketplace: undefined,
+    notes: undefined,
+    gradingCompany: "PSA",
+    grade: "10",
+    certificationNumber: "12345678",
+    previousRawCondition: "near_mint",
+    costBasisKnown: true,
+    acquisitionDateKnown: true,
   });
 });
 

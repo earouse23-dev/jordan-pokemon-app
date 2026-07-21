@@ -80,6 +80,13 @@ const remapPositionMigration = await readFile(
   ),
   "utf8",
 );
+const gradingResultMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721024500_record_grading_result.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -147,7 +154,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   assert.match(appSource, /localStorage\.setItem\('mica-ui-theme',theme\)/);
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v72/);
+  assert.match(serviceWorker, /mica-shell-v73/);
   assert.match(serviceWorker, /themes\.css\?v=69/);
 });
 
@@ -232,6 +239,45 @@ test("catalog correction is owner-scoped, ledger-safe, and clears incompatible p
   assert.match(
     remapPositionMigration,
     /revoke all on function public\.remap_collection_position[\s\S]+from public,anon/,
+  );
+});
+
+test("returned grading results preserve owner FIFO basis without a fake sale", () => {
+  assert.match(
+    gradingResultMigration,
+    /record_grading_result[\s\S]+security invoker[\s\S]+auth\.uid\(\)/,
+  );
+  assert.match(
+    gradingResultMigration,
+    /where item\.id=p_collection_item_id and item\.user_id=owner_id[\s\S]+for update/,
+  );
+  assert.match(
+    gradingResultMigration,
+    /transaction_type[\s\S]+grading_return[\s\S]+previous_raw_condition/,
+  );
+  assert.match(
+    gradingResultMigration,
+    /not purchase_lot\.cost_basis_known[\s\S]+acquisition_cost_required/,
+  );
+  assert.match(
+    gradingResultMigration,
+    /p_total_grading_cost-grading_cost_allocated[\s\S]+remaining_cost=purchase_lot\.remaining_cost\+lot_grading_cost/,
+  );
+  assert.match(
+    gradingResultMigration,
+    /card_state='graded',raw_condition=null,grader=normalized_grader,grade=p_grade/,
+  );
+  assert.match(
+    gradingResultMigration,
+    /delete from public\.position_price_observations[\s\S]+observation\.user_id=owner_id/,
+  );
+  assert.doesNotMatch(
+    gradingResultMigration,
+    /insert into public\.fifo_lot_allocations/,
+  );
+  assert.match(
+    gradingResultMigration,
+    /revoke all on function public\.record_grading_result[\s\S]+from public,anon/,
   );
 });
 

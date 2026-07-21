@@ -34,10 +34,11 @@ The app opens on the port printed by the local server. It does not fall back to 
 ## Portfolio rules
 
 - Raw conditions normalize to Near Mint, Lightly Played, Moderately Played, Heavily Played, or Damaged while preserving provider labels.
-- Supported graders are PSA, BGS, CGC, and SGC, with an extensible `OTHER` normalization value.
+- Supported graders are PSA, BGS, CGC, TAG, and SGC, with an extensible `OTHER` normalization value.
 - Grades retain decimal precision such as BGS 9.5.
 - Raw and graded values are never combined. Graders, grades, variants, editions, finishes, languages, and currencies must remain compatible.
 - Purchases remain separate lots. Partial sales allocate the oldest remaining lots first using FIFO.
+- A returned raw card can become graded in place: the original purchase and FIFO lots remain auditable, the all-in grading cost is capitalized to the remaining basis, and no fake sale or repurchase is created.
 - Additional copies can be recorded against an existing position without merging purchase lots or replacing their original costs.
 - Future acquisition and transaction dates are rejected in the client, transactional RPC, and table constraints.
 - Application money math uses integer minor units; Postgres stores money as `numeric(14,2)`.

@@ -14,7 +14,7 @@ Mobile PWA → Supabase Auth → ownership RLS → collection items / transactio
 Vercel Cron → secured price sync → immutable normalized observations → charts / valuation
 ```
 
-PostgreSQL is the system of record. Transactional, `security invoker` RPCs create a position plus its first purchase lot and allocate sales against the oldest locked lots. Every mutation derives the owner from `auth.uid()`.
+PostgreSQL is the system of record. Transactional, `security invoker` RPCs create a position plus its first purchase lot, allocate sales against the oldest locked lots, and convert a returned raw position to its exact graded state while capitalizing the all-in grading cost across remaining lots to the cent. Every mutation derives the owner from `auth.uid()`.
 
 ## Provider boundaries
 
@@ -40,5 +40,6 @@ The existing `supabase/functions/sync-catalog` remains the resumable multilingua
 - Admin diagnostics use `app_metadata.role`, never user-editable metadata.
 - Provider and service secrets never enter the browser bundle.
 - Future transaction dates are rejected in UI validation, RPCs, and table constraints.
+- Grading returns require a complete acquisition basis, preserve the prior raw condition in the ledger, and clear incompatible raw position-price observations atomically.
 
 See [implementation plan](implementation-plan-market-portfolio.md) and [security review](security-review.md).

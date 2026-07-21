@@ -1,6 +1,6 @@
 # Continuous product improvement — 2026-07-20
 
-This report records eight complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
+This report records nine complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
 
 ## Baseline
 
@@ -76,15 +76,25 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 - Critique and fix: A beginner gets plain “correct” language and a selected-match confirmation; a graded collector keeps the slab context while changing only the underlying card; a large owner can enter from the existing needs-pricing queue; a seller keeps auditable sales; a mobile user gets the existing accessible sheet/search controls; and skeptical engineering review added JSON size/shape validation, catalog foreign-key validation, sealed rejection, RLS delete scope, anonymous execute denial, rollback verification, and tests proving the client uses one atomic RPC.
 - Result: Mica now gives owners a safe escape hatch for the variant and edition errors collectors cite most often, without using a manual price override that hides the real identity problem.
 
+## Cycle 9 — Turn a raw card into its returned slab without a fake sale
+
+- Problem: Mica could estimate whether grading was worthwhile and compare a batch, but after a card returned the only available bookkeeping workaround was to record a raw sale and add a new graded purchase. That fabricated revenue, distorted sale history, and disconnected the slab from its original FIFO basis.
+- Evidence: A [current Collectr user](https://www.reddit.com/r/Collectr/comments/1tiqbpa/collectr_help/) describes doing exactly that workaround—selling the raw card at its purchase cost and adding a graded purchase with the raw cost plus grading fee—then complains that it creates a misleading low sale. PSA's current app positions submission progress as part of the collection workflow, while [collector posts](https://www.reddit.com/r/Collectr/comments/1uxrckt/from_36k_to_41k_by_just_getting_two_of_my_cards/) show grading can materially change portfolio value. Repository and production inspection confirmed that Mica already housed `grading_submission` and `grading_return` transaction types but had no owner mutation or result UI.
+- Change: Every actively owned raw position now offers “Record returned grade.” The owner enters grader, returned grade, return date, one optional certification number, optional notes, and one all-in grading total. The same position becomes graded; the original catalog identity, purchases, quantity, storage, labels, and sales history remain in place. Multi-copy positions are allowed only when every copy has the same grader and grade; the sheet explicitly directs differing results and individual certification numbers to separate positions.
+- Accounting integrity: One owner-scoped security-invoker RPC records a `grading_return`, preserves the previous raw condition and returned slab details, rejects incomplete acquisition basis, and distributes the grading total across all remaining FIFO lots by quantity. The final lot receives any rounding remainder, so every cent is preserved. No sale, sale allocation, or replacement purchase is created. Raw position-price observations are deleted atomically before graded pricing reloads.
+- Critique and fix: A new collector gets plain language and one total instead of fee categories; a graded collector retains grader, decimal grade, optional cert, and prior condition; a large owner can transform a same-result batch without rebuilding lots; a seller gets honest revenue and cost basis; a mobile user gets the existing full-screen accessible sheet; and skeptical engineering review caught a PL/pgSQL record/table alias collision in the first live rollback test. A follow-up migration fixed the ambiguity, and the identical rollback test then proved a $10.01 fee across two remaining lots became $6.67 plus $3.34, total basis rose exactly to $185.01, quantity stayed three, one grading event existed, and zero sale events existed.
+- Result: A card's real raw-to-slab lifecycle is now one auditable position instead of a pair of invented transactions. Recording outbound submission status and safely splitting a mixed-result multi-card position remain future workflow targets.
+
 ## Verification
 
 - Formatting and diff whitespace checks
 - Source linting and JavaScript syntax/type checks
-- 124 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, and regression tests
+- 127 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, grading-ledger, and regression tests
 - Connected Supabase table inspection with RLS enabled on every public table
 - Production build
 - Supabase security and performance advisors
 - Authenticated production browser verification at 390×844 and 1280×800
+- The in-app browser surface was unavailable during Cycle 9 after repeated availability checks; the cycle therefore used production build, local HTTP, connected Supabase rollback, and deployed-artifact verification without claiming a new visual browser pass.
 - Clean and analytics themes, exact search/intake, collection, price confidence, bulk organization, deletion cleanup, responsive overflow, browser errors, and console regression checks
 
 ## Remaining competitive weaknesses and owner decisions
