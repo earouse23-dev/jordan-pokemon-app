@@ -34,6 +34,7 @@ import {
   purchaseEntryPoints,
   businessSummary,
   liquidationPlan,
+  marketAdjustedPortfolioHistory,
   blendedPosition,
   targetAlertChanges,
   toMinorUnits,
@@ -43,12 +44,15 @@ import {
 import {
   bulkOrganizePositions,
   createImportedPosition,
+  deletePosition,
   hydratePosition,
   hydrateWatchlistEntry,
   loadRowsInChunks,
   loadRowsInPages,
+  loadPortfolioValuationHistory,
   recordGradingResult,
   recordGradingSubmission,
+  recordPortfolioValuationSnapshot,
   remapCollectionPosition,
   updateGradingSubmission,
   updatePosition,
@@ -72,6 +76,90 @@ test("normalizes graders and decimal grades without merging distinct grades", ()
   assert.equal(normalizeGrade("9.5"), "9.5");
   assert.equal(normalizeGrade("9"), "9");
   assert.equal(normalizeGrade("9.25"), null);
+});
+
+test("portfolio history separates market movement from purchases and sales", () => {
+  const history = marketAdjustedPortfolioHistory(
+    [
+      {
+        date: "2026-07-01",
+        total: 1000,
+        currency: "USD",
+        pricedItems: 1,
+        unpricedItems: 0,
+        freshItems: 1,
+      },
+      {
+        date: "2026-07-10",
+        total: 1650,
+        currency: "USD",
+        pricedItems: 2,
+        unpricedItems: 0,
+        freshItems: 2,
+      },
+      {
+        date: "2026-07-20",
+        total: 1200,
+        currency: "USD",
+        pricedItems: 1,
+        unpricedItems: 0,
+        freshItems: 1,
+      },
+    ],
+    [
+      {
+        type: "purchase",
+        date: "2026-07-05",
+        totalCost: 500,
+        currency: "USD",
+      },
+      {
+        type: "sale",
+        date: "2026-07-15",
+        netProceeds: 500,
+        currency: "USD",
+      },
+    ],
+  );
+  assert.equal(history.status, "ready");
+  assert.equal(history.latest.netContributionMinor, 0);
+  assert.equal(history.latest.marketChangeMinor, 20000);
+  assert.ok(history.latest.returnPercent > 15);
+  assert.ok(history.latest.returnPercent < 16);
+});
+
+test("portfolio history withholds returns when coverage or cash flow is incomplete", () => {
+  const history = marketAdjustedPortfolioHistory(
+    [
+      {
+        date: "2026-07-01",
+        total: 1000,
+        currency: "USD",
+        pricedItems: 1,
+        unpricedItems: 0,
+        freshItems: 1,
+      },
+      {
+        date: "2026-07-20",
+        total: 1400,
+        currency: "USD",
+        pricedItems: 1,
+        unpricedItems: 1,
+        freshItems: 1,
+      },
+    ],
+    [
+      {
+        type: "purchase",
+        date: "2026-07-10",
+        totalCost: null,
+        currency: "USD",
+      },
+    ],
+  );
+  assert.equal(history.status, "incomplete");
+  assert.equal(history.latest.marketChangeMinor, null);
+  assert.equal(history.latest.returnPercent, null);
 });
 
 test("batch raw intake validates every row without merging exact variants or costs", () => {
@@ -620,6 +708,78 @@ test("submission create and status update use owner-scoped RPCs", async () => {
       },
     },
   ]);
+});
+
+test("portfolio valuation history is normalized and recorded through its owner RPC", async () => {
+  const calls = [];
+  const rows = [
+    {
+      id: 2,
+      total: "1250.50",
+      currency: "USD",
+      priced_items: 8,
+      unpriced_items: 1,
+      fresh_items: 8,
+      snapshot_date: "2026-07-20",
+      observed_at: "2026-07-20T12:00:00Z",
+    },
+    {
+      id: 1,
+      total: "1000.00",
+      currency: "USD",
+      priced_items: 7,
+      unpriced_items: 0,
+      fresh_items: 7,
+      snapshot_date: "2026-07-19",
+      observed_at: "2026-07-19T12:00:00Z",
+    },
+  ];
+  const query = {
+    select() {
+      return this;
+    },
+    order() {
+      return this;
+    },
+    async limit() {
+      return { data: rows, error: null };
+    },
+  };
+  const client = {
+    from(table) {
+      assert.equal(table, "valuation_snapshots");
+      return query;
+    },
+    async rpc(name, input) {
+      calls.push({ name, input });
+      return { data: 2, error: null };
+    },
+  };
+  const history = await loadPortfolioValuationHistory(client);
+  await recordPortfolioValuationSnapshot(client, {
+    total: 1250.5,
+    currency: "USD",
+    pricedItems: 8,
+    unpricedItems: 1,
+    freshItems: 8,
+  });
+  await deletePosition(client, "position-1");
+  assert.equal(history[0].date, "2026-07-19");
+  assert.equal(history[1].total, 1250.5);
+  assert.deepEqual(calls[0], {
+    name: "record_portfolio_valuation_snapshot",
+    input: {
+      p_total: 1250.5,
+      p_currency: "USD",
+      p_priced_items: 8,
+      p_unpriced_items: 1,
+      p_fresh_items: 8,
+    },
+  });
+  assert.deepEqual(calls[1], {
+    name: "delete_collection_position",
+    input: { p_collection_item_id: "position-1" },
+  });
 });
 
 test("CSV retries recover the existing owner-visible position after an idempotency conflict", async () => {

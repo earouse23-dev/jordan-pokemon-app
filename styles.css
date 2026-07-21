@@ -72,6 +72,28 @@ h1 { font: 700 29px/1.12 var(--font-sans); letter-spacing: -.035em; margin: 0; }
 .portfolio-stats strong { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .valuation-note { color: rgba(255,255,255,.5); font-size: 9px; margin: 15px 0 0; }
 .valuation-note button { min-height: 44px; border: 0; background: none; padding: 0 4px; color: white; text-decoration: underline; text-underline-offset: 2px; font-size: inherit; }
+.portfolio-history-panel { margin: 14px 0 4px; padding: 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); box-shadow: var(--shadow); }
+.portfolio-history-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.portfolio-history-head span,.portfolio-history-empty span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.portfolio-history-head strong,.portfolio-history-empty strong { font-size: 12px; }
+.portfolio-history-toggle { display: flex; flex: 0 0 auto; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 6px; background: var(--canvas); }
+.portfolio-history-toggle button { min-height: 34px; padding: 0 9px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-size: 9px; font-weight: 700; }
+.portfolio-history-toggle button[aria-pressed="true"] { background: var(--paper-strong); color: var(--ink); box-shadow: 0 2px 7px rgba(24,32,30,.08); }
+.portfolio-history-metrics { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 16px 0 10px; }
+.portfolio-history-metrics span { display: block; color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .05em; }
+.portfolio-history-metrics strong { display: block; margin-top: 4px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.portfolio-history-chart { width: 100%; height: 92px; overflow: visible; }
+.portfolio-history-chart path { fill: color-mix(in srgb,var(--mint) 55%,transparent); stroke: none; }
+.portfolio-history-chart polyline { fill: none; stroke: var(--pine-2); stroke-width: 1.8; vector-effect: non-scaling-stroke; }
+.portfolio-history-dates { display: flex; justify-content: space-between; color: var(--faint); font-size: 8px; }
+.portfolio-history-note { margin: 11px 0 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.portfolio-history-note strong { color: var(--ink); }
+.portfolio-history-empty { padding: 2px 0; }
+@media (max-width: 430px) {
+  .portfolio-history-head { flex-direction: column; }
+  .portfolio-history-toggle { width: 100%; }
+  .portfolio-history-toggle button { flex: 1; }
+}
 
 .view-tabs { margin: 25px -16px 16px; padding: 0 16px; border-bottom: 1px solid var(--line); display: flex; gap: 24px; overflow-x: auto; scrollbar-width: none; }
 .view-tab { min-height: 44px; white-space: nowrap; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); padding: 4px 0 8px; font-size: 12px; font-weight: 600; }
@@ -117,7 +139,7 @@ h1 { font: 700 29px/1.12 var(--font-sans); letter-spacing: -.035em; margin: 0; }
 .row-move.down { color: var(--danger); }
 .row-move.none { color: var(--faint); }
 .empty-state { text-align: center; padding: 55px 25px; color: var(--muted); }
-#view-collection.empty-library .portfolio-panel,#view-collection.empty-library .portfolio-detail-grid,#view-collection.empty-library .view-tabs,#view-collection.empty-library .ledger-tools,#view-collection.empty-library .ledger-meta { display: none; }
+#view-collection.empty-library .portfolio-panel,#view-collection.empty-library .portfolio-detail-grid,#view-collection.empty-library .portfolio-history-panel,#view-collection.empty-library .view-tabs,#view-collection.empty-library .ledger-tools,#view-collection.empty-library .ledger-meta { display: none; }
 #view-collection.empty-library .empty-state { padding: 22px 0 36px; }
 .empty-mark { display: block; width: 35px; height: 48px; border: 1px dashed var(--faint); border-radius: 3px; margin: 0 auto 15px; transform: rotate(-4deg); }
 .empty-state h2 { font: 700 17px var(--font-sans); color: var(--ink); margin: 0 0 5px; }
@@ -904,6 +926,7 @@ body:not(.authenticated) .app-shell { display: none; }
   .view { padding: 34px clamp(28px,4vw,60px) calc(112px + var(--safe-bottom)); }
   #view-collection.active { display: grid; grid-template-columns: minmax(0,2fr) minmax(280px,1fr); column-gap: 22px; align-items: start; }
   #view-collection > .collection-heading,
+  #view-collection > .portfolio-history-panel,
   #view-collection > .view-tabs,
   #view-collection > .ledger-tools,
   #view-collection > .ledger-meta,

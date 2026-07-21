@@ -12,6 +12,7 @@ Collection records never fall back to local demo storage. The browser receives o
 Mobile PWA → Supabase Auth → ownership RLS → collection items / transactions / FIFO lots
           ↘ Vercel Functions → provider adapters → PkmnPrices / TCGdex
 Vercel Cron → secured price sync → immutable normalized observations → charts / valuation
+Authenticated client → one private daily valuation → ledger cash-flow adjustment → portfolio performance
 ```
 
 PostgreSQL is the system of record. Transactional, `security invoker` RPCs create a position plus its first purchase lot, allocate sales against the oldest locked lots, track a raw position through its private grading-submission stages, and convert a returned raw position to its exact graded state while capitalizing the all-in grading cost across remaining lots to the cent. Every mutation derives the owner from `auth.uid()`.
@@ -42,5 +43,6 @@ The existing `supabase/functions/sync-catalog` remains the resumable multilingua
 - Future transaction dates are rejected in UI validation, RPCs, and table constraints.
 - Grading returns require a complete acquisition basis, preserve the prior raw condition in the ledger, and clear incompatible raw position-price observations atomically.
 - Active grading submissions lock inventory-changing transactions and state changes. The estimated cost never enters basis; recording the return closes the submission before the actual cost is capitalized.
+- Private daily portfolio snapshots retain the exact-compatible displayed total and fresh/priced/unpriced coverage. Market performance is derived against the immutable transaction ledger; backdated/unknown or zero-cost inventory additions, destructive removal, and catalog corrections restart the baseline so data-entry changes cannot masquerade as returns.
 
 See [implementation plan](implementation-plan-market-portfolio.md) and [security review](security-review.md).

@@ -11,8 +11,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=70">
-  <link rel="stylesheet" href="themes.css?v=69">
+  <link rel="stylesheet" href="styles.css?v=71">
+  <link rel="stylesheet" href="themes.css?v=70">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -86,6 +86,9 @@
           <div><span>Raw / graded / sealed</span><strong id="allocationSummary">—</strong></div>
           <div><span>Fresh valuations</span><strong id="freshCoverage">—</strong></div>
         </div>
+        <section class="portfolio-history-panel" id="portfolioHistory" aria-label="Portfolio performance history" aria-live="polite">
+          <div class="portfolio-history-empty"><strong>Building an honest performance baseline</strong><span>Mica saves one exact-compatible valuation per day after live pricing finishes.</span></div>
+        </section>
 
         <div class="view-tabs" role="tablist" aria-label="Collection view">
           <button class="view-tab active" type="button" role="tab" aria-selected="true" data-ledger-view="all">All items <span id="allCount">0</span></button>
@@ -301,6 +304,6 @@
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
   <script src="app-config.js?v=69"></script>
-  <script type="module" src="app.js?v=74"></script>
+  <script type="module" src="app.js?v=75"></script>
 </body>
 </html>

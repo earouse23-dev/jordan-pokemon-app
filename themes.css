@@ -75,6 +75,7 @@ body[data-ui-theme] .bulk-organize-bar { border-color: var(--line); background: 
 body[data-ui-theme] .card-thumb { border-radius: 6px; }
 body[data-ui-theme] .portfolio-panel,
 body[data-ui-theme] .portfolio-detail-grid,
+body[data-ui-theme] .portfolio-history-panel,
 body[data-ui-theme] .profile-card,
 body[data-ui-theme] .insight-feature,
 body[data-ui-theme] .trade-side,
@@ -85,6 +86,7 @@ body[data-ui-theme] .business-report,
 body[data-ui-theme] .liquidation-planner,
 body[data-ui-theme] .grading-batch-launch { border-radius: 11px; }
 body[data-ui-theme] .portfolio-detail-grid { overflow: hidden; }
+body[data-ui-theme] .portfolio-history-panel { border-radius: 11px; background: var(--paper); }
 body[data-ui-theme] .settings-group:not(.workspace-settings,.appearance-settings) { padding: 17px 18px 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
 body[data-ui-theme] .settings-group:not(.workspace-settings,.appearance-settings) h2 { margin-bottom: 4px; }
 body[data-ui-theme] .bottom-sheet { border: 1px solid var(--line); background: var(--paper-strong); }

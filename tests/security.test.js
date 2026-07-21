@@ -101,6 +101,27 @@ const gradingSubmissionIndexMigration = await readFile(
   ),
   "utf8",
 );
+const portfolioValuationMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721043000_record_portfolio_valuation_history.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const freshPortfolioValuationMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721044000_require_fresh_portfolio_snapshots.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const backdatedPortfolioLedgerMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721045000_reset_history_for_backdated_ledger.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -164,15 +185,15 @@ test("motion preferences support device defaults and explicit reduction", () => 
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=69/);
+  assert.match(appShell, /themes\.css\?v=70/);
   assert.match(
     appSource,
     /localStorage\.setItem\(["']mica-ui-theme["'],\s*theme\)/,
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v74/);
-  assert.match(serviceWorker, /themes\.css\?v=69/);
+  assert.match(serviceWorker, /mica-shell-v75/);
+  assert.match(serviceWorker, /themes\.css\?v=70/);
 });
 
 test("large CSV imports are bounded, resumable, and protected from duplicate retries", () => {
@@ -338,6 +359,45 @@ test("grading submissions are private, forward-only, and do not enter cost basis
   assert.match(
     gradingSubmissionIndexMigration,
     /grading_submissions_position_owner_idx[\s\S]+collection_item_id,user_id/,
+  );
+});
+
+test("portfolio valuation history is private, daily, and owner-scoped", () => {
+  assert.match(
+    portfolioValuationMigration,
+    /valuation_snapshots_owner_currency_day_idx[\s\S]+collection_id,user_id,currency,snapshot_date/,
+  );
+  assert.match(
+    portfolioValuationMigration,
+    /record_portfolio_valuation_snapshot[\s\S]+security invoker[\s\S]+owner_id uuid := \(select auth\.uid\(\)\)/,
+  );
+  assert.match(
+    portfolioValuationMigration,
+    /where collection\.user_id=owner_id[\s\S]+on conflict \(collection_id,user_id,currency,snapshot_date\)/,
+  );
+  assert.match(
+    portfolioValuationMigration,
+    /revoke all on function public\.record_portfolio_valuation_snapshot[\s\S]+from public,anon/,
+  );
+  assert.match(
+    portfolioValuationMigration,
+    /delete_collection_position[\s\S]+security invoker[\s\S]+item\.user_id=owner_id[\s\S]+delete from public\.valuation_snapshots[\s\S]+delete from public\.collection_items/,
+  );
+  assert.match(
+    portfolioValuationMigration,
+    /reset_valuation_history_after_identity_correction[\s\S]+acquisitionCostKnown[\s\S]+acquisitionDateKnown[\s\S]+delete from public\.valuation_snapshots/,
+  );
+  assert.match(
+    freshPortfolioValuationMigration,
+    /fresh_items integer not null default 0[\s\S]+fresh_items>=0 and fresh_items<=priced_items/,
+  );
+  assert.match(
+    freshPortfolioValuationMigration,
+    /p_fresh_items integer[\s\S]+p_fresh_items>p_priced_items[\s\S]+fresh_items=excluded\.fresh_items/,
+  );
+  assert.match(
+    backdatedPortfolioLedgerMigration,
+    /reset_valuation_history_after_backdated_ledger[\s\S]+new\.transaction_date<current_date[\s\S]+acquisition_date_known[\s\S]+new\.total_cost,0\)=0[\s\S]+delete from public\.valuation_snapshots/,
   );
 });
 

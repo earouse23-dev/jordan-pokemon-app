@@ -40,6 +40,7 @@ import {
   inventoryHealth,
   liquidationPlan,
   listingReadiness,
+  marketAdjustedPortfolioHistory,
   portfolioActions,
   portfolioReview,
   positionPerformance,
@@ -67,9 +68,11 @@ import {
   deleteWatchlistEntry,
   loadDiagnostics,
   loadPortfolio,
+  loadPortfolioValuationHistory,
   loadWatchlist,
   recordGradingResult,
   recordGradingSubmission,
+  recordPortfolioValuationSnapshot,
   recordPurchaseLot,
   recordSale,
   remapCollectionPosition,
@@ -224,6 +227,9 @@ let catalog = [
 
 const state = {
   items: [],
+  portfolioHistory: [],
+  portfolioHistoryMode: "return",
+  portfolioHistoryStatus: "idle",
   watchlist: [],
   intakeQueue: [],
   setCatalogs: new Map(),
@@ -1814,6 +1820,103 @@ function openBulkOrganizeSheet() {
   });
 }
 
+function portfolioTransactions() {
+  return state.items.flatMap((item) => item.transactions || []);
+}
+
+function renderPortfolioHistory() {
+  const root = $("#portfolioHistory");
+  if (!root) return;
+  const history = marketAdjustedPortfolioHistory(
+    state.portfolioHistory,
+    portfolioTransactions(),
+    "USD",
+  );
+  if (!history.points.length) {
+    const failed = state.portfolioHistoryStatus === "error";
+    root.innerHTML = `<div class="portfolio-history-empty"><strong>${failed ? "Performance history is temporarily unavailable" : "Building an honest performance baseline"}</strong><span>${failed ? "Your collection and ledger are unchanged. Mica will retry after the next live price refresh." : "Mica saves one exact-compatible valuation per day after live pricing finishes. It does not invent values for days before tracking began."}</span></div>`;
+    return;
+  }
+  const baseline = history.points[0];
+  const latest = history.points.at(-1);
+  if (history.points.length === 1) {
+    root.innerHTML = `<div class="portfolio-history-head"><div><strong>Performance tracking started</strong><span>${esc(baseline.date)} · exact-compatible prices only</span></div></div><div class="portfolio-history-metrics"><div><span>Baseline value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Fresh prices</span><strong>${baseline.freshItems} of ${baseline.pricedItems}</strong></div><div><span>Unpriced</span><strong>${baseline.unpricedItems}</strong></div></div><p class="portfolio-history-note"><strong>Why there is no line yet:</strong> a second real daily valuation is required. Purchases will be treated as money added, not market growth.</p>`;
+    return;
+  }
+  const marketMode = state.portfolioHistoryMode === "return";
+  const marketAvailable = history.status === "ready";
+  const plotted = marketMode
+    ? history.points.filter((point) => point.marketChangeMinor !== null)
+    : history.points;
+  const values = plotted.map((point) =>
+    marketMode ? point.marketChangeMinor / 100 : point.totalMinor / 100,
+  );
+  let chart = "";
+  if (plotted.length >= 2) {
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const spread = max - min || 1;
+    const firstTime = new Date(`${plotted[0].date}T00:00:00Z`).getTime();
+    const lastTime = new Date(`${plotted.at(-1).date}T00:00:00Z`).getTime();
+    const elapsed = lastTime - firstTime || 1;
+    const coordinates = plotted.map((point, index) => ({
+      x:
+        ((new Date(`${point.date}T00:00:00Z`).getTime() - firstTime) /
+          elapsed) *
+        100,
+      y: 32 - ((values[index] - min) / spread) * 27,
+    }));
+    const polyline = coordinates
+      .map((point) => `${point.x},${point.y}`)
+      .join(" ");
+    const area = `M${coordinates[0].x},34 L${coordinates.map((point) => `${point.x},${point.y}`).join(" L")} L${coordinates.at(-1).x},34 Z`;
+    chart = `<svg class="portfolio-history-chart" viewBox="0 0 100 36" role="img" aria-label="${marketMode ? "Cash-adjusted market change" : "Recorded collection value"} from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}"><path d="${area}"/><polyline points="${polyline}"/></svg><div class="portfolio-history-dates"><span>${esc(plotted[0].date)}</span><span>${esc(plotted.at(-1).date)}</span></div>`;
+  }
+  const marketChange = latest.marketChangeMinor;
+  const totalChange = latest.totalMinor - baseline.totalMinor;
+  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio performance</strong><span>${history.points.length} real daily valuation${history.points.length === 1 ? "" : "s"} · ${esc(baseline.date)} to ${esc(latest.date)}</span></div><div class="portfolio-history-toggle" role="group" aria-label="Portfolio history view"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}">Market return</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${marketMode ? `<div><span>Market change</span><strong>${marketChange === null ? "—" : `${marketChange >= 0 ? "+" : ""}${money(marketChange / 100, history.currency)}`}</strong></div><div><span>Cash added / removed</span><strong>${latest.netContributionMinor >= 0 ? "+" : ""}${money(latest.netContributionMinor / 100, history.currency)}</strong></div><div><span>Cash-adjusted return</span><strong>${latest.returnPercent === null ? "—" : `${latest.returnPercent >= 0 ? "+" : ""}${latest.returnPercent.toFixed(1)}%`}</strong></div>` : `<div><span>Current value</span><strong>${money(latest.totalMinor / 100, history.currency)}</strong></div><div><span>Starting value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Value change</span><strong>${totalChange >= 0 ? "+" : ""}${money(totalChange / 100, history.currency)}</strong></div>`}</div>${chart}${marketMode && !marketAvailable ? '<p class="portfolio-history-note"><strong>Return withheld:</strong> at least one endpoint has incomplete price coverage or an unknown cash flow. Use Total value to see recorded valuations; Mica will not label a coverage change as profit.</p>' : `<p class="portfolio-history-note"><strong>${marketMode ? "Purchases are not profit." : "This line includes buying and selling."}</strong> ${marketMode ? "Mica subtracts recorded purchases and grading costs, adds back net sale proceeds, and uses cash-flow timing for the return percentage." : "Switch to Market return to separate price movement from recorded money added or removed."}</p>`}`;
+  $$("[data-portfolio-history-mode]", root).forEach((button) =>
+    button.addEventListener("click", () => {
+      state.portfolioHistoryMode = button.dataset.portfolioHistoryMode;
+      renderPortfolioHistory();
+    }),
+  );
+}
+
+async function capturePortfolioValuation() {
+  if (
+    !state.session ||
+    !state.items.length ||
+    !["live", "partial"].includes(state.pricingStatus)
+  )
+    return;
+  const totals = calculateTotals(state.items);
+  if (!totals.priced) return;
+  const freshItems = state.items.reduce(
+    (sum, item) =>
+      sum +
+      (item.price != null && item.pricingStatus === "live"
+        ? Number(item.quantity || 0)
+        : 0),
+    0,
+  );
+  state.portfolioHistoryStatus = "saving";
+  try {
+    await recordPortfolioValuationSnapshot(supabase, {
+      total: totals.value,
+      currency: "USD",
+      pricedItems: totals.priced,
+      unpricedItems: totals.unpriced,
+      freshItems,
+    });
+    state.portfolioHistory = await loadPortfolioValuationHistory(supabase);
+    state.portfolioHistoryStatus = "ready";
+  } catch {
+    state.portfolioHistoryStatus = "error";
+  }
+  renderPortfolioHistory();
+}
+
 function renderCollection() {
   $("#filterButton").classList.remove("hidden");
   const sellerDesk = $("#sellerDesk");
@@ -1974,6 +2077,7 @@ function renderCollection() {
       ? "Session only. Changes may be lost when this page closes."
       : `Portfolio saved to your account. ${syncLabels[state.pricingStatus] || "Pricing ready"}. Select to refresh prices.`,
   );
+  renderPortfolioHistory();
   if (state.ledgerView === "watchlist") {
     state.bulkMode = false;
     state.bulkSelected.clear();
@@ -3781,7 +3885,7 @@ async function toggleFavorite(item) {
 
 function openDeleteCopySheet(item) {
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Remove position?</h2><p>${esc(item.name)} · ${esc(item.set)} ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>This removes the position, purchase lots, transactions, and FIFO allocations.</strong><p>This action cannot be undone.</p></div><div class="sheet-actions"><button class="secondary" id="keepCloudPosition" type="button">Keep position</button><button class="danger-action" id="removeCloudPosition" type="button">Remove position</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Remove position?</h2><p>${esc(item.name)} · ${esc(item.set)} ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>This removes the position, purchase lots, transactions, and FIFO allocations.</strong><p>This action cannot be undone. Because the old inventory would no longer be auditable, portfolio performance history restarts after removal.</p></div><div class="sheet-actions"><button class="secondary" id="keepCloudPosition" type="button">Keep position</button><button class="danger-action" id="removeCloudPosition" type="button">Remove position</button></div>`,
   );
   $("#keepCloudPosition").addEventListener("click", closeSheet);
   $("#removeCloudPosition").addEventListener("click", async () => {
@@ -3789,6 +3893,8 @@ function openDeleteCopySheet(item) {
     button.disabled = true;
     try {
       await deletePosition(supabase, item.uid);
+      state.portfolioHistory = [];
+      state.portfolioHistoryStatus = "idle";
       closeSheet({ discardHistory: true });
       state.detailId = null;
       state.detailCard = null;
@@ -3929,7 +4035,7 @@ function openRemapPositionSheet(item) {
   let requestId = 0;
   let timer;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Correct card or printing</h2><p>Replace catalog identity only · purchases, sales, grade, condition, and quantity stay unchanged</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="remapPositionForm"><div class="form-grid"><label class="search-field full"><span class="sr-only">Search the correct card</span><input id="remapQuery" type="search" value="${esc(`${item.name} ${item.number || ""}`.trim())}" placeholder="Card name, set, or collector number" autocomplete="off"></label><div class="field full"><label for="remapLanguage">Card language</label><select id="remapLanguage">${["en", "ja", "fr", "de", "es", "it", "pt", "zh-tw", "id", "th"].map((code) => `<option value="${code}" ${code === (item.language || "en") ? "selected" : ""}>${esc(languageName(code))}</option>`).join("")}</select></div></div><div class="manual-results" id="remapResults" aria-live="polite"></div><div class="simple-note" id="remapChoice" hidden></div><p class="form-error" id="remapError" role="alert"></p><div class="warning-panel"><strong>Financial history is preserved.</strong><p>Only the catalog match changes. Old price observations are cleared so values from the wrong card or printing cannot remain in this position.</p></div><div class="sheet-actions"><button class="secondary" id="remapCancel" type="button">Cancel</button><button class="primary" id="remapSave" type="submit" disabled>Use selected match</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Correct card or printing</h2><p>Replace catalog identity only · purchases, sales, grade, condition, and quantity stay unchanged</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="remapPositionForm"><div class="form-grid"><label class="search-field full"><span class="sr-only">Search the correct card</span><input id="remapQuery" type="search" value="${esc(`${item.name} ${item.number || ""}`.trim())}" placeholder="Card name, set, or collector number" autocomplete="off"></label><div class="field full"><label for="remapLanguage">Card language</label><select id="remapLanguage">${["en", "ja", "fr", "de", "es", "it", "pt", "zh-tw", "id", "th"].map((code) => `<option value="${code}" ${code === (item.language || "en") ? "selected" : ""}>${esc(languageName(code))}</option>`).join("")}</select></div></div><div class="manual-results" id="remapResults" aria-live="polite"></div><div class="simple-note" id="remapChoice" hidden></div><p class="form-error" id="remapError" role="alert"></p><div class="warning-panel"><strong>Financial ledger history is preserved.</strong><p>Only the catalog match changes. Old price observations are cleared, and portfolio performance restarts so the corrected identity is not shown as a market gain or loss.</p></div><div class="sheet-actions"><button class="secondary" id="remapCancel" type="button">Cancel</button><button class="primary" id="remapSave" type="submit" disabled>Use selected match</button></div></form>`,
   );
   const renderResults = (cards) => {
     selected = null;
@@ -4001,6 +4107,8 @@ function openRemapPositionSheet(item) {
         cardId: selected.cardId || null,
         variantId: selected.variantId || null,
       });
+      state.portfolioHistory = [];
+      state.portfolioHistoryStatus = "idle";
       closeSheet({ discardHistory: true });
       await reloadPortfolio(item.uid);
       toast("Catalog match corrected · pricing history restarted");
@@ -5197,6 +5305,7 @@ async function refreshLivePricing() {
     );
     state.pricingStatus = partial ? "partial" : "live";
     state.pricingRetrievedAt = retrievedAt;
+    await capturePortfolioValuation();
     renderCollection();
     renderInsights();
     if (state.route === "detail") renderDetail();
@@ -6860,12 +6969,17 @@ async function retryAccountLoad() {
   state.accountLoading = true;
   renderCollection();
   try {
-    const [items, watchlist] = await Promise.all([
+    const [items, watchlist, history] = await Promise.all([
       loadPortfolio(supabase),
       loadWatchlist(supabase),
+      loadPortfolioValuationHistory(supabase)
+        .then((data) => ({ data, error: null }))
+        .catch((error) => ({ data: [], error })),
     ]);
     state.items = items;
     state.watchlist = watchlist;
+    state.portfolioHistory = history.data;
+    state.portfolioHistoryStatus = history.error ? "error" : "ready";
     state.storageStatus = "cloud";
     state.accountLoadError = "";
     state.accountLoading = false;
@@ -6895,6 +7009,8 @@ async function applySession(session) {
   if (!session) {
     state.items = [];
     state.watchlist = [];
+    state.portfolioHistory = [];
+    state.portfolioHistoryStatus = "idle";
     state.detailId = null;
     state.detailCard = null;
     state.movementStatus = "idle";
@@ -6910,6 +7026,8 @@ async function applySession(session) {
   ensureProfileAccount();
   state.items = [];
   state.watchlist = [];
+  state.portfolioHistory = [];
+  state.portfolioHistoryStatus = "loading";
   state.detailId = null;
   state.detailCard = null;
   state.pricingStatus = "idle";
@@ -6928,10 +7046,17 @@ async function applySession(session) {
     { instant: true, history: "replace" },
   );
   try {
-    [state.items, state.watchlist] = await Promise.all([
+    const [items, watchlist, history] = await Promise.all([
       loadPortfolio(supabase),
       loadWatchlist(supabase),
+      loadPortfolioValuationHistory(supabase)
+        .then((data) => ({ data, error: null }))
+        .catch((error) => ({ data: [], error })),
     ]);
+    state.items = items;
+    state.watchlist = watchlist;
+    state.portfolioHistory = history.data;
+    state.portfolioHistoryStatus = history.error ? "error" : "ready";
     state.storageStatus = "cloud";
     state.accountLoading = false;
     state.accountLoadError = "";
