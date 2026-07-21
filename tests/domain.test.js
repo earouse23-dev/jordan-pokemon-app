@@ -41,6 +41,7 @@ import {
   watchPerformance,
 } from "../lib/portfolio.js";
 import {
+  bulkOrganizePositions,
   hydratePosition,
   hydrateWatchlistEntry,
   updatePosition,
@@ -67,19 +68,37 @@ test("normalizes graders and decimal grades without merging distinct grades", ()
 });
 
 test("batch raw intake validates every row without merging exact variants or costs", () => {
-  const plan=batchAcquisitionPlan([
-    {id:"one",variant:"Holofoil",quantity:"2",totalAcquisitionCost:"10.01"},
-    {id:"two",variant:"Reverse Holofoil",quantity:"1",totalAcquisitionCost:"4.25"},
-  ],{rawCondition:"near_mint",transactionDate:"2026-07-20"},"2026-07-20");
-  assert.equal(plan.errors.length,0);
-  assert.equal(plan.ready.length,2);
-  assert.equal(plan.ready[0].variant,"Holofoil");
-  assert.equal(plan.ready[0].totalMinor,1001);
-  assert.equal(plan.ready[1].variant,"Reverse Holofoil");
-  assert.equal(plan.ready[1].totalMinor,425);
-  const invalid=batchAcquisitionPlan([{id:"bad",variant:"",quantity:"0",totalAcquisitionCost:""}],{rawCondition:"near_mint",transactionDate:"2026-07-21"},"2026-07-20");
-  assert.equal(invalid.ready.length,0);
-  assert.ok(invalid.errors.length>=1);
+  const plan = batchAcquisitionPlan(
+    [
+      {
+        id: "one",
+        variant: "Holofoil",
+        quantity: "2",
+        totalAcquisitionCost: "10.01",
+      },
+      {
+        id: "two",
+        variant: "Reverse Holofoil",
+        quantity: "1",
+        totalAcquisitionCost: "4.25",
+      },
+    ],
+    { rawCondition: "near_mint", transactionDate: "2026-07-20" },
+    "2026-07-20",
+  );
+  assert.equal(plan.errors.length, 0);
+  assert.equal(plan.ready.length, 2);
+  assert.equal(plan.ready[0].variant, "Holofoil");
+  assert.equal(plan.ready[0].totalMinor, 1001);
+  assert.equal(plan.ready[1].variant, "Reverse Holofoil");
+  assert.equal(plan.ready[1].totalMinor, 425);
+  const invalid = batchAcquisitionPlan(
+    [{ id: "bad", variant: "", quantity: "0", totalAcquisitionCost: "" }],
+    { rawCondition: "near_mint", transactionDate: "2026-07-21" },
+    "2026-07-20",
+  );
+  assert.equal(invalid.ready.length, 0);
+  assert.ok(invalid.errors.length >= 1);
 });
 
 test("watchlist hydration preserves the exact raw or graded target context", () => {
@@ -303,6 +322,66 @@ test("position updates only send fields the user changed", async () => {
   assert.equal(matchedId, "position-1");
 });
 
+test("bulk organization only calls the owner-scoped RPC with allowed fields", async () => {
+  let called;
+  const client = {
+    async rpc(name, values) {
+      called = { name, values };
+      return {
+        data: [
+          { collection_item_id: "position-1" },
+          { collection_item_id: "position-2" },
+        ],
+        error: null,
+      };
+    },
+  };
+  const ids = await bulkOrganizePositions(client, {
+    ids: ["position-1", "position-2", "position-1"],
+    labelMode: "add",
+    label: "Trade binder",
+    locationMode: "set",
+    location: "Case A",
+    status: "owned",
+    quantity: 999,
+  });
+  assert.deepEqual(ids, ["position-1", "position-2"]);
+  assert.deepEqual(called, {
+    name: "bulk_organize_collection_items",
+    values: {
+      p_ids: ["position-1", "position-2"],
+      p_label: "Trade binder",
+      p_label_mode: "add",
+      p_location: "Case A",
+      p_location_mode: "set",
+      p_status: "owned",
+    },
+  });
+});
+
+test("bulk organization rejects empty, oversized, and no-op requests", async () => {
+  const client = {
+    rpc: () => assert.fail("invalid requests must not reach Supabase"),
+  };
+  await assert.rejects(
+    () => bulkOrganizePositions(client, { ids: [] }),
+    /between 1 and 500/,
+  );
+  await assert.rejects(
+    () => bulkOrganizePositions(client, { ids: ["position-1"] }),
+    /at least one change/,
+  );
+  await assert.rejects(
+    () =>
+      bulkOrganizePositions(client, {
+        ids: ["position-1"],
+        labelMode: "add",
+        label: "x".repeat(41),
+      }),
+    /40 characters/,
+  );
+});
+
 test("seller listing fields hydrate and update without leaking into unrelated writes", async () => {
   const position = hydratePosition({
     id: "listing-1",
@@ -328,7 +407,11 @@ test("seller listing fields hydrate and update without leaking into unrelated wr
       return {
         update(payload) {
           updated = payload;
-          return { async eq() { return { error: null }; } };
+          return {
+            async eq() {
+              return { error: null };
+            },
+          };
         },
       };
     },
@@ -809,8 +892,22 @@ test("seller readiness finds incomplete and price-drifted active listings", () =
   assert.deepEqual(
     listingReadiness(
       [
-        { status: "listed", quantity: 2, askingPrice: 110, price: 100, listingVenue: "eBay", priceReviewedAt: "2026-07-19" },
-        { status: "listed", quantity: 1, askingPrice: null, price: 50, listingVenue: "", priceReviewedAt: "" },
+        {
+          status: "listed",
+          quantity: 2,
+          askingPrice: 110,
+          price: 100,
+          listingVenue: "eBay",
+          priceReviewedAt: "2026-07-19",
+        },
+        {
+          status: "listed",
+          quantity: 1,
+          askingPrice: null,
+          price: 50,
+          listingVenue: "",
+          priceReviewedAt: "",
+        },
         { status: "owned", quantity: 4, askingPrice: 20, price: 20 },
       ],
       "2026-07-20",
@@ -1091,7 +1188,7 @@ test("liquidation planning separates reference value from realistic take-home", 
   assert.equal(result.marketplaceFeesMinor, 1800);
   assert.equal(result.netProceedsMinor, 15700);
   assert.equal(result.profitMinor, 3700);
-  assert.equal(result.roiPercent, 3700 / 12000 * 100);
+  assert.equal(result.roiPercent, (3700 / 12000) * 100);
   assert.equal(result.pricedUnits, 2);
   assert.equal(result.unpricedUnits, 1);
   assert.equal(result.skippedCurrencyUnits, 3);
@@ -1101,7 +1198,13 @@ test("liquidation planning separates reference value from realistic take-home", 
 test("liquidation planning does not claim profit with incomplete basis", () => {
   const result = liquidationPlan([
     { name: "Known", quantity: 1, price: 25, costBasis: 10, currency: "USD" },
-    { name: "Unknown", quantity: 2, price: 5, costBasis: null, currency: "USD" },
+    {
+      name: "Unknown",
+      quantity: 2,
+      price: 5,
+      costBasis: null,
+      currency: "USD",
+    },
   ]);
   assert.equal(result.netProceedsMinor, 3500);
   assert.equal(result.knownCostBasisMinor, 1000);

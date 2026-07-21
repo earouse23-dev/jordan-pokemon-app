@@ -2,7 +2,7 @@ import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollec
 import { finishForVariant, gradedPriceLadder, mergePriceHistory, priceEvidence, priceMovement, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import { acquisitionFromTotal, allocateFifo, batchAcquisitionPlan, blendedPosition, businessSummary, buyOfferPlan, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, insuranceDocumentation, inventoryHealth, liquidationPlan, listingReadiness, portfolioActions, portfolioReview, positionPerformance, purchaseEntryPoints, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
-import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
+import { bulkOrganizePositions, createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
 
 const supabase = createAppSupabase();
 let chartInstance = null;
@@ -27,7 +27,7 @@ let catalog = [
   { id:'sm115-28', name:'Pikachu', set:'Detective Pikachu', number:'10/18', rarity:'Common', variant:'Holofoil', image:'https://images.pokemontcg.io/sm115/10_hires.png', thumb:'https://images.pokemontcg.io/sm115/10.png', price:null, move:null, artist:'MPC Film', release:'2019' }
 ];
 
-const state = { items:[], watchlist:[], intakeQueue:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, movementStatus:'idle', storageStatus:'cloud', accountLoading:false, accountLoadError:'', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
+const state = { items:[], watchlist:[], intakeQueue:[], setCatalogs:new Map(), setCatalogLoading:new Set(), session:null, route:'collection', ledgerView:'all', query:'', sort:'value-desc', setFilter:'', conditionFilter:'', labelFilter:'', bulkMode:false, bulkSelected:new Set(), visiblePositionIds:[], detailId:null, detailCard:null, detailReturnRoute:'scan', detailCanPop:false, lastFocus:null, sheetHistory:false, pricingStatus:'idle', pricingRetrievedAt:null, movementStatus:'idle', storageStatus:'cloud', accountLoading:false, accountLoadError:'', chartRange:'all', businessRange:'90d', trade:{give:[],receive:[],giveCash:'0.00',receiveCash:'0.00',addingTo:'give',searchResults:[]} };
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => [...root.querySelectorAll(selector)];
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -504,6 +504,42 @@ async function openSetProgressSheet(group) {
   if($('#bottomSheet').hidden)return;$('#sheetContent').innerHTML=setSheetMarkup(refreshed);bindSetSheet(refreshed);
 }
 
+function syncBulkControls() {
+  const selectedCount=state.bulkSelected.size;const shown=state.visiblePositionIds;
+  const supported=!['watchlist','sets'].includes(state.ledgerView)&&state.items.length>0&&!accountDataUnavailable();
+  $('#selectPositionsButton').hidden=!supported;
+  $('#selectPositionsButton').setAttribute('aria-pressed',String(state.bulkMode));
+  $('#selectPositionsButton').textContent=state.bulkMode?'Cancel':'Select';
+  $('#bulkOrganizeBar').hidden=!state.bulkMode||!supported;
+  $('#bulkSelectedCount').textContent=`${selectedCount} selected`;
+  $('#bulkOrganizeButton').disabled=selectedCount===0;
+  const allShown=shown.length>0&&shown.every(id=>state.bulkSelected.has(id));
+  $('#bulkSelectShown').textContent=allShown?'Clear shown':'Select shown';
+  $('#bulkSelectShown').disabled=shown.length===0;
+}
+
+function setBulkMode(enabled) {
+  state.bulkMode=Boolean(enabled);
+  if(!state.bulkMode)state.bulkSelected.clear();
+  renderCollection();
+}
+
+function toggleBulkPosition(id) {
+  if(state.bulkSelected.has(id))state.bulkSelected.delete(id);else state.bulkSelected.add(id);
+  renderCollection();
+}
+
+function openBulkOrganizeSheet() {
+  const selected=state.items.filter(item=>state.bulkSelected.has(item.uid));
+  if(!selected.length){toast('Select at least one position');return;}
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Organize ${selected.length} position${selected.length===1?'':'s'}</h2><p>Apply only the changes you choose. Card identity, grade, cost, and transactions stay untouched.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="bulkOrganizeForm"><div class="form-grid"><div class="field"><label for="bulkLabelMode">Label</label><select id="bulkLabelMode" name="labelMode"><option value="keep">No label change</option><option value="add">Add a label</option><option value="remove">Remove a label</option></select></div><div class="field" id="bulkLabelField" hidden><label for="bulkLabel">Label name</label><input id="bulkLabel" name="label" maxlength="40" placeholder="Trade binder"></div><div class="field"><label for="bulkLocationMode">Storage location</label><select id="bulkLocationMode" name="locationMode"><option value="keep">No location change</option><option value="set">Set one location</option><option value="clear">Clear location</option></select></div><div class="field" id="bulkLocationField" hidden><label for="bulkLocation">Location</label><input id="bulkLocation" name="location" maxlength="250" placeholder="Binder 2 · Shelf A"></div><div class="field full"><label for="bulkStatus">Collection status</label><select id="bulkStatus" name="status"><option value="keep">No status change</option><option value="owned">Keeping</option><option value="archived">Archived</option></select><small>Listing cards stays a one-at-a-time review so Mica never guesses an asking price or sales venue.</small></div><p class="form-error" id="bulkOrganizeError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="bulkOrganizeCancel">Cancel</button><button class="primary" type="submit">Apply changes</button></div></form>`);
+  const labelMode=$('#bulkLabelMode');const locationMode=$('#bulkLocationMode');
+  const syncFields=()=>{$('#bulkLabelField').hidden=labelMode.value==='keep';$('#bulkLocationField').hidden=locationMode.value!=='set';};
+  labelMode.addEventListener('change',syncFields);locationMode.addEventListener('change',syncFields);syncFields();
+  $('#bulkOrganizeCancel').addEventListener('click',closeSheet);
+  $('#bulkOrganizeForm').addEventListener('submit',async event=>{event.preventDefault();const submit=event.currentTarget.querySelector('[type="submit"]');const data=Object.fromEntries(new FormData(event.currentTarget).entries());submit.disabled=true;$('#bulkOrganizeError').textContent='Saving securely…';try{await bulkOrganizePositions(supabase,{ids:selected.map(item=>item.uid),...data});closeSheet({discardHistory:true});await reloadPortfolio();state.bulkSelected=new Set([...state.bulkSelected].filter(id=>state.items.some(item=>item.uid===id)));renderCollection();toast(`${selected.length} position${selected.length===1?'':'s'} organized`);}catch(error){submit.disabled=false;$('#bulkOrganizeError').textContent=`Could not organize these positions: ${error.message||'Unknown error'}`;}});
+}
+
 function renderCollection() {
   $('#filterButton').classList.remove('hidden');
   const sellerDesk=$('#sellerDesk');sellerDesk.classList.toggle('hidden',state.ledgerView!=='for-sale');
@@ -511,6 +547,7 @@ function renderCollection() {
   $$('[data-route="scan"]').forEach(button=>{button.disabled=accountUnavailable;});
   ['#moreButton','#sharePortfolioButton','#importButton','#exportButton','#exportCsvButton','#insuranceReportButton','#batchGradingButton'].forEach(selector=>{const button=$(selector);if(button)button.disabled=accountUnavailable;});
   if(accountUnavailable){
+    state.bulkMode=false;state.bulkSelected.clear();syncBulkControls();
     $('#view-collection').classList.add('empty-library');$('#cardLedger').innerHTML='';$('#resultCount').textContent=state.accountLoading?'Reconnecting…':'Cloud data unavailable';$('#collectionEmpty').classList.remove('hidden');$('#collectionEmptyTitle').textContent=state.accountLoading?'Reconnecting to your library…':"Your library couldn't load";$('#collectionEmptyCopy').textContent=state.accountLoading?'Mica is securely checking your account again.':"Your saved data was not changed. Check your connection and try again.";$('#firstCardGuide').classList.add('hidden');$('#emptyAddCard').classList.remove('hidden');$('#emptyAddCard').disabled=state.accountLoading;$('#emptyAddCard').textContent=state.accountLoading?'Reconnecting…':'Try again';$('#clearFilters').classList.add('hidden');$('#syncState span:last-child').textContent=state.accountLoading?'Reconnecting…':'Cloud unavailable';$('#syncState').setAttribute('aria-label',state.accountLoading?'Reconnecting to your cloud portfolio.':'Cloud portfolio could not load. Select to try again.');return;
   }
   $('#emptyAddCard').disabled=false;
@@ -554,10 +591,12 @@ function renderCollection() {
   $('#syncState span:last-child').textContent = syncLabel;
   $('#syncState').setAttribute('aria-label', state.storageStatus==='error' ? 'Session only. Changes may be lost when this page closes.' : `Portfolio saved to your account. ${syncLabels[state.pricingStatus] || 'Pricing ready'}. Select to refresh prices.`);
   if(state.ledgerView==='watchlist'){
+    state.bulkMode=false;state.bulkSelected.clear();state.visiblePositionIds=[];syncBulkControls();
     renderWatchlistRows();
     return;
   }
   if(state.ledgerView==='sets'){
+    state.bulkMode=false;state.bulkSelected.clear();state.visiblePositionIds=[];syncBulkControls();
     renderSetRows();
     void refreshSetCatalogs();
     return;
@@ -579,6 +618,7 @@ function renderCollection() {
   else if(state.conditionFilter==='Sealed')visible=visible.filter(item=>item.cardState==='sealed');
   else if (state.conditionFilter) visible = visible.filter(item => item.condition === state.conditionFilter);
   visible.sort((a,b) => state.sort === 'value-desc' ? (itemValue(b) ?? -1) - (itemValue(a) ?? -1) : a.name.localeCompare(b.name));
+  state.visiblePositionIds=visible.map(item=>item.uid);
   $('#resultCount').textContent = `${visible.length} item${visible.length === 1 ? '' : 's'}`;
   $('#sortButton').firstChild.textContent = state.sort === 'value-desc' ? 'Value, high to low ' : 'Name, A to Z ';
   $('#cardLedger').innerHTML = visible.map(item => {
@@ -590,8 +630,11 @@ function renderCollection() {
       : priceStatusText(item);
     const listing=listingReadiness([item]);
     const listingTag=item.status==='listed'?(listing.needsReview?'Listing review':item.askingPrice===null?'Listed':`Listed · ${money(item.askingPrice)}`):null;
-    const tags = [item.cardState==='sealed'?'Sealed':item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition,listingTag,...(item.tags || []).slice(0,listingTag?0:1)].filter(Boolean);
-    return `<article class="ledger-row" tabindex="0" role="button" aria-label="Open ${esc(item.name)}, ${total == null ? 'price unavailable' : money(total)}" data-id="${esc(item.uid)}">
+    const statusTag=item.status==='archived'?'Archived':null;
+    const tags = [item.cardState==='sealed'?'Sealed':item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition,listingTag||statusTag,...(item.tags || []).slice(0,listingTag||statusTag?0:1)].filter(Boolean);
+    const selected=state.bulkSelected.has(item.uid);
+    return `<article class="ledger-row${state.bulkMode?' bulk-mode':''}${selected?' selected':''}" tabindex="0" role="${state.bulkMode?'checkbox':'button'}" ${state.bulkMode?`aria-checked="${selected}"`:''} aria-label="${state.bulkMode?(selected?'Deselect':'Select'):'Open'} ${esc(item.name)}, ${total == null ? 'price unavailable' : money(total)}" data-id="${esc(item.uid)}">
+      ${state.bulkMode?`<span class="bulk-select-indicator" aria-hidden="true">${selected?'✓':''}</span>`:''}
       <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity)||0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span>${item.location?`<span class="card-location" title="Storage location">${esc(item.location)}</span>`:''}<div class="card-tags">${tags.map((tag,i)=>`<span class="micro-tag ${i===0&&item.gradingCompany?'graded':''} ${item.price==null?'warn':''}">${esc(tag)}</span>`).join('')}</div></div>
       <div class="price-cell"><span class="row-value">${total == null ? '—' : money(total)}</span><span class="row-unit">${item.price == null ? 'pricing unavailable' : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>
@@ -607,8 +650,9 @@ function renderCollection() {
   $('#clearFilters').classList.toggle('hidden',trulyEmpty);
   const activeFilterCount=(state.ledgerView!=='all'?1:0)+(state.setFilter?1:0)+(state.conditionFilter?1:0)+(state.labelFilter?1:0);
   $('#filterLabel').textContent=activeFilterCount?`Filter · ${activeFilterCount}`:'Filter';
+  syncBulkControls();
   $$('.ledger-row').forEach(row => {
-    const open = () => openCardDetail(state.items.find(item => item.uid === row.dataset.id), true);
+    const open = () => state.bulkMode?toggleBulkPosition(row.dataset.id):openCardDetail(state.items.find(item => item.uid === row.dataset.id), true);
     row.addEventListener('click', open); row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
   });
 }
@@ -1508,6 +1552,10 @@ function bindEvents() {
   $('#collectionSearch').addEventListener('input',event=>{state.query=event.target.value;renderCollection();});
   $('#filterButton').addEventListener('click',openFilterSheet);
   $('#sortButton').addEventListener('click',()=>{state.sort=state.sort==='value-desc'?'name':'value-desc';renderCollection();});
+  $('#selectPositionsButton').addEventListener('click',()=>setBulkMode(!state.bulkMode));
+  $('#bulkDoneButton').addEventListener('click',()=>setBulkMode(false));
+  $('#bulkOrganizeButton').addEventListener('click',openBulkOrganizeSheet);
+  $('#bulkSelectShown').addEventListener('click',()=>{const allShown=state.visiblePositionIds.length&&state.visiblePositionIds.every(id=>state.bulkSelected.has(id));state.visiblePositionIds.forEach(id=>allShown?state.bulkSelected.delete(id):state.bulkSelected.add(id));renderCollection();});
   $('#clearFilters').addEventListener('click',()=>{state.query='';state.ledgerView='all';state.setFilter='';state.conditionFilter='';state.labelFilter='';$('#collectionSearch').value='';syncTabs();renderCollection();});
   $('#emptyAddCard').addEventListener('click',()=>{if(state.accountLoadError)void retryAccountLoad();else routeTo('scan');});
   $('#methodButton').addEventListener('click',openMethodSheet);

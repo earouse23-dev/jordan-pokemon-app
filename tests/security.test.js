@@ -50,6 +50,13 @@ const positionHistoryMigration = await readFile(
   ),
   "utf8",
 );
+const bulkOrganizeMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260720224500_bulk_organize_collection_items.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -73,10 +80,7 @@ const appShell = await readFile(
   new URL("../index.html", import.meta.url),
   "utf8",
 );
-const appSource = await readFile(
-  new URL("../app.js", import.meta.url),
-  "utf8",
-);
+const appSource = await readFile(new URL("../app.js", import.meta.url), "utf8");
 
 test("offline runtime caching is bounded and APIs remain network-only", () => {
   assert.match(serviceWorker, /RUNTIME_LIMIT\s*=\s*80/);
@@ -116,12 +120,12 @@ test("motion preferences support device defaults and explicit reduction", () => 
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=66/);
+  assert.match(appShell, /themes\.css\?v=67/);
   assert.match(appSource, /localStorage\.setItem\('mica-ui-theme',theme\)/);
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v66/);
-  assert.match(serviceWorker, /themes\.css\?v=66/);
+  assert.match(serviceWorker, /mica-shell-v67/);
+  assert.match(serviceWorker, /themes\.css\?v=67/);
 });
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {
@@ -155,6 +159,31 @@ test("portfolio mutation functions run as invoker and derive the owner from auth
     migration,
     /create or replace function public\.(create_collection_position|record_collection_purchase|record_collection_sale)[\s\S]+?security definer/i,
   );
+});
+
+test("bulk organization is owner-scoped and cannot mutate financial or identity fields", () => {
+  assert.match(
+    bulkOrganizeMigration,
+    /create or replace function public\.bulk_organize_collection_items[\s\S]+security invoker[\s\S]+item\.user_id=\(select auth\.uid\(\)\)/i,
+  );
+  assert.match(
+    bulkOrganizeMigration,
+    /revoke all on function public\.bulk_organize_collection_items[\s\S]+from public,anon/i,
+  );
+  const updateClause =
+    bulkOrganizeMigration.match(
+      /update public\.collection_items[\s\S]+?where item\.user_id/i,
+    )?.[0] || "";
+  for (const protectedField of [
+    "quantity",
+    "card_id",
+    "variant_id",
+    "grader",
+    "grade",
+    "currency",
+    "manual_value",
+  ])
+    assert.doesNotMatch(updateClause, new RegExp(`\\b${protectedField}\\s*=`));
 });
 
 test("additional purchases preserve a separate lot and reject future dates", () => {

@@ -69,6 +69,8 @@ body[data-ui-theme] .card-ledger { overflow: hidden; border: 1px solid var(--lin
 body[data-ui-theme] .ledger-row { padding-inline: 12px; }
 body[data-ui-theme] .ledger-row:last-child { border-bottom: 0; }
 body[data-ui-theme] .ledger-row:hover { background: color-mix(in srgb,var(--mint) 38%,transparent); }
+body[data-ui-theme] .ledger-row.bulk-mode.selected { background: color-mix(in srgb,var(--mint) 72%,var(--paper)); }
+body[data-ui-theme] .bulk-organize-bar { border-color: var(--line); background: color-mix(in srgb,var(--paper-strong) 94%,transparent); }
 body[data-ui-theme] .card-thumb { border-radius: 6px; }
 body[data-ui-theme] .portfolio-panel,
 body[data-ui-theme] .portfolio-detail-grid,
@@ -298,6 +300,7 @@ body[data-ui-theme="analytics"] .toast { background: #f4f6f5; color: #101311; }
   body[data-ui-theme] .scan-button svg { width: 18px; }
   body[data-ui-theme] .detail-sticky-action { left: 220px; }
   body[data-ui-theme] .toast-region { left: 236px; }
+  body[data-ui-theme] .bulk-organize-bar { left: calc(50% + 110px); }
   body[data-ui-theme] .view { padding-inline: clamp(28px,3vw,52px); padding-bottom: 54px; }
   body[data-ui-theme] #view-collection.active { grid-template-columns: minmax(350px,.95fr) minmax(520px,1.55fr); gap: 14px 18px; }
   body[data-ui-theme] #view-collection > .portfolio-panel { min-height: 168px; }
