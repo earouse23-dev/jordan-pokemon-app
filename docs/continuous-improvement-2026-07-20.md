@@ -1,6 +1,6 @@
 # Continuous product improvement — 2026-07-20
 
-This report records six complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
+This report records seven complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
 
 ## Baseline
 
@@ -58,11 +58,20 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 - Security: The new columns are additive with safe defaults for existing positions. Both creation and repair derive the owner from `auth.uid()`. The repair RPC is unavailable to anonymous users, executable by authenticated users, and targets only a lot belonging to the caller. The live database reports the function as security-invoker with those privileges.
 - Result: Moving a Pokémon inventory from TCGplayer no longer requires spreadsheet surgery or turns missing bookkeeping into fake profit, and users can progressively complete their history inside Mica.
 
+## Cycle 7 — Fair exact-price refresh for large portfolios
+
+- Problem: The daily server job selected an unordered fixed limit of 50 active positions. A small collection could refresh repeatedly while most of a 5,000-position import never entered scheduled pricing. The same job also ignored an imported TCGplayer Product ID even though the interactive pricing route already supported it.
+- Evidence: Card Ladder advertises automatic daily collection estimates as a paid portfolio benefit. Current collector reports continue to complain that tracking apps lag real markets, mix conditions or editions, and require a separate check of actual sales. Repository inspection showed Mica already preserved exact condition, grade, finish, and provider evidence, so the verified weakness was refresh coverage and identity—not another price widget.
+- Change: The existing 50-position provider budget now advances through active raw and graded positions using the durable `provider_sync_status.sync_cursor`. Batches are UUID-ordered, wrap without wasting the remaining capacity, deduplicate the wrap boundary, and continue after partial provider failures. No paid request budget or cron frequency was increased.
+- Matching: Scheduled grouping now includes TCGplayer Product ID, and PkmnPrices receives that direct ID before falling back to name, set, and number. Two superficially identical imported rows with different provider identities can no longer collapse into one scheduled lookup.
+- Critique and fix: A new collector sees no extra controls; a graded collector keeps exact grader/grade filtering; a large owner eventually reaches every active position rather than the same first 50; a seller gets fresher references across the inventory; a mobile user incurs no new interface friction; and skeptical engineering review added malformed-cursor recovery, bounded batch sizes, deterministic ordering, wrap tests, secret/admin endpoint tests, and cursor visibility limited to the existing administrator diagnostic table.
+- Result: Large portfolios now receive fair scheduled coverage and exact imported identity without increasing operating cost or weakening Mica's compatible-price rules. A 5,000-position portfolio still cannot be repriced daily under the approved 50-position budget; faster full coverage remains a provider-plan and operating-cost decision.
+
 ## Verification
 
 - Formatting and diff whitespace checks
 - Source linting and JavaScript syntax/type checks
-- 121 automated domain, pricing, API, security, offline, bulk, paging, import, and regression tests
+- 122 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, and regression tests
 - Connected Supabase table inspection with RLS enabled on every public table
 - Production build
 - Supabase security and performance advisors

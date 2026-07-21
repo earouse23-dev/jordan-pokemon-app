@@ -125,15 +125,64 @@ export function positionObservationRow(
   };
 }
 
-function lookupKey(item) {
+export function priceSyncLookupKey(item) {
   const identity = item.identity_snapshot || {};
   return JSON.stringify([
     identity.externalIds?.pkmnprices || "",
+    identity.externalIds?.tcgplayer || "",
     identity.name || "",
     identity.set || identity.setName || "",
     identity.number || identity.collectorNumber || "",
     identity.language || "en",
   ]);
+}
+
+const SYNC_BATCH_SIZE = 50;
+const UUID_CURSOR =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function activePositionQuery(database) {
+  return database
+    .from("collection_items")
+    .select(
+      "id,user_id,card_id,variant_id,identity_snapshot,card_state,raw_condition,grader,grade,currency",
+    )
+    .in("status", ["owned", "listed"])
+    .neq("card_state", "sealed")
+    .order("id", { ascending: true });
+}
+
+export async function loadPriceSyncBatch(
+  database,
+  savedCursor,
+  batchSize = SYNC_BATCH_SIZE,
+) {
+  const limit = Math.min(Math.max(Number(batchSize) || 1, 1), 200);
+  const cursor = UUID_CURSOR.test(String(savedCursor || ""))
+    ? String(savedCursor)
+    : null;
+  let primaryQuery = activePositionQuery(database);
+  if (cursor) primaryQuery = primaryQuery.gt("id", cursor);
+  const primary = await primaryQuery.limit(limit);
+  if (primary.error) throw primary.error;
+  const items = [...(primary.data || [])];
+  let wrapped = false;
+  if (cursor && items.length < limit) {
+    const beginning = await activePositionQuery(database)
+      .lte("id", cursor)
+      .limit(limit - items.length);
+    if (beginning.error) throw beginning.error;
+    const seen = new Set(items.map((item) => item.id));
+    for (const item of beginning.data || []) {
+      if (!seen.has(item.id)) items.push(item);
+    }
+    wrapped = (beginning.data || []).length > 0;
+  }
+  return {
+    items,
+    wrapped,
+    nextCursor: items.at(-1)?.id || cursor,
+  };
 }
 
 export function positionHistoryRows(position, normalized) {
@@ -242,19 +291,23 @@ export default async function handler(request, response) {
   await database
     .from("provider_sync_status")
     .upsert({ provider: "pkmnprices", enabled: true, updated_at: startedAt });
-  const { data: items, error } = await database
-    .from("collection_items")
-    .select(
-      "id,user_id,card_id,variant_id,identity_snapshot,card_state,raw_condition,grader,grade,currency",
-    )
-    .in("status", ["owned", "listed"])
-    .neq("card_state", "sealed")
-    .limit(50);
-  if (error)
+  const cursorResult = await database
+    .from("provider_sync_status")
+    .select("sync_cursor")
+    .eq("provider", "pkmnprices")
+    .maybeSingle();
+  if (cursorResult.error)
+    return send(response, 500, { error: "Could not load pricing cursor" });
+  let batch;
+  try {
+    batch = await loadPriceSyncBatch(database, cursorResult.data?.sync_cursor);
+  } catch {
     return send(response, 500, { error: "Could not load tracked positions" });
+  }
+  const items = batch.items;
   const groups = new Map();
   for (const item of items || []) {
-    const key = lookupKey(item);
+    const key = priceSyncLookupKey(item);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   }
@@ -274,6 +327,7 @@ export default async function handler(request, response) {
         {
           clientId: identity.providerCardId || identity.id || item.id,
           pkmnpricesId: identity.externalIds?.pkmnprices,
+          tcgplayerId: identity.externalIds?.tcgplayer,
           name: identity.name,
           set: identity.set || identity.setName,
           number: identity.number || identity.collectorNumber,
@@ -340,6 +394,7 @@ export default async function handler(request, response) {
       groups.size === 0 || successfulGroups > 0 ? finishedAt : null,
     last_failure_at: failures ? finishedAt : null,
     last_error_code: failures ? "partial_failure" : null,
+    sync_cursor: batch.nextCursor,
     updated_at: finishedAt,
   });
   return send(response, 200, {
@@ -349,6 +404,8 @@ export default async function handler(request, response) {
     inserted,
     duplicates,
     failures,
+    cursor: batch.nextCursor,
+    wrapped: batch.wrapped,
     startedAt,
     finishedAt,
   });

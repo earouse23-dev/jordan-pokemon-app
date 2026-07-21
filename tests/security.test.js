@@ -4,8 +4,10 @@ import { readFile } from "node:fs/promises";
 import accountHandler from "../api/account.js";
 import priceSyncHandler, {
   compatibleHistory,
+  loadPriceSyncBatch,
   positionObservationRow,
   positionHistoryRows,
+  priceSyncLookupKey,
 } from "../api/price-sync.js";
 
 const migration = await readFile(
@@ -477,6 +479,81 @@ test("scheduled price synchronization rejects unauthenticated requests before pr
   } finally {
     process.env = original;
   }
+});
+
+test("scheduled pricing rotates past its cursor and preserves exact TCGplayer identity", async () => {
+  const rows = Array.from({ length: 6 }, (_, index) => ({
+    id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+  }));
+  const database = {
+    from(table) {
+      assert.equal(table, "collection_items");
+      const filters = { after: null, through: null, limit: rows.length };
+      const query = {
+        select() {
+          return query;
+        },
+        in() {
+          return query;
+        },
+        neq() {
+          return query;
+        },
+        order() {
+          return query;
+        },
+        gt(_field, value) {
+          filters.after = value;
+          return query;
+        },
+        lte(_field, value) {
+          filters.through = value;
+          return query;
+        },
+        limit(value) {
+          filters.limit = value;
+          return query;
+        },
+        then(resolve, reject) {
+          const data = rows
+            .filter(
+              (row) =>
+                (!filters.after || row.id > filters.after) &&
+                (!filters.through || row.id <= filters.through),
+            )
+            .slice(0, filters.limit);
+          return Promise.resolve({ data, error: null }).then(resolve, reject);
+        },
+      };
+      return query;
+    },
+  };
+  const batch = await loadPriceSyncBatch(database, rows[3].id, 4);
+  assert.deepEqual(
+    batch.items.map((item) => item.id),
+    [rows[4].id, rows[5].id, rows[0].id, rows[1].id],
+  );
+  assert.equal(batch.nextCursor, rows[1].id);
+  assert.equal(batch.wrapped, true);
+  assert.equal(new Set(batch.items.map((item) => item.id)).size, 4);
+  assert.notEqual(
+    priceSyncLookupKey({
+      identity_snapshot: {
+        name: "Pikachu",
+        set: "Base Set",
+        number: "58",
+        externalIds: { tcgplayer: "107044" },
+      },
+    }),
+    priceSyncLookupKey({
+      identity_snapshot: {
+        name: "Pikachu",
+        set: "Base Set",
+        number: "58",
+        externalIds: { tcgplayer: "2999078" },
+      },
+    }),
+  );
 });
 
 test("manual price synchronization requires an authenticated administrator", async () => {

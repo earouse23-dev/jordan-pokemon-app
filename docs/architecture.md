@@ -27,7 +27,7 @@ UI and financial code consume normalized internal observations only. Raw/graded 
 
 ## Synchronization
 
-`api/price-sync.js` is called daily by Vercel Cron. It verifies the bearer secret, reads actively owned card positions with a server-only Supabase client, requests PkmnPrices, stores immutable deduplicated exact-context observations, and updates provider diagnostics. Owner-scoped `position_price_observations` preserve history for live-search cards before an internal catalog UUID exists; authenticated clients can only read their own rows through an invoker function. Partial failures preserve previous valid data.
+`api/price-sync.js` is called daily by Vercel Cron. It verifies the bearer secret, reads a cursor-rotated batch of actively owned card positions with a server-only Supabase client, requests PkmnPrices using exact provider IDs when available, stores immutable deduplicated exact-context observations, and updates provider diagnostics plus the next durable cursor. Owner-scoped `position_price_observations` preserve history for live-search cards before an internal catalog UUID exists; authenticated clients can only read their own rows through an invoker function. Partial failures preserve previous valid data and advance into the next batch so one bad mapping cannot starve the rest of a large portfolio.
 
 The existing `supabase/functions/sync-catalog` remains the resumable multilingual catalog importer. Catalog and pricing synchronization are separate jobs with separate status records.
 
