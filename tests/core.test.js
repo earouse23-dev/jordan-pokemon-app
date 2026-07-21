@@ -6,6 +6,7 @@ import {
   collectionToCsv,
   parseCollectionCsv,
   isStale,
+  localIsoDate,
   matchesSearch,
   missingSetChecklist,
   money,
@@ -15,6 +16,12 @@ import {
   safeCsvCell,
   transactionReportCsv,
 } from "../lib/core.js";
+
+test("local calendar dates do not roll over at UTC midnight", () => {
+  const localLateEvening = new Date(2026, 6, 20, 23, 30, 0);
+  assert.equal(localIsoDate(localLateEvening), "2026-07-20");
+  assert.equal(localIsoDate("not-a-date"), "");
+});
 
 test("catalog ownership matches provider IDs and exact fallback identity", () => {
   const card = {
