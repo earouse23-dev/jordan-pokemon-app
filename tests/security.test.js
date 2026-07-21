@@ -124,8 +124,19 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   assert.match(appSource, /localStorage\.setItem\('mica-ui-theme',theme\)/);
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v69/);
+  assert.match(serviceWorker, /mica-shell-v70/);
   assert.match(serviceWorker, /themes\.css\?v=69/);
+});
+
+test("large CSV imports are bounded, resumable, and protected from duplicate retries", () => {
+  assert.match(appShell, /Up to 5,000 positions/);
+  assert.doesNotMatch(appSource, /records\.slice\(0,\s*100\)/);
+  assert.match(appSource, /runBoundedTasks\(pending/);
+  assert.match(appSource, /concurrency:\s*4/);
+  assert.match(appSource, /shouldStop:\(\)=>pauseRequested/);
+  assert.match(appSource, /createImportedPosition/);
+  assert.match(appSource, /idempotencyKey=await importRecordKey/);
+  assert.match(appSource, /dataset\.lockClose=value\?'true':'false'/);
 });
 
 test("collection, transaction, lot, and allocation policies bind every row to auth.uid", () => {

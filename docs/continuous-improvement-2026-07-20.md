@@ -1,6 +1,6 @@
 # Continuous product improvement — 2026-07-20
 
-This report records four complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and authenticated production app so existing Mica capabilities were preserved rather than rebuilt.
+This report records five complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
 
 ## Baseline
 
@@ -39,12 +39,21 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 - Critique: A beginner with a small library sees no pagination controls. A large owner gets stable totals and progressive rows. Bulk “Select shown” intentionally selects only the currently rendered window. Search and filters reset the window. A skeptical engineer gets bounded request sizes, deterministic paging, and tests at 450 dependent IDs and 2,050 positions.
 - Result: Mica no longer silently stops at the first API page or creates a DOM node for every card at once.
 
+## Cycle 5 — Recoverable large-collection import
+
+- Problem: Mica's parser already accepted 5,000 records, but the account workflow silently kept only the first 100 and saved them one at a time. That contradicted the large-library work and made migration from another collector app needlessly slow.
+- Evidence: Card Ladder documents bulk CSV upload; PriceCharting's text importer accepts up to 5,000 lines; current collector discussions ask specifically for easy CSV/Excel migration; and Collectr's documented TCGplayer import process relies on emailing a file and waiting 2–3 business days. The existing Mica source and production copy confirmed the 100-position bottleneck.
+- Change: Removed the extra 100-row truncation and exposed the parser's honest 5,000-row limit. Imports now validate exact raw, graded, sealed, condition, grader, grade, variant, cost, date, and currency context before saving. Four owner-scoped writes run concurrently with visible progress, pause-after-current-writes, continue, and failed-row retry.
+- Reliability: Every normalized row receives a deterministic SHA-256 idempotency key. Identical duplicate rows receive stable occurrence numbers so legitimate multiple positions remain distinct. If a response is lost or Supabase retries a completed request, Mica resolves the existing owner-visible purchase transaction after the unique-key conflict instead of creating another position. Re-importing with the same fallback date is therefore safe. The sheet cannot close while writes are in flight.
+- Critique and fix: New collectors get one clear fallback-date decision; graded collectors retain grader, decimal grade, and certification; large owners get progress and pause; sellers keep existing rows untouched; mobile users get native progress and 44px controls; and the engineer review added error-code branching, bounded concurrency, RLS-backed recovery, validation failures, and a regression test that prevents the 100-row cap from returning.
+- Result: Collection migration now scales to the same 5,000-row order as a major incumbent, remains recoverable under partial network failure, and does not trade speed for duplicate financial records.
+
 ## Verification
 
 - Formatting and diff whitespace checks
 - Source linting and JavaScript syntax/type checks
-- 111 automated domain, pricing, API, security, offline, bulk, paging, and regression tests
-- Schema validation across 83 public tables with RLS enabled on every table
+- 115 automated domain, pricing, API, security, offline, bulk, paging, import, and regression tests
+- Connected Supabase table inspection with RLS enabled on every public table
 - Production build
 - Supabase security and performance advisors
 - Authenticated production browser verification at 390×844 and 1280×800

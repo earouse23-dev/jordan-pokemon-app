@@ -5,6 +5,7 @@ import {
   calculateTotals,
   collectionToCsv,
   collectionWindow,
+  importRecordKey,
   parseCollectionCsv,
   isStale,
   localIsoDate,
@@ -13,6 +14,7 @@ import {
   money,
   ownedCardSummary,
   portfolioSnapshot,
+  runBoundedTasks,
   sameCatalogCard,
   safeCsvCell,
   transactionReportCsv,
@@ -33,6 +35,50 @@ test("large collection windows render bounded pages without losing totals", () =
   const expanded = collectionWindow(items, 200);
   assert.equal(expanded.displayed.at(-1).id, 199);
   assert.equal(expanded.remaining, 50);
+});
+
+test("CSV import keys are stable, exact, and distinguish duplicate rows", async () => {
+  const record = {
+    id: "sv3pt5-151",
+    name: "Mew ex",
+    variant: "Holofoil",
+    quantity: 1,
+    totalAcquisitionCost: 12.34,
+    tags: ["Binder", "Favorites"],
+  };
+  const first = await importRecordKey(record, 0);
+  assert.equal(
+    first,
+    await importRecordKey({ ...record, tags: [...record.tags].reverse() }, 0),
+  );
+  assert.notEqual(first, await importRecordKey(record, 1));
+  assert.notEqual(
+    first,
+    await importRecordKey({ ...record, variant: "Reverse Holofoil" }, 0),
+  );
+  assert.match(first, /^mica-csv-v1-[a-f0-9]{64}$/);
+});
+
+test("bounded task runner limits concurrency and returns paused work", async () => {
+  let active = 0;
+  let peak = 0;
+  let stop = false;
+  const result = await runBoundedTasks(
+    Array.from({ length: 12 }, (_, index) => index),
+    async (item) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 1));
+      active -= 1;
+      if (item === 3) stop = true;
+      return item * 2;
+    },
+    { concurrency: 3, shouldStop: () => stop },
+  );
+  assert.ok(peak <= 3);
+  assert.ok(result.completed >= 4);
+  assert.ok(result.unprocessed.length > 0);
+  assert.equal(result.succeeded, result.completed);
 });
 
 test("catalog ownership matches provider IDs and exact fallback identity", () => {

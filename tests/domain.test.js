@@ -42,6 +42,7 @@ import {
 } from "../lib/portfolio.js";
 import {
   bulkOrganizePositions,
+  createImportedPosition,
   hydratePosition,
   hydrateWatchlistEntry,
   loadRowsInChunks,
@@ -322,6 +323,43 @@ test("position updates only send fields the user changed", async () => {
   await updatePosition(client, "position-1", { tags: ["Favorites"] });
   assert.deepEqual(updated, { tags: ["Favorites"] });
   assert.equal(matchedId, "position-1");
+});
+
+test("CSV retries recover the existing owner-visible position after an idempotency conflict", async () => {
+  const client = {
+    async rpc() {
+      return { data: null, error: { code: "23505", message: "duplicate key" } };
+    },
+    from(table) {
+      assert.equal(table, "collection_transactions");
+      return {
+        select(columns) {
+          assert.equal(columns, "collection_item_id");
+          return this;
+        },
+        eq(column, value) {
+          assert.equal(column, "idempotency_key");
+          assert.equal(value, "mica-csv-v1-test");
+          return this;
+        },
+        async maybeSingle() {
+          return { data: { collection_item_id: "position-1" }, error: null };
+        },
+      };
+    },
+  };
+  assert.deepEqual(
+    await createImportedPosition(client, {
+      identity: {},
+      cardState: "raw",
+      rawCondition: "near_mint",
+      quantity: 1,
+      unitPrice: 10,
+      transactionDate: "2026-07-20",
+      idempotencyKey: "mica-csv-v1-test",
+    }),
+    { id: "position-1", reused: true },
+  );
 });
 
 test("bulk organization only calls the owner-scoped RPC with allowed fields", async () => {
