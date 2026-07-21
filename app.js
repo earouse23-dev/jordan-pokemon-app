@@ -1,5 +1,5 @@
 import { money, calculateTotals, collectionToCsv, accountBackupJson, parseCollectionCsv, portfolioSnapshot, transactionReportCsv, missingSetChecklist, isStale, matchesSearch, ownedCardSummary, sameCatalogCard } from './lib/core.js';
-import { finishForVariant, gradedPriceLadder, mergePriceHistory, priceMovement, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
+import { finishForVariant, gradedPriceLadder, mergePriceHistory, priceEvidence, priceMovement, selectCardmarketReference, selectReferenceQuote } from './lib/pricing.js';
 import { acquisitionFromTotal, allocateFifo, blendedPosition, businessSummary, buyOfferPlan, gradingBatchPlan, gradingDecision, gradingEstimate, holdingDays, insuranceDocumentation, inventoryHealth, liquidationPlan, listingReadiness, portfolioActions, portfolioReview, positionPerformance, purchaseEntryPoints, salePlan, targetAlertChanges, tradeAnalysis, tradeSummary, validateAcquisition, watchPerformance } from './lib/portfolio.js';
 import { normalizeGrade, normalizeGrader, normalizeRawCondition } from './lib/domain.js';
 import { createAppSupabase, createPosition, createWatchlistEntry, deletePosition, deleteWatchlistEntry, loadDiagnostics, loadPortfolio, loadWatchlist, recordPurchaseLot, recordSale, sendMagicLink, signInWithPassword, signOut, signUpWithPassword, updatePosition, updateWatchlistEntry } from './lib/supabase-data.js';
@@ -116,6 +116,14 @@ function renderQuoteRow(quote, label) {
     ? `<a href="${esc(quote.providerUrl)}" target="_blank" rel="noreferrer">${esc(label)}</a>`
     : `<strong>${esc(label)}</strong>`;
   return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.condition || 'Condition-neutral')} · ${esc(quote.currency)}</span><span>Observed ${esc(quote.observedAt || 'date unavailable')} · retrieved ${esc(quote.retrievedAt?.slice?.(0,10) || 'date unavailable')}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
+}
+
+function renderPriceEvidence(item, context) {
+  const report=priceEvidence(item.quotes,item.variant,item.currency||'USD',context);
+  const contextLabel=item.cardState==='sealed'?'Sealed product':context.gradingCompany?`${String(context.gradingCompany).toUpperCase()} ${context.grade}`:`Raw · ${context.condition||'Near Mint'}`;
+  const agreement=report.spreadPercent===null?'One-source reference':`${report.spreadPercent.toFixed(1)}% source spread`;
+  const freshness=report.freshestAt?`Newest ${String(report.freshestAt).slice(0,10)}`:'No dated evidence';
+  return `<section class="price-confidence ${report.level}" aria-label="Price confidence"><div class="price-confidence-head"><div><span>Price confidence</span><strong>${esc(report.label)}</strong></div><b>${report.sourceCount} compatible source${report.sourceCount===1?'':'s'}</b></div><p>${esc(report.summary)}</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>${esc(agreement)}</span><span>${esc(freshness)}</span></div></section>`;
 }
 
 function renderGradedPriceLadder(item) {
@@ -770,6 +778,7 @@ function renderDetail() {
     <div class="detail-identity"><img src="${esc(item.image || item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(sealed?'Sealed product':item.rarity || 'Pokémon card')}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)}${item.number?` · ${esc(item.number)}`:''}</p><div class="detail-meta">${detailMeta}</div></div></div>
     ${matchDetails}
     <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? pricingStatus === 'loading' ? 'Checking…' : 'Price unavailable' : money(displayPrice)}</strong><small>${statusCopy}</small></section>
+    ${renderPriceEvidence(item,conditionContext)}
     ${watchedSection}
     ${action}
     ${listingSection}

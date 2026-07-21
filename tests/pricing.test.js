@@ -9,6 +9,7 @@ import {
   gradedPriceLadder,
   mergePriceHistory,
   normalizeCard,
+  priceEvidence,
   priceMovement,
   selectCardmarketReference,
   selectReferenceQuote,
@@ -112,6 +113,24 @@ test("does not mix raw quotes into graded copies or substitute a different raw c
     }).amount,
     80,
   );
+});
+
+test("price evidence scores only exact compatible context and explains disagreement", () => {
+  const quotes = [
+    { provider:"tcgplayer",currency:"USD",finish:"holofoil",condition:"Near Mint",gradingCompany:null,grade:null,priceType:"market",amount:100,observedAt:"2026-07-18" },
+    { provider:"pkmnprices",currency:"USD",finish:"holofoil",condition:"Near Mint",gradingCompany:null,grade:null,priceType:"average",amount:108,observedAt:"2026-07-19" },
+    { provider:"ebay",currency:"USD",finish:"holofoil",condition:null,gradingCompany:"PSA",grade:"10",priceType:"average",amount:400,observedAt:"2026-07-19" },
+    { provider:"cardmarket",currency:"EUR",finish:"holofoil",condition:null,gradingCompany:null,grade:null,priceType:"trend",amount:80,observedAt:"2026-07-19" },
+  ];
+  const report=priceEvidence(quotes,"Holofoil","USD",{condition:"Near Mint"},new Date("2026-07-20T12:00:00Z").getTime());
+  assert.equal(report.level,"strong");
+  assert.equal(report.sourceCount,2);
+  assert.ok(report.spreadPercent>7&&report.spreadPercent<8);
+  assert.deepEqual(report.evidence.map(item=>item.provider),["tcgplayer","pkmnprices"]);
+  const graded=priceEvidence(quotes,"Holofoil","USD",{gradingCompany:"PSA",grade:"10"},new Date("2026-07-20T12:00:00Z").getTime());
+  assert.equal(graded.level,"limited");
+  assert.equal(graded.sourceCount,1);
+  assert.equal(graded.evidence[0].amount,400);
 });
 
 test("selects compatible Cardmarket reference without mixing currencies", () => {
