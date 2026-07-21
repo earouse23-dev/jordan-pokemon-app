@@ -48,7 +48,9 @@ import {
   loadRowsInChunks,
   loadRowsInPages,
   recordGradingResult,
+  recordGradingSubmission,
   remapCollectionPosition,
+  updateGradingSubmission,
   updatePosition,
 } from "../lib/supabase-data.js";
 
@@ -521,6 +523,103 @@ test("grading ledger details remain visible after hydration", () => {
     costBasisKnown: true,
     acquisitionDateKnown: true,
   });
+});
+
+test("active grading submissions hydrate without changing raw card identity", () => {
+  const position = hydratePosition(
+    {
+      id: "position-1",
+      identity_snapshot: { name: "Pikachu", set: "Base", number: "58" },
+      card_state: "raw",
+      raw_condition: "near_mint",
+      grader: null,
+      grade: null,
+      quantity: 2,
+      currency: "USD",
+      tags: [],
+    },
+    [],
+    [],
+    [],
+    [],
+    [
+      {
+        id: "submission-1",
+        quantity: 2,
+        grader: "PSA",
+        submitted_at: "2026-07-18",
+        expected_return_date: "2026-09-01",
+        status: "received",
+        status_updated_at: "2026-07-20",
+        submission_reference: "PSA-123",
+        estimated_total_cost: "49.99",
+        notes: "Value tier",
+        returned_at: null,
+      },
+    ],
+  );
+  assert.equal(position.cardState, "raw");
+  assert.equal(position.gradingCompany, "");
+  assert.equal(position.activeGradingSubmission.status, "received");
+  assert.equal(position.activeGradingSubmission.estimatedTotalCost, 49.99);
+  assert.equal(position.gradingSubmissions.length, 1);
+});
+
+test("submission create and status update use owner-scoped RPCs", async () => {
+  const calls = [];
+  const client = {
+    async rpc(name, input) {
+      calls.push({ name, input });
+      return {
+        data: name === "record_grading_submission" ? "sub-1" : "sub-1",
+        error: null,
+      };
+    },
+  };
+  await recordGradingSubmission(client, {
+    collectionItemId: "position-1",
+    submittedAt: "2026-07-18",
+    grader: "PSA",
+    expectedReturnDate: "2026-09-01",
+    submissionReference: "PSA-123",
+    estimatedTotalCost: 49.99,
+    notes: "Value tier",
+    idempotencyKey: "submission-key",
+  });
+  await updateGradingSubmission(client, {
+    submissionId: "sub-1",
+    status: "received",
+    statusUpdatedAt: "2026-07-20",
+    expectedReturnDate: "2026-09-01",
+    submissionReference: "PSA-123",
+    notes: "Arrived",
+  });
+  assert.deepEqual(calls, [
+    {
+      name: "record_grading_submission",
+      input: {
+        p_collection_item_id: "position-1",
+        p_submitted_at: "2026-07-18",
+        p_grader: "PSA",
+        p_expected_return_date: "2026-09-01",
+        p_submission_reference: "PSA-123",
+        p_estimated_total_cost: 49.99,
+        p_notes: "Value tier",
+        p_idempotency_key: "submission-key",
+      },
+    },
+    {
+      name: "update_grading_submission",
+      input: {
+        p_submission_id: "sub-1",
+        p_status: "received",
+        p_status_updated_at: "2026-07-20",
+        p_expected_return_date: "2026-09-01",
+        p_submission_reference: "PSA-123",
+        p_notes: "Arrived",
+      },
+    },
+  ]);
 });
 
 test("CSV retries recover the existing owner-visible position after an idempotency conflict", async () => {

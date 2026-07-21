@@ -69,6 +69,7 @@ const required = [
   "provider_sync_status",
   "card_watchlist",
   "position_price_observations",
+  "grading_submissions",
 ];
 
 const failures = [];

@@ -39,6 +39,7 @@ The app opens on the port printed by the local server. It does not fall back to 
 - Raw and graded values are never combined. Graders, grades, variants, editions, finishes, languages, and currencies must remain compatible.
 - Purchases remain separate lots. Partial sales allocate the oldest remaining lots first using FIFO.
 - A returned raw card can become graded in place: the original purchase and FIFO lots remain auditable, the all-in grading cost is capitalized to the remaining basis, and no fake sale or repurchase is created.
+- Raw positions can be tracked through a private grading pipeline from sent through returned. Submission estimates remain planning data; active positions cannot be sold, traded, archived, or have inventory state changed until the submission is cancelled or the result is recorded.
 - Additional copies can be recorded against an existing position without merging purchase lots or replacing their original costs.
 - Future acquisition and transaction dates are rejected in the client, transactional RPC, and table constraints.
 - Application money math uses integer minor units; Postgres stores money as `numeric(14,2)`.
@@ -113,6 +114,7 @@ If a value is unavailable, inspect exact identity/variant mapping, state, condit
 - [Provider setup](docs/provider-setup-runbook.md)
 - [Pricing foundation](docs/pricing-foundation.md)
 - [Catalog synchronization](docs/catalog-sync-runbook.md)
+- [Continuous product improvement log](docs/continuous-improvement-2026-07-20.md)
 - [Security review](docs/security-review.md)
 
 Mica is independent and is not affiliated with or endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak, TCGplayer, Cardmarket, eBay, PSA, CGC, Beckett, SGC, Alt, or Card Ladder.

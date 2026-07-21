@@ -87,6 +87,20 @@ const gradingResultMigration = await readFile(
   ),
   "utf8",
 );
+const gradingSubmissionMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721033000_track_grading_submissions.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const gradingSubmissionIndexMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721034000_index_grading_submission_ownership.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -151,22 +165,28 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
   assert.match(appShell, /themes\.css\?v=69/);
-  assert.match(appSource, /localStorage\.setItem\('mica-ui-theme',theme\)/);
+  assert.match(
+    appSource,
+    /localStorage\.setItem\(["']mica-ui-theme["'],\s*theme\)/,
+  );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v73/);
+  assert.match(serviceWorker, /mica-shell-v74/);
   assert.match(serviceWorker, /themes\.css\?v=69/);
 });
 
 test("large CSV imports are bounded, resumable, and protected from duplicate retries", () => {
   assert.match(appShell, /Up to 5,000 positions/);
   assert.doesNotMatch(appSource, /records\.slice\(0,\s*100\)/);
-  assert.match(appSource, /runBoundedTasks\(pending/);
+  assert.match(appSource, /runBoundedTasks\(\s*pending/);
   assert.match(appSource, /concurrency:\s*4/);
-  assert.match(appSource, /shouldStop:\(\)=>pauseRequested/);
+  assert.match(appSource, /shouldStop:\s*\(\)\s*=>\s*pauseRequested/);
   assert.match(appSource, /createImportedPosition/);
-  assert.match(appSource, /idempotencyKey=await importRecordKey/);
-  assert.match(appSource, /dataset\.lockClose=value\?'true':'false'/);
+  assert.match(appSource, /idempotencyKey\s*=\s*await importRecordKey/);
+  assert.match(
+    appSource,
+    /dataset\.lockClose\s*=\s*value\s*\?\s*["']true["']\s*:\s*["']false["']/,
+  );
 });
 
 test("cross-app imports preserve unknown basis through owner-scoped FIFO", () => {
@@ -278,6 +298,46 @@ test("returned grading results preserve owner FIFO basis without a fake sale", (
   assert.match(
     gradingResultMigration,
     /revoke all on function public\.record_grading_result[\s\S]+from public,anon/,
+  );
+});
+
+test("grading submissions are private, forward-only, and do not enter cost basis", () => {
+  assert.match(
+    gradingSubmissionMigration,
+    /create table if not exists public\.grading_submissions[\s\S]+user_id uuid not null references auth\.users/,
+  );
+  assert.match(
+    gradingSubmissionMigration,
+    /create policy "grading submissions own rows"[\s\S]+auth\.uid\(\)\)=user_id[\s\S]+auth\.uid\(\)\)=user_id/,
+  );
+  assert.match(
+    gradingSubmissionMigration,
+    /record_grading_submission[\s\S]+security invoker[\s\S]+item\.user_id=owner_id/,
+  );
+  assert.match(
+    gradingSubmissionMigration,
+    /estimated_total_cost[\s\S]+transaction_type[\s\S]+'grading_submission'[\s\S]+target_item\.quantity,0,0,0/,
+  );
+  assert.match(gradingSubmissionMigration, /status_cannot_move_backward/);
+  assert.match(
+    gradingSubmissionMigration,
+    /prevent_inventory_change_during_grading[\s\S]+new\.transaction_type in \('purchase','sale','trade_in','trade_out'\)/,
+  );
+  assert.match(
+    gradingSubmissionMigration,
+    /prevent_position_change_during_grading[\s\S]+new\.quantity is distinct from old\.quantity[\s\S]+new\.status is distinct from old\.status/,
+  );
+  assert.match(
+    gradingSubmissionMigration,
+    /record_grading_result[\s\S]+submission_grader_mismatch[\s\S]+status='returned'[\s\S]+returned_at=p_transaction_date/,
+  );
+  assert.match(
+    gradingSubmissionMigration,
+    /revoke all on function public\.record_grading_submission[\s\S]+from public,anon/,
+  );
+  assert.match(
+    gradingSubmissionIndexMigration,
+    /grading_submissions_position_owner_idx[\s\S]+collection_item_id,user_id/,
   );
 });
 
