@@ -8,6 +8,7 @@ import {
   parseCollectionCsv,
   portfolioSnapshot,
   runBoundedTasks,
+  selectedInventoryShare,
   transactionReportCsv,
   missingSetChecklist,
   isStale,
@@ -1750,6 +1751,7 @@ function syncBulkControls() {
   document.body.classList.toggle("bulk-selecting", state.bulkMode && supported);
   $("#bulkSelectedCount").textContent = `${selectedCount} selected`;
   $("#bulkOrganizeButton").disabled = selectedCount === 0;
+  $("#bulkShareButton").disabled = selectedCount === 0;
   const allShown =
     shown.length > 0 && shown.every((id) => state.bulkSelected.has(id));
   $("#bulkSelectShown").textContent = allShown ? "Clear shown" : "Select shown";
@@ -1819,6 +1821,84 @@ function openBulkOrganizeSheet() {
         `Could not organize these positions: ${error.message || "Unknown error"}`;
     }
   });
+}
+
+function openSelectedShareSheet() {
+  if (!requireAccountData()) return;
+  const selected = state.items.filter((item) =>
+    state.bulkSelected.has(item.uid),
+  );
+  if (!selected.length) {
+    toast("Select at least one position");
+    return;
+  }
+  const defaultMode = workspaceMode === "guided" ? "showcase" : "asking";
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Share selected cards</h2><p>${selected.length} chosen position${selected.length === 1 ? "" : "s"} · preview exactly what leaves Mica</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="field"><label for="selectedShareMode">List type</label><select id="selectedShareMode"><option value="showcase" ${defaultMode === "showcase" ? "selected" : ""}>Showcase · no prices</option><option value="asking" ${defaultMode === "asking" ? "selected" : ""}>For sale · asking prices</option><option value="market">Reference check · live market prices</option></select><small>Missing values stay unavailable; Mica never substitutes another condition, grade, or printing.</small></div>${selected.some((item) => item.gradingCompany && item.certificationNumber) ? '<label class="share-performance"><input id="selectedShareCertifications" type="checkbox"> Include graded certification numbers</label>' : ""}<div class="share-list-status" id="selectedShareStatus" aria-live="polite"></div><pre class="share-preview" id="selectedSharePreview"></pre><div class="simple-note"><strong>Private fields stay private.</strong><br>Cost basis, profit, purchase dates, notes, storage, transactions, and account details are never included. Certification numbers are excluded unless you explicitly opt in. Text is limited to 50 positions; the CSV always contains the complete selection.</div><div class="sheet-actions share-list-actions"><button class="secondary" id="downloadSelectedList" type="button">Download CSV</button><button class="secondary" id="copySelectedList" type="button">Copy list</button>${navigator.share ? '<button class="primary" id="nativeShareSelectedList" type="button">Share…</button>' : ""}</div>`,
+  );
+  const shareRows = selected.map((item) => {
+    const quote = selectReferenceQuote(
+      item.quotes,
+      item.variant,
+      item.currency || "USD",
+      item,
+    );
+    return {
+      ...item,
+      referenceProvider: quote?.provider || "",
+      referenceObservedAt:
+        quote?.observedAt || quote?.retrievedAt || item.pricingUpdatedAt || "",
+    };
+  });
+  const create = () =>
+    selectedInventoryShare(shareRows, {
+      mode: $("#selectedShareMode").value,
+      includeCertification: Boolean($("#selectedShareCertifications")?.checked),
+      date: localIsoDate(),
+    });
+  const update = () => {
+    const share = create();
+    $("#selectedSharePreview").textContent = share.text;
+    $("#selectedShareStatus").textContent =
+      share.mode === "showcase"
+        ? `${share.units} item${share.units === 1 ? "" : "s"} · prices excluded`
+        : `${share.pricedPositions} of ${share.positions} positions have the selected price`;
+  };
+  $("#selectedShareMode").addEventListener("change", update);
+  $("#selectedShareCertifications")?.addEventListener("change", update);
+  $("#copySelectedList").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(create().text);
+      toast("Selected card list copied");
+    } catch {
+      toast("Copy is unavailable in this browser");
+    }
+  });
+  $("#downloadSelectedList").addEventListener("click", () => {
+    const share = create();
+    downloadTextFile(
+      share.csv,
+      "text/csv;charset=utf-8",
+      `mica-selected-${share.mode}-${localIsoDate()}.csv`,
+    );
+    toast("Complete selected list downloaded");
+  });
+  $("#nativeShareSelectedList")?.addEventListener("click", async () => {
+    const button = $("#nativeShareSelectedList");
+    button.disabled = true;
+    try {
+      await navigator.share({
+        title: "Selected Pokémon cards",
+        text: create().text,
+      });
+      toast("Selected card list shared");
+    } catch (error) {
+      if (error?.name !== "AbortError") toast("Sharing is unavailable right now");
+    } finally {
+      button.disabled = false;
+    }
+  });
+  update();
 }
 
 function portfolioTransactions() {
@@ -6712,6 +6792,7 @@ function bindEvents() {
   );
   $("#bulkDoneButton").addEventListener("click", () => setBulkMode(false));
   $("#bulkOrganizeButton").addEventListener("click", openBulkOrganizeSheet);
+  $("#bulkShareButton").addEventListener("click", openSelectedShareSheet);
   $("#bulkSelectShown").addEventListener("click", () => {
     const allShown =
       state.visiblePositionIds.length &&

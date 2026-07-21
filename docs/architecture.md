@@ -4,7 +4,7 @@
 
 The mobile PWA uses bundled ES modules, semantic HTML, custom CSS, Chart.js, Supabase Auth/Data API persistence, and a service-worker shell/image cache. `lib/domain.js`, `lib/portfolio.js`, and `lib/core.js` contain testable identity, valuation, FIFO, integer-money, search, and CSV rules. `app.js` handles presentation and authenticated orchestration.
 
-Collection records never fall back to local demo storage. The browser receives only the Supabase URL and publishable key. Secret/service and provider credentials remain server-side.
+Collection records never fall back to local demo storage. The browser receives only the Supabase URL and publishable key. Secret/service and provider credentials remain server-side. Selected-card sharing is generated locally from owner-visible rows and creates no public profile or server-side share record.
 
 ## Data flow
 
@@ -44,6 +44,7 @@ The existing `supabase/functions/sync-catalog` remains the resumable multilingua
 - Grading returns require a complete acquisition basis, preserve the prior raw condition in the ledger, and clear incompatible raw position-price observations atomically.
 - Active grading submissions lock inventory-changing transactions and state changes. The estimated cost never enters basis; recording the return closes the submission before the actual cost is capitalized.
 - Position splitting requires complete acquisition cost and date history, transfers selected oldest/newest remaining FIFO lots exactly, and divides an active grading submission estimate to the cent. The operation is a zero-cash-flow ledger event and never copies price observations or certification numbers.
+- Selected-card showcases and sale/reference lists exclude private ledger fields by construction. Certification numbers require an explicit opt-in, market references require a live exact match, share text is bounded, and the full CSV neutralizes spreadsheet formulas.
 - Private daily portfolio snapshots retain the exact-compatible displayed total and fresh/priced/unpriced coverage. Market performance is derived against the immutable transaction ledger; backdated/unknown or zero-cost inventory additions, destructive removal, and catalog corrections restart the baseline so data-entry changes cannot masquerade as returns.
 
 See [implementation plan](implementation-plan-market-portfolio.md) and [security review](security-review.md).

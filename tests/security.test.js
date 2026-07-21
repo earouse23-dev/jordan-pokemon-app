@@ -206,7 +206,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v76/);
+  assert.match(serviceWorker, /mica-shell-v77/);
   assert.match(serviceWorker, /themes\.css\?v=70/);
 });
 

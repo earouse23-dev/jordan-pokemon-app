@@ -17,6 +17,7 @@ import {
   runBoundedTasks,
   sameCatalogCard,
   safeCsvCell,
+  selectedInventoryShare,
   transactionReportCsv,
 } from "../lib/core.js";
 
@@ -226,6 +227,99 @@ test("share snapshot omits private fields and only includes performance by opt i
   });
   assert.match(performance, /Recorded cost basis: \$100\.00/);
   assert.match(performance, /Known gain\/loss: \+\$50\.00/);
+});
+
+test("selected inventory sharing is itemized, condition-aware, and private", () => {
+  const items = [
+    {
+      name: "Charizard",
+      set: "Base Set",
+      number: "4/102",
+      language: "en",
+      variant: "1st Edition Holofoil",
+      cardState: "graded",
+      gradingCompany: "PSA",
+      grade: "9",
+      certificationNumber: "private-cert",
+      quantity: 1,
+      status: "listed",
+      askingPrice: 1200,
+      price: 1100,
+      pricingStatus: "live",
+      referenceProvider: "PkmnPrices",
+      referenceObservedAt: "2026-07-20T18:00:00Z",
+      currency: "USD",
+      costBasis: 500,
+      notes: "private note",
+      location: "safe A",
+    },
+    {
+      name: "Pikachu",
+      set: "151",
+      number: "173/165",
+      variant: "Illustration Rare",
+      cardState: "raw",
+      condition: "Near Mint",
+      quantity: 2,
+      status: "owned",
+      askingPrice: null,
+      price: 25,
+      pricingStatus: "stale",
+      currency: "USD",
+      purchaseDate: "2025-06-25",
+    },
+  ];
+  const asking = selectedInventoryShare(items, {
+    mode: "asking",
+    date: "2026-07-21",
+  });
+  assert.match(asking.text, /PSA 9 · Qty 1 · Asking price: \$1,200\.00 each/);
+  assert.match(
+    asking.text,
+    /Raw · Near Mint · Qty 2 · Asking price: Not available/,
+  );
+  assert.match(asking.text, /Asking-price coverage: 1 of 2 positions/);
+  assert.match(asking.text, /Total unavailable/);
+  assert.doesNotMatch(
+    `${asking.text}\n${asking.csv}`,
+    /private-cert|private note|safe A|2025-06-25|500/,
+  );
+  assert.match(asking.csv, /owner_asking_price/);
+  const market = selectedInventoryShare(items, { mode: "market" });
+  assert.equal(market.pricedPositions, 1);
+  assert.match(
+    market.text,
+    /Current market reference: \$1,100\.00 each · PkmnPrices · observed 2026-07-20/,
+  );
+  assert.match(market.text, /Current market reference: Not available/);
+  const withCertification = selectedInventoryShare(items, {
+    mode: "asking",
+    includeCertification: true,
+  });
+  assert.match(withCertification.text, /Cert private-cert/);
+  assert.match(withCertification.csv, /private-cert/);
+  const showcase = selectedInventoryShare(items, { mode: "showcase" });
+  assert.doesNotMatch(showcase.text, /\$/);
+  assert.match(showcase.text, /Showcase only/);
+  assert.equal(showcase.units, 3);
+});
+
+test("selected inventory sharing bounds message size but keeps the full CSV", () => {
+  const items = Array.from({ length: 75 }, (_, index) => ({
+    name: `Card ${index + 1}`,
+    set: "Large list",
+    number: String(index + 1),
+    variant: "Normal",
+    condition: "Near Mint",
+    quantity: 1,
+  }));
+  const result = selectedInventoryShare(items, { mode: "showcase" });
+  assert.equal(result.positions, 75);
+  assert.equal(result.omittedFromText, 25);
+  assert.match(result.text, /and 25 more positions/);
+  assert.doesNotMatch(result.text, /75\. Card 75/);
+  assert.match(result.csv, /"Card 75"/);
+  assert.equal(result.csv.split("\r\n").length, 76);
 });
 test("staleness uses the configured threshold", () => {
   const now = new Date("2026-07-12T00:00:00Z").getTime();

@@ -1,6 +1,6 @@
 # Continuous product improvement — 2026-07-20
 
-This report records twelve complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
+This report records thirteen complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
 
 ## Baseline
 
@@ -115,16 +115,25 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 - Live verification: Authenticated rollback tests split a three-card, $100.01 raw PSA submission into quantities two and one, divided a $50.00 estimate into $33.33 and $16.67, proved an idempotent retry made no duplicate, returned the groups as PSA 10 and PSA 9 with $20.02 and $10.01 actual costs, and finished at exactly $130.04 combined basis with no sale. A second test proved newest-first selection moved a complete $60.00 lot while leaving the older $20.00 lot. A third proved unknown acquisition history rejects the split without changing quantity or creating a child position. Every test rolled back.
 - Result: Mixed grades and selected duplicate copies are now first-class auditable positions, closing the remaining gap in Mica's grading lifecycle without turning inventory organization into financial activity.
 
+## Cycle 13 — Share selected cards without exposing the private ledger
+
+- Problem: Mica could share a whole-portfolio summary and a planned trade, but a collector or seller could not turn an arbitrary selection of owned positions into an itemized showcase or sale list. That still required screenshots, a spreadsheet, or reorganizing cards into another app-specific portfolio.
+- Evidence: A [current Collectr user praises sharing when selling or buying](https://www.reddit.com/r/PokemonTcgIndia/comments/1t5ihq7/collectr_app/), while Collectr's own community reports that [selective sharing is hidden and limited to the starred main portfolio](https://www.reddit.com/r/Collectr/comments/1gdea5g/is_there_a_way_to_share_your_collections_with/). Sellers reviewing large collections explicitly ask for [an itemized list rather than one headline value](https://www.reddit.com/r/Collectr/comments/1rrznt3/want_to_sell_my_collection/). Dex's current App Store release emphasizes sharing chosen trade/folder lists, and [Collectr markets bulk selection](https://www.getcollectr.com/track.html), but repository inspection confirmed Mica's existing selection bar only organized cards.
+- Change: The existing collection selection bar now offers “Share list.” One preview supports a no-price showcase, owner-entered asking prices, or live exact market references. Every row includes card, set, number, variant, raw condition or grader/grade, and quantity. Live references also include provider and observation date; missing or stale values remain unavailable. Asking-price mode uses only positions the owner explicitly listed.
+- Privacy and portability: Cost basis, profit, purchase dates, notes, storage, transactions, and account details never enter the output. Graded certification numbers are excluded by default and require an explicit opt-in. Users can copy or natively share a bounded 50-position message, while a formula-safe CSV always contains the entire selection. No public profile, tokenized URL, new table, or marketplace was introduced.
+- Critique and fix: A beginner gets showcase mode by default in the guided workspace; a graded collector can deliberately include certs; a large owner gets a complete CSV without an unbounded message; a seller gets condition-aware asks rather than one portfolio total; a mobile user gets four 44px selection actions that fit the small-screen bar; and skeptical review added live-only market coverage, source/date evidence, missing-price disclosure, currency-separated totals, CSV formula neutralization, and tests proving private fields stay absent.
+- Result: Mica can now move from private inventory to a buyer-ready or collector-friendly selected list in one workflow, while making fewer privacy and pricing assumptions than a public all-or-nothing portfolio link.
+
 ## Verification
 
 - Formatting and diff whitespace checks
 - Source linting and JavaScript syntax/type checks
-- 137 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, grading-submission, portfolio-history, grading-ledger, position-split, and regression tests
+- 139 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, grading-submission, portfolio-history, grading-ledger, position-split, selective-sharing, and regression tests
 - Connected Supabase table inspection with RLS enabled on every public table
 - Production build
 - Supabase security and performance advisors
 - Authenticated production browser verification at 390×844 and 1280×800
-- The in-app browser surface was unavailable during Cycles 9–12 after repeated availability checks; those cycles therefore used production build, local HTTP, connected Supabase rollback, and deployed-artifact verification without claiming a new visual browser pass.
+- The in-app browser surface was unavailable during Cycles 9–13 after repeated availability checks; those cycles therefore used production build, local HTTP, connected Supabase rollback where database state changed, and deployed-artifact verification without claiming a new visual browser pass.
 - Clean and analytics themes, exact search/intake, collection, price confidence, bulk organization, deletion cleanup, responsive overflow, browser errors, and console regression checks
 
 ## Remaining competitive weaknesses and owner decisions
