@@ -511,6 +511,7 @@ function syncBulkControls() {
   $('#selectPositionsButton').setAttribute('aria-pressed',String(state.bulkMode));
   $('#selectPositionsButton').textContent=state.bulkMode?'Cancel':'Select';
   $('#bulkOrganizeBar').hidden=!state.bulkMode||!supported;
+  document.body.classList.toggle('bulk-selecting',state.bulkMode&&supported);
   $('#bulkSelectedCount').textContent=`${selectedCount} selected`;
   $('#bulkOrganizeButton').disabled=selectedCount===0;
   const allShown=shown.length>0&&shown.every(id=>state.bulkSelected.has(id));
