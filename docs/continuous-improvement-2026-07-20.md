@@ -1,6 +1,6 @@
 # Continuous product improvement — 2026-07-20
 
-This report records seven complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
+This report records eight complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
 
 ## Baseline
 
@@ -67,11 +67,20 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 - Critique and fix: A new collector sees no extra controls; a graded collector keeps exact grader/grade filtering; a large owner eventually reaches every active position rather than the same first 50; a seller gets fresher references across the inventory; a mobile user incurs no new interface friction; and skeptical engineering review added malformed-cursor recovery, bounded batch sizes, deterministic ordering, wrap tests, secret/admin endpoint tests, and cursor visibility limited to the existing administrator diagnostic table.
 - Result: Large portfolios now receive fair scheduled coverage and exact imported identity without increasing operating cost or weakening Mica's compatible-price rules. A 5,000-position portfolio still cannot be repriced daily under the approved 50-position budget; faster full coverage remains a provider-plan and operating-cost decision.
 
+## Cycle 8 — Correct a wrong card or printing without rebuilding the ledger
+
+- Problem: Imported and manually found positions could preserve an ambiguous or wrong catalog identity, but correcting it meant deleting the position and losing its purchase lots, sales, and FIFO history. A precise market value is not trustworthy when the underlying first-edition, unlimited, stamped, holo, reverse, language, set, or collector-number match is wrong.
+- Evidence: Current collector reports repeatedly cite first-edition sales mixed with unlimited, missing vintage variants, stamped-print mismatches, and applications jumping to a higher-priced alternate card. Current import competitors increasingly route uncertain rows into match review, while Dex explains that foreign CSV labels cannot always map safely to its structured catalog.
+- Change: Every owned raw or graded position now offers “Correct card or printing.” The user searches the catalog, sees set, collector number, language, rarity, match evidence, and image, selects the exact card, then explicitly chooses the available printing. Vintage results can offer both first-edition and unlimited states when both are supported. Sealed products keep their separate provider-ID workflow and do not show this card-only action.
+- Ledger integrity: One owner-scoped security-invoker RPC atomically replaces only `identity_snapshot`, `card_id`, and `variant_id`. Quantity, raw condition, grader, grade, certification, purchase transactions, sale transactions, FIFO lots, costs, notes, labels, and location are untouched. Existing unknown-cost/date flags are preserved. Position-scoped observations from the old match are deleted in the same transaction so incompatible prices cannot follow the corrected identity.
+- Critique and fix: A beginner gets plain “correct” language and a selected-match confirmation; a graded collector keeps the slab context while changing only the underlying card; a large owner can enter from the existing needs-pricing queue; a seller keeps auditable sales; a mobile user gets the existing accessible sheet/search controls; and skeptical engineering review added JSON size/shape validation, catalog foreign-key validation, sealed rejection, RLS delete scope, anonymous execute denial, rollback verification, and tests proving the client uses one atomic RPC.
+- Result: Mica now gives owners a safe escape hatch for the variant and edition errors collectors cite most often, without using a manual price override that hides the real identity problem.
+
 ## Verification
 
 - Formatting and diff whitespace checks
 - Source linting and JavaScript syntax/type checks
-- 122 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, and regression tests
+- 124 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, and regression tests
 - Connected Supabase table inspection with RLS enabled on every public table
 - Production build
 - Supabase security and performance advisors

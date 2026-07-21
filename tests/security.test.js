@@ -73,6 +73,13 @@ const completeUnknownBasisMigration = await readFile(
   ),
   "utf8",
 );
+const remapPositionMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260721013000_remap_collection_position.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -140,7 +147,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   assert.match(appSource, /localStorage\.setItem\('mica-ui-theme',theme\)/);
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v71/);
+  assert.match(serviceWorker, /mica-shell-v72/);
   assert.match(serviceWorker, /themes\.css\?v=69/);
 });
 
@@ -198,6 +205,33 @@ test("owners can complete unknown acquisition history without losing FIFO cents"
   assert.match(
     completeUnknownBasisMigration,
     /where lot\.id=p_purchase_lot_id and lot\.user_id=owner_id/,
+  );
+});
+
+test("catalog correction is owner-scoped, ledger-safe, and clears incompatible prices", () => {
+  assert.match(
+    remapPositionMigration,
+    /remap_collection_position[\s\S]+security invoker[\s\S]+auth\.uid\(\)/,
+  );
+  assert.match(
+    remapPositionMigration,
+    /where item\.id=p_collection_item_id and item\.user_id=owner_id[\s\S]+for update/,
+  );
+  assert.match(
+    remapPositionMigration,
+    /update public\.collection_items[\s\S]+identity_snapshot=next_identity[\s\S]+card_id=p_card_id[\s\S]+variant_id=p_variant_id/,
+  );
+  assert.doesNotMatch(
+    remapPositionMigration,
+    /collection_transactions\s+transaction\s+set/i,
+  );
+  assert.match(
+    remapPositionMigration,
+    /delete from public\.position_price_observations[\s\S]+observation\.user_id=owner_id/,
+  );
+  assert.match(
+    remapPositionMigration,
+    /revoke all on function public\.remap_collection_position[\s\S]+from public,anon/,
   );
 });
 

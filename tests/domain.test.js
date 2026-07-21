@@ -47,6 +47,7 @@ import {
   hydrateWatchlistEntry,
   loadRowsInChunks,
   loadRowsInPages,
+  remapCollectionPosition,
   updatePosition,
 } from "../lib/supabase-data.js";
 
@@ -388,6 +389,39 @@ test("position updates only send fields the user changed", async () => {
   await updatePosition(client, "position-1", { tags: ["Favorites"] });
   assert.deepEqual(updated, { tags: ["Favorites"] });
   assert.equal(matchedId, "position-1");
+});
+
+test("catalog correction uses one atomic owner-scoped remap RPC", async () => {
+  let call;
+  const client = {
+    async rpc(name, input) {
+      call = { name, input };
+      return { data: "position-1", error: null };
+    },
+  };
+  const identity = {
+    providerCardId: "tcgdex:en:base1-4",
+    name: "Charizard",
+    set: "Base Set",
+    number: "4/102",
+    language: "en",
+    variant: "1st Edition Holofoil",
+    externalIds: { tcgdex: "base1-4" },
+  };
+  const result = await remapCollectionPosition(client, {
+    collectionItemId: "position-1",
+    identity,
+  });
+  assert.equal(result, "position-1");
+  assert.deepEqual(call, {
+    name: "remap_collection_position",
+    input: {
+      p_collection_item_id: "position-1",
+      p_identity: identity,
+      p_card_id: null,
+      p_variant_id: null,
+    },
+  });
 });
 
 test("CSV retries recover the existing owner-visible position after an idempotency conflict", async () => {
