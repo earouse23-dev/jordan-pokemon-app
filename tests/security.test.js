@@ -175,6 +175,10 @@ const appShell = await readFile(
   "utf8",
 );
 const appSource = await readFile(new URL("../app.js", import.meta.url), "utf8");
+const vercelConfig = await readFile(
+  new URL("../vercel.json", import.meta.url),
+  "utf8",
+);
 
 test("offline runtime caching is bounded and APIs remain network-only", () => {
   assert.match(serviceWorker, /RUNTIME_LIMIT\s*=\s*80/);
@@ -224,21 +228,42 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v81/);
+  assert.match(serviceWorker, /mica-shell-v83/);
   assert.match(serviceWorker, /themes\.css\?v=71/);
 });
 
-test("reference workspace navigation remains responsive and routes to real workflows", () => {
+test("consolidated workspace navigation remains responsive and routes to real workflows", () => {
   assert.match(appShell, /class="desktop-sidebar"/);
-  assert.match(appShell, /data-sidebar-target="sealed"/);
-  assert.match(appShell, /data-sidebar-target="graded"/);
-  assert.match(appShell, /data-sidebar-target="seller"/);
+  assert.equal([...appShell.matchAll(/class="sidebar-item/g)].length, 6);
+  assert.doesNotMatch(appShell, /data-sidebar-target="business"/);
+  assert.match(appShell, /data-condition-filter="Raw"/);
+  assert.match(appShell, /data-condition-filter="Graded"/);
+  assert.match(appShell, /data-condition-filter="Sealed"/);
   assert.match(appSource, /function openWorkspaceShortcut\(target\)/);
+  assert.match(appSource, /async function openDeviceCamera\(/);
+  assert.match(appShell, /id="defaultTradePercent"/);
+  assert.match(appShell, /class="seller-tools-disclosure"/);
   assert.match(themes, /@media \(min-width: 1024px\)[\s\S]+\.desktop-sidebar/);
   assert.match(
     themes,
     /@media \(max-width: 759px\)[\s\S]+grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/,
   );
+});
+
+test("card, grading, and receipt scans use the live device camera", () => {
+  assert.match(appShell, /id="autoCaptureButton"/);
+  assert.match(appShell, /Snap a photo/);
+  assert.match(appShell, /Choose from photo library/);
+  assert.match(appShell, /id="receiptCameraButton"/);
+  assert.doesNotMatch(appShell, /for="cameraInput"/);
+  assert.doesNotMatch(appShell, /for="receiptInput"/);
+  assert.match(appSource, /navigator\.mediaDevices\.getUserMedia/);
+  assert.match(appSource, /navigator\.mediaDevices\.enumerateDevices/);
+  assert.match(appSource, /facingMode:\s*\{\s*ideal:\s*"environment"/);
+  assert.match(appSource, /applyConstraints\(\{\s*advanced:\s*\[\{\s*torch:/);
+  assert.match(appSource, /error\?\.name === "NotAllowedError"/);
+  assert.match(appSource, /kind:\s*"back"/);
+  assert.match(vercelConfig, /camera=\(self\)/);
 });
 
 test("guided intake preserves unknown purchase facts without inventing profit", () => {
@@ -944,6 +969,11 @@ test("AI image intake authenticates owners, avoids persistence, and requires con
     /auth\.getUser\(token\)[\s\S]+fetch\("https:\/\/ai-gateway\.vercel\.sh\/v1\/responses"/,
   );
   assert.match(visionEndpoint, /createHash\("sha256"\)/);
+  assert.match(visionEndpoint, /await getVercelOidcToken\(\)/);
+  assert.match(
+    visionEndpoint,
+    /config\.aiGatewayApiKey \|\| config\.vercelOidcToken/,
+  );
   assert.match(visionEndpoint, /"Cache-Control", "no-store"/);
   assert.match(visionEndpoint, /\.rpc\(\s*"claim_vision_usage"[\s\S]+fetch\(/);
   assert.doesNotMatch(visionEndpoint, /\.insert\(|storage\.from|\.upload\(/);

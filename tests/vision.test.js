@@ -66,7 +66,7 @@ test("raw grading sends two high-detail images without provider persistence", ()
   const request = buildGatewayVisionRequest({
     mode: "grade",
     images: [tinyJpeg, tinyJpeg],
-    model: "openai/gpt-5.6-luna",
+    model: "openai/gpt-5-mini",
     safetyIdentifier: "anonymous-hash",
   });
   const userContent = request.input.find(

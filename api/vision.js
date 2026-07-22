@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { getVercelOidcToken } from "@vercel/oidc";
 import { serverEnvironment } from "../lib/env.js";
 import {
   buildGatewayVisionRequest,
@@ -58,7 +59,16 @@ export default async function handler(request, response) {
   if (identityError || !identity.user)
     return send(response, 401, { error: "Authentication required" });
 
-  const gatewayToken = config.aiGatewayApiKey || config.vercelOidcToken;
+  let gatewayToken = config.aiGatewayApiKey || config.vercelOidcToken;
+  if (!gatewayToken) {
+    try {
+      gatewayToken = await getVercelOidcToken();
+    } catch (error) {
+      console.error("[api/vision] OIDC token unavailable", {
+        name: error?.name || "Error",
+      });
+    }
+  }
   if (!gatewayToken)
     return send(response, 503, {
       error: "AI analysis is ready but the Vercel AI Gateway is not connected.",

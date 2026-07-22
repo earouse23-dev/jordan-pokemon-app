@@ -22,6 +22,7 @@ import {
   fetchPkmnPricesOffers,
   fetchPkmnPricesSealedSearch,
   fetchPkmnPricesLookup,
+  matchesPkmnPricesIdentity,
   normalizePkmnPricesCard,
   normalizePkmnPricesOffer,
   normalizePkmnPricesSealedProduct,
@@ -117,23 +118,84 @@ test("does not mix raw quotes into graded copies or substitute a different raw c
 
 test("price evidence scores only exact compatible context and explains disagreement", () => {
   const quotes = [
-    { provider:"tcgplayer",currency:"USD",finish:"holofoil",condition:"Near Mint",gradingCompany:null,grade:null,priceType:"market",amount:100,observedAt:"2026-07-18" },
-    { provider:"pkmnprices",currency:"USD",finish:"holofoil",condition:"Near Mint",gradingCompany:null,grade:null,priceType:"average",amount:108,observedAt:"2026-07-19" },
-    { provider:"ebay",currency:"USD",finish:"holofoil",condition:null,gradingCompany:"PSA",grade:"10",priceType:"average",amount:400,observedAt:"2026-07-19" },
-    { provider:"cardmarket",currency:"EUR",finish:"holofoil",condition:null,gradingCompany:null,grade:null,priceType:"trend",amount:80,observedAt:"2026-07-19" },
+    {
+      provider: "tcgplayer",
+      currency: "USD",
+      finish: "holofoil",
+      condition: "Near Mint",
+      gradingCompany: null,
+      grade: null,
+      priceType: "market",
+      amount: 100,
+      observedAt: "2026-07-18",
+    },
+    {
+      provider: "pkmnprices",
+      currency: "USD",
+      finish: "holofoil",
+      condition: "Near Mint",
+      gradingCompany: null,
+      grade: null,
+      priceType: "average",
+      amount: 108,
+      observedAt: "2026-07-19",
+    },
+    {
+      provider: "ebay",
+      currency: "USD",
+      finish: "holofoil",
+      condition: null,
+      gradingCompany: "PSA",
+      grade: "10",
+      priceType: "average",
+      amount: 400,
+      observedAt: "2026-07-19",
+    },
+    {
+      provider: "cardmarket",
+      currency: "EUR",
+      finish: "holofoil",
+      condition: null,
+      gradingCompany: null,
+      grade: null,
+      priceType: "trend",
+      amount: 80,
+      observedAt: "2026-07-19",
+    },
   ];
-  const report=priceEvidence(quotes,"Holofoil","USD",{condition:"Near Mint"},new Date("2026-07-20T12:00:00Z").getTime());
-  assert.equal(report.level,"strong");
-  assert.equal(report.sourceCount,2);
-  assert.ok(report.spreadPercent>7&&report.spreadPercent<8);
-  assert.deepEqual(report.evidence.map(item=>item.provider),["tcgplayer","pkmnprices"]);
-  const graded=priceEvidence(quotes,"Holofoil","USD",{gradingCompany:"PSA",grade:"10"},new Date("2026-07-20T12:00:00Z").getTime());
-  assert.equal(graded.level,"limited");
-  assert.equal(graded.sourceCount,1);
-  assert.equal(graded.evidence[0].amount,400);
-  const missing=priceEvidence(quotes,"Reverse Holofoil","USD",{condition:"Near Mint"},new Date("2026-07-20T12:00:00Z").getTime());
-  assert.equal(missing.level,"unavailable");
-  assert.equal(missing.sourceCount,0);
+  const report = priceEvidence(
+    quotes,
+    "Holofoil",
+    "USD",
+    { condition: "Near Mint" },
+    new Date("2026-07-20T12:00:00Z").getTime(),
+  );
+  assert.equal(report.level, "strong");
+  assert.equal(report.sourceCount, 2);
+  assert.ok(report.spreadPercent > 7 && report.spreadPercent < 8);
+  assert.deepEqual(
+    report.evidence.map((item) => item.provider),
+    ["tcgplayer", "pkmnprices"],
+  );
+  const graded = priceEvidence(
+    quotes,
+    "Holofoil",
+    "USD",
+    { gradingCompany: "PSA", grade: "10" },
+    new Date("2026-07-20T12:00:00Z").getTime(),
+  );
+  assert.equal(graded.level, "limited");
+  assert.equal(graded.sourceCount, 1);
+  assert.equal(graded.evidence[0].amount, 400);
+  const missing = priceEvidence(
+    quotes,
+    "Reverse Holofoil",
+    "USD",
+    { condition: "Near Mint" },
+    new Date("2026-07-20T12:00:00Z").getTime(),
+  );
+  assert.equal(missing.level, "unavailable");
+  assert.equal(missing.sourceCount, 0);
 });
 
 test("selects compatible Cardmarket reference without mixing currencies", () => {
@@ -402,10 +464,7 @@ test("normalizes marketplace asks without presenting them as completed sales", (
       updatedAt: "2026-06-10T14:22:00Z",
     },
   );
-  assert.equal(
-    normalizePkmnPricesOffer({ price: 10 }, "ebay"),
-    null,
-  );
+  assert.equal(normalizePkmnPricesOffer({ price: 10 }, "ebay"), null);
 });
 
 test("loads exact-printing TCGplayer and Cardmarket asks independently", async () => {
@@ -436,15 +495,12 @@ test("loads exact-printing TCGplayer and Cardmarket asks independently", async (
     );
   };
   try {
-    const result = await fetchPkmnPricesOffers(
-      "offer-secret",
-      {
-        pkmnpricesId: "4521",
-        language: "ja",
-        condition: "Near Mint",
-        variant: "Unlimited Holofoil",
-      },
-    );
+    const result = await fetchPkmnPricesOffers("offer-secret", {
+      pkmnpricesId: "4521",
+      language: "ja",
+      condition: "Near Mint",
+      variant: "Unlimited Holofoil",
+    });
     assert.equal(result.offers.length, 1);
     assert.deepEqual(result.statuses, {
       tcgplayer: "live",
@@ -667,6 +723,78 @@ test("skips history on current-price refreshes to preserve provider credits", as
     assert.equal(
       requested.some((url) => url.includes("/prices/history")),
       false,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("rejects a stale PkmnPrices ID and retries the exact card identity", async () => {
+  const originalFetch = globalThis.fetch;
+  const requested = [];
+  globalThis.fetch = async (url) => {
+    const value = String(url);
+    requested.push(value);
+    if (value.includes("/cards/16909"))
+      return new Response(
+        JSON.stringify({
+          id: 16909,
+          name: "Charizard",
+          number: "4",
+          set: { name: "Celebrations: Classic Collection" },
+          prices: [{ source: "TCGPlayer", market_price: 80 }],
+        }),
+        { status: 200 },
+      );
+    if (value.includes("/cards?"))
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 4521,
+              name: "Charizard",
+              number: "4",
+              set: { name: "Base Set" },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    return new Response(
+      JSON.stringify({
+        id: 4521,
+        name: "Charizard",
+        number: "4",
+        set: { name: "Base Set" },
+        prices: [],
+      }),
+      { status: 200 },
+    );
+  };
+  try {
+    const result = await fetchPkmnPricesLookup(
+      "identity-secret",
+      {
+        pkmnpricesId: "16909",
+        name: "Charizard",
+        set: "Base Set",
+        number: "4/102",
+      },
+      undefined,
+      { includeHistory: false },
+    );
+    assert.equal(result.card.id, 4521);
+    assert.equal(
+      matchesPkmnPricesIdentity(result.card, {
+        name: "Charizard",
+        set: "Base Set",
+        number: "4/102",
+      }),
+      true,
+    );
+    assert.equal(
+      requested.some((url) => url.includes("name=Charizard")),
+      true,
     );
   } finally {
     globalThis.fetch = originalFetch;

@@ -69,6 +69,7 @@ import {
   deletePosition,
   deleteWatchlistEntry,
   loadDiagnostics,
+  loadProfile,
   loadPortfolio,
   loadPortfolioValuationHistory,
   loadWatchlist,
@@ -79,6 +80,7 @@ import {
   recordSale,
   remapCollectionPosition,
   sendMagicLink,
+  saveProfile,
   signInWithPassword,
   signOut,
   signUpWithPassword,
@@ -92,6 +94,8 @@ const supabase = createAppSupabase();
 let chartInstance = null;
 let chartMountVersion = 0;
 let deferredInstallPrompt = null;
+let activeCameraStream = null;
+let activeCameraTimer = null;
 let motionPreference = "auto";
 let targetAlertsEnabled = false;
 let workspaceMode = "growth";
@@ -263,6 +267,16 @@ const state = {
   storageStatus: "cloud",
   accountLoading: false,
   accountLoadError: "",
+  profile: null,
+  preferences: {
+    tradeValuePercent: 90,
+    quickSalePercent: 80,
+    sellingFeePercent: 0,
+    otherSellingCosts: 0,
+    collectorGoal: "collecting",
+    experienceLevel: "beginner",
+  },
+  visionDestination: null,
   chartRange: "all",
   businessRange: "90d",
   trade: {
@@ -1497,7 +1511,7 @@ function openWorkspaceShortcut(target) {
     return collectionTarget("watchlist");
   if (["add", "search", "photo"].includes(target)) {
     routeTo("scan", { sidebarTarget: target === "photo" ? "add" : target });
-    if (target === "photo") $("#cameraInput")?.click();
+    if (target === "photo") void openCardCamera();
     else if (target === "search") $("#quickCardSearch")?.focus();
     return;
   }
@@ -1529,6 +1543,17 @@ function openWorkspaceShortcut(target) {
             : "#view-insights .insight-feature";
     requestAnimationFrame(() =>
       $(selector)?.scrollIntoView({ block: "start" }),
+    );
+    return;
+  }
+  if (target === "business") {
+    if (workspaceMode === "guided")
+      applyWorkspaceMode("growth", { announce: true });
+    renderInsights();
+    void refreshMovementHistory();
+    routeTo("insights", { sidebarTarget: target });
+    requestAnimationFrame(() =>
+      $("#businessReportTitle")?.scrollIntoView({ block: "start" }),
     );
     return;
   }
@@ -2093,7 +2118,7 @@ function renderPortfolioHistory() {
   );
   if (!history.points.length) {
     const failed = state.portfolioHistoryStatus === "error";
-    root.innerHTML = `<div class="portfolio-history-empty"><strong>${failed ? "Performance history is temporarily unavailable" : "Building an honest performance baseline"}</strong><span>${failed ? "Your collection and ledger are unchanged. Mica will retry after the next live price refresh." : "Mica saves one exact-compatible valuation per day after live pricing finishes. It does not invent values for days before tracking began."}</span></div>`;
+    root.innerHTML = `<div class="portfolio-history-empty"><strong>${failed ? "Performance history is temporarily unavailable" : "Tracking starts today"}</strong><span>${failed ? "Your collection and ledger are unchanged. Mica will retry after the next live price refresh." : "After current prices load, Mica saves today’s starting value. Your first real trend appears after another daily valuation."}</span></div>`;
     return;
   }
   const baseline = history.points[0];
@@ -2222,15 +2247,17 @@ function renderCollection() {
       ? "Reconnecting…"
       : "Try again";
     $("#clearFilters").classList.add("hidden");
-    $("#syncState span:last-child").textContent = state.accountLoading
-      ? "Reconnecting…"
-      : "Cloud unavailable";
-    $("#syncState").setAttribute(
-      "aria-label",
-      state.accountLoading
-        ? "Reconnecting to your cloud portfolio."
-        : "Cloud portfolio could not load. Select to try again.",
-    );
+    const syncState = $("#syncState");
+    if (syncState) {
+      syncState.querySelector("span:last-child").textContent =
+        state.accountLoading ? "Reconnecting…" : "Cloud unavailable";
+      syncState.setAttribute(
+        "aria-label",
+        state.accountLoading
+          ? "Reconnecting to your cloud portfolio."
+          : "Cloud portfolio could not load. Select to try again.",
+      );
+    }
     return;
   }
   $("#emptyAddCard").disabled = false;
@@ -2311,6 +2338,17 @@ function renderCollection() {
       ? "Based on matching market prices. "
       : `Gain/loss uses ${totals.gainCoverage} of ${totals.quantity} copies with both price and cost. `;
   $("#allCount").textContent = state.items.length;
+  $("#rawCount").textContent = rawCount.toLocaleString();
+  $("#gradedCount").textContent = gradedCount.toLocaleString();
+  $("#sealedCount").textContent = sealedCount.toLocaleString();
+  $("#favoritesCount").textContent = state.items
+    .filter((item) =>
+      (item.tags || []).some(
+        (tag) => String(tag).toLowerCase() === "favorites",
+      ),
+    )
+    .reduce((sum, item) => sum + Number(item.quantity || 0), 0)
+    .toLocaleString();
   $("#forSaleCount").textContent = state.items.filter(
     (item) => item.status === "listed",
   ).length;
@@ -2339,13 +2377,16 @@ function renderCollection() {
     state.storageStatus === "error"
       ? "Session only"
       : `Cloud saved · ${syncLabels[state.pricingStatus] || "Prices ready"}`;
-  $("#syncState span:last-child").textContent = syncLabel;
-  $("#syncState").setAttribute(
-    "aria-label",
-    state.storageStatus === "error"
-      ? "Session only. Changes may be lost when this page closes."
-      : `Portfolio saved to your account. ${syncLabels[state.pricingStatus] || "Pricing ready"}. Select to refresh prices.`,
-  );
+  const syncState = $("#syncState");
+  if (syncState) {
+    syncState.querySelector("span:last-child").textContent = syncLabel;
+    syncState.setAttribute(
+      "aria-label",
+      state.storageStatus === "error"
+        ? "Session only. Changes may be lost when this page closes."
+        : `Portfolio saved to your account. ${syncLabels[state.pricingStatus] || "Pricing ready"}.`,
+    );
+  }
   renderPortfolioHistory();
   if (state.ledgerView === "watchlist") {
     state.bulkMode = false;
@@ -2486,7 +2527,7 @@ function renderCollection() {
       const selected = state.bulkSelected.has(item.uid);
       return `<article class="ledger-row${state.bulkMode ? " bulk-mode" : ""}${selected ? " selected" : ""}" tabindex="0" role="${state.bulkMode ? "checkbox" : "button"}" ${state.bulkMode ? `aria-checked="${selected}"` : ""} aria-label="${state.bulkMode ? (selected ? "Deselect" : "Select") : "Open"} ${esc(item.name)}, ${total == null ? "price unavailable" : money(total)}" data-id="${esc(item.uid)}">
       ${state.bulkMode ? `<span class="bulk-select-indicator" aria-hidden="true">${selected ? "✓" : ""}</span>` : ""}
-      <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
+      <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity) || 0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span>${item.location ? `<span class="card-location" title="Storage location">${esc(item.location)}</span>` : ""}<div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
       <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-unit">${item.price == null ? "pricing unavailable" : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>
     </article>`;
@@ -2918,7 +2959,7 @@ function renderOwnedDetailLegacy() {
         : `<div class="price-source"><div><strong>Preview reference</strong><span>Fixture · ${esc(item.variant)} · USD</span><span>Live provider refresh has not completed.</span></div><div class="source-value"><b>${money(item.price)}</b><small>Clearly labeled demo data</small></div></div>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>Collection</button>
-    <div class="detail-identity"><img src="${esc(item.image)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity)}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant)}</strong></div><div><span>Language</span><strong>English</strong></div><div><span>Released</span><strong>${esc(item.release)}</strong></div><div><span>Artist</span><strong>${esc(item.artist)}</strong></div></div></div></div>
+    <div class="detail-identity"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity)}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant)}</strong></div><div><span>Language</span><strong>English</strong></div><div><span>Released</span><strong>${esc(item.release)}</strong></div><div><span>Artist</span><strong>${esc(item.artist)}</strong></div></div></div></div>
     <div class="owned-banner"><div><span>Your position</span><strong>${item.quantity} owned · ${total == null ? "Unpriced" : money(total)}</strong></div><button id="editCopyButton" type="button">Edit record</button></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price == null ? "No supported quote" : item.pricingStatus === "live" ? "Live provider data" : "Preview data · not live"}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
     <section class="detail-section"><div class="detail-section-head"><h2>Owned copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>Purchased ${esc(item.purchaseDate || "date not recorded")} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="unavailable-panel">${esc(item.notes)}</div>` : ""}</section>
@@ -3121,7 +3162,7 @@ function renderDetail() {
     : `<div><span>Printing</span><strong>${esc(item.variant || "Unknown")}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Released</span><strong>${esc(item.release || "—")}</strong></div><div><span>Artist</span><strong>${esc(item.artist || "—")}</strong></div>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><img src="${esc(item.image || item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(sealed ? "Sealed product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)}${item.number ? ` · ${esc(item.number)}` : ""}</p><div class="detail-meta">${detailMeta}</div></div></div>
+    <div class="detail-identity"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(sealed ? "Sealed product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)}${item.number ? ` · ${esc(item.number)}` : ""}</p><div class="detail-meta">${detailMeta}</div></div></div>
     ${matchDetails}
     <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : money(displayPrice)}</strong><small>${statusCopy}</small></section>
     ${renderPriceEvidence(item, conditionContext)}
@@ -4645,8 +4686,10 @@ function closeSheet(options = {}) {
         : `#${state.route}`,
     );
   state.sheetHistory = false;
+  stopAutoCaptureCamera();
   $("#bottomSheet").dataset.lockClose = "false";
   delete $("#bottomSheet").dataset.visionOperation;
+  delete $("#bottomSheet").dataset.cameraOperation;
   if (sensitive) {
     if ($("#bottomSheet").dataset.sensitivePreviewUrl)
       URL.revokeObjectURL($("#bottomSheet").dataset.sensitivePreviewUrl);
@@ -4734,6 +4777,353 @@ function openFilterSheet() {
   });
 }
 
+function stopAutoCaptureCamera() {
+  if (activeCameraTimer) clearInterval(activeCameraTimer);
+  activeCameraTimer = null;
+  activeCameraStream?.getTracks().forEach((track) => track.stop());
+  activeCameraStream = null;
+}
+
+function autoCaptureImage(video) {
+  if (!video?.videoWidth || !video?.videoHeight) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d", { alpha: false }).drawImage(video, 0, 0);
+  return new Promise((resolve) =>
+    canvas.toBlob(
+      (blob) =>
+        resolve(
+          blob
+            ? new File([blob], `mica-auto-capture-${Date.now()}.jpg`, {
+                type: "image/jpeg",
+              })
+            : null,
+        ),
+      "image/jpeg",
+      0.9,
+    ),
+  );
+}
+
+function cameraErrorMessage(error) {
+  if (error?.name === "NotAllowedError")
+    return "Camera access was blocked. Allow camera access for this site in your browser settings, then try again.";
+  if (error?.name === "NotFoundError")
+    return "No camera was found on this device. You can choose a saved photo instead.";
+  if (error?.name === "NotReadableError")
+    return "Another app may be using the camera. Close it, then try again.";
+  if (!window.isSecureContext)
+    return "Live camera access requires a secure HTTPS connection.";
+  return "The live camera could not start. You can retry or choose a saved photo.";
+}
+
+async function openDeviceCamera({
+  kind = "card",
+  automatic = false,
+  onPhoto = null,
+} = {}) {
+  const copy = {
+    card: {
+      title: automatic ? "Automatic card capture" : "Scan a card",
+      description: automatic
+        ? "Hold steady and Mica will take the photo."
+        : "Center one card, then press the shutter.",
+      instruction: "Keep the entire card visible and avoid glare.",
+      guide: "card",
+      alt: "Captured Pokémon card",
+    },
+    back: {
+      title: "Scan the card back",
+      description: "Capture the full back for a raw grade estimate.",
+      instruction: "Remove sleeves when safe and avoid reflected light.",
+      guide: "card",
+      alt: "Captured Pokémon card back",
+    },
+    receipt: {
+      title: "Scan receipt or order",
+      description: "Capture the full document inside the frame.",
+      instruction: "Keep the vendor, date, line items, and total readable.",
+      guide: "receipt",
+      alt: "Captured receipt or order",
+    },
+  }[kind];
+  const operationId = crypto.randomUUID();
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(copy.title)}</h2><p>${esc(copy.description)}</p></div><button class="sheet-close" aria-label="Close camera">×</button></div><div class="device-camera" data-camera-kind="${esc(copy.guide)}"><div class="auto-capture-stage"><video id="deviceCameraVideo" autoplay playsinline muted aria-label="Live device camera preview"></video><img id="deviceCameraReview" alt="${esc(copy.alt)}" hidden><div class="auto-capture-guide" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="camera-top-actions"><button id="deviceCameraSwitch" type="button" hidden>Switch camera</button><button id="deviceCameraTorch" type="button" aria-pressed="false" hidden>Light</button></div><div class="auto-capture-state" id="deviceCameraState" role="status" aria-live="polite">Requesting camera permission…</div></div><p class="automation-privacy"><strong>${esc(copy.instruction)}</strong> The browser will ask whether Mica may use this device’s camera. No photo is saved until you choose to continue.</p><div class="camera-permission-help" id="deviceCameraHelp" hidden></div><div class="camera-capture-actions"><label class="camera-upload-fallback" for="deviceCameraUpload">Choose saved photo<input id="deviceCameraUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label><button class="secondary" id="deviceCameraRetry" type="button" hidden>Try camera again</button><button class="secondary" id="deviceCameraRetake" type="button" hidden>Retake</button><button class="camera-shutter" id="deviceCameraCapture" type="button" disabled aria-label="Take photo"><i aria-hidden="true"></i></button><button class="primary camera-use-photo" id="deviceCameraUse" type="button" hidden>Use photo</button></div></div>`,
+  );
+  $("#bottomSheet").dataset.sensitive = "true";
+  $("#bottomSheet").dataset.cameraOperation = operationId;
+  const video = $("#deviceCameraVideo");
+  const review = $("#deviceCameraReview");
+  const status = $("#deviceCameraState");
+  const help = $("#deviceCameraHelp");
+  const captureButton = $("#deviceCameraCapture");
+  const useButton = $("#deviceCameraUse");
+  const retakeButton = $("#deviceCameraRetake");
+  const retryButton = $("#deviceCameraRetry");
+  const switchButton = $("#deviceCameraSwitch");
+  const torchButton = $("#deviceCameraTorch");
+  let cameras = [];
+  let currentCameraId = "";
+  let capturedFile = null;
+  let previewUrl = "";
+  let torchEnabled = false;
+
+  const operationIsCurrent = () =>
+    $("#bottomSheet").dataset.cameraOperation === operationId &&
+    !$("#bottomSheet").hidden;
+
+  const clearMonitor = () => {
+    if (activeCameraTimer) clearInterval(activeCameraTimer);
+    activeCameraTimer = null;
+  };
+
+  const releasePreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if ($("#bottomSheet").dataset.sensitivePreviewUrl === previewUrl)
+      delete $("#bottomSheet").dataset.sensitivePreviewUrl;
+    previewUrl = "";
+  };
+
+  const deliverPhoto = (file) => {
+    if (!validateImageFile(file)) return;
+    releasePreview();
+    closeSheet({ discardHistory: true, force: true });
+    if (typeof onPhoto === "function") onPhoto(file);
+    else if (kind === "receipt") void showReceiptProcessing(file);
+    else validateImage(file);
+  };
+
+  const setReviewMode = (reviewing) => {
+    video.hidden = reviewing;
+    review.hidden = !reviewing;
+    captureButton.hidden = reviewing;
+    useButton.hidden = !reviewing;
+    retakeButton.hidden = !reviewing;
+    switchButton.hidden = reviewing || cameras.length < 2;
+    torchButton.hidden = reviewing || torchButton.dataset.supported !== "true";
+  };
+
+  const captureFrame = async () => {
+    if (capturedFile || !video.videoWidth) return;
+    clearMonitor();
+    captureButton.disabled = true;
+    status.textContent = "Photo captured · review before continuing";
+    capturedFile = await autoCaptureImage(video);
+    if (!capturedFile || !operationIsCurrent()) {
+      capturedFile = null;
+      captureButton.disabled = false;
+      status.textContent = "The camera could not capture a photo. Try again.";
+      return;
+    }
+    previewUrl = URL.createObjectURL(capturedFile);
+    $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
+    review.src = previewUrl;
+    video.pause();
+    setReviewMode(true);
+  };
+
+  const startAutomaticCapture = () => {
+    if (!automatic) return;
+    const motionCanvas = document.createElement("canvas");
+    motionCanvas.width = 40;
+    motionCanvas.height = 56;
+    const motionContext = motionCanvas.getContext("2d", {
+      alpha: false,
+      willReadFrequently: true,
+    });
+    let previousFrame = null;
+    let stableFrames = 0;
+    clearMonitor();
+    activeCameraTimer = setInterval(() => {
+      if (
+        capturedFile ||
+        document.hidden ||
+        video.readyState < 2 ||
+        !operationIsCurrent()
+      ) {
+        stableFrames = 0;
+        return;
+      }
+      motionContext.drawImage(video, 0, 0, 40, 56);
+      const pixels = motionContext.getImageData(0, 0, 40, 56).data;
+      const sample = new Uint8Array(40 * 56);
+      let lightTotal = 0;
+      let lightSquaredTotal = 0;
+      let differenceTotal = 0;
+      for (let index = 0, pixel = 0; index < pixels.length; index += 4) {
+        const light = Math.round(
+          pixels[index] * 0.299 +
+            pixels[index + 1] * 0.587 +
+            pixels[index + 2] * 0.114,
+        );
+        sample[pixel] = light;
+        lightTotal += light;
+        lightSquaredTotal += light * light;
+        if (previousFrame)
+          differenceTotal += Math.abs(light - previousFrame[pixel]);
+        pixel += 1;
+      }
+      const brightness = lightTotal / sample.length;
+      const contrast = lightSquaredTotal / sample.length - brightness ** 2;
+      const movement = previousFrame
+        ? differenceTotal / sample.length
+        : Number.POSITIVE_INFINITY;
+      previousFrame = sample;
+      if (brightness < 35 || brightness > 235) {
+        stableFrames = 0;
+        status.textContent =
+          brightness < 35
+            ? "More light needed"
+            : "Reduce glare or direct light";
+        return;
+      }
+      if (contrast < 120) {
+        stableFrames = 0;
+        status.textContent = "Move the card into the frame";
+        return;
+      }
+      stableFrames = movement < 7 ? stableFrames + 1 : 0;
+      const remaining = Math.max(0, 4 - stableFrames);
+      status.textContent = stableFrames
+        ? `Hold steady · ${remaining}`
+        : "Center the card and hold steady";
+      if (stableFrames >= 4) void captureFrame();
+    }, 450);
+  };
+
+  const startCamera = async (deviceId = "") => {
+    clearMonitor();
+    activeCameraStream?.getTracks().forEach((track) => track.stop());
+    activeCameraStream = null;
+    captureButton.disabled = true;
+    retryButton.hidden = true;
+    help.hidden = true;
+    status.textContent = "Requesting camera permission…";
+    try {
+      activeCameraStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: deviceId
+          ? { deviceId: { exact: deviceId } }
+          : {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1920 },
+              height: { ideal: 1440 },
+            },
+      });
+      if (!operationIsCurrent()) {
+        stopAutoCaptureCamera();
+        return;
+      }
+      video.srcObject = activeCameraStream;
+      await video.play();
+      if (!operationIsCurrent()) {
+        stopAutoCaptureCamera();
+        return;
+      }
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      cameras = devices.filter((device) => device.kind === "videoinput");
+      const track = activeCameraStream.getVideoTracks()[0];
+      currentCameraId = track.getSettings?.().deviceId || deviceId;
+      switchButton.hidden = cameras.length < 2;
+      const capabilities = track.getCapabilities?.() || {};
+      torchButton.dataset.supported = String(Boolean(capabilities.torch));
+      torchButton.hidden = !capabilities.torch;
+      torchEnabled = false;
+      torchButton.setAttribute("aria-pressed", "false");
+      torchButton.textContent = "Light";
+      captureButton.disabled = false;
+      status.textContent = automatic
+        ? "Center the card and hold steady"
+        : kind === "receipt"
+          ? "Center the full receipt, then press the shutter"
+          : "Center the card, then press the shutter";
+      startAutomaticCapture();
+    } catch (error) {
+      activeCameraStream?.getTracks().forEach((track) => track.stop());
+      activeCameraStream = null;
+      if (!operationIsCurrent()) return;
+      status.textContent = cameraErrorMessage(error);
+      help.hidden = false;
+      help.innerHTML =
+        error?.name === "NotAllowedError"
+          ? "Select the camera icon near the address bar, allow camera access for Mica, then choose <strong>Try camera again</strong>."
+          : "The saved-photo option remains available and never grants ongoing camera access.";
+      retryButton.hidden = false;
+    }
+  };
+
+  captureButton.addEventListener("click", () => void captureFrame());
+  useButton.addEventListener("click", () =>
+    capturedFile ? deliverPhoto(capturedFile) : null,
+  );
+  retakeButton.addEventListener("click", async () => {
+    releasePreview();
+    capturedFile = null;
+    setReviewMode(false);
+    captureButton.disabled = false;
+    await video.play();
+    status.textContent = automatic
+      ? "Center the card and hold steady"
+      : "Ready for another photo";
+    startAutomaticCapture();
+  });
+  retryButton.addEventListener(
+    "click",
+    () => void startCamera(currentCameraId),
+  );
+  switchButton.addEventListener("click", () => {
+    if (cameras.length < 2) return;
+    const currentIndex = Math.max(
+      0,
+      cameras.findIndex((camera) => camera.deviceId === currentCameraId),
+    );
+    const next = cameras[(currentIndex + 1) % cameras.length];
+    void startCamera(next.deviceId);
+  });
+  torchButton.addEventListener("click", async () => {
+    const track = activeCameraStream?.getVideoTracks?.()[0];
+    if (!track) return;
+    try {
+      torchEnabled = !torchEnabled;
+      await track.applyConstraints({ advanced: [{ torch: torchEnabled }] });
+      torchButton.setAttribute("aria-pressed", String(torchEnabled));
+      torchButton.textContent = torchEnabled ? "Light on" : "Light";
+    } catch {
+      torchEnabled = false;
+      torchButton.hidden = true;
+    }
+  });
+  $("#deviceCameraUpload").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    event.target.value = "";
+    if (file) deliverPhoto(file);
+  });
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    status.textContent =
+      "This browser does not support a live in-app camera. Choose a saved photo instead.";
+    help.hidden = false;
+    help.textContent =
+      "Try the latest Safari, Chrome, or Edge on an HTTPS connection.";
+    return;
+  }
+  await startCamera();
+}
+
+function openAutoCapture() {
+  return openDeviceCamera({ kind: "card", automatic: true });
+}
+
+function openCardCamera() {
+  return openDeviceCamera({ kind: "card" });
+}
+
+function openReceiptCamera() {
+  return openDeviceCamera({ kind: "receipt" });
+}
+
 function openMethodSheet() {
   openSheet(
     `<div class="sheet-heading"><div><h2 id="sheetTitle">How your value is calculated</h2><p>Simple and transparent.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p><strong>Collection value</strong> is each card's matching market price multiplied by how many you own.</p><p><strong>Known gain/loss</strong> uses only copies that have both a matching market price and a recorded purchase cost. A blank cost is unknown, never treated as free.</p><p>Raw and graded cards are kept separate. We also match the printing and condition whenever the source supports it.</p><p>Cards without a reliable matching price stay in your library but are not counted in the total.</p></div>`,
@@ -4754,12 +5144,25 @@ const visionLanguageCodes = {
 };
 
 function visionLanguage(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  return ["en", "ja", "fr", "de", "es", "it", "pt", "zh-tw", "id", "th"].includes(
-    normalized,
-  )
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  return [
+    "en",
+    "ja",
+    "fr",
+    "de",
+    "es",
+    "it",
+    "pt",
+    "zh-tw",
+    "id",
+    "th",
+  ].includes(normalized)
     ? normalized
-    : visionLanguageCodes[normalized] || $("#quickSearchLanguage")?.value || "en";
+    : visionLanguageCodes[normalized] ||
+        $("#quickSearchLanguage")?.value ||
+        "en";
 }
 
 function confidenceLabel(value) {
@@ -4770,14 +5173,16 @@ function confidenceLabel(value) {
 }
 
 function conditionLabel(value) {
-  return {
-    near_mint: "Near Mint",
-    lightly_played: "Lightly Played",
-    moderately_played: "Moderately Played",
-    heavily_played: "Heavily Played",
-    damaged: "Damaged",
-    unknown: "Needs in-person review",
-  }[value] || "Needs in-person review";
+  return (
+    {
+      near_mint: "Near Mint",
+      lightly_played: "Lightly Played",
+      moderately_played: "Moderately Played",
+      heavily_played: "Heavily Played",
+      damaged: "Damaged",
+      unknown: "Needs in-person review",
+    }[value] || "Needs in-person review"
+  );
 }
 
 function readBlobAsDataUrl(blob) {
@@ -4792,7 +5197,8 @@ function readBlobAsDataUrl(blob) {
 function canvasBlob(canvas, quality) {
   return new Promise((resolve, reject) =>
     canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("image_encode_failed"))),
+      (blob) =>
+        blob ? resolve(blob) : reject(new Error("image_encode_failed")),
       "image/jpeg",
       quality,
     ),
@@ -4829,15 +5235,30 @@ function sampledImageQuality(context, width, height) {
   const pixels = sampleContext.getImageData(0, 0, 64, 64).data;
   const luminance = [];
   for (let index = 0; index < pixels.length; index += 4)
-    luminance.push(pixels[index] * 0.2126 + pixels[index + 1] * 0.7152 + pixels[index + 2] * 0.0722);
-  const average = luminance.reduce((sum, value) => sum + value, 0) / luminance.length;
+    luminance.push(
+      pixels[index] * 0.2126 +
+        pixels[index + 1] * 0.7152 +
+        pixels[index + 2] * 0.0722,
+    );
+  const average =
+    luminance.reduce((sum, value) => sum + value, 0) / luminance.length;
   const deviation = Math.sqrt(
-    luminance.reduce((sum, value) => sum + (value - average) ** 2, 0) / luminance.length,
+    luminance.reduce((sum, value) => sum + (value - average) ** 2, 0) /
+      luminance.length,
   );
   const warnings = [];
-  if (average < 40) warnings.push("The image looks dark; brighter indirect light will improve the estimate.");
-  if (average > 225) warnings.push("The image looks overexposed; move away from direct light or flash.");
-  if (deviation < 22) warnings.push("The image has low contrast; use a plain background and steadier focus.");
+  if (average < 40)
+    warnings.push(
+      "The image looks dark; brighter indirect light will improve the estimate.",
+    );
+  if (average > 225)
+    warnings.push(
+      "The image looks overexposed; move away from direct light or flash.",
+    );
+  if (deviation < 22)
+    warnings.push(
+      "The image has low contrast; use a plain background and steadier focus.",
+    );
   return warnings;
 }
 
@@ -4845,7 +5266,11 @@ async function prepareVisionImage(file) {
   const decoded = await decodeVisionImage(file);
   const sourceWidth = decoded.width || decoded.naturalWidth;
   const sourceHeight = decoded.height || decoded.naturalHeight;
-  if (!sourceWidth || !sourceHeight || Math.min(sourceWidth, sourceHeight) < 600) {
+  if (
+    !sourceWidth ||
+    !sourceHeight ||
+    Math.min(sourceWidth, sourceHeight) < 600
+  ) {
     decoded.close?.();
     throw new Error("image_resolution_low");
   }
@@ -4878,7 +5303,8 @@ async function prepareVisionImage(file) {
 }
 
 async function requestVisionAnalysis(mode, preparedImages) {
-  if (!state.session?.access_token) throw new Error("Sign in again before using AI analysis.");
+  if (!state.session?.access_token)
+    throw new Error("Sign in again before using AI analysis.");
   const response = await fetch("/api/vision", {
     method: "POST",
     headers: {
@@ -4886,10 +5312,14 @@ async function requestVisionAnalysis(mode, preparedImages) {
       Authorization: `Bearer ${state.session.access_token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ mode, images: preparedImages.map((image) => image.dataUrl) }),
+    body: JSON.stringify({
+      mode,
+      images: preparedImages.map((image) => image.dataUrl),
+    }),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "AI analysis is temporarily unavailable.");
+  if (!response.ok)
+    throw new Error(payload.error || "AI analysis is temporarily unavailable.");
   return payload;
 }
 
@@ -4913,10 +5343,15 @@ function visionPrefill(analysis, mode) {
   return {
     cardState: graded ? "graded" : "raw",
     rawCondition:
-      conditionReliable && suggestedCondition && suggestedCondition !== "unknown"
+      conditionReliable &&
+      suggestedCondition &&
+      suggestedCondition !== "unknown"
         ? suggestedCondition
         : "",
-    grader: graded && ["PSA", "BGS", "CGC", "TAG", "SGC"].includes(grader) ? grader : "",
+    grader:
+      graded && ["PSA", "BGS", "CGC", "TAG", "SGC"].includes(grader)
+        ? grader
+        : "",
     grade: graded && identity.grade != null ? String(identity.grade) : "",
     certificationNumber: graded ? identity.certificationNumber || "" : "",
     aiEstimate:
@@ -4947,7 +5382,9 @@ function renderVisionResult(payload, mode, preparedImages) {
     `<div class="sheet-heading"><div><h2 id="sheetTitle">AI analysis ready</h2><p>${esc(payload.model)} · photos were not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="vision-result-head"><img src="${preparedImages[0].dataUrl}" alt="Analyzed card front"><div><span>Suggested catalog search</span><strong>${esc(analysis.searchQuery || "Printed identity unclear")}</strong><small>Choose the exact printing below. Mica will not add a card automatically.</small></div></div>${qualityMarkup}${conditionMarkup}<div class="manual-results" id="visionCatalogResults" aria-live="polite"><div class="searching-cards"><i></i><span>Checking exact catalog printings…</span></div></div><div class="sheet-actions"><button class="secondary" id="visionRetake" type="button">Retake</button><button class="secondary" id="visionManualSearch" type="button">Search differently</button></div>`,
   );
   $("#bottomSheet").dataset.lockClose = "false";
-  $("#visionRetake").addEventListener("click", () => closeSheet({ force: true }));
+  $("#visionRetake").addEventListener("click", () =>
+    closeSheet({ force: true }),
+  );
   $("#visionManualSearch").addEventListener("click", () =>
     openVisionSearchFallback(analysis.searchQuery, identity.language),
   );
@@ -4955,7 +5392,11 @@ function renderVisionResult(payload, mode, preparedImages) {
     let cards = [];
     try {
       if (analysis.searchQuery?.length >= 2) {
-        const result = await searchCatalog(analysis.searchQuery, visionLanguage(identity.language), 12);
+        const result = await searchCatalog(
+          analysis.searchQuery,
+          visionLanguage(identity.language),
+          12,
+        );
         cards = result.items;
       }
     } catch {}
@@ -4966,10 +5407,18 @@ function renderVisionResult(payload, mode, preparedImages) {
       : '<div class="unavailable-panel">No reliable catalog match was found. Retake the card closer or search the printed details manually.</div>';
     $$("[data-vision-card]", node).forEach((button) =>
       button.addEventListener("click", () => {
-        const card = catalog.find((item) => item.id === button.dataset.visionCard);
+        const card = catalog.find(
+          (item) => item.id === button.dataset.visionCard,
+        );
         if (!card) return;
         const prefill = visionPrefill(analysis, mode);
         closeSheet({ discardHistory: true, force: true });
+        if (state.visionDestination === "trade") {
+          state.visionDestination = null;
+          addTradeCard(card, state.trade.addingTo);
+          routeTo("trade");
+          return;
+        }
         openPositionSheet(card, {
           prefill,
           visionAnalysis: {
@@ -4998,18 +5447,23 @@ async function analyzeCardImages(mode, preparedImages) {
     openSheet(
       `<div class="sheet-heading"><div><h2 id="sheetTitle">AI scan did not finish</h2><p>Your photo was not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="unavailable-panel">${esc(error.message || "The analysis service is temporarily unavailable.")}</div><div class="sheet-actions"><button class="secondary" id="visionErrorClose" type="button">Choose another</button><button class="primary" id="visionErrorSearch" type="button">Search manually</button></div>`,
     );
-    $("#visionErrorClose").addEventListener("click", () => closeSheet({ force: true }));
-    $("#visionErrorSearch").addEventListener("click", () => openVisionSearchFallback());
+    $("#visionErrorClose").addEventListener("click", () =>
+      closeSheet({ force: true }),
+    );
+    $("#visionErrorSearch").addEventListener("click", () =>
+      openVisionSearchFallback(),
+    );
   }
 }
 
-async function showProcessing(file) {
+async function showProcessing(file, initialBackFile = null) {
   const operationId = crypto.randomUUID();
   const previewUrl = URL.createObjectURL(file);
-  $("#capturePreview").innerHTML = `<img src="${previewUrl}" alt="Selected card photograph">`;
+  $("#capturePreview").innerHTML =
+    `<img src="${previewUrl}" alt="Selected card photograph">`;
   $("#qualityChip").innerHTML = "<span></span> Preparing photo";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Analyze this card</h2><p>Identify it, or add the back for a raw grade estimate.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica prepares a smaller copy on this device, sends it once to OpenAI through Vercel, then asks you to confirm every result.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Preparing a private upload…</div><div class="vision-choice-grid"><button id="visionIdentify" type="button" disabled><strong>Identify & add</strong><span>Read the card or slab and find exact catalog matches.</span></button><label for="visionBackInput"><strong>Estimate raw grade</strong><span>Add a clear back photo, then review a conservative range.</span><input id="visionBackInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" hidden></label></div><div class="vision-back-preview" id="visionBackPreview" hidden></div><div class="sheet-actions"><button class="secondary" id="photoAssistSearch" type="button">Search manually</button><button class="primary" id="visionGrade" type="button" disabled>Analyze front + back</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Analyze this card</h2><p>Identify it, or add the back for a raw grade estimate.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica prepares a smaller copy on this device, sends it once to OpenAI through Vercel, then asks you to confirm every result.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Preparing a private upload…</div><div class="vision-choice-grid"><button id="visionIdentify" type="button" disabled><strong>Identify & add</strong><span>Read the card or slab and find exact catalog matches.</span></button><button id="visionBackCamera" type="button"><strong>Estimate raw grade</strong><span>Open the live camera and capture the card back.</span></button></div><div class="vision-back-preview" id="visionBackPreview" hidden></div><div class="sheet-actions"><button class="secondary" id="photoAssistSearch" type="button">Search manually</button><button class="primary" id="visionGrade" type="button" disabled>Analyze front + back</button></div>`,
   );
   $("#bottomSheet").dataset.sensitive = "true";
   $("#bottomSheet").dataset.visionOperation = operationId;
@@ -5019,7 +5473,9 @@ async function showProcessing(file) {
     if ($("#bottomSheet").dataset.sensitivePreviewUrl === previewUrl)
       delete $("#bottomSheet").dataset.sensitivePreviewUrl;
   };
-  $("#photoAssistImage").addEventListener("load", releasePreview, { once: true });
+  $("#photoAssistImage").addEventListener("load", releasePreview, {
+    once: true,
+  });
   let front;
   let back;
   try {
@@ -5029,7 +5485,8 @@ async function showProcessing(file) {
       $("#bottomSheet").dataset.visionOperation !== operationId
     )
       return;
-    $("#capturePreview").innerHTML = `<img src="${front.dataUrl}" alt="Selected card photograph">`;
+    $("#capturePreview").innerHTML =
+      `<img src="${front.dataUrl}" alt="Selected card photograph">`;
     $("#qualityChip").innerHTML = "<span></span> Ready for AI review";
     $("#visionLocalCheck").innerHTML = front.warnings.length
       ? `<strong>Improve accuracy if possible</strong>${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join("")}`
@@ -5040,14 +5497,18 @@ async function showProcessing(file) {
     $("#visionLocalCheck").innerHTML =
       `<strong>Could not prepare this image</strong><span>${error.message === "image_resolution_low" ? "Move closer and use a higher-resolution photo." : "This device could not decode the file. Try JPEG, PNG, or WebP."}</span>`;
   }
-  $("#visionIdentify")?.addEventListener("click", () => front && void analyzeCardImages("identify", [front]));
-  $("#photoAssistSearch")?.addEventListener("click", () => openVisionSearchFallback());
-  $("#visionBackInput")?.addEventListener("change", async (event) => {
-    const selected = event.target.files[0];
-    event.target.value = "";
+  $("#visionIdentify")?.addEventListener(
+    "click",
+    () => front && void analyzeCardImages("identify", [front]),
+  );
+  $("#photoAssistSearch")?.addEventListener("click", () =>
+    openVisionSearchFallback(),
+  );
+  const prepareBackPhoto = async (selected) => {
     if (!selected) return;
     $("#visionBackPreview").hidden = false;
-    $("#visionBackPreview").innerHTML = '<div class="searching-cards"><i></i><span>Preparing the back photo…</span></div>';
+    $("#visionBackPreview").innerHTML =
+      '<div class="searching-cards"><i></i><span>Preparing the back photo…</span></div>';
     try {
       back = await prepareVisionImage(selected);
       if (
@@ -5055,13 +5516,32 @@ async function showProcessing(file) {
         $("#bottomSheet").dataset.visionOperation !== operationId
       )
         return;
-      $("#visionBackPreview").innerHTML = `<img src="${back.dataUrl}" alt="Selected card back"><div><strong>Back photo ready</strong><span>${back.warnings.length ? esc(back.warnings.join(" ")) : "Local quality check passed."}</span></div>`;
+      $("#visionBackPreview").innerHTML =
+        `<img src="${back.dataUrl}" alt="Selected card back"><div><strong>Back photo ready</strong><span>${back.warnings.length ? esc(back.warnings.join(" ")) : "Local quality check passed."}</span></div>`;
       $("#visionGrade").disabled = false;
     } catch {
       if ($("#visionBackPreview"))
-        $("#visionBackPreview").innerHTML = '<div class="unavailable-panel">The back photo could not be prepared. Retake it as JPEG, PNG, or WebP.</div>';
+        $("#visionBackPreview").innerHTML =
+          '<div class="unavailable-panel">The back photo could not be prepared. Retake it as JPEG, PNG, or WebP.</div>';
     }
+  };
+  $("#visionBackCamera")?.addEventListener("click", () => {
+    void openDeviceCamera({
+      kind: "back",
+      onPhoto: (selected) => void showProcessing(file, selected),
+    });
   });
+  if (initialBackFile) {
+    await prepareBackPhoto(initialBackFile);
+    if (
+      front &&
+      back &&
+      $("#bottomSheet").dataset.visionOperation === operationId
+    ) {
+      await analyzeCardImages("grade", [front, back]);
+      return;
+    }
+  }
   $("#visionGrade")?.addEventListener("click", () =>
     front && back ? void analyzeCardImages("grade", [front, back]) : null,
   );
@@ -5097,14 +5577,17 @@ function receiptMoney(value, currency) {
 function renderReceiptAnalysis(payload, matched = new Map()) {
   const receipt = payload.analysis;
   const currency = receipt.currency;
-  const uncertainTotal = receipt.unallocatedAmount != null && receipt.unallocatedAmount > 0.009;
+  const uncertainTotal =
+    receipt.unallocatedAmount != null && receipt.unallocatedAmount > 0.009;
   const incompatibleCurrency = currency !== "USD";
   const needsCostReview = uncertainTotal || incompatibleCurrency;
   openSheet(
     `<div class="sheet-heading"><div><h2 id="sheetTitle">Receipt intake draft</h2><p>${esc(receipt.vendor || "Vendor unclear")} · ${esc(receipt.purchaseDate || "Date unclear")} · image not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><section class="receipt-summary"><div><span>Order total</span><strong>${receiptMoney(receipt.totalAmount, currency)}</strong></div><div><span>Recognized card lines</span><strong>${receipt.lineItems.length}</strong></div><div><span>Still unallocated</span><strong>${receipt.unallocatedAmount == null ? "Unknown" : receiptMoney(receipt.unallocatedAmount, currency)}</strong></div></section>${incompatibleCurrency ? `<div class="vision-quality warning"><strong>${currency ? `${esc(currency)} purchase needs review` : "Purchase currency is unclear"}</strong><span>Mica records acquisition cost in USD and will not relabel or auto-convert this receipt. Enter the verified all-in USD cost yourself before saving.</span></div>` : ""}${uncertainTotal ? `<div class="vision-quality warning"><strong>Confirm all-in cost per card</strong><span>${receiptMoney(receipt.unallocatedAmount, currency)} of tax, shipping, fees, discounts, or other order value was not assigned to a card. Mica will not invent an allocation.</span></div>` : ""}<div class="receipt-lines">${receipt.lineItems.length ? receipt.lineItems.map((line, index) => `<article><div><strong>${esc(line.description)}</strong><span>${line.quantity} item${line.quantity === 1 ? "" : "s"} · ${line.lineTotal == null ? "line price unclear" : receiptMoney(line.lineTotal, currency)} · ${esc(confidenceLabel(line.confidence))}</span></div><button type="button" data-receipt-line="${index}" ${matched.has(index) ? "disabled" : ""}>${matched.has(index) ? "Matched ✓" : "Find exact card"}</button></article>`).join("") : '<div class="unavailable-panel">No Pokémon card line items were readable. Retake the receipt closer or use an order screenshot.</div>'}</div><p class="vision-disclaimer">Receipt text can establish purchase evidence but cannot prove card condition or an exact variant. Confirm every catalog match and the total acquisition cost before saving.</p><div class="sheet-actions"><button class="secondary" id="receiptRetake" type="button">Choose another</button><button class="primary" id="receiptReviewQueue" type="button" ${matched.size ? "" : "disabled"}>Review ${matched.size} queued</button></div>`,
   );
   $("#bottomSheet").dataset.lockClose = "false";
-  $("#receiptRetake").addEventListener("click", () => closeSheet({ force: true }));
+  $("#receiptRetake").addEventListener("click", () =>
+    closeSheet({ force: true }),
+  );
   $("#receiptReviewQueue").addEventListener("click", () => {
     closeSheet({ discardHistory: true, force: true });
     openIntakeQueueSheet();
@@ -5116,7 +5599,9 @@ function renderReceiptAnalysis(payload, matched = new Map()) {
       openSheet(
         `<div class="sheet-heading"><div><h2 id="sheetTitle">Match receipt line</h2><p>${esc(line.description)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="manual-results" id="receiptMatchResults"><div class="searching-cards"><i></i><span>Finding exact printings…</span></div></div><div class="sheet-actions"><button class="secondary" id="receiptMatchBack" type="button">Back to receipt</button><button class="secondary" id="receiptMatchSearch" type="button">Search manually</button></div>`,
       );
-      $("#receiptMatchBack").addEventListener("click", () => renderReceiptAnalysis(payload, matched));
+      $("#receiptMatchBack").addEventListener("click", () =>
+        renderReceiptAnalysis(payload, matched),
+      );
       $("#receiptMatchSearch").addEventListener("click", () =>
         openVisionSearchFallback(line.searchQuery, "en"),
       );
@@ -5126,23 +5611,31 @@ function renderReceiptAnalysis(payload, matched = new Map()) {
       } catch {}
       if (!$("#receiptMatchResults")) return;
       $("#receiptMatchResults").innerHTML = cards.length
-        ? cards.map((card) => `<button class="catalog-result" type="button" data-receipt-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(card.variant || "Printing unknown")}</small>${matchReason(card)}</span><b>Queue</b></button>`).join("")
+        ? cards
+            .map(
+              (card) =>
+                `<button class="catalog-result" type="button" data-receipt-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(card.variant || "Printing unknown")}</small>${matchReason(card)}</span><b>Queue</b></button>`,
+            )
+            .join("")
         : '<div class="unavailable-panel">No exact catalog match found. Search the printed card details manually.</div>';
-      $$("[data-receipt-card]", $("#receiptMatchResults")).forEach((cardButton) =>
-        cardButton.addEventListener("click", () => {
-          const card = catalog.find((item) => item.id === cardButton.dataset.receiptCard);
-          if (!card) return;
-          queueIntakeCard(card, receiptLinePrefill(receipt, line), {
-            vendor: receipt.vendor,
-            orderNumber: receipt.orderNumber,
-            currency: receipt.currency,
-            needsCostReview,
-            needsDateReview:
-              !receipt.purchaseDate || receipt.purchaseDate > localIsoDate(),
-          });
-          matched.set(index, card.id);
-          renderReceiptAnalysis(payload, matched);
-        }),
+      $$("[data-receipt-card]", $("#receiptMatchResults")).forEach(
+        (cardButton) =>
+          cardButton.addEventListener("click", () => {
+            const card = catalog.find(
+              (item) => item.id === cardButton.dataset.receiptCard,
+            );
+            if (!card) return;
+            queueIntakeCard(card, receiptLinePrefill(receipt, line), {
+              vendor: receipt.vendor,
+              orderNumber: receipt.orderNumber,
+              currency: receipt.currency,
+              needsCostReview,
+              needsDateReview:
+                !receipt.purchaseDate || receipt.purchaseDate > localIsoDate(),
+            });
+            matched.set(index, card.id);
+            renderReceiptAnalysis(payload, matched);
+          }),
       );
     }),
   );
@@ -5173,7 +5666,9 @@ async function showReceiptProcessing(file) {
     openSheet(
       `<div class="sheet-heading"><div><h2 id="sheetTitle">Receipt scan did not finish</h2><p>The image was not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="unavailable-panel">${esc(error.message || "Try a clearer JPEG, PNG, or WebP image.")}</div><div class="sheet-actions"><button class="primary" id="receiptErrorClose" type="button">Choose another</button></div>`,
     );
-    $("#receiptErrorClose").addEventListener("click", () => closeSheet({ force: true }));
+    $("#receiptErrorClose").addEventListener("click", () =>
+      closeSheet({ force: true }),
+    );
   }
 }
 
@@ -5335,6 +5830,48 @@ function openInfo(kind) {
   }[kind];
   openSheet(
     `<div class="sheet-heading"><div><h2 id="sheetTitle">${kind === "sources" ? "Data sources" : kind === "retention" ? "Scan retention" : "Privacy & deletion"}</h2></div><button class="sheet-close" aria-label="Close">×</button></div><p class="info-copy">${esc(content)}</p>`,
+  );
+}
+
+function openAutomationInfo(kind) {
+  const features = {
+    capture: {
+      title: "Automatic photo capture",
+      state: "Ready now",
+      summary:
+        "No paid service is required. The live camera uses the device browser, waits for a steady card, and sends the captured photo into Mica's existing review flow.",
+      connection:
+        "The user only needs to allow camera access. HTTPS is required, which the Vercel deployment already provides.",
+    },
+    identify: {
+      title: "AI card identification",
+      state: "Code complete · connection required",
+      summary:
+        "Mica already accepts a photo, extracts visible identity details, searches the catalog, and requires the user to confirm the exact printing before anything is saved.",
+      connection:
+        "Finish Vercel AI Gateway billing verification. Vercel OIDC supplies server authentication in production; local development can use the server-only AI_GATEWAY_API_KEY. No key is exposed to the browser.",
+    },
+    grading: {
+      title: "Raw grade estimate",
+      state: "Code complete · connection required",
+      summary:
+        "Mica already accepts front and back photos and returns a conservative grade range, confidence, visible evidence, and photo-quality warnings. It remains an estimate, not an official grade.",
+      connection:
+        "Use the same Vercel AI Gateway connection as card identification. One connection activates both features; a separate ChatGPT console or separate Claude account is not needed.",
+    },
+    pricing: {
+      title: "Automatic market data",
+      state: "Provider adapter complete · upgrade required",
+      summary:
+        "The pricing adapter already keeps raw, graded, sealed, grader, grade, printing, condition, currency, timestamp, and provider evidence separate. Unsupported data stays unavailable instead of being guessed.",
+      connection:
+        "Upgrade PkmnPrices, keep PKMNPRICES_API_KEY server-only, and set PKMNPRICES_PLAN=pro in Vercel. The prepared graded ladder, 365-day history, offers, sealed, Japanese, and eBay sold-evidence paths activate without a product rebuild.",
+    },
+  };
+  const feature = features[kind];
+  if (!feature) return;
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(feature.title)}</h2><p>${esc(feature.state)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="connection-explainer"><div><span>What is already built</span><p>${esc(feature.summary)}</p></div><div><span>What activates it</span><p>${esc(feature.connection)}</p></div></div><p class="legal-copy">Developer-mode status is intentionally explicit. Mica will not label a connector as live until a real request succeeds.</p>`,
   );
 }
 
@@ -6484,11 +7021,11 @@ function renderBusinessReview() {
   }
   if (!actions.length) {
     $("#businessReview").innerHTML =
-      '<div class="action-center-clear"><span>Today</span><strong>You’re caught up</strong><small>No reached buy targets, price gaps, below-cost positions, or inventory older than 180 days need review.</small><b>✓</b></div>';
+      '<div class="action-center-clear"><span>Today</span><strong>You’re caught up</strong><small>No reached buy targets, missing prices, below-cost cards, or older inventory need review.</small><b>✓</b></div>';
     return;
   }
   $("#businessReview").innerHTML =
-    `<div class="action-center-summary"><span>Today’s queue</span><strong>${signalCount} signal${signalCount === 1 ? "" : "s"} across ${actions.length} next step${actions.length === 1 ? "" : "s"}</strong><small>Ordered by time sensitivity, data quality, downside, then inventory age.</small></div>${actions.map((action, index) => `<button type="button" data-business-review="${action.key}" class="${index === 0 ? "recommended" : ""}"><span>${index === 0 ? "Do this first" : `Priority ${index + 1}`}</span><strong>${esc(action.title)}</strong><small>${action.items.length} item${action.items.length === 1 ? "" : "s"} · ${esc(action.copy)}</small><b>Review ${action.items.length} →</b></button>`).join("")}`;
+    `<div class="action-center-summary"><span>Today’s checklist</span><strong>${signalCount} item${signalCount === 1 ? "" : "s"} need attention</strong><small>${actions.length} clear next step${actions.length === 1 ? "" : "s"}, with the most useful one first.</small></div>${actions.map((action, index) => `<button type="button" data-business-review="${action.key}" class="${index === 0 ? "recommended" : ""}"><span>${index === 0 ? "Do this first" : `Next ${index + 1}`}</span><strong>${esc(action.title === "Price gaps" ? "Missing prices" : action.title)}</strong><small>${action.items.length} item${action.items.length === 1 ? "" : "s"} · ${esc(action.copy)}</small><b>Review ${action.items.length} →</b></button>`).join("")}`;
   $$("[data-business-review]").forEach((button) =>
     button.addEventListener("click", () => {
       const key = button.dataset.businessReview;
@@ -6507,7 +7044,7 @@ function renderBusinessReview() {
 function openBusinessReviewQueue(key, items) {
   const config = {
     pricing: {
-      title: "Price gaps",
+      title: "Missing prices",
       copy: "Positions missing an exact current reference",
     },
     "below-cost": {
@@ -6885,7 +7422,7 @@ function renderInsights() {
     const percent = prior > 0 ? (change / prior) * 100 : null;
     if (movements.length) {
       $(".insight-feature").innerHTML =
-        `<div class="insight-kicker">Verified 30-day movement</div><strong>${comparable.length ? `${change >= 0 ? "+" : ""}${money(change)}` : `${movements.length} comparable series`}</strong><span>${percent === null ? "Exact comparable history" : `${percent >= 0 ? "+" : ""}${percent.toFixed(1)}% across ${comparable.length} USD position${comparable.length === 1 ? "" : "s"}`} · current quantities</span><div class="unavailable-panel">Calculated from the same printing, condition or grade, currency, and provider series. It is market movement, not realized profit.</div>`;
+        `<div class="insight-kicker">30-day price change</div><strong>${comparable.length ? `${change >= 0 ? "+" : ""}${money(change)}` : `${movements.length} matching price series`}</strong><span>${percent === null ? "Matching price history" : `${percent >= 0 ? "+" : ""}${percent.toFixed(1)}% across ${comparable.length} card${comparable.length === 1 ? "" : "s"}`} · current quantities</span><div class="unavailable-panel">Uses the same printing, condition or grade, currency, and price source. This is price movement, not profit from a sale.</div>`;
     } else {
       $(".insight-feature").innerHTML =
         `<div class="insight-kicker">${state.pricingStatus === "partial" ? "Partial" : "Live"} pricing status</div><strong>${priced} of ${state.items.length} items priced</strong><span>Exact-product matches only · ${state.items.length - priced} need review</span><div class="unavailable-panel">${state.movementStatus === "loading" ? "Loading exact historical observations…" : state.movementStatus === "plan_required" ? "Historical observations are ready for PkmnPrices Pro. Current prices remain available on the connected plan." : state.movementStatus === "error" ? "Historical pricing could not be refreshed. Current portfolio values are unchanged." : "Price trends appear after at least 30 days of matching history exist."}</div>`;
@@ -6908,7 +7445,7 @@ function renderInsights() {
             return `<button type="button" class="mover mover-button" data-mover-id="${esc(item.uid)}"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(context)} · ${esc(provider)} · ${money(movement.fromAmount, movement.currency)} to ${money(movement.toAmount, movement.currency)}</span></div><b class="${movement.changePercent < 0 ? "negative" : ""}">${movement.changePercent >= 0 ? "+" : ""}${movement.changePercent.toFixed(1)}%</b></button>`;
           })
           .join("")
-      : '<div class="data-boundary"><strong>No verified 30-day movement yet</strong><p>Mica needs an observation at least 30 days earlier from the same printing, condition or grade, currency, and provider series. It will not blend incompatible prices.</p></div>';
+      : '<div class="data-boundary"><strong>Price history is still building</strong><p>A 30-day comparison needs an older price for the exact same printing and condition or grade. Mica will not mix unlike cards.</p></div>';
     $$("[data-mover-id]").forEach((button) =>
       button.addEventListener("click", () =>
         openCardDetail(
@@ -6934,7 +7471,13 @@ function renderInsights() {
 
 function tradeItemMarkup(item, side) {
   const max = item.maxQuantity ? ` max="${item.maxQuantity}"` : "";
-  return `<article class="trade-item" data-trade-item="${esc(item.tradeId)}" data-trade-item-side="${side}"><img src="${esc(item.thumb || "./icons/icon.svg")}" alt=""><div class="trade-item-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Printing unknown")}</span><small>${item.pricingStatus === "live" ? "Market reference loaded" : item.pricingStatus === "loading" ? "Checking market reference…" : "Enter the agreed value"}</small></div><div class="trade-item-inputs"><label>Qty<input data-trade-quantity type="number" inputmode="numeric" min="1"${max} step="1" value="${item.quantity}"></label><label>Value each<div class="money-input"><span>$</span><input data-trade-value type="number" inputmode="decimal" min="0" step="0.01" value="${esc(item.valuePerCard)}" placeholder="0.00"></div></label><label class="trade-context">Condition or grade<input data-trade-context type="text" maxlength="80" value="${esc(item.context)}" placeholder="Raw · Near Mint or PSA 10"></label></div><button class="trade-remove" data-trade-remove type="button" aria-label="Remove ${esc(item.name)} from trade">×</button></article>`;
+  const status =
+    item.pricingStatus === "live"
+      ? `${state.preferences.tradeValuePercent}% trade estimate · ${esc(item.context)}`
+      : item.pricingStatus === "loading"
+        ? "Checking matching market price…"
+        : `Price needs review · ${esc(item.context)}`;
+  return `<article class="trade-item" data-trade-item="${esc(item.tradeId)}" data-trade-item-side="${side}"><img src="${esc(item.thumb || "./icons/icon.svg")}" data-fallback="./icons/icon.svg" alt=""><div class="trade-item-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Printing unknown")}</span><small>${status}</small></div><div class="trade-item-value"><strong>${String(item.valuePerCard).trim() ? money(Number(item.valuePerCard)) : "—"}</strong><label>Qty<input data-trade-quantity type="number" inputmode="numeric" min="1"${max} step="1" value="${item.quantity}"></label><details><summary>Adjust</summary><label>Value each<div class="money-input"><span>$</span><input data-trade-value type="number" inputmode="decimal" min="0" step="0.01" value="${esc(item.valuePerCard)}" placeholder="0.00"></div></label></details></div><button class="trade-remove" data-trade-remove type="button" aria-label="Remove ${esc(item.name)} from trade">×</button></article>`;
 }
 
 function updateTradeSummary() {
@@ -6946,14 +7489,8 @@ function updateTradeSummary() {
   });
   const verdict = $("#tradeVerdict");
   const copyButton = $("#copyTradeSummary");
-  const contextsReady = [...state.trade.give, ...state.trade.receive].every(
-    (item) => String(item.context || "").trim(),
-  );
   copyButton.disabled =
-    !analysis ||
-    !state.trade.give.length ||
-    !state.trade.receive.length ||
-    !contextsReady;
+    !analysis || !state.trade.give.length || !state.trade.receive.length;
   if (!analysis) {
     $("#tradeGiveTotal").textContent = "Check values";
     $("#tradeReceiveTotal").textContent = "Check values";
@@ -7013,12 +7550,6 @@ function bindTradeItemRows() {
       .addEventListener("input", (event) => {
         item.valuePerCard = event.target.value;
         item.pricingStatus = "manual";
-        updateTradeSummary();
-      });
-    row
-      .querySelector("[data-trade-context]")
-      .addEventListener("input", (event) => {
-        item.context = event.target.value;
         updateTradeSummary();
       });
     row.querySelector("[data-trade-remove]").addEventListener("click", () => {
@@ -7113,7 +7644,11 @@ async function priceTradeCard(tradeItem, card) {
         })
       : null;
     if (quote && String(tradeItem.valuePerCard).trim() === "") {
-      tradeItem.valuePerCard = Number(quote.amount).toFixed(2);
+      tradeItem.valuePerCard = (
+        Number(quote.amount) *
+        (Number(state.preferences.tradeValuePercent) / 100)
+      ).toFixed(2);
+      tradeItem.referencePrice = Number(quote.amount);
       tradeItem.pricingStatus = "live";
     } else tradeItem.pricingStatus = quote ? "live" : "unavailable";
   } catch {
@@ -7138,7 +7673,14 @@ function addTradeCard(card, side = state.trade.addingTo, owned = false) {
     thumb: card.thumb || card.image,
     quantity: 1,
     maxQuantity: owned ? Number(card.quantity) : null,
-    valuePerCard: card.price == null ? "" : Number(card.price).toFixed(2),
+    valuePerCard:
+      card.price == null
+        ? ""
+        : (
+            Number(card.price) *
+            (Number(state.preferences.tradeValuePercent) / 100)
+          ).toFixed(2),
+    referencePrice: card.price == null ? null : Number(card.price),
     pricingStatus: card.price == null ? "loading" : "live",
   };
   state.trade[side].push(tradeItem);
@@ -7161,7 +7703,7 @@ function bindTradeUI() {
       if (query.length < 2) {
         state.trade.searchResults = [];
         $("#tradeSearchResults").innerHTML =
-          '<div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing, then set the value used for this trade.</span></div>';
+          '<div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing. Mica fills the matching trade estimate.</span></div>';
         return;
       }
       $("#tradeSearchResults").innerHTML =
@@ -7208,8 +7750,12 @@ function bindTradeUI() {
     input.value = "";
     renderTrade();
     $("#tradeSearchResults").innerHTML =
-      '<div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing, then set the value used for this trade.</span></div>';
+      '<div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing. Mica fills the matching trade estimate.</span></div>';
     toast("Trade cleared");
+  });
+  $("#tradeCameraButton")?.addEventListener("click", () => {
+    state.visionDestination = "trade";
+    void openAutoCapture();
   });
   $("#copyTradeSummary").addEventListener("click", async () => {
     const text = tradeSummary({
@@ -7233,7 +7779,9 @@ function bindTradeUI() {
 
 function syncTabs() {
   $$(".view-tab").forEach((tab) => {
-    const active = tab.dataset.ledgerView === state.ledgerView;
+    const active =
+      tab.dataset.ledgerView === state.ledgerView &&
+      (tab.dataset.conditionFilter || "") === state.conditionFilter;
     tab.classList.toggle("active", active);
     tab.setAttribute("aria-selected", String(active));
   });
@@ -7256,7 +7804,12 @@ function renderIntakeQueueBar() {
 
 function queueIntakeCard(card, prefill = null, source = null) {
   if (!card) return;
-  state.intakeQueue.push({ queueEntryId: crypto.randomUUID(), card, prefill, source });
+  state.intakeQueue.push({
+    queueEntryId: crypto.randomUUID(),
+    card,
+    prefill,
+    source,
+  });
   renderIntakeQueueBar();
   toast(`${card.name} queued · exact printing preserved`);
 }
@@ -7506,6 +8059,22 @@ function bindQuickCardSearch() {
 }
 
 function bindEvents() {
+  document.addEventListener(
+    "error",
+    (event) => {
+      const image = event.target;
+      if (!(image instanceof HTMLImageElement)) return;
+      const fallback = image.dataset.fallback || "./icons/icon.svg";
+      if (image.dataset.fallbackAttempted === "true") {
+        if (!image.src.endsWith("/icons/icon.svg"))
+          image.src = "./icons/icon.svg";
+        return;
+      }
+      image.dataset.fallbackAttempted = "true";
+      image.src = fallback;
+    },
+    true,
+  );
   $$("[data-sidebar-target]").forEach((button) =>
     button.addEventListener("click", () =>
       openWorkspaceShortcut(button.dataset.sidebarTarget),
@@ -7525,14 +8094,8 @@ function bindEvents() {
   $$(".view-tab").forEach((tab) =>
     tab.addEventListener("click", () => {
       state.ledgerView = tab.dataset.ledgerView;
-      state.conditionFilter = "";
-      state.sidebarTarget =
-        {
-          sets: "sets",
-          graded: "graded",
-          watchlist: "watchlist",
-          "for-sale": "seller",
-        }[state.ledgerView] || "collection";
+      state.conditionFilter = tab.dataset.conditionFilter || "";
+      state.sidebarTarget = "collection";
       syncTabs();
       renderCollection();
       syncWorkspaceChrome();
@@ -7599,7 +8162,7 @@ function bindEvents() {
     else routeTo("scan");
   });
   $("#methodButton").addEventListener("click", openMethodSheet);
-  $("#syncState").addEventListener("click", () => {
+  $("#syncState")?.addEventListener("click", () => {
     if (state.accountLoadError) void retryAccountLoad();
     else if (state.storageStatus === "error")
       toast(
@@ -7611,24 +8174,25 @@ function bindEvents() {
     }
   });
   $("#manualSearchButton").addEventListener("click", openManualSearch);
+  $("#autoCaptureButton").addEventListener(
+    "click",
+    () => void openAutoCapture(),
+  );
+  $("#receiptCameraButton").addEventListener(
+    "click",
+    () => void openReceiptCamera(),
+  );
+  $("#legacyCameraButton").addEventListener(
+    "click",
+    () => void openCardCamera(),
+  );
   $("#sealedSearchButton").addEventListener("click", openSealedSearch);
   $("#reviewIntakeQueue").addEventListener("click", openIntakeQueueSheet);
   renderIntakeQueueBar();
-  $("#cameraInput").addEventListener("change", (event) => {
-    const file = event.target.files[0];
-    event.target.value = "";
-    validateImage(file);
-  });
   $("#galleryInput").addEventListener("change", (event) => {
     const file = event.target.files[0];
     event.target.value = "";
     validateImage(file);
-  });
-  $("#receiptInput").addEventListener("change", (event) => {
-    const file = event.target.files[0];
-    event.target.value = "";
-    if (!validateImageFile(file)) return;
-    void showReceiptProcessing(file);
   });
   $("#sheetBackdrop").addEventListener("click", closeSheet);
   $("#exportButton").addEventListener("click", downloadAccountBackup);
@@ -7663,12 +8227,12 @@ function bindEvents() {
       applyUiTheme(button.dataset.uiThemeOption, { announce: true }),
     ),
   );
-  $("#themeQuickSwitch").addEventListener("click", () =>
+  $("#themeQuickSwitch")?.addEventListener("click", () =>
     applyUiTheme(uiTheme === "clean" ? "analytics" : "clean", {
       announce: true,
     }),
   );
-  $("#workspaceExpand").addEventListener("click", () =>
+  $("#workspaceExpand")?.addEventListener("click", () =>
     applyWorkspaceMode("growth", { announce: true }),
   );
   $("#csvInput").addEventListener("change", (event) => {
@@ -7678,6 +8242,11 @@ function bindEvents() {
   });
   $$("[data-info]").forEach((button) =>
     button.addEventListener("click", () => openInfo(button.dataset.info)),
+  );
+  $$("[data-automation]").forEach((button) =>
+    button.addEventListener("click", () =>
+      openAutomationInfo(button.dataset.automation),
+    ),
   );
   $("#currencyButton").addEventListener("click", () =>
     toast("USD display currency · source currencies preserved"),
@@ -7690,6 +8259,10 @@ function bindEvents() {
   $("#targetAlertButton").addEventListener(
     "click",
     () => void toggleTargetAlerts(),
+  );
+  $("#saveWorkflowDefaults")?.addEventListener(
+    "click",
+    () => void persistWorkflowDefaults(),
   );
   $("#moreButton").addEventListener("click", () => {
     if (!requireAccountData()) return;
@@ -7892,23 +8465,6 @@ function ensureProfileAccount() {
   if (span)
     span.textContent =
       "Collection, transactions, and FIFO lots sync to Supabase";
-  const isAdmin = state.session?.user?.app_metadata?.role === "admin";
-  let diagnostics = $("#adminDiagnosticsButton");
-  if (isAdmin && !diagnostics) {
-    diagnostics = document.createElement("button");
-    diagnostics.id = "adminDiagnosticsButton";
-    diagnostics.type = "button";
-    diagnostics.className = "profile-admin";
-    diagnostics.textContent = "Pricing diagnostics and manual re-sync";
-    $("#view-profile").insertBefore(
-      diagnostics,
-      $("#view-profile .legal-copy"),
-    );
-  } else if (!isAdmin && diagnostics) {
-    diagnostics.remove();
-    diagnostics = null;
-  }
-  if (diagnostics) diagnostics.onclick = () => void openAdminDiagnostics();
   let button = $("#signOutButton");
   if (!button) {
     button = document.createElement("button");
@@ -7931,21 +8487,131 @@ function ensureProfileAccount() {
   updateTargetAlertControl();
 }
 
+function profileDisplayName() {
+  const email = state.session?.user?.email || "";
+  return String(
+    state.profile?.displayName ||
+      state.session?.user?.user_metadata?.full_name ||
+      email.split("@")[0],
+  )
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim();
+}
+
+function renderWorkflowDefaults() {
+  if ($("#defaultTradePercent"))
+    $("#defaultTradePercent").value = state.preferences.tradeValuePercent;
+  if ($("#defaultQuickSalePercent"))
+    $("#defaultQuickSalePercent").value = state.preferences.quickSalePercent;
+  if ($("#defaultSellingFeePercent"))
+    $("#defaultSellingFeePercent").value = state.preferences.sellingFeePercent;
+  if ($("#liquidationReferencePercent"))
+    $("#liquidationReferencePercent").value =
+      state.preferences.quickSalePercent;
+  if ($("#liquidationFeePercent"))
+    $("#liquidationFeePercent").value = state.preferences.sellingFeePercent;
+  if ($("#liquidationSellingCosts"))
+    $("#liquidationSellingCosts").value = Number(
+      state.preferences.otherSellingCosts,
+    ).toFixed(2);
+}
+
+async function persistWorkflowDefaults() {
+  const button = $("#saveWorkflowDefaults");
+  const status = $("#workflowDefaultsStatus");
+  const preferences = {
+    ...state.preferences,
+    tradeValuePercent: Number($("#defaultTradePercent").value),
+    quickSalePercent: Number($("#defaultQuickSalePercent").value),
+    sellingFeePercent: Number($("#defaultSellingFeePercent").value),
+  };
+  button.disabled = true;
+  status.textContent = "Saving…";
+  try {
+    state.profile = await saveProfile(supabase, {
+      displayName: profileDisplayName(),
+      preferences,
+    });
+    state.preferences = state.profile.preferences;
+    renderWorkflowDefaults();
+    renderTrade();
+    renderLiquidationPlanner();
+    status.textContent = "Saved to your Mica account.";
+  } catch (error) {
+    status.textContent = error.message || "Could not save these defaults.";
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function openOnboarding() {
+  if ($("#onboardingDialog")) return;
+  const dialog = document.createElement("section");
+  dialog.id = "onboardingDialog";
+  dialog.className = "onboarding-dialog";
+  dialog.setAttribute("role", "dialog");
+  dialog.setAttribute("aria-modal", "true");
+  dialog.setAttribute("aria-labelledby", "onboardingTitle");
+  dialog.innerHTML = `<form class="onboarding-card" id="onboardingForm"><p class="eyebrow">A simpler Mica from day one</p><h1 id="onboardingTitle">What will you use Mica for?</h1><p>Two quick choices set sensible defaults. You can change them later.</p><fieldset><legend>Main goal</legend><label><input type="radio" name="goal" value="collecting" checked><span><strong>Build my collection</strong><small>Track cards, sets, and value</small></span></label><label><input type="radio" name="goal" value="trading"><span><strong>Trade smarter</strong><small>Compare both sides quickly</small></span></label><label><input type="radio" name="goal" value="selling"><span><strong>Sell cards</strong><small>Track take-home and profit</small></span></label></fieldset><fieldset><legend>Experience</legend><label><input type="radio" name="experience" value="beginner" checked><span><strong>New collector</strong><small>Plain language and more guidance</small></span></label><label><input type="radio" name="experience" value="familiar"><span><strong>Familiar</strong><small>I know sets, condition, and grades</small></span></label><label><input type="radio" name="experience" value="professional"><span><strong>Full-time seller</strong><small>I manage inventory every day</small></span></label></fieldset><button class="primary" type="submit">Continue</button><p class="form-error" id="onboardingError" role="alert"></p></form>`;
+  document.body.append(dialog);
+  $("#onboardingForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const button = event.currentTarget.querySelector("button");
+    button.disabled = true;
+    try {
+      state.preferences = {
+        ...state.preferences,
+        collectorGoal: data.get("goal"),
+        experienceLevel: data.get("experience"),
+      };
+      dialog.querySelector(".onboarding-card").innerHTML =
+        `<p class="eyebrow">Your 60-second tour</p><h1 id="onboardingTitle">Mica does the busywork</h1><ol class="onboarding-tour"><li><b>1</b><span><strong>Add a card</strong><small>Snap a photo or search the exact printing.</small></span></li><li><b>2</b><span><strong>Confirm only what matters</strong><small>Raw or graded, quantity, and total amount paid.</small></span></li><li><b>3</b><span><strong>Use the decision tools</strong><small>Pricing, trade checks, grading estimates, and sale planning stay together.</small></span></li></ol><button class="primary" id="finishOnboarding" type="button">Start using Mica</button>`;
+      $("#finishOnboarding").addEventListener("click", async () => {
+        const finish = $("#finishOnboarding");
+        finish.disabled = true;
+        finish.textContent = "Saving…";
+        try {
+          state.profile = await saveProfile(supabase, {
+            displayName: profileDisplayName(),
+            preferences: state.preferences,
+            completeOnboarding: true,
+          });
+          state.preferences = state.profile.preferences;
+          renderWorkflowDefaults();
+          dialog.remove();
+          $("#main").focus();
+        } catch (error) {
+          finish.disabled = false;
+          finish.textContent = error.message || "Try again";
+        }
+      });
+    } catch (error) {
+      $("#onboardingError").textContent = error.message || "Try again.";
+      button.disabled = false;
+    }
+  });
+}
+
 async function retryAccountLoad() {
   if (state.accountLoading || !state.session) return;
   state.accountLoading = true;
   renderCollection();
   try {
-    const [items, watchlist, history] = await Promise.all([
+    const [items, watchlist, history, profile] = await Promise.all([
       loadPortfolio(supabase),
       loadWatchlist(supabase),
       loadPortfolioValuationHistory(supabase)
         .then((data) => ({ data, error: null }))
         .catch((error) => ({ data: [], error })),
+      loadProfile(supabase),
     ]);
     state.items = items;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
+    state.profile = profile;
+    state.preferences = profile.preferences;
     state.portfolioHistoryStatus = history.error ? "error" : "ready";
     state.storageStatus = "cloud";
     state.accountLoadError = "";
@@ -8013,23 +8679,29 @@ async function applySession(session) {
     { instant: true, history: "replace" },
   );
   try {
-    const [items, watchlist, history] = await Promise.all([
+    const [items, watchlist, history, profile] = await Promise.all([
       loadPortfolio(supabase),
       loadWatchlist(supabase),
       loadPortfolioValuationHistory(supabase)
         .then((data) => ({ data, error: null }))
         .catch((error) => ({ data: [], error })),
+      loadProfile(supabase),
     ]);
     state.items = items;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
+    state.profile = profile;
+    state.preferences = profile.preferences;
     state.portfolioHistoryStatus = history.error ? "error" : "ready";
     state.storageStatus = "cloud";
     state.accountLoading = false;
     state.accountLoadError = "";
+    ensureProfileAccount();
+    renderWorkflowDefaults();
     renderCollection();
     renderInsights();
     renderTrade();
+    if (!profile.onboardingCompletedAt) openOnboarding();
     await Promise.all([refreshLivePricing(), refreshWatchlistPricing()]);
   } catch (error) {
     state.items = [];

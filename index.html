@@ -1,335 +1,1304 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#070c12">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Mica">
-  <meta name="description" content="Scan, price, and organize your Pokémon card library.">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=76">
-  <link rel="stylesheet" href="themes.css?v=71">
-  <title>Mica — Pokémon Card Library</title>
-</head>
-<body>
-  <a class="skip-link" id="skipLink" href="#authGate">Skip to content</a>
-  <main class="auth-gate" id="authGate" tabindex="-1" aria-labelledby="authTitle">
-    <div class="auth-card">
-      <div class="auth-brand"><span class="wordmark-gem" aria-hidden="true"><i></i></span><span>Mica</span></div>
-      <p class="eyebrow">Private collector portfolio</p>
-      <h1 id="authTitle">Sign in to your collection</h1>
-      <p>Your cards, sealed products, purchase lots, and transactions are protected by your Supabase account.</p>
-      <form id="passwordAuthForm" class="auth-form">
-        <div class="field"><label for="authEmail">Email</label><input id="authEmail" name="email" type="email" autocomplete="email" required></div>
-        <div class="field"><label for="authPassword">Password</label><input id="authPassword" name="password" type="password" autocomplete="current-password" minlength="8" required></div>
-        <button class="primary" type="submit" id="passwordSignIn">Sign in</button>
-        <button class="secondary" type="button" id="passwordSignUp">Create account</button>
-      </form>
-      <div class="auth-divider"><span>or</span></div>
-      <form id="magicLinkForm" class="auth-form auth-magic">
-        <label for="magicEmail">Email me a secure sign-in link</label>
-        <div><input id="magicEmail" name="email" type="email" autocomplete="email" required placeholder="you@example.com"><button type="submit">Send magic link</button></div>
-      </form>
-      <p class="auth-message" id="authMessage" role="status" aria-live="polite"></p>
-    </div>
-  </main>
-  <div class="app-shell" id="appShell">
-    <aside class="desktop-sidebar" aria-label="Mica workspace navigation">
-      <button class="sidebar-brand" type="button" data-sidebar-target="dashboard" aria-label="Mica dashboard">
-        <span class="sidebar-gem" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span><strong>MICA</strong><small>Pokémon collector</small></span>
-      </button>
-      <nav class="sidebar-nav">
-        <button class="sidebar-item active" type="button" data-sidebar-target="dashboard"><span aria-hidden="true">⌂</span><b>Dashboard</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="collection"><span aria-hidden="true">▣</span><b>Collection</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="add"><span aria-hidden="true">⊕</span><b>Add Cards</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="search"><span aria-hidden="true">⌕</span><b>Search</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="sets"><span aria-hidden="true">▦</span><b>Sets</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="sealed"><span aria-hidden="true">□</span><b>Sealed Products</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="graded"><span aria-hidden="true">◇</span><b>Graded Cards</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="watchlist"><span aria-hidden="true">♡</span><b>Watchlist</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="trades"><span aria-hidden="true">⇄</span><b>Trades</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="portfolio"><span aria-hidden="true">♙</span><b>Portfolio</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="analytics"><span aria-hidden="true">⌁</span><b>Analytics</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="sales"><span aria-hidden="true">▤</span><b>Sales History</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="purchases"><span aria-hidden="true">▱</span><b>Purchase History</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="alerts"><span aria-hidden="true">♧</span><b>Alerts</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="seller"><span aria-hidden="true">$</span><b>Seller Tools</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="reports"><span aria-hidden="true">▧</span><b>Reports</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="import"><span aria-hidden="true">↕</span><b>Import / Export</b></button>
-        <button class="sidebar-item" type="button" data-sidebar-target="settings"><span aria-hidden="true">⚙</span><b>Settings</b></button>
-      </nav>
-      <button class="sidebar-account" type="button" data-sidebar-target="settings"><span class="sidebar-avatar" id="sidebarAvatar">ME</span><span><strong id="sidebarAccountName">Collector</strong><small id="sidebarAccountPlan">Mica account</small></span><b aria-hidden="true">›</b></button>
-    </aside>
-    <header class="app-header">
-      <button class="wordmark" type="button" data-route="collection" aria-label="Mica home">
-        <span class="wordmark-gem" aria-hidden="true"><i></i></span>
-        <span>Mica</span>
-      </button>
-      <div class="header-context"><strong id="headerSection">Dashboard</strong><span id="headerSubtitle">Your collection at a glance</span></div>
-      <div class="header-actions">
-        <button class="header-add-action" type="button" data-sidebar-target="add">+ Add Cards</button>
-        <button class="header-scan-action" type="button" data-sidebar-target="photo">Scan Cards</button>
-        <button class="theme-quick-switch" type="button" id="themeQuickSwitch" aria-label="Switch to analytics dark interface"><i aria-hidden="true"></i><span id="themeQuickLabel">Clean</span></button>
-        <button class="sync-state" type="button" id="syncState" aria-label="Pricing and save status" aria-live="polite">
-          <span class="sync-dot"></span><span>Preview data</span>
-        </button>
-        <button class="avatar" type="button" data-route="profile" aria-label="Open profile">JD</button>
-      </div>
-    </header>
-
-    <main id="main" tabindex="-1">
-      <section class="view active" id="view-collection" aria-labelledby="collectionTitle">
-        <div class="collection-heading">
-          <div>
-            <p class="eyebrow">Portfolio command center</p>
-            <h1 id="collectionTitle">Welcome back</h1>
-            <p class="collection-subtitle">Here’s your collection overview.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#070c12" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Mica" />
+    <meta
+      name="description"
+      content="Scan, price, and organize your Pokémon card library."
+    />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="icons/apple-touch-icon.png"
+    />
+    <link rel="stylesheet" href="styles.css?v=78" />
+    <link rel="stylesheet" href="themes.css?v=71" />
+    <title>Mica — Pokémon Card Library</title>
+  </head>
+  <body>
+    <a class="skip-link" id="skipLink" href="#authGate">Skip to content</a>
+    <main
+      class="auth-gate"
+      id="authGate"
+      tabindex="-1"
+      aria-labelledby="authTitle"
+    >
+      <div class="auth-card">
+        <div class="auth-brand">
+          <span class="wordmark-gem" aria-hidden="true"><i></i></span
+          ><span>Mica</span>
+        </div>
+        <p class="eyebrow">Private collector portfolio</p>
+        <h1 id="authTitle">Sign in to your collection</h1>
+        <p>
+          Your cards, sealed products, purchase lots, and transactions are
+          protected by your Supabase account.
+        </p>
+        <form id="passwordAuthForm" class="auth-form">
+          <div class="field">
+            <label for="authEmail">Email</label
+            ><input
+              id="authEmail"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+            />
           </div>
-          <div class="collection-actions"><button class="quick-add" type="button" data-sidebar-target="add">+ Add Cards</button><button class="secondary-add" type="button" data-sidebar-target="photo">Scan Cards</button><button class="icon-button" id="moreButton" type="button" aria-label="More library options" aria-expanded="false">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
-          </button></div>
+          <div class="field">
+            <label for="authPassword">Password</label
+            ><input
+              id="authPassword"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              minlength="8"
+              required
+            />
+          </div>
+          <button class="primary" type="submit" id="passwordSignIn">
+            Sign in
+          </button>
+          <button class="secondary" type="button" id="passwordSignUp">
+            Create account
+          </button>
+        </form>
+        <div class="auth-divider"><span>or</span></div>
+        <form id="magicLinkForm" class="auth-form auth-magic">
+          <label for="magicEmail">Email me a secure sign-in link</label>
+          <div>
+            <input
+              id="magicEmail"
+              name="email"
+              type="email"
+              autocomplete="email"
+              required
+              placeholder="you@example.com"
+            /><button type="submit">Send magic link</button>
+          </div>
+        </form>
+        <p
+          class="auth-message"
+          id="authMessage"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </div>
+    </main>
+    <div class="app-shell" id="appShell">
+      <aside class="desktop-sidebar" aria-label="Mica workspace navigation">
+        <button
+          class="sidebar-brand"
+          type="button"
+          data-sidebar-target="dashboard"
+          aria-label="Mica dashboard"
+        >
+          <span class="sidebar-gem" aria-hidden="true"
+            ><i></i><i></i><i></i
+          ></span>
+          <span><strong>MICA</strong><small>Pokémon collector</small></span>
+        </button>
+        <nav class="sidebar-nav">
+          <button
+            class="sidebar-item active"
+            type="button"
+            data-sidebar-target="dashboard"
+          >
+            <span aria-hidden="true">⌂</span><b>Dashboard</b>
+          </button>
+          <button
+            class="sidebar-item"
+            type="button"
+            data-sidebar-target="collection"
+          >
+            <span aria-hidden="true">▣</span><b>Collection</b>
+          </button>
+          <button class="sidebar-item" type="button" data-sidebar-target="add">
+            <span aria-hidden="true">⊕</span><b>Add Cards</b>
+          </button>
+          <button
+            class="sidebar-item"
+            type="button"
+            data-sidebar-target="analytics"
+          >
+            <span aria-hidden="true">⌁</span><b>Market</b>
+          </button>
+          <button
+            class="sidebar-item"
+            type="button"
+            data-sidebar-target="trades"
+          >
+            <span aria-hidden="true">⇄</span><b>Trade Check</b>
+          </button>
+          <button
+            class="sidebar-item"
+            type="button"
+            data-sidebar-target="settings"
+          >
+            <span aria-hidden="true">⚙</span><b>Settings</b>
+          </button>
+        </nav>
+        <button
+          class="sidebar-account"
+          type="button"
+          data-sidebar-target="settings"
+        >
+          <span class="sidebar-avatar" id="sidebarAvatar">ME</span
+          ><span
+            ><strong id="sidebarAccountName">Collector</strong
+            ><small id="sidebarAccountPlan">Mica account</small></span
+          ><b aria-hidden="true">›</b>
+        </button>
+      </aside>
+      <header class="app-header">
+        <button
+          class="wordmark"
+          type="button"
+          data-route="collection"
+          aria-label="Mica home"
+        >
+          <span class="wordmark-gem" aria-hidden="true"><i></i></span>
+          <span>Mica</span>
+        </button>
+        <div class="header-context">
+          <strong id="headerSection">Dashboard</strong
+          ><span id="headerSubtitle">Your collection at a glance</span>
         </div>
-
-        <section class="dashboard-kpis" aria-label="Portfolio summary">
-          <article class="dashboard-kpi primary"><div class="portfolio-topline"><span>Total collection value</span><span class="status-label" aria-live="polite"><i></i> Checking prices</span></div><strong class="portfolio-value" id="portfolioValue">$0.00</strong><small class="portfolio-change" id="portfolioChange"></small></article>
-          <article class="dashboard-kpi"><span>Total cards</span><strong id="ownedCount">0</strong><small id="freshCoverage">0 live prices</small></article>
-          <article class="dashboard-kpi"><span>Graded cards</span><strong id="gradedOwnedCount">0</strong><small id="gradedShare">0% of collection</small></article>
-          <article class="dashboard-kpi"><span>Sealed products</span><strong id="sealedOwnedCount">0</strong><small id="sealedShare">0% of collection</small></article>
-        </section>
-        <div class="dashboard-analytics-grid">
-          <section class="portfolio-history-panel" id="portfolioHistory" aria-label="Portfolio performance history" aria-live="polite">
-            <div class="portfolio-history-empty"><strong>Portfolio performance</strong><span>Mica is building your exact-compatible performance history.</span></div>
-          </section>
-          <section class="portfolio-detail-panel" aria-label="Portfolio performance details"><div class="panel-heading"><div><span>Portfolio snapshot</span><strong>Performance & coverage</strong></div></div><div class="portfolio-detail-grid">
-            <div><span>You paid</span><strong id="costBasis">$0.00</strong></div>
-            <div><span id="gainLabel">Gain / loss</span><strong id="unrealized">—</strong></div>
-            <div><span>Return</span><strong id="portfolioReturn">—</strong></div>
-            <div><span>Realized gain/loss</span><strong id="realizedGain">—</strong></div>
-            <div><span>Raw / graded / sealed</span><strong id="allocationSummary">—</strong></div>
-            <div><span>Valuation method</span><strong>Exact matches</strong></div>
-          </div><p class="valuation-note" id="valuationNote">Based on matching market prices. <button id="methodButton" type="button">How it works</button></p></section>
-        </div>
-
-        <div class="view-tabs" role="tablist" aria-label="Collection view">
-          <button class="view-tab active" type="button" role="tab" aria-selected="true" data-ledger-view="all">All items <span id="allCount">0</span></button>
-          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="favorites">Favorites</button>
-          <button class="view-tab advanced-workspace" type="button" role="tab" aria-selected="false" data-ledger-view="graded">Graded</button>
-          <button class="view-tab advanced-workspace" type="button" role="tab" aria-selected="false" data-ledger-view="unpriced">Needs review</button>
-          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="for-sale">For sale <span id="forSaleCount">0</span></button>
-          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="watchlist">Watchlist <span id="watchlistCount">0</span></button>
-          <button class="view-tab" type="button" role="tab" aria-selected="false" data-ledger-view="sets">Sets <span id="setCount">0</span></button>
-        </div>
-
-        <section class="seller-desk hidden" id="sellerDesk" aria-live="polite"></section>
-
-        <div class="ledger-tools">
-          <label class="search-field">
-            <span class="sr-only">Search collection</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-            <input id="collectionSearch" type="search" placeholder="Search item, grade, cert, or storage" autocomplete="off">
-          </label>
-          <button class="tool-button" id="filterButton" type="button" aria-label="Filter and sort collection" aria-haspopup="dialog">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
-            <span id="filterLabel">Filter</span>
+        <div class="header-actions">
+          <button
+            class="avatar"
+            type="button"
+            data-route="profile"
+            aria-label="Open profile"
+          >
+            JD
           </button>
         </div>
+      </header>
 
-        <div class="ledger-meta">
-          <span id="resultCount">0 items</span>
-          <div class="ledger-meta-actions"><button id="selectPositionsButton" type="button" aria-pressed="false">Select</button><button id="sortButton" type="button">Value, high to low <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button></div>
-        </div>
-        <div class="card-ledger" id="cardLedger" aria-live="polite"></div>
-        <button class="load-more-positions" id="loadMorePositions" type="button" hidden>Show 100 more</button>
-        <div class="empty-state hidden" id="collectionEmpty">
-          <span class="empty-mark" aria-hidden="true"></span>
-          <h2 id="collectionEmptyTitle">No items in this view</h2>
-          <p id="collectionEmptyCopy">Try clearing the search or changing your filters.</p>
-          <div class="first-card-guide hidden" id="firstCardGuide" aria-label="How to add your first item"><div><b>1</b><span><strong>Find the exact item</strong><small>Search a card printing or sealed product.</small></span></div><div><b>2</b><span><strong>Add only what applies</strong><small>Cards ask raw or graded. Sealed products skip grading fields.</small></span></div><div><b>3</b><span><strong>Enter one total cost</strong><small>Use the full amount you paid. Mica handles the basis.</small></span></div></div>
-          <button class="quick-add hidden" id="emptyAddCard" type="button">Add your first item</button>
-          <button class="text-button" id="clearFilters" type="button">Clear filters</button>
-        </div>
-      </section>
-
-      <section class="view discovery-view" id="view-scan" aria-labelledby="scanTitle">
-        <div class="scan-header">
-          <p class="eyebrow">Find any Pokémon card</p>
-          <h1 id="scanTitle">Add cards or sealed</h1>
-          <p>Search identifies an exact card printing. Sealed search finds booster boxes, ETBs, tins, bundles, and collections.</p>
-        </div>
-        <div class="find-actions">
-          <label class="find-action primary-find" for="cameraInput"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M4 8h3l1-2h8l1 2h3v11H4z"/></svg><span><strong>AI card scan</strong><small>Identify a card or estimate a raw grade</small></span></label>
-          <label class="find-action" for="galleryInput"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m4 18 5-5 3 3 2-2 6 5"/></svg><span><strong>Use card photo</strong><small>Analyze a saved front image</small></span></label>
-          <label class="find-action receipt-find" for="receiptInput"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg><span><strong>Scan receipt or order</strong><small>Pull out purchase details and card lines</small></span><input id="receiptInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" hidden></label>
-        </div>
-        <div class="find-divider"><span>or search by name, set, number, or details</span></div>
-        <label class="find-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="quickCardSearch" type="search" placeholder="Mew ex 151/165" autocomplete="off" aria-label="Search cards by name, set, collector number, rarity, or finish"></label>
-        <div class="search-examples" aria-label="Search examples">
-          <button type="button" data-search-example="Mew ex 151/165">Mew ex 151/165</button>
-          <button type="button" data-search-example="Charizard Base Set 4/102">Charizard Base Set 4/102</button>
-          <button type="button" data-search-example="Pikachu 151">Pikachu 151</button>
-        </div>
-        <button class="sealed-search-launch" id="sealedSearchButton" type="button"><span><strong>Find sealed products</strong><small>Booster boxes, ETBs, tins, bundles, and collections</small></span><b>Search →</b></button>
-        <div class="search-options"><label for="quickSearchLanguage">Card language</label><select id="quickSearchLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div>
-        <section class="intake-queue-bar hidden" id="intakeQueueBar" aria-live="polite"><div><span>Rapid intake</span><strong id="intakeQueueCount">0 exact cards queued</strong></div><button id="reviewIntakeQueue" type="button">Review & add</button></section>
-        <div class="quick-results" id="quickSearchResults" aria-live="polite"><div class="find-empty"><strong>Find the exact printing</strong><span>Results show the set and card number so you can pick the right one.</span></div></div>
-        <p class="simple-privacy">AI photos are sent once for analysis and are not saved by Mica. Every identity, condition, grade estimate, and receipt line still requires your confirmation.</p>
-      </section>
-
-      <section class="view" id="view-scan-legacy" aria-labelledby="legacyScanTitle">
-        <div class="scan-header">
-          <p class="eyebrow">Add to collection</p>
-          <h1 id="legacyScanTitle">Scan a card</h1>
-          <p>We’ll read visible details, compare catalog records, then ask you to confirm the exact printing.</p>
-        </div>
-        <div class="capture-stage" id="captureStage">
-          <div class="camera-grid" aria-hidden="true"></div>
-          <div class="card-guide" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-          <div class="capture-preview" id="capturePreview">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4z"/><circle cx="12" cy="13" r="3.2"/></svg>
-            <strong>Position one card inside the frame</strong>
-            <span>Use a plain background and avoid glare</span>
+      <main id="main" tabindex="-1">
+        <section
+          class="view active"
+          id="view-collection"
+          aria-labelledby="collectionTitle"
+        >
+          <div class="collection-heading">
+            <div>
+              <p class="eyebrow">Portfolio command center</p>
+              <h1 id="collectionTitle">Welcome back</h1>
+              <p class="collection-subtitle">
+                Here’s your collection overview.
+              </p>
+            </div>
+            <div class="collection-actions">
+              <button class="quick-add" type="button" data-sidebar-target="add">
+                + Add Cards</button
+              ><button
+                class="icon-button"
+                id="moreButton"
+                type="button"
+                aria-label="More library options"
+                aria-expanded="false"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="5" cy="12" r="1.5" />
+                  <circle cx="12" cy="12" r="1.5" />
+                  <circle cx="19" cy="12" r="1.5" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <div class="quality-chip" id="qualityChip"><span></span> Ready for a clear photo</div>
-        </div>
-        <div class="capture-controls">
-          <label class="primary-action capture-action">
-            <input id="cameraInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M4 8h3l1-2h8l1 2h3v11H4z"/></svg>
-            Take photo
-          </label>
-          <label class="secondary-action capture-action">
-            <input id="galleryInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden>
-            Choose from library
-          </label>
-        </div>
-        <div class="privacy-note">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
-          <p><strong>Your photo is temporary.</strong> Mica sends it once for AI analysis, does not write it to storage, and saves nothing until you confirm the result.</p>
-        </div>
-        <div class="manual-divider"><span>or</span></div>
-        <button class="manual-search-card" id="manualSearchButton" type="button">
-          <span><strong>Search the catalog manually</strong><small>Best for partial cards, slabs, or unsupported languages</small></span>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-        </button>
-      </section>
 
-      <section class="view" id="view-insights" aria-labelledby="insightsTitle">
-        <div class="screen-heading"><p class="eyebrow">Your collection</p><h1 id="insightsTitle">Market</h1><p id="insightsIntro">See what needs attention, how your inventory is performing, and where prices come from.</p></div>
-        <section class="workspace-lens" id="workspaceLens"><div><span>Guided workspace</span><strong>The essentials are up front</strong><small>Market value, realistic take-home, and simple next steps stay visible. Seller reporting is one tap away.</small></div><button id="workspaceExpand" type="button">Show seller tools</button></section>
-        <div class="insight-feature">
-          <div class="insight-kicker">Pricing status</div>
-          <strong>Connecting to provider…</strong>
-          <span>Current quotes remain separate from historical movement.</span>
-        </div>
-        <h2 class="section-heading action-center-heading">What should I do next?</h2>
-        <div id="businessReview" class="business-review"></div>
-        <h2 class="section-heading">What changed</h2>
-        <div id="moversList" class="movers-list"></div>
-        <h2 class="section-heading">Portfolio positions</h2>
-        <div id="positionRankings" class="movers-list"></div>
-        <section class="liquidation-planner" aria-labelledby="liquidationTitle">
-          <div class="liquidation-head">
-            <div><span>Exit scenario</span><h2 id="liquidationTitle">What could I actually take home?</h2><p>Turn matching market references into a realistic sale estimate. Your assumptions stay on this device and nothing is listed or sold.</p></div>
-            <button id="liquidationExport" type="button" disabled>Download scenario CSV</button>
+          <section class="dashboard-kpis" aria-label="Portfolio summary">
+            <article class="dashboard-kpi primary">
+              <div class="portfolio-topline">
+                <span>Total collection value</span
+                ><span class="status-label" aria-live="polite"
+                  ><i></i> Checking prices</span
+                >
+              </div>
+              <strong class="portfolio-value" id="portfolioValue">$0.00</strong
+              ><small class="portfolio-change" id="portfolioChange"></small>
+            </article>
+            <article class="dashboard-kpi">
+              <span>Total cards</span><strong id="ownedCount">0</strong
+              ><small id="freshCoverage">0 live prices</small>
+            </article>
+            <article class="dashboard-kpi">
+              <span>Graded cards</span><strong id="gradedOwnedCount">0</strong
+              ><small id="gradedShare">0% of collection</small>
+            </article>
+            <article class="dashboard-kpi">
+              <span>Sealed products</span
+              ><strong id="sealedOwnedCount">0</strong
+              ><small id="sealedShare">0% of collection</small>
+            </article>
+          </section>
+          <div class="dashboard-analytics-grid">
+            <section
+              class="portfolio-history-panel"
+              id="portfolioHistory"
+              aria-label="Portfolio performance history"
+              aria-live="polite"
+            >
+              <div class="portfolio-history-empty">
+                <strong>Portfolio performance</strong
+                ><span
+                  >Mica is building your exact-compatible performance
+                  history.</span
+                >
+              </div>
+            </section>
+            <section
+              class="portfolio-detail-panel"
+              aria-label="Portfolio performance details"
+            >
+              <div class="panel-heading">
+                <div>
+                  <span>Portfolio snapshot</span
+                  ><strong>Performance & coverage</strong>
+                </div>
+              </div>
+              <div class="portfolio-detail-grid">
+                <div>
+                  <span>You paid</span><strong id="costBasis">$0.00</strong>
+                </div>
+                <div>
+                  <span id="gainLabel">Gain / loss</span
+                  ><strong id="unrealized">—</strong>
+                </div>
+                <div>
+                  <span>Return</span><strong id="portfolioReturn">—</strong>
+                </div>
+                <div>
+                  <span>Realized gain/loss</span
+                  ><strong id="realizedGain">—</strong>
+                </div>
+                <div>
+                  <span>Raw / graded / sealed</span
+                  ><strong id="allocationSummary">—</strong>
+                </div>
+                <div>
+                  <span>Valuation method</span><strong>Exact matches</strong>
+                </div>
+              </div>
+              <p class="valuation-note" id="valuationNote">
+                Based on matching market prices.
+                <button id="methodButton" type="button">How it works</button>
+              </p>
+            </section>
           </div>
-          <div class="liquidation-controls">
-            <label>Expected sale price<small>Percent of shown reference</small><div class="suffix-input"><input id="liquidationReferencePercent" type="number" inputmode="decimal" min="0" max="500" step="0.1" value="100"><span>%</span></div></label>
-            <label>Selling fee<small>Use your venue's current rate</small><div class="suffix-input"><input id="liquidationFeePercent" type="number" inputmode="decimal" min="0" max="99.9" step="0.1" value="0"><span>%</span></div></label>
-            <label>Total other selling costs<small>Shipping, supplies, travel, or insurance</small><div class="money-input"><span>$</span><input id="liquidationSellingCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></label>
+
+          <div class="view-tabs" role="tablist" aria-label="Collection view">
+            <button
+              class="view-tab active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              data-ledger-view="all"
+            >
+              All items <span id="allCount">0</span>
+            </button>
+            <button
+              class="view-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-ledger-view="all"
+              data-condition-filter="Raw"
+            >
+              Raw <span id="rawCount">0</span>
+            </button>
+            <button
+              class="view-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-ledger-view="all"
+              data-condition-filter="Graded"
+            >
+              Graded <span id="gradedCount">0</span>
+            </button>
+            <button
+              class="view-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-ledger-view="all"
+              data-condition-filter="Sealed"
+            >
+              Sealed <span id="sealedCount">0</span>
+            </button>
+            <button
+              class="view-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-ledger-view="favorites"
+            >
+              Favorites <span id="favoritesCount">0</span>
+            </button>
+            <details class="collection-more">
+              <summary>More views</summary>
+              <div>
+                <button
+                  class="view-tab"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  data-ledger-view="for-sale"
+                >
+                  For sale <span id="forSaleCount">0</span>
+                </button>
+                <button
+                  class="view-tab"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  data-ledger-view="watchlist"
+                >
+                  Watchlist <span id="watchlistCount">0</span>
+                </button>
+                <button
+                  class="view-tab"
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  data-ledger-view="sets"
+                >
+                  Set progress <span id="setCount">0</span>
+                </button>
+              </div>
+            </details>
           </div>
-          <div id="liquidationOutput" class="liquidation-output" aria-live="polite"></div>
-          <p id="liquidationNote" class="liquidation-note">Starts at 100% of reference with no fee assumed. Enter the actual terms you expect; Mica does not hard-code a marketplace rate.</p>
+
+          <section
+            class="seller-desk hidden"
+            id="sellerDesk"
+            aria-live="polite"
+          ></section>
+
+          <div class="ledger-tools">
+            <label class="search-field">
+              <span class="sr-only">Search collection</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="m16 16 4 4" />
+              </svg>
+              <input
+                id="collectionSearch"
+                type="search"
+                placeholder="Search item, grade, cert, or storage"
+                autocomplete="off"
+              />
+            </label>
+            <button
+              class="tool-button"
+              id="filterButton"
+              type="button"
+              aria-label="Filter and sort collection"
+              aria-haspopup="dialog"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h16M7 12h10M10 17h4" />
+              </svg>
+              <span id="filterLabel">Filter</span>
+            </button>
+          </div>
+
+          <div class="ledger-meta">
+            <span id="resultCount">0 items</span>
+            <div class="ledger-meta-actions">
+              <button
+                id="selectPositionsButton"
+                type="button"
+                aria-pressed="false"
+              >
+                Select</button
+              ><button id="sortButton" type="button">
+                Value, high to low
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="m4 6 4 4 4-4" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="card-ledger" id="cardLedger" aria-live="polite"></div>
+          <button
+            class="load-more-positions"
+            id="loadMorePositions"
+            type="button"
+            hidden
+          >
+            Show 100 more
+          </button>
+          <div class="empty-state hidden" id="collectionEmpty">
+            <span class="empty-mark" aria-hidden="true"></span>
+            <h2 id="collectionEmptyTitle">No items in this view</h2>
+            <p id="collectionEmptyCopy">
+              Try clearing the search or changing your filters.
+            </p>
+            <div
+              class="first-card-guide hidden"
+              id="firstCardGuide"
+              aria-label="How to add your first item"
+            >
+              <div>
+                <b>1</b
+                ><span
+                  ><strong>Find the exact item</strong
+                  ><small
+                    >Search a card printing or sealed product.</small
+                  ></span
+                >
+              </div>
+              <div>
+                <b>2</b
+                ><span
+                  ><strong>Add only what applies</strong
+                  ><small
+                    >Cards ask raw or graded. Sealed products skip grading
+                    fields.</small
+                  ></span
+                >
+              </div>
+              <div>
+                <b>3</b
+                ><span
+                  ><strong>Enter one total cost</strong
+                  ><small
+                    >Use the full amount you paid. Mica handles the
+                    basis.</small
+                  ></span
+                >
+              </div>
+            </div>
+            <button class="quick-add hidden" id="emptyAddCard" type="button">
+              Add your first item
+            </button>
+            <button class="text-button" id="clearFilters" type="button">
+              Clear filters
+            </button>
+          </div>
         </section>
-        <section class="inventory-health-card advanced-workspace" aria-labelledby="inventoryHealthTitle"><div class="inventory-health-head"><span>Portfolio health</span><h2 id="inventoryHealthTitle">Concentration & aging</h2><p>See where portfolio value is concentrated and how long remaining purchase lots have tied up capital.</p></div><div id="inventoryHealth"></div><p class="inventory-health-note" id="inventoryHealthNote"></p></section>
-        <section class="grading-batch-launch advanced-workspace" aria-labelledby="batchGradingLaunchTitle"><div><span>Submission builder</span><h2 id="batchGradingLaunchTitle">Plan multiple cards together</h2><p>Share shipping and insurance across a batch, then compare expected graded value with selling raw.</p><small id="batchGradingCount">Add a raw card to begin</small></div><button id="batchGradingButton" type="button">Plan a grading batch</button></section>
-        <section class="business-report advanced-workspace" aria-labelledby="businessReportTitle"><div class="business-report-head"><div><span>Business performance</span><h2 id="businessReportTitle">Sales & cash flow</h2><p id="businessReportPeriod">Last 90 days</p></div><div class="business-report-actions"><label for="businessRange">Period<select id="businessRange"><option value="30d">30 days</option><option value="90d" selected>90 days</option><option value="ytd">Year to date</option><option value="all">All time</option></select></label><button id="businessExport" type="button" disabled>Download CSV</button></div></div><div class="business-report-metrics" id="businessReportMetrics"></div><p class="business-report-note" id="businessReportNote"></p></section>
-        <div class="advanced-workspace"><h2 class="section-heading">Recent activity</h2><div id="recentActivity" class="movers-list"></div><div class="data-boundary"><strong>No sales history connected</strong><p>Mica does not infer completed sales from active listings. Add a licensed sales-history provider when approved.</p></div></div>
-      </section>
 
-      <section class="view trade-view" id="view-trade" aria-labelledby="tradeTitle">
-        <div class="screen-heading"><p class="eyebrow">Deal confidence</p><h1 id="tradeTitle">Trade check</h1><p>Put both sides of a trade in one place. Mica totals the agreed values and shows the difference without guessing.</p></div>
-        <section class="trade-verdict neutral" id="tradeVerdict" aria-live="polite"><span>Start a trade</span><strong>Add cards to both sides to compare the deal.</strong><small id="tradeBalanceHelp">You can use market references or type the value both people agreed on.</small></section>
-        <div class="trade-share-actions"><button id="copyTradeSummary" type="button" disabled>Copy deal summary</button><span>No notes, costs, storage, or account details are shared.</span></div>
-        <div class="trade-sides">
-          <section class="trade-side" aria-labelledby="tradeGiveTitle"><div class="trade-side-head"><div><span>You give</span><h2 id="tradeGiveTitle">Leaving your collection</h2></div><strong id="tradeGiveTotal">$0.00</strong></div><div class="trade-items" id="tradeGiveItems"></div><div class="field trade-cash"><label for="tradeGiveCash">Cash you add</label><div class="money-input"><span>$</span><input id="tradeGiveCash" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></section>
-          <section class="trade-side receive" aria-labelledby="tradeReceiveTitle"><div class="trade-side-head"><div><span>You receive</span><h2 id="tradeReceiveTitle">Coming into your collection</h2></div><strong id="tradeReceiveTotal">$0.00</strong></div><div class="trade-items" id="tradeReceiveItems"></div><div class="field trade-cash"><label for="tradeReceiveCash">Cash they add</label><div class="money-input"><span>$</span><input id="tradeReceiveCash" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></section>
-        </div>
-        <section class="trade-add" aria-labelledby="tradeAddTitle"><div class="trade-add-head"><div><p class="eyebrow">Build the deal</p><h2 id="tradeAddTitle">Add a card</h2></div><button id="resetTradeButton" type="button">Reset trade</button></div><div class="trade-side-toggle" role="group" aria-label="Choose which side receives the next card"><button type="button" data-trade-side="give" aria-pressed="true">Add to You give</button><button type="button" data-trade-side="receive" aria-pressed="false">Add to You receive</button></div><label class="find-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="tradeCardSearch" type="search" placeholder="Search card name, set, or number" autocomplete="off" aria-label="Search for a card to add to the trade"></label><div class="trade-search-results" id="tradeSearchResults"><div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing, then set the value used for this trade.</span></div></div><div class="trade-owned" id="tradeOwned"></div></section>
-        <p class="legal-copy">Trade Check is a planning tool, not an appraisal. Condition, grade, authenticity, venue, fees, and personal preference can change a fair deal.</p>
-      </section>
-
-      <section class="view" id="view-profile" aria-labelledby="profileTitle">
-        <div class="screen-heading"><p class="eyebrow">Account & preferences</p><h1 id="profileTitle">Your Mica account</h1><p>Your portfolio follows you across signed-in devices.</p></div>
-        <div class="profile-card"><div class="profile-avatar">ME</div><div><strong>Your collection</strong><span>Securely synced to your account</span></div><span class="plan-badge">Preview</span></div>
-        <div class="settings-group appearance-settings">
-          <h2>Interface style · this device</h2>
-          <div class="theme-options" role="group" aria-label="Choose Mica's interface style">
-            <button type="button" data-ui-theme-option="clean" aria-pressed="false"><span class="theme-preview clean-preview" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Clean modern</strong><small>Concept 2 · bright, spacious, and easy to scan</small></span><b>Light</b></button>
-            <button type="button" data-ui-theme-option="analytics" aria-pressed="false"><span class="theme-preview analytics-preview" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span><strong>Analytics focused</strong><small>Concept 5 · dark, compact, and data forward</small></span><b>Dark</b></button>
+        <section
+          class="view discovery-view"
+          id="view-scan"
+          aria-labelledby="scanTitle"
+        >
+          <div class="scan-header">
+            <p class="eyebrow">Find any Pokémon card</p>
+            <h1 id="scanTitle">Add cards or sealed</h1>
+            <p>
+              Search identifies an exact card printing. Sealed search finds
+              booster boxes, ETBs, tins, bundles, and collections.
+            </p>
           </div>
-          <p id="uiThemeHelp">Change this any time. Your collection and calculations stay exactly the same.</p>
-        </div>
-        <div class="settings-group workspace-settings">
-          <h2>Workspace depth · this device</h2>
-          <div class="workspace-options" role="group" aria-label="Choose how much detail Mica shows">
-            <button type="button" data-workspace-mode="guided" aria-pressed="false"><span><strong>Guided</strong><small>Plain language and essential collection decisions</small></span><b>New collector</b></button>
-            <button type="button" data-workspace-mode="growth" aria-pressed="false"><span><strong>Growing seller</strong><small>Portfolio tools, grading, sales, and profit reporting</small></span><b>Side hustle</b></button>
-            <button type="button" data-workspace-mode="pro" aria-pressed="false"><span><strong>Pro desk</strong><small>All tools with denser inventory views for daily work</small></span><b>Full time</b></button>
+          <div class="find-actions">
+            <button
+              class="find-action primary-find"
+              id="autoCaptureButton"
+              type="button"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 8h3l1-2h8l1 2h3v11H4z" />
+                <circle cx="12" cy="13" r="4" />
+                <path d="M2 6V3h3M19 3h3v3M22 18v3h-3M5 21H2v-3" /></svg
+              ><span
+                ><strong>Snap a photo</strong
+                ><small>Use the camera to identify and add a card</small></span
+              >
+            </button>
+            <label class="find-action" for="galleryInput"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
+                <circle cx="9" cy="10" r="2" />
+                <path d="m4 18 5-5 3 3 2-2 6 5" /></svg
+              ><span
+                ><strong>Choose from photo library</strong
+                ><small>Identify a card from an existing photo</small></span
+              ></label
+            >
+            <button
+              class="find-action receipt-find"
+              id="receiptCameraButton"
+              type="button"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+                <path d="M9 8h6M9 12h6M9 16h3" /></svg
+              ><span
+                ><strong>Scan receipt or order</strong
+                ><small
+                  >Open the live camera and capture the document</small
+                ></span
+              >
+            </button>
           </div>
-          <p id="workspaceModeHelp">Change this any time. Your cards and calculations never change—only the amount of detail on screen.</p>
-        </div>
-        <div class="settings-group">
-          <h2>Collection</h2>
-          <button type="button" id="sharePortfolioButton"><span>Share a portfolio snapshot<small>Privacy-safe summary with an exact preview</small></span><b>›</b></button>
-          <button type="button" id="importButton"><span>Import a collection CSV<small>Up to 5,000 positions · progress, pause, and safe retry</small></span><b>›</b></button>
-          <button type="button" id="exportButton"><span>Complete account backup<small>Cards, transactions, purchase lots, and watchlist · JSON</small></span><b>›</b></button>
-          <button type="button" id="exportCsvButton"><span>Download collection CSV<small>Importable copy of your current positions</small></span><b>›</b></button>
-          <button type="button" id="insuranceReportButton"><span>Insurance inventory report<small>Print or save a private record with values and locations</small></span><b>›</b></button>
-          <input id="csvInput" type="file" accept=".csv,text/csv" hidden>
-        </div>
-        <div class="settings-group">
-          <h2>Preferences</h2>
-          <button type="button" id="installAppButton"><span>Install Mica on this device<small id="installAppHelp">Open from your home screen with offline access</small></span><strong id="installAppState">Check</strong></button>
-          <button type="button" id="currencyButton"><span>Display currency<small>Source currencies remain visible</small></span><strong>USD</strong></button>
-          <button type="button" id="motionButton"><span>Motion<small id="motionHelp">Follow your device preference · select to change</small></span><strong id="motionState">Auto</strong></button>
-          <button type="button" id="targetAlertButton"><span>Buy target alerts<small id="targetAlertHelp">Alert while Mica is open and prices refresh</small></span><strong id="targetAlertState">Off</strong></button>
-        </div>
-        <div class="settings-group">
-          <h2>Trust & privacy</h2>
-          <button type="button" data-info="sources"><span>Data sources & attribution</span><b>›</b></button>
-          <button type="button" data-info="retention"><span>Scan retention</span><b>›</b></button>
-          <button type="button" data-info="privacy"><span>Privacy & account deletion</span><b>›</b></button>
-        </div>
-        <p class="legal-copy">Mica is an independent collection tool and is not affiliated with or endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak, TCGplayer, Cardmarket, eBay, PSA, CGC, or Beckett.</p>
-      </section>
+          <div class="find-divider">
+            <span>or search by name, set, number, or details</span>
+          </div>
+          <label class="find-search"
+            ><svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="m16 16 4 4" /></svg
+            ><input
+              id="quickCardSearch"
+              type="search"
+              placeholder="Mew ex 151/165"
+              autocomplete="off"
+              aria-label="Search cards by name, set, collector number, rarity, or finish"
+          /></label>
+          <div class="search-examples" aria-label="Search examples">
+            <button type="button" data-search-example="Mew ex 151/165">
+              Mew ex 151/165
+            </button>
+            <button
+              type="button"
+              data-search-example="Charizard Base Set 4/102"
+            >
+              Charizard Base Set 4/102
+            </button>
+            <button type="button" data-search-example="Pikachu 151">
+              Pikachu 151
+            </button>
+          </div>
+          <button
+            class="sealed-search-launch"
+            id="sealedSearchButton"
+            type="button"
+          >
+            <span
+              ><strong>Find sealed products</strong
+              ><small
+                >Booster boxes, ETBs, tins, bundles, and collections</small
+              ></span
+            ><b>Search →</b>
+          </button>
+          <div class="search-options">
+            <label for="quickSearchLanguage">Card language</label
+            ><select id="quickSearchLanguage">
+              <option value="en">English</option>
+              <option value="ja">Japanese</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="es">Spanish</option>
+              <option value="it">Italian</option>
+              <option value="pt">Portuguese</option>
+              <option value="zh-tw">Traditional Chinese</option>
+              <option value="id">Indonesian</option>
+              <option value="th">Thai</option>
+            </select>
+          </div>
+          <section
+            class="intake-queue-bar hidden"
+            id="intakeQueueBar"
+            aria-live="polite"
+          >
+            <div>
+              <span>Rapid intake</span
+              ><strong id="intakeQueueCount">0 exact cards queued</strong>
+            </div>
+            <button id="reviewIntakeQueue" type="button">Review & add</button>
+          </section>
+          <div class="quick-results" id="quickSearchResults" aria-live="polite">
+            <div class="find-empty">
+              <strong>Find the exact printing</strong
+              ><span
+                >Results show the set and card number so you can pick the right
+                one.</span
+              >
+            </div>
+          </div>
+          <p class="simple-privacy">
+            AI photos are sent once for analysis and are not saved by Mica.
+            Every identity, condition, grade estimate, and receipt line still
+            requires your confirmation.
+          </p>
+        </section>
 
-      <section class="view detail-view" id="view-detail" aria-labelledby="detailTitle">
-        <div id="detailContent"></div>
-      </section>
-    </main>
+        <section
+          class="view"
+          id="view-scan-legacy"
+          aria-labelledby="legacyScanTitle"
+        >
+          <div class="scan-header">
+            <p class="eyebrow">Add to collection</p>
+            <h1 id="legacyScanTitle">Scan a card</h1>
+            <p>
+              We’ll read visible details, compare catalog records, then ask you
+              to confirm the exact printing.
+            </p>
+          </div>
+          <div class="capture-stage" id="captureStage">
+            <div class="camera-grid" aria-hidden="true"></div>
+            <div class="card-guide" aria-hidden="true">
+              <i></i><i></i><i></i><i></i>
+            </div>
+            <div class="capture-preview" id="capturePreview">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4z" />
+                <circle cx="12" cy="13" r="3.2" />
+              </svg>
+              <strong>Position one card inside the frame</strong>
+              <span>Use a plain background and avoid glare</span>
+            </div>
+            <div class="quality-chip" id="qualityChip">
+              <span></span> Ready for a clear photo
+            </div>
+          </div>
+          <div class="capture-controls">
+            <button
+              class="primary-action capture-action"
+              id="legacyCameraButton"
+              type="button"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M4 8h3l1-2h8l1 2h3v11H4z" />
+              </svg>
+              Open camera
+            </button>
+            <label class="secondary-action capture-action">
+              <input
+                id="galleryInput"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                hidden
+              />
+              Choose from library
+            </label>
+          </div>
+          <div class="privacy-note">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="5" y="10" width="14" height="10" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            </svg>
+            <p>
+              <strong>Your photo is temporary.</strong> Mica sends it once for
+              AI analysis, does not write it to storage, and saves nothing until
+              you confirm the result.
+            </p>
+          </div>
+          <div class="manual-divider"><span>or</span></div>
+          <button
+            class="manual-search-card"
+            id="manualSearchButton"
+            type="button"
+          >
+            <span
+              ><strong>Search the catalog manually</strong
+              ><small
+                >Best for partial cards, slabs, or unsupported languages</small
+              ></span
+            >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 6 6 6-6 6" />
+            </svg>
+          </button>
+        </section>
 
-    <nav class="bottom-nav" aria-label="Primary navigation">
-      <button class="nav-item active" type="button" data-route="collection"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5"/></svg><span>Library</span></button>
-      <button class="nav-item scan-nav" type="button" data-route="scan"><span class="scan-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Add item</span></button>
-      <button class="nav-item" type="button" data-route="insights"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18V9M10 18V5M16 18v-7M21 18H3"/></svg><span>Market</span></button>
-      <button class="nav-item" type="button" data-route="trade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"/></svg><span>Trade</span></button>
-      <button class="nav-item" type="button" data-route="profile"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg><span>Profile</span></button>
-    </nav>
-    <div class="bulk-organize-bar" id="bulkOrganizeBar" aria-live="polite" hidden><strong id="bulkSelectedCount">0 selected</strong><button id="bulkSelectShown" type="button">Select shown</button><button id="bulkShareButton" type="button" disabled>Share list</button><button id="bulkOrganizeButton" type="button" disabled>Organize</button><button id="bulkDoneButton" type="button">Done</button></div>
-  </div>
+        <section
+          class="view"
+          id="view-insights"
+          aria-labelledby="insightsTitle"
+        >
+          <div class="screen-heading">
+            <p class="eyebrow">Your collection</p>
+            <h1 id="insightsTitle">Market</h1>
+            <p id="insightsIntro">
+              See what needs attention, how your inventory is performing, and
+              where prices come from.
+            </p>
+          </div>
+          <div class="insight-feature">
+            <div class="insight-kicker">Pricing status</div>
+            <strong>Connecting to provider…</strong>
+            <span
+              >Current quotes remain separate from historical movement.</span
+            >
+          </div>
+          <h2 class="section-heading action-center-heading">
+            What should I do next?
+          </h2>
+          <div id="businessReview" class="business-review"></div>
+          <h2 class="section-heading">What changed</h2>
+          <div id="moversList" class="movers-list"></div>
+          <h2 class="section-heading">Your most valuable cards</h2>
+          <div id="positionRankings" class="movers-list"></div>
+          <section
+            class="liquidation-planner"
+            aria-labelledby="liquidationTitle"
+          >
+            <div class="liquidation-head">
+              <div>
+                <span>Exit scenario</span>
+                <h2 id="liquidationTitle">What could I actually take home?</h2>
+                <p>
+                  See a quick-sale estimate using your saved defaults. Nothing
+                  is listed or sold.
+                </p>
+              </div>
+              <button id="liquidationExport" type="button" disabled>
+                Download scenario CSV
+              </button>
+            </div>
+            <div class="liquidation-controls">
+              <label
+                >Expected sale price<small>Percent of shown reference</small>
+                <div class="suffix-input">
+                  <input
+                    id="liquidationReferencePercent"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    max="500"
+                    step="0.1"
+                    value="80"
+                  /><span>%</span>
+                </div></label
+              >
+              <label
+                >Selling fee<small>Use your venue's current rate</small>
+                <div class="suffix-input">
+                  <input
+                    id="liquidationFeePercent"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    max="99.9"
+                    step="0.1"
+                    value="0"
+                  /><span>%</span>
+                </div></label
+              >
+              <label
+                >Total other selling costs<small
+                  >Shipping, supplies, travel, or insurance</small
+                >
+                <div class="money-input">
+                  <span>$</span
+                  ><input
+                    id="liquidationSellingCosts"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    step="0.01"
+                    value="0.00"
+                  /></div
+              ></label>
+            </div>
+            <div
+              id="liquidationOutput"
+              class="liquidation-output"
+              aria-live="polite"
+            ></div>
+            <p id="liquidationNote" class="liquidation-note">
+              Uses your saved direct-sale defaults. Change them here for this
+              scenario or in Settings for future estimates.
+            </p>
+          </section>
+          <details class="seller-tools-disclosure">
+            <summary>
+              <span>Seller &amp; grading tools</span
+              ><small
+                >Inventory health, grading batches, sales, and cash flow</small
+              >
+            </summary>
+            <section
+              class="inventory-health-card"
+              aria-labelledby="inventoryHealthTitle"
+            >
+              <div class="inventory-health-head">
+                <span>Inventory health</span>
+                <h2 id="inventoryHealthTitle">Where your money is tied up</h2>
+                <p>
+                  See which cards hold most of your collection value and which
+                  purchases have been waiting the longest.
+                </p>
+              </div>
+              <div id="inventoryHealth"></div>
+              <p class="inventory-health-note" id="inventoryHealthNote"></p>
+            </section>
+            <section
+              class="grading-batch-launch"
+              aria-labelledby="batchGradingLaunchTitle"
+            >
+              <div>
+                <span>Submission builder</span>
+                <h2 id="batchGradingLaunchTitle">
+                  Plan multiple cards together
+                </h2>
+                <p>
+                  Share shipping and insurance across a batch, then compare
+                  expected graded value with selling raw.
+                </p>
+                <small id="batchGradingCount">Add a raw card to begin</small>
+              </div>
+              <button id="batchGradingButton" type="button">
+                Plan a grading batch
+              </button>
+            </section>
+            <section
+              class="business-report"
+              aria-labelledby="businessReportTitle"
+            >
+              <div class="business-report-head">
+                <div>
+                  <span>Business performance</span>
+                  <h2 id="businessReportTitle">Sales & cash flow</h2>
+                  <p id="businessReportPeriod">Last 90 days</p>
+                </div>
+                <div class="business-report-actions">
+                  <label for="businessRange"
+                    >Period<select id="businessRange">
+                      <option value="30d">30 days</option>
+                      <option value="90d" selected>90 days</option>
+                      <option value="ytd">Year to date</option>
+                      <option value="all">All time</option>
+                    </select></label
+                  ><button id="businessExport" type="button" disabled>
+                    Download CSV
+                  </button>
+                </div>
+              </div>
+              <div
+                class="business-report-metrics"
+                id="businessReportMetrics"
+              ></div>
+              <p class="business-report-note" id="businessReportNote"></p>
+            </section>
+            <div>
+              <h2 class="section-heading">Recent activity</h2>
+              <div id="recentActivity" class="movers-list"></div>
+              <div class="data-boundary">
+                <strong>No sales history connected</strong>
+                <p>
+                  Mica does not infer completed sales from active listings. Add
+                  a licensed sales-history provider when approved.
+                </p>
+              </div>
+            </div>
+          </details>
+        </section>
 
-  <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
-  <section class="bottom-sheet" id="bottomSheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
-    <div class="sheet-handle" aria-hidden="true"></div>
-    <div id="sheetContent"></div>
-  </section>
-  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
-  <script src="app-config.js?v=69"></script>
-  <script type="module" src="app.js?v=81"></script>
-</body>
+        <section
+          class="view trade-view"
+          id="view-trade"
+          aria-labelledby="tradeTitle"
+        >
+          <div class="screen-heading">
+            <p class="eyebrow">Deal confidence</p>
+            <h1 id="tradeTitle">Trade check</h1>
+            <p>
+              Add the cards and cash on each side. Mica uses matching market
+              values automatically and shows the difference.
+            </p>
+          </div>
+          <section
+            class="trade-verdict neutral"
+            id="tradeVerdict"
+            aria-live="polite"
+          >
+            <span>Start a trade</span
+            ><strong>Add cards to both sides to compare the deal.</strong
+            ><small id="tradeBalanceHelp"
+              >Market estimates are automatic. You can still override one for an
+              unusual deal.</small
+            >
+          </section>
+          <div class="trade-share-actions">
+            <button id="copyTradeSummary" type="button" disabled>
+              Copy deal summary</button
+            ><span
+              >No notes, costs, storage, or account details are shared.</span
+            >
+          </div>
+          <div class="trade-sides">
+            <section class="trade-side" aria-labelledby="tradeGiveTitle">
+              <div class="trade-side-head">
+                <div>
+                  <span>You give</span>
+                  <h2 id="tradeGiveTitle">Leaving your collection</h2>
+                </div>
+                <strong id="tradeGiveTotal">$0.00</strong>
+              </div>
+              <div class="trade-items" id="tradeGiveItems"></div>
+              <div class="field trade-cash">
+                <label for="tradeGiveCash">Cash you add</label>
+                <div class="money-input">
+                  <span>$</span
+                  ><input
+                    id="tradeGiveCash"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    step="0.01"
+                    value="0.00"
+                  />
+                </div>
+              </div>
+            </section>
+            <section
+              class="trade-side receive"
+              aria-labelledby="tradeReceiveTitle"
+            >
+              <div class="trade-side-head">
+                <div>
+                  <span>You receive</span>
+                  <h2 id="tradeReceiveTitle">Coming into your collection</h2>
+                </div>
+                <strong id="tradeReceiveTotal">$0.00</strong>
+              </div>
+              <div class="trade-items" id="tradeReceiveItems"></div>
+              <div class="field trade-cash">
+                <label for="tradeReceiveCash">Cash they add</label>
+                <div class="money-input">
+                  <span>$</span
+                  ><input
+                    id="tradeReceiveCash"
+                    type="number"
+                    inputmode="decimal"
+                    min="0"
+                    step="0.01"
+                    value="0.00"
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
+          <section class="trade-add" aria-labelledby="tradeAddTitle">
+            <div class="trade-add-head">
+              <div>
+                <p class="eyebrow">Add either side</p>
+                <h2 id="tradeAddTitle">Find or scan a card</h2>
+              </div>
+              <button id="resetTradeButton" type="button">Reset trade</button>
+            </div>
+            <button class="trade-camera" id="tradeCameraButton" type="button">
+              Snap their card
+            </button>
+            <div
+              class="trade-side-toggle"
+              role="group"
+              aria-label="Choose which side receives the next card"
+            >
+              <button type="button" data-trade-side="give" aria-pressed="true">
+                Add to You give</button
+              ><button
+                type="button"
+                data-trade-side="receive"
+                aria-pressed="false"
+              >
+                Add to You receive
+              </button>
+            </div>
+            <label class="find-search"
+              ><svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="m16 16 4 4" /></svg
+              ><input
+                id="tradeCardSearch"
+                type="search"
+                placeholder="Search card name, set, or number"
+                autocomplete="off"
+                aria-label="Search for a card to add to the trade"
+            /></label>
+            <div class="trade-search-results" id="tradeSearchResults">
+              <div class="find-empty">
+                <strong>Search the catalog</strong
+                ><span
+                  >Pick the exact printing. Mica fills its matching market
+                  estimate automatically.</span
+                >
+              </div>
+            </div>
+            <div class="trade-owned" id="tradeOwned"></div>
+          </section>
+          <p class="legal-copy">
+            Trade Check is a planning tool, not an appraisal. Condition, grade,
+            authenticity, venue, fees, and personal preference can change a fair
+            deal.
+          </p>
+        </section>
+
+        <section class="view" id="view-profile" aria-labelledby="profileTitle">
+          <div class="screen-heading">
+            <p class="eyebrow">Account & preferences</p>
+            <h1 id="profileTitle">Your Mica account</h1>
+            <p>Your portfolio follows you across signed-in devices.</p>
+          </div>
+          <div class="profile-card">
+            <div class="profile-avatar">ME</div>
+            <div>
+              <strong>Your collection</strong
+              ><span>Securely synced to your account</span>
+            </div>
+            <span class="plan-badge">Preview</span>
+          </div>
+          <div class="settings-group appearance-settings">
+            <h2>Interface style · this device</h2>
+            <div
+              class="theme-options"
+              role="group"
+              aria-label="Choose Mica's interface style"
+            >
+              <button
+                type="button"
+                data-ui-theme-option="clean"
+                aria-pressed="false"
+              >
+                <span class="theme-preview clean-preview" aria-hidden="true"
+                  ><i></i><i></i><i></i><i></i></span
+                ><span
+                  ><strong>Clean modern</strong
+                  ><small
+                    >Concept 2 · bright, spacious, and easy to scan</small
+                  ></span
+                ><b>Light</b>
+              </button>
+              <button
+                type="button"
+                data-ui-theme-option="analytics"
+                aria-pressed="false"
+              >
+                <span class="theme-preview analytics-preview" aria-hidden="true"
+                  ><i></i><i></i><i></i><i></i></span
+                ><span
+                  ><strong>Analytics focused</strong
+                  ><small
+                    >Concept 5 · dark, compact, and data forward</small
+                  ></span
+                ><b>Dark</b>
+              </button>
+            </div>
+            <p id="uiThemeHelp">
+              Change this any time. Your collection and calculations stay
+              exactly the same.
+            </p>
+          </div>
+          <div class="settings-group workflow-defaults">
+            <h2>Trading &amp; selling defaults</h2>
+            <p>These estimates save time and remain editable in every deal.</p>
+            <label
+              >Trade value<small>Common card-show starting point</small
+              ><span class="suffix-input"
+                ><input
+                  id="defaultTradePercent"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value="90"
+                /><i>%</i></span
+              ></label
+            >
+            <label
+              >Quick-sale value<small>Expected direct-sale take-home</small
+              ><span class="suffix-input"
+                ><input
+                  id="defaultQuickSalePercent"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value="80"
+                /><i>%</i></span
+              ></label
+            >
+            <label
+              >Selling fee<small
+                >Keep at zero for fee-free in-person sales</small
+              ><span class="suffix-input"
+                ><input
+                  id="defaultSellingFeePercent"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value="0"
+                /><i>%</i></span
+              ></label
+            >
+            <button class="primary" id="saveWorkflowDefaults" type="button">
+              Save defaults
+            </button>
+            <p id="workflowDefaultsStatus" role="status" aria-live="polite"></p>
+          </div>
+          <div class="settings-group">
+            <h2>Collection</h2>
+            <button type="button" id="sharePortfolioButton">
+              <span
+                >Share a portfolio snapshot<small
+                  >Privacy-safe summary with an exact preview</small
+                ></span
+              ><b>›</b>
+            </button>
+            <button type="button" id="importButton">
+              <span
+                >Import a collection CSV<small
+                  >Up to 5,000 positions · progress, pause, and safe
+                  retry</small
+                ></span
+              ><b>›</b>
+            </button>
+            <button type="button" id="exportButton">
+              <span
+                >Complete account backup<small
+                  >Cards, transactions, purchase lots, and watchlist ·
+                  JSON</small
+                ></span
+              ><b>›</b>
+            </button>
+            <button type="button" id="exportCsvButton">
+              <span
+                >Download collection CSV<small
+                  >Importable copy of your current positions</small
+                ></span
+              ><b>›</b>
+            </button>
+            <button type="button" id="insuranceReportButton">
+              <span
+                >Insurance inventory report<small
+                  >Print or save a private record with values and
+                  locations</small
+                ></span
+              ><b>›</b>
+            </button>
+            <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
+          </div>
+          <div class="settings-group">
+            <h2>Preferences</h2>
+            <button type="button" id="installAppButton">
+              <span
+                >Install Mica on this device<small id="installAppHelp"
+                  >Open from your home screen with offline access</small
+                ></span
+              ><strong id="installAppState">Check</strong>
+            </button>
+            <button type="button" id="currencyButton">
+              <span
+                >Display currency<small
+                  >Source currencies remain visible</small
+                ></span
+              ><strong>USD</strong>
+            </button>
+            <button type="button" id="motionButton">
+              <span
+                >Motion<small id="motionHelp"
+                  >Follow your device preference · select to change</small
+                ></span
+              ><strong id="motionState">Auto</strong>
+            </button>
+            <button type="button" id="targetAlertButton">
+              <span
+                >Buy target alerts<small id="targetAlertHelp"
+                  >Alert while Mica is open and prices refresh</small
+                ></span
+              ><strong id="targetAlertState">Off</strong>
+            </button>
+          </div>
+          <div class="settings-group">
+            <h2>Trust & privacy</h2>
+            <button type="button" data-info="sources">
+              <span>Data sources & attribution</span><b>›</b>
+            </button>
+            <button type="button" data-info="retention">
+              <span>Scan retention</span><b>›</b>
+            </button>
+            <button type="button" data-info="privacy">
+              <span>Privacy & account deletion</span><b>›</b>
+            </button>
+          </div>
+          <p class="legal-copy">
+            Mica is an independent collection tool and is not affiliated with or
+            endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak,
+            TCGplayer, Cardmarket, eBay, PSA, CGC, or Beckett.
+          </p>
+        </section>
+
+        <section
+          class="view detail-view"
+          id="view-detail"
+          aria-labelledby="detailTitle"
+        >
+          <div id="detailContent"></div>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="Primary navigation">
+        <button class="nav-item active" type="button" data-route="collection">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5" /></svg
+          ><span>Library</span>
+        </button>
+        <button class="nav-item scan-nav" type="button" data-route="scan">
+          <span class="scan-button"
+            ><svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" /></svg></span
+          ><span>Add item</span>
+        </button>
+        <button class="nav-item" type="button" data-route="insights">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 18V9M10 18V5M16 18v-7M21 18H3" /></svg
+          ><span>Market</span>
+        </button>
+        <button class="nav-item" type="button" data-route="trade">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4" /></svg
+          ><span>Trade</span>
+        </button>
+        <button class="nav-item" type="button" data-route="profile">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M5 21a7 7 0 0 1 14 0" /></svg
+          ><span>Profile</span>
+        </button>
+      </nav>
+      <div
+        class="bulk-organize-bar"
+        id="bulkOrganizeBar"
+        aria-live="polite"
+        hidden
+      >
+        <strong id="bulkSelectedCount">0 selected</strong
+        ><button id="bulkSelectShown" type="button">Select shown</button
+        ><button id="bulkShareButton" type="button" disabled>Share list</button
+        ><button id="bulkOrganizeButton" type="button" disabled>Organize</button
+        ><button id="bulkDoneButton" type="button">Done</button>
+      </div>
+    </div>
+
+    <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+    <section
+      class="bottom-sheet"
+      id="bottomSheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sheetTitle"
+      hidden
+    >
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div id="sheetContent"></div>
+    </section>
+    <div
+      class="toast-region"
+      id="toastRegion"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+    <script src="app-config.js?v=69"></script>
+    <script type="module" src="app.js?v=83"></script>
+  </body>
 </html>

@@ -13,8 +13,8 @@ Requires Node 20+.
 3. Configure `SUPABASE_SECRET_KEY` only for server-side synchronization.
 4. Configure `PKMNPRICES_API_KEY` for primary market pricing. Set `PKMNPRICES_PLAN=pro` after upgrading so Mica requests the prepared 365-day history, Japanese, marketplace-offer, and sealed-product paths.
 5. AI card/receipt intake uses Vercel AI Gateway. On Vercel, OIDC supplies authentication automatically; for local or non-Vercel use, configure `AI_GATEWAY_API_KEY`. Keep the default `VISION_MODEL` or choose another approved OpenAI vision model.
-6. Apply the migrations in `supabase/migrations/` to the linked Supabase project.
-7. Run:
+
+See [Developer-mode connections](docs/developer-mode-connections.md) for the activation checklist and the automation/navigation map. 6. Apply the migrations in `supabase/migrations/` to the linked Supabase project. 7. Run:
 
 ```bash
 npm run dev
@@ -89,7 +89,7 @@ See `.env.example`. Important values:
 - `PRICE_STALE_AFTER_HOURS`
 - `PRICE_ANOMALY_THRESHOLD_PERCENT`
 - `AI_GATEWAY_API_KEY` (local/non-Vercel fallback; do not expose to the browser)
-- `VISION_MODEL` (defaults to `openai/gpt-5.6-luna`)
+- `VISION_MODEL` (defaults to the live-tested `openai/gpt-5-mini`)
 - `VISION_MAX_PER_HOUR` (defaults to `20` per authenticated user)
 - disabled `ALT_*` and `CARD_LADDER_*` values
 

@@ -14,16 +14,18 @@ The AI never creates a position. Identification becomes a normal catalog query, 
 
 ## Configuration
 
-Vercel deployments use the project OIDC token to authenticate to Vercel AI Gateway. For local development or a non-Vercel runtime, set a server-only `AI_GATEWAY_API_KEY`.
+Vercel deployments use `@vercel/oidc` to retrieve the project OIDC token from the active Function request context. The environment value remains a compatibility fallback. For local development or a non-Vercel runtime, set a server-only `AI_GATEWAY_API_KEY`.
 
 The Vercel team must have billing verification completed before Gateway will process requests, including requests covered by free credits. If it is missing, Mica returns the safe `vision_billing_required` state instead of retrying or exposing the upstream response.
 
 ```text
-VISION_MODEL=openai/gpt-5.6-luna
+VISION_MODEL=openai/gpt-5-mini
 VISION_MAX_PER_HOUR=20
 ```
 
 Do not expose either gateway credential through a `NEXT_PUBLIC_` variable. The model variable only accepts an `openai/…` identifier. The Supabase publishable key is sufficient to validate the caller's access token; a service credential is not required by this endpoint.
+
+The default model was verified against Vercel AI Gateway's live `/v1/models` catalog and a successful authenticated Responses request. Recheck the live catalog before changing the model because availability can change independently of application deployments.
 
 ## Privacy and security boundary
 
