@@ -772,9 +772,11 @@ h1 {
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin: 18px auto 14px;
+  padding: 0;
+  list-style: none;
   text-align: left;
 }
-.first-card-guide > div {
+.first-card-guide > li {
   display: grid;
   grid-template-columns: 26px 1fr;
   gap: 8px;

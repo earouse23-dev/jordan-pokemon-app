@@ -484,12 +484,10 @@ function applyUiTheme(theme, { announce = false } = {}) {
     );
   if ($("#uiThemeHelp"))
     $("#uiThemeHelp").textContent = dark
-      ? "Analytics focused uses the Concept 5 dark workspace with compact data panels. Your data does not change."
-      : "Clean modern uses the Concept 2 bright workspace with airy cards and blue actions. Your data does not change.";
+      ? "Analytics focused uses a dark workspace with compact data panels. Your data does not change."
+      : "Clean modern uses a bright workspace with airy cards and blue actions. Your data does not change.";
   if (announce)
-    toast(
-      `${dark ? "Analytics focused · Concept 5" : "Clean modern · Concept 2"} selected`,
-    );
+    toast(`${dark ? "Analytics focused" : "Clean modern"} selected`);
 }
 
 function quoteStatus(quote) {
@@ -2324,18 +2322,18 @@ function renderCollection() {
       : "Realized gain from FIFO-covered sales";
   $("#allocationSummary").textContent =
     `${rawCount} / ${gradedCount} / ${sealedCount}`;
+  const hasProviderPricing = ["live", "partial"].includes(state.pricingStatus);
   $("#freshCoverage").textContent =
-    `${totals.priced.toLocaleString()} live valuation${totals.priced === 1 ? "" : "s"}`;
+    `${totals.priced.toLocaleString()} ${hasProviderPricing ? "live" : "demo"} valuation${totals.priced === 1 ? "" : "s"}`;
   const partial = totals.unpriced
     ? ` · ${totals.unpriced} unpriced item${totals.unpriced === 1 ? "" : "s"} excluded`
     : "";
   const costCoverage = totals.unknownCost
     ? ` · ${totals.unknownCost} missing purchase cost`
     : "";
-  const hasProviderPricing = ["live", "partial"].includes(state.pricingStatus);
   $("#portfolioChange").textContent = hasProviderPricing
     ? `Current matching provider snapshots${partial}${costCoverage}`
-    : `Preview pricing${partial}${costCoverage}`;
+    : `Demo portfolio values${partial}${costCoverage}`;
   $("#valuationNote").firstChild.textContent =
     totals.gainCoverage === totals.quantity
       ? "Based on matching market prices. "
@@ -2366,15 +2364,15 @@ function renderCollection() {
         : state.pricingStatus === "partial"
           ? `${pricedCount} live · ${state.items.length - pricedCount} awaiting matching prices`
           : state.pricingStatus === "error"
-            ? "Provider unavailable · preview prices"
-            : `${pricedCount} of ${state.items.length} preview prices`;
+            ? "Live source unavailable · demo values shown"
+            : `${pricedCount} of ${state.items.length} demo values`;
   $(".status-label").innerHTML = `<i></i> ${pricingLabel}`;
   const syncLabels = {
     loading: "Prices updating",
     live: "Prices current",
     partial: "Some prices missing",
     error: "Pricing unavailable",
-    demo: "Preview prices",
+    demo: "Demo values",
   };
   const syncLabel =
     state.storageStatus === "error"
@@ -2959,12 +2957,12 @@ function renderOwnedDetailLegacy() {
       ? `<div class="unavailable-panel"><strong>${item.gradingCompany ? "A matching graded price is not connected yet." : "A matching price is not available for this printing yet."}</strong><br>Your card stays in the collection and is excluded from estimated totals. Mica will not substitute a raw, different-grade, or different-printing value.</div>`
       : item.pricingStatus === "live"
         ? `${renderQuoteRow(tcgQuote, tcgQuote?.provider === "justtcg" ? "JustTCG market estimate" : "TCGplayer reference")}${renderQuoteRow(cardmarketQuote, "Cardmarket reference")}`
-        : `<div class="price-source"><div><strong>Preview reference</strong><span>Fixture · ${esc(item.variant)} · USD</span><span>Live provider refresh has not completed.</span></div><div class="source-value"><b>${money(item.price)}</b><small>Clearly labeled demo data</small></div></div>`;
+        : `<div class="price-source"><div><strong>Demo reference</strong><span>${esc(item.variant)} · USD</span><span>Live provider refresh has not completed.</span></div><div class="source-value"><b>${money(item.price)}</b><small>Demo data · not live</small></div></div>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>Collection</button>
     <div class="detail-identity"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity)}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant)}</strong></div><div><span>Language</span><strong>English</strong></div><div><span>Released</span><strong>${esc(item.release)}</strong></div><div><span>Artist</span><strong>${esc(item.artist)}</strong></div></div></div></div>
     <div class="owned-banner"><div><span>Your position</span><strong>${item.quantity} owned · ${total == null ? "Unpriced" : money(total)}</strong></div><button id="editCopyButton" type="button">Edit record</button></div>
-    <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price == null ? "No supported quote" : item.pricingStatus === "live" ? "Live provider data" : "Preview data · not live"}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price == null ? "No supported quote" : item.pricingStatus === "live" ? "Live provider data" : "Demo data · not live"}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
     <section class="detail-section"><div class="detail-section-head"><h2>Owned copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>Purchased ${esc(item.purchaseDate || "date not recorded")} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="unavailable-panel">${esc(item.notes)}</div>` : ""}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2><span>Provider observations · no synthetic ticks</span></div>${renderInteractiveHistory(item)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent sold evidence</h2><span>${item.salesStatus === "live" ? "Linked completed sales" : "Licensed source required"}</span></div>${renderSales(item)}</section>`;
@@ -3069,7 +3067,7 @@ function renderDetail() {
         : pricingStatus === "preview"
           ? "Demo data · not a live quote"
           : pricingStatus === "error"
-            ? "Provider refresh failed · preview only"
+            ? "Live refresh failed · demo value shown"
             : pricingStatus === "rate_limited"
               ? "Provider rate limit reached · retry shortly"
               : pricingStatus === "unavailable"
@@ -3079,7 +3077,7 @@ function renderDetail() {
     ? `${renderQuoteRow(tcgQuote, sealed ? "TCGplayer sealed market" : tcgQuote?.provider === "justtcg" ? "JustTCG market" : "TCGplayer market")}${renderQuoteRow(cardmarketQuote, sealed ? "Cardmarket sealed market" : "Cardmarket")}`
     : pricingStatus === "preview" ||
         (pricingStatus === "error" && previewPrice != null)
-      ? `<div class="price-source"><div><strong>Preview estimate</strong><span>${esc(item.variant || "Printing unknown")} · USD</span><span>${pricingStatus === "error" ? "The live provider could not be reached." : "Live refresh has not completed."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo data · not live</small></div></div>`
+      ? `<div class="price-source"><div><strong>Demo estimate</strong><span>${esc(item.variant || "Printing unknown")} · USD</span><span>${pricingStatus === "error" ? "The live provider could not be reached." : "Live refresh has not completed."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo data · not live</small></div></div>`
       : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? (item.gradingCompany ? "A matching graded market price is not connected yet. Mica did not substitute the raw card or another grade." : "No matching market price is available for this printing, finish, and condition yet. Mica did not substitute another card.") : pricingStatus === "rate_limited" ? "The pricing source asked Mica to slow down. No value is being guessed." : pricingStatus === "error" ? "The pricing source could not be reached. No value is being guessed." : "Loading the latest matching market price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
   const backLabel =
     {
@@ -5827,7 +5825,7 @@ function openInfo(kind) {
     sources:
       "Live quotes are requested through server-side provider adapters. PkmnPrices is preferred, with JustTCG and public TCGdex pricing used only as configured fallbacks. Every quote preserves provider IDs, condition, printing, currency, timestamps, attribution, and quality metadata. Provider keys are never sent to the browser.",
     retention:
-      "Original scan uploads should be private and deleted after identification or within 24 hours. Derived crops should be removed within 7 days unless the user explicitly saves one. This preview processes the image only in the browser.",
+      "Mica prepares a smaller copy on your device and sends it once for analysis. The application does not write the photo or AI result to collection storage, and nothing is added to your portfolio until you confirm it.",
     privacy:
       "Collection records are private. Production uses Supabase Auth, ownership-based Row Level Security, private storage, data export, and an account-deletion workflow. Never place service-role credentials in the client.",
   }[kind];
@@ -7460,16 +7458,9 @@ function renderInsights() {
     return;
   }
   $(".insight-feature").innerHTML =
-    `<div class="insight-kicker">Preview movement · fixture data</div><strong>+$124.18</strong><span>Illustrative only · replaced when live comparable history exists</span>`;
-  $("#moversList").innerHTML = [...state.items]
-    .filter((i) => i.move != null)
-    .sort((a, b) => Math.abs(b.move) - Math.abs(a.move))
-    .slice(0, 4)
-    .map(
-      (item) =>
-        `<div class="mover"><img src="${item.thumb}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.set)} · preview fixture</span></div><b style="color:${item.move < 0 ? "var(--danger)" : ""}">${item.move >= 0 ? "+" : ""}${item.move.toFixed(1)}%</b></div>`,
-    )
-    .join("");
+    `<div class="insight-kicker">Price history</div><strong>Tracking begins with live observations</strong><span>Demo values are excluded from performance trends.</span><div class="unavailable-panel">Connect matching historical pricing to see real movement. Mica never turns sample values into a market trend.</div>`;
+  $("#moversList").innerHTML =
+    '<div class="data-boundary"><strong>No verified movement yet</strong><p>Price changes appear after Mica has comparable observations for the exact same printing, condition or grade, currency, and source.</p></div>';
 }
 
 function tradeItemMarkup(item, side) {

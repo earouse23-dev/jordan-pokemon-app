@@ -1773,3 +1773,53 @@ body[data-ui-theme] .theme-options > button > span:nth-child(2) small {
     font-size: 11px;
   }
 }
+
+/* Keep decision-making copy readable in both visual themes. The original
+   concept mockups used presentation-scale microtype that was too small in a
+   working product. */
+body[data-ui-theme] .view label,
+body[data-ui-theme] .view button {
+  font-size: 11px;
+}
+body[data-ui-theme] .view input,
+body[data-ui-theme] .view select,
+body[data-ui-theme] .view textarea {
+  font-size: 12px;
+}
+body[data-ui-theme] .detail-section-head span,
+body[data-ui-theme] .price-source span,
+body[data-ui-theme] .price-confidence-head span,
+body[data-ui-theme] .price-confidence-head b,
+body[data-ui-theme] .price-confidence p,
+body[data-ui-theme] .price-confidence-facts span,
+body[data-ui-theme] .watch-banner span,
+body[data-ui-theme] .watch-banner small,
+body[data-ui-theme] .target-hit,
+body[data-ui-theme] .grade-ladder-row span,
+body[data-ui-theme] .card-facts span,
+body[data-ui-theme] .card-fact-copy,
+body[data-ui-theme] .card-flavor,
+body[data-ui-theme] .offer-market-head span,
+body[data-ui-theme] .offer-row span,
+body[data-ui-theme] .offer-row small,
+body[data-ui-theme] .offer-disclaimer,
+body[data-ui-theme] .source-value small,
+body[data-ui-theme] .copy-row span,
+body[data-ui-theme] .unavailable-panel,
+body[data-ui-theme] .history-summary span,
+body[data-ui-theme] .chart-dates,
+body[data-ui-theme] .sale-row span,
+body[data-ui-theme] .mover span,
+body[data-ui-theme] .data-boundary p,
+body[data-ui-theme] .legal-copy {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 759px) {
+  body[data-ui-theme] .view input,
+  body[data-ui-theme] .view select,
+  body[data-ui-theme] .view textarea {
+    font-size: 16px;
+  }
+}

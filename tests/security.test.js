@@ -221,15 +221,26 @@ test("motion preferences support device defaults and explicit reduction", () => 
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=72/);
+  assert.match(appShell, /themes\.css\?v=73/);
   assert.match(
     appSource,
     /localStorage\.setItem\(["']mica-ui-theme["'],\s*theme\)/,
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v84/);
-  assert.match(serviceWorker, /themes\.css\?v=72/);
+  assert.match(serviceWorker, /mica-shell-v85/);
+  assert.match(serviceWorker, /themes\.css\?v=73/);
+});
+
+test("client presentation never turns demo values into market movement", () => {
+  assert.doesNotMatch(
+    appSource,
+    /Preview movement · fixture data|\+\$124\.18|preview fixture/,
+  );
+  assert.match(appSource, /No verified movement yet/);
+  assert.match(appSource, /Demo values are excluded from performance trends/);
+  assert.doesNotMatch(appShell, /Concept [25]/);
+  assert.match(appShell, /Recorded activity only/);
 });
 
 test("consolidated workspace navigation remains responsive and routes to real workflows", () => {

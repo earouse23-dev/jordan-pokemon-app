@@ -21,13 +21,13 @@
       sizes="180x180"
       href="icons/apple-touch-icon.png"
     />
-    <link rel="stylesheet" href="styles.css?v=78" />
-    <link rel="stylesheet" href="themes.css?v=72" />
+    <link rel="stylesheet" href="styles.css?v=79" />
+    <link rel="stylesheet" href="themes.css?v=73" />
     <title>Mica — Pokémon Card Library</title>
   </head>
   <body>
     <a class="skip-link" id="skipLink" href="#authGate">Skip to content</a>
-    <main
+    <section
       class="auth-gate"
       id="authGate"
       tabindex="-1"
@@ -94,7 +94,7 @@
           aria-live="polite"
         ></p>
       </div>
-    </main>
+    </section>
     <div class="app-shell" id="appShell">
       <aside class="desktop-sidebar" aria-label="Mica workspace navigation">
         <button
@@ -108,7 +108,7 @@
           ></span>
           <span><strong>MICA</strong><small>Pokémon collector</small></span>
         </button>
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav" aria-label="Desktop navigation">
           <button
             class="sidebar-item active"
             type="button"
@@ -211,7 +211,7 @@
         </div>
       </header>
 
-      <main id="main" tabindex="-1">
+      <main id="main" tabindex="-1" aria-label="Mica application">
         <section
           class="view active"
           id="view-collection"
@@ -291,7 +291,7 @@
               <div class="panel-heading">
                 <div>
                   <span>Portfolio snapshot</span
-                  ><strong>Performance & coverage</strong>
+                  ><strong>Performance &amp; coverage</strong>
                 </div>
               </div>
               <div class="portfolio-detail-grid">
@@ -474,12 +474,12 @@
             <p id="collectionEmptyCopy">
               Try clearing the search or changing your filters.
             </p>
-            <div
+            <ol
               class="first-card-guide hidden"
               id="firstCardGuide"
               aria-label="How to add your first item"
             >
-              <div>
+              <li>
                 <b>1</b
                 ><span
                   ><strong>Find the exact item</strong
@@ -487,8 +487,8 @@
                     >Search a card printing or sealed product.</small
                   ></span
                 >
-              </div>
-              <div>
+              </li>
+              <li>
                 <b>2</b
                 ><span
                   ><strong>Add only what applies</strong
@@ -497,8 +497,8 @@
                     fields.</small
                   ></span
                 >
-              </div>
-              <div>
+              </li>
+              <li>
                 <b>3</b
                 ><span
                   ><strong>Enter one total cost</strong
@@ -507,8 +507,8 @@
                     basis.</small
                   ></span
                 >
-              </div>
-            </div>
+              </li>
+            </ol>
             <button class="quick-add hidden" id="emptyAddCard" type="button">
               Add your first item
             </button>
@@ -586,7 +586,11 @@
               autocomplete="off"
               aria-label="Search cards by name, set, collector number, rarity, or finish"
           /></label>
-          <div class="search-examples" aria-label="Search examples">
+          <div
+            class="search-examples"
+            role="group"
+            aria-label="Search examples"
+          >
             <button type="button" data-search-example="Mew ex 151/165">
               Mew ex 151/165
             </button>
@@ -636,7 +640,9 @@
               <span>Rapid intake</span
               ><strong id="intakeQueueCount">0 exact cards queued</strong>
             </div>
-            <button id="reviewIntakeQueue" type="button">Review & add</button>
+            <button id="reviewIntakeQueue" type="button">
+              Review &amp; add
+            </button>
           </section>
           <div class="quick-results" id="quickSearchResults" aria-live="polite">
             <div class="find-empty">
@@ -783,7 +789,7 @@
             <div class="liquidation-controls">
               <label
                 >Expected sale price<small>Percent of shown reference</small>
-                <div class="suffix-input">
+                <span class="suffix-input">
                   <input
                     id="liquidationReferencePercent"
                     type="number"
@@ -793,11 +799,11 @@
                     step="0.1"
                     value="80"
                   /><span>%</span>
-                </div></label
+                </span></label
               >
               <label
                 >Selling fee<small>Use your venue's current rate</small>
-                <div class="suffix-input">
+                <span class="suffix-input">
                   <input
                     id="liquidationFeePercent"
                     type="number"
@@ -807,13 +813,13 @@
                     step="0.1"
                     value="0"
                   /><span>%</span>
-                </div></label
+                </span></label
               >
               <label
                 >Total other selling costs<small
                   >Shipping, supplies, travel, or insurance</small
                 >
-                <div class="money-input">
+                <span class="money-input">
                   <span>$</span
                   ><input
                     id="liquidationSellingCosts"
@@ -821,8 +827,7 @@
                     inputmode="decimal"
                     min="0"
                     step="0.01"
-                    value="0.00"
-                  /></div
+                    value="0.00" /></span
               ></label>
             </div>
             <div
@@ -883,11 +888,11 @@
               <div class="business-report-head">
                 <div>
                   <span>Business performance</span>
-                  <h2 id="businessReportTitle">Sales & cash flow</h2>
+                  <h2 id="businessReportTitle">Sales &amp; cash flow</h2>
                   <p id="businessReportPeriod">Last 90 days</p>
                 </div>
                 <div class="business-report-actions">
-                  <label for="businessRange"
+                  <label
                     >Period<select id="businessRange">
                       <option value="30d">30 days</option>
                       <option value="90d" selected>90 days</option>
@@ -909,10 +914,10 @@
               <h2 class="section-heading">Recent activity</h2>
               <div id="recentActivity" class="movers-list"></div>
               <div class="data-boundary">
-                <strong>No sales history connected</strong>
+                <strong>Recorded activity only</strong>
                 <p>
-                  Mica does not infer completed sales from active listings. Add
-                  a licensed sales-history provider when approved.
+                  Purchases, sales, and grading events come from your ledger.
+                  Active marketplace listings never count as completed sales.
                 </p>
               </div>
             </div>
@@ -1061,7 +1066,7 @@
 
         <section class="view" id="view-profile" aria-labelledby="profileTitle">
           <div class="screen-heading">
-            <p class="eyebrow">Account & preferences</p>
+            <p class="eyebrow">Account &amp; preferences</p>
             <h1 id="profileTitle">Your Mica account</h1>
             <p>Your portfolio follows you across signed-in devices.</p>
           </div>
@@ -1089,9 +1094,7 @@
                   ><i></i><i></i><i></i><i></i></span
                 ><span
                   ><strong>Clean modern</strong
-                  ><small
-                    >Concept 2 · bright, spacious, and easy to scan</small
-                  ></span
+                  ><small>Bright, spacious, and easy to scan</small></span
                 ><b>Light</b>
               </button>
               <button
@@ -1103,9 +1106,7 @@
                   ><i></i><i></i><i></i><i></i></span
                 ><span
                   ><strong>Analytics focused</strong
-                  ><small
-                    >Concept 5 · dark, compact, and data forward</small
-                  ></span
+                  ><small>Dark, compact, and data forward</small></span
                 ><b>Dark</b>
               </button>
             </div>
@@ -1236,15 +1237,15 @@
             </button>
           </div>
           <div class="settings-group">
-            <h2>Trust & privacy</h2>
+            <h2>Trust &amp; privacy</h2>
             <button type="button" data-info="sources">
-              <span>Data sources & attribution</span><b>›</b>
+              <span>Data sources &amp; attribution</span><b>›</b>
             </button>
             <button type="button" data-info="retention">
               <span>Scan retention</span><b>›</b>
             </button>
             <button type="button" data-info="privacy">
-              <span>Privacy & account deletion</span><b>›</b>
+              <span>Privacy &amp; account deletion</span><b>›</b>
             </button>
           </div>
           <p class="legal-copy">
@@ -1263,7 +1264,7 @@
         </section>
       </main>
 
-      <nav class="bottom-nav" aria-label="Primary navigation">
+      <nav class="bottom-nav" aria-label="Mobile and tablet navigation">
         <button class="nav-item active" type="button" data-route="collection">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5" /></svg
@@ -1325,6 +1326,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=84"></script>
+    <script type="module" src="app.js?v=85"></script>
   </body>
 </html>
