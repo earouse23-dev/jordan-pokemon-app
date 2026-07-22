@@ -1059,6 +1059,35 @@ test("large portfolios page past the API row limit with stable ordering", async 
   ]);
 });
 
+test("owned portfolio pages add an explicit owner filter as defense in depth", async () => {
+  const filters = [];
+  const client = {
+    from(table) {
+      assert.equal(table, "collection_items");
+      return {
+        select() {
+          return this;
+        },
+        order() {
+          return this;
+        },
+        eq(column, value) {
+          filters.push([column, value]);
+          return this;
+        },
+        async range() {
+          return { data: [], error: null };
+        },
+      };
+    },
+  };
+  await loadRowsInPages(client, {
+    table: "collection_items",
+    equals: { user_id: "owner-1" },
+  });
+  assert.deepEqual(filters, [["user_id", "owner-1"]]);
+});
+
 test("seller listing fields hydrate and update without leaking into unrelated writes", async () => {
   const position = hydratePosition({
     id: "listing-1",

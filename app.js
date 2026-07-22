@@ -100,6 +100,7 @@ let motionPreference = "auto";
 let targetAlertsEnabled = false;
 let workspaceMode = "growth";
 let uiTheme = "analytics";
+let sessionLoadVersion = 0;
 try {
   const savedMotion = localStorage.getItem("mica-motion-preference");
   if (["auto", "reduce", "full"].includes(savedMotion))
@@ -288,6 +289,12 @@ const state = {
     searchResults: [],
   },
 };
+const accountRequestIsCurrent = (ownerId, loadVersion) =>
+  Boolean(ownerId) &&
+  state.session?.user?.id === ownerId &&
+  sessionLoadVersion === loadVersion;
+const isShowcaseAccount = () =>
+  state.session?.user?.app_metadata?.account_type === "showcase";
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const esc = (value) =>
@@ -2124,6 +2131,7 @@ function renderPortfolioHistory() {
   }
   const baseline = history.points[0];
   const latest = history.points.at(-1);
+  const showcase = isShowcaseAccount();
   if (history.points.length === 1) {
     root.innerHTML = `<div class="portfolio-history-head"><div><strong>Performance tracking started</strong><span>${esc(baseline.date)} · exact-compatible prices only</span></div></div><div class="portfolio-history-metrics"><div><span>Baseline value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Fresh prices</span><strong>${baseline.freshItems} of ${baseline.pricedItems}</strong></div><div><span>Unpriced</span><strong>${baseline.unpricedItems}</strong></div></div><p class="portfolio-history-note"><strong>Why there is no line yet:</strong> a second real daily valuation is required. Purchases will be treated as money added, not market growth.</p>`;
     return;
@@ -2159,7 +2167,7 @@ function renderPortfolioHistory() {
   }
   const marketChange = latest.marketChangeMinor;
   const totalChange = latest.totalMinor - baseline.totalMinor;
-  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio performance</strong><span>${history.points.length} real daily valuation${history.points.length === 1 ? "" : "s"} · ${esc(baseline.date)} to ${esc(latest.date)}</span></div><div class="portfolio-history-toggle" role="group" aria-label="Portfolio history view"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}">Market return</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${marketMode ? `<div><span>Market change</span><strong>${marketChange === null ? "—" : `${marketChange >= 0 ? "+" : ""}${money(marketChange / 100, history.currency)}`}</strong></div><div><span>Cash added / removed</span><strong>${latest.netContributionMinor >= 0 ? "+" : ""}${money(latest.netContributionMinor / 100, history.currency)}</strong></div><div><span>Cash-adjusted return</span><strong>${latest.returnPercent === null ? "—" : `${latest.returnPercent >= 0 ? "+" : ""}${latest.returnPercent.toFixed(1)}%`}</strong></div>` : `<div><span>Current value</span><strong>${money(latest.totalMinor / 100, history.currency)}</strong></div><div><span>Starting value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Value change</span><strong>${totalChange >= 0 ? "+" : ""}${money(totalChange / 100, history.currency)}</strong></div>`}</div>${chart}${marketMode && !marketAvailable ? '<p class="portfolio-history-note"><strong>Return withheld:</strong> at least one endpoint has incomplete price coverage or an unknown cash flow. Use Total value to see recorded valuations; Mica will not label a coverage change as profit.</p>' : `<p class="portfolio-history-note"><strong>${marketMode ? "Purchases are not profit." : "This line includes buying and selling."}</strong> ${marketMode ? "Mica subtracts recorded purchases and grading costs, adds back net sale proceeds, and uses cash-flow timing for the return percentage." : "Switch to Market return to separate price movement from recorded money added or removed."}</p>`}`;
+  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio performance</strong><span>${showcase ? "Sample history for this showcase account" : `${history.points.length} real daily valuation${history.points.length === 1 ? "" : "s"}`} · ${esc(baseline.date)} to ${esc(latest.date)}</span></div><div class="portfolio-history-toggle" role="group" aria-label="Portfolio history view"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}">Market return</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${marketMode ? `<div><span>Market change</span><strong>${marketChange === null ? "—" : `${marketChange >= 0 ? "+" : ""}${money(marketChange / 100, history.currency)}`}</strong></div><div><span>Cash added / removed</span><strong>${latest.netContributionMinor >= 0 ? "+" : ""}${money(latest.netContributionMinor / 100, history.currency)}</strong></div><div><span>Cash-adjusted return</span><strong>${latest.returnPercent === null ? "—" : `${latest.returnPercent >= 0 ? "+" : ""}${latest.returnPercent.toFixed(1)}%`}</strong></div>` : `<div><span>Current value</span><strong>${money(latest.totalMinor / 100, history.currency)}</strong></div><div><span>Starting value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Value change</span><strong>${totalChange >= 0 ? "+" : ""}${money(totalChange / 100, history.currency)}</strong></div>`}</div>${chart}${showcase ? '<p class="portfolio-history-note"><strong>Showcase preview:</strong> this sample line demonstrates the finished portfolio experience. Live account history is built only from verified daily prices.</p>' : marketMode && !marketAvailable ? '<p class="portfolio-history-note"><strong>Return withheld:</strong> at least one endpoint has incomplete price coverage or an unknown cash flow. Use Total value to see recorded valuations; Mica will not label a coverage change as profit.</p>' : `<p class="portfolio-history-note"><strong>${marketMode ? "Purchases are not profit." : "This line includes buying and selling."}</strong> ${marketMode ? "Mica subtracts recorded purchases and grading costs, adds back net sale proceeds, and uses cash-flow timing for the return percentage." : "Switch to Market return to separate price movement from recorded money added or removed."}</p>`}`;
   $$("[data-portfolio-history-mode]", root).forEach((button) =>
     button.addEventListener("click", () => {
       state.portfolioHistoryMode = button.dataset.portfolioHistoryMode;
@@ -2171,10 +2179,13 @@ function renderPortfolioHistory() {
 async function capturePortfolioValuation() {
   if (
     !state.session ||
+    isShowcaseAccount() ||
     !state.items.length ||
     !["live", "partial"].includes(state.pricingStatus)
   )
     return;
+  const ownerId = state.session.user.id;
+  const loadVersion = sessionLoadVersion;
   const totals = calculateTotals(state.items);
   if (!totals.priced) return;
   const freshItems = state.items.reduce(
@@ -2194,11 +2205,15 @@ async function capturePortfolioValuation() {
       unpricedItems: totals.unpriced,
       freshItems,
     });
-    state.portfolioHistory = await loadPortfolioValuationHistory(supabase);
+    const history = await loadPortfolioValuationHistory(supabase, ownerId);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    state.portfolioHistory = history;
     state.portfolioHistoryStatus = "ready";
   } catch {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.portfolioHistoryStatus = "error";
   }
+  if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
   renderPortfolioHistory();
 }
 
@@ -2323,17 +2338,20 @@ function renderCollection() {
   $("#allocationSummary").textContent =
     `${rawCount} / ${gradedCount} / ${sealedCount}`;
   const hasProviderPricing = ["live", "partial"].includes(state.pricingStatus);
+  const showcase = isShowcaseAccount();
   $("#freshCoverage").textContent =
-    `${totals.priced.toLocaleString()} ${hasProviderPricing ? "live" : "demo"} valuation${totals.priced === 1 ? "" : "s"}`;
+    `${totals.priced.toLocaleString()} ${showcase ? "showcase" : hasProviderPricing ? "live" : "demo"} valuation${totals.priced === 1 ? "" : "s"}`;
   const partial = totals.unpriced
     ? ` · ${totals.unpriced} unpriced item${totals.unpriced === 1 ? "" : "s"} excluded`
     : "";
   const costCoverage = totals.unknownCost
     ? ` · ${totals.unknownCost} missing purchase cost`
     : "";
-  $("#portfolioChange").textContent = hasProviderPricing
-    ? `Current matching provider snapshots${partial}${costCoverage}`
-    : `Demo portfolio values${partial}${costCoverage}`;
+  $("#portfolioChange").textContent = showcase
+    ? `Showcase preview · live raw pricing with sample graded values${costCoverage}`
+    : hasProviderPricing
+      ? `Current matching provider snapshots${partial}${costCoverage}`
+      : `Demo portfolio values${partial}${costCoverage}`;
   $("#valuationNote").firstChild.textContent =
     totals.gainCoverage === totals.quantity
       ? "Based on matching market prices. "
@@ -2356,8 +2374,9 @@ function renderCollection() {
   $("#watchlistCount").textContent = state.watchlist.length;
   $("#setCount").textContent = collectionSetGroups().length;
   const pricedCount = state.items.filter((item) => item.price != null).length;
-  const pricingLabel =
-    state.pricingStatus === "loading"
+  const pricingLabel = showcase
+    ? "Showcase prices · Pro-ready"
+    : state.pricingStatus === "loading"
       ? "Updating live prices…"
       : state.pricingStatus === "live"
         ? `${pricedCount} of ${state.items.length} live prices`
@@ -2456,14 +2475,6 @@ function renderCollection() {
       ? (itemValue(b) ?? -1) - (itemValue(a) ?? -1)
       : a.name.localeCompare(b.name),
   );
-  if (state.sidebarTarget === "dashboard") {
-    visible.sort((a, b) =>
-      String(b.acquisitionDate || b.createdAt || "").localeCompare(
-        String(a.acquisitionDate || a.createdAt || ""),
-      ),
-    );
-    visible = visible.slice(0, 8);
-  }
   const visibleKey = JSON.stringify([
     state.sidebarTarget,
     state.ledgerView,
@@ -2482,7 +2493,7 @@ function renderCollection() {
   state.visiblePositionIds = displayed.map((item) => item.uid);
   $("#resultCount").textContent =
     state.sidebarTarget === "dashboard"
-      ? `Recent additions · ${windowed.total} item${windowed.total === 1 ? "" : "s"}`
+      ? `All your cards · ${windowed.total} position${windowed.total === 1 ? "" : "s"}`
       : windowed.remaining
         ? `Showing ${displayed.length} of ${windowed.total} items`
         : `${windowed.total} item${windowed.total === 1 ? "" : "s"}`;
@@ -2526,11 +2537,12 @@ function renderCollection() {
         ...(item.tags || []).slice(0, listingTag || statusTag ? 0 : 1),
       ].filter(Boolean);
       const selected = state.bulkSelected.has(item.uid);
-      return `<article class="ledger-row${state.bulkMode ? " bulk-mode" : ""}${selected ? " selected" : ""}" tabindex="0" role="${state.bulkMode ? "checkbox" : "button"}" ${state.bulkMode ? `aria-checked="${selected}"` : ""} aria-label="${state.bulkMode ? (selected ? "Deselect" : "Select") : "Open"} ${esc(item.name)}, ${total == null ? "price unavailable" : money(total)}" data-id="${esc(item.uid)}">
+      return `<article class="ledger-row${state.bulkMode ? " bulk-mode" : ""}${selected ? " selected" : ""}" ${state.bulkMode ? `tabindex="0" role="checkbox" aria-checked="${selected}" aria-label="${selected ? "Deselect" : "Select"} ${esc(item.name)}, ${total == null ? "price unavailable" : money(total)}"` : `aria-label="${esc(item.name)}, ${total == null ? "price unavailable" : money(total)}"`} data-id="${esc(item.uid)}">
       ${state.bulkMode ? `<span class="bulk-select-indicator" aria-hidden="true">${selected ? "✓" : ""}</span>` : ""}
+      ${state.bulkMode ? "" : `<button class="ledger-open-overlay" type="button" data-open-position="${esc(item.uid)}" aria-label="Open ${esc(item.name)} details"></button>`}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity) || 0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span>${item.location ? `<span class="card-location" title="Storage location">${esc(item.location)}</span>` : ""}<div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-unit">${item.price == null ? (item.gradingCompany ? "graded price not connected" : "matching price unavailable") : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>
+      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-unit">${item.price == null ? (item.gradingCompany ? "graded price not connected" : "matching price unavailable") : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>${state.bulkMode ? "" : `<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button>`}
     </article>`;
     })
     .join("");
@@ -2556,21 +2568,31 @@ function renderCollection() {
     : "Filter";
   syncBulkControls();
   $$(".ledger-row").forEach((row) => {
-    const open = () =>
-      state.bulkMode
-        ? toggleBulkPosition(row.dataset.id)
-        : openCardDetail(
-            state.items.find((item) => item.uid === row.dataset.id),
-            true,
-          );
-    row.addEventListener("click", open);
+    if (!state.bulkMode) return;
+    row.addEventListener("click", () => toggleBulkPosition(row.dataset.id));
     row.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        open();
-      }
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      toggleBulkPosition(row.dataset.id);
     });
   });
+  $$("[data-open-position]").forEach((button) =>
+    button.addEventListener("click", () =>
+      openCardDetail(
+        state.items.find((item) => item.uid === button.dataset.openPosition),
+        true,
+      ),
+    ),
+  );
+  $$("[data-add-purchase]").forEach((button) =>
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const item = state.items.find(
+        (candidate) => candidate.uid === button.dataset.addPurchase,
+      );
+      if (item) openPurchaseLotSheet(item);
+    }),
+  );
 }
 
 function openCardDetail(card, preferOwned = false) {
@@ -3851,15 +3873,13 @@ function openPurchaseLotSheet(item, defaults = {}) {
   const today = localIsoDate();
   const sealed = item.cardState === "sealed";
   const noun = sealed ? "product" : "card";
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add purchase lot</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)} · each purchase remains separate</p></div><button class="sheet-close" aria-label="Close">×</button></div>
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add another ${noun}</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="purchaseLotForm"><div class="form-grid">
-      <div class="field"><label for="lotQuantity">How many ${noun}s?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(defaults.quantity || 1)}" required></div>
-      <div class="field"><label for="lotDate">When did you buy them?</label><input id="lotDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div>
       <div class="field full acquisition-field"><label for="lotTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="lotTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaults.totalAcquisitionCost ?? "")}" placeholder="0.00" required></div><small>Enter everything you paid for this purchase as one total.</small></div>
+      <details class="full intake-more"><summary id="purchaseLotSummary">1 ${noun} · purchased today</summary><div class="form-grid"><div class="field"><label for="lotQuantity">How many ${noun}s?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(defaults.quantity || 1)}" required></div><div class="field"><label for="lotDate">Purchase date</label><input id="lotDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div></div><section class="blended-purchase" aria-labelledby="blendedPurchaseTitle"><div class="blended-purchase-head"><span>Position preview</span><strong id="blendedPurchaseTitle">After this purchase</strong></div><div class="blended-purchase-grid" id="blendedPurchaseGrid" aria-live="polite"></div><small>Professional view: this purchase remains a separate FIFO lot.</small></section></details>
       <p class="form-error" id="purchaseLotError" role="alert"></p>
-    </div><div class="position-total"><span id="purchaseLotSummary">Total for 1 card</span><strong id="purchaseLotTotal">$0.00</strong></div>
-    <section class="blended-purchase" aria-labelledby="blendedPurchaseTitle"><div class="blended-purchase-head"><span>Position preview</span><strong id="blendedPurchaseTitle">After this purchase</strong></div><div class="blended-purchase-grid" id="blendedPurchaseGrid" aria-live="polite"></div><small>Uses your remaining FIFO basis and the current exact market reference. This purchase still stays as its own lot.</small></section>
-    <div class="sheet-actions"><button class="secondary" type="button" id="purchaseLotCancel">Cancel</button><button class="primary" type="submit">Save purchase</button></div></form>`);
+    </div><div class="position-total"><span>Total paid</span><strong id="purchaseLotTotal">$0.00</strong></div>
+    <div class="sheet-actions"><button class="secondary" type="button" id="purchaseLotCancel">Cancel</button><button class="primary" type="submit">Add to collection</button></div></form>`);
   const form = $("#purchaseLotForm");
   const values = () => Object.fromEntries(new FormData(form).entries());
   const updateTotal = () => {
@@ -3875,7 +3895,7 @@ function openPurchaseLotSheet(item, defaults = {}) {
         ? "Enter an amount"
         : money(breakdown.totalMinor / 100, currency);
     $("#purchaseLotSummary").textContent =
-      `Total for ${count || 0} ${noun}${count === 1 ? "" : "s"}`;
+      `${count || 0} ${noun}${count === 1 ? "" : "s"} · ${input.transactionDate === today ? "purchased today" : input.transactionDate}`;
     const preview = breakdown
       ? blendedPosition({
           currentQuantity: item.quantity,
@@ -4350,7 +4370,12 @@ function openSaleSheet(item, defaults = {}) {
 }
 
 async function reloadPortfolio(focusId = null) {
-  state.items = await loadPortfolio(supabase);
+  const ownerId = state.session?.user?.id;
+  const loadVersion = sessionLoadVersion;
+  if (!ownerId) return;
+  const items = await loadPortfolio(supabase, ownerId);
+  if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+  state.items = items;
   state.movementStatus = "idle";
   renderCollection();
   renderInsights();
@@ -5932,6 +5957,10 @@ function cycleMotionPreference() {
   );
 }
 
+function targetAlertStorageKey() {
+  return `mica-target-alert-hits-${state.session?.user?.id || "guest"}`;
+}
+
 function updateTargetAlertControl() {
   const button = $("#targetAlertButton");
   if (!button) return;
@@ -5973,12 +6002,12 @@ async function notifyReachedTargets() {
   let previous = {};
   try {
     previous = JSON.parse(
-      localStorage.getItem("mica-target-alert-hits") || "{}",
+      localStorage.getItem(targetAlertStorageKey()) || "{}",
     );
   } catch {}
   const { notifications, next } = targetAlertChanges(state.watchlist, previous);
   try {
-    localStorage.setItem("mica-target-alert-hits", JSON.stringify(next));
+    localStorage.setItem(targetAlertStorageKey(), JSON.stringify(next));
   } catch {}
   for (const item of notifications) {
     const options = {
@@ -6003,7 +6032,7 @@ async function toggleTargetAlerts() {
     targetAlertsEnabled = false;
     try {
       localStorage.setItem("mica-target-alerts", "off");
-      localStorage.removeItem("mica-target-alert-hits");
+      localStorage.removeItem(targetAlertStorageKey());
     } catch {}
     updateTargetAlertControl();
     toast("Buy target alerts turned off");
@@ -6024,7 +6053,7 @@ async function toggleTargetAlerts() {
   targetAlertsEnabled = true;
   try {
     localStorage.setItem("mica-target-alerts", "on");
-    localStorage.removeItem("mica-target-alert-hits");
+    localStorage.removeItem(targetAlertStorageKey());
   } catch {}
   updateTargetAlertControl();
   toast("Buy target alerts turned on");
@@ -6610,6 +6639,9 @@ function handleCsv(file) {
 }
 
 async function refreshLivePricing() {
+  const ownerId = state.session?.user?.id;
+  const loadVersion = sessionLoadVersion;
+  if (!ownerId) return;
   const uniqueItems = [
     ...new Map(
       state.items.filter((item) => item.id).map((item) => [item.id, item]),
@@ -6653,6 +6685,7 @@ async function refreshLivePricing() {
       if (!response.ok)
         throw new Error(`Pricing request failed with ${response.status}`);
       const payload = await response.json();
+      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       retrievedAt = payload.retrievedAt || retrievedAt;
       batch.forEach((lookup) => processedIds.add(lookup.clientId));
       (payload.cards || []).forEach((card) =>
@@ -6674,6 +6707,7 @@ async function refreshLivePricing() {
           );
           if (!response.ok) throw new Error(String(response.status));
           const payload = await response.json();
+          if (!accountRequestIsCurrent(ownerId, loadVersion)) return null;
           retrievedAt = payload.retrievedAt || retrievedAt;
           return { item, product: payload.product };
         }),
@@ -6706,10 +6740,10 @@ async function refreshLivePricing() {
         return {
           ...item,
           demoPrice,
-          price: null,
+          price: demoPrice ?? null,
           move: null,
           quotes: [],
-          pricingStatus: "unavailable",
+          pricingStatus: demoPrice == null ? "unavailable" : "preview",
           pricingUpdatedAt: null,
         };
       const quote = selectReferenceQuote(
@@ -6727,7 +6761,7 @@ async function refreshLivePricing() {
         metadata: card.metadata || item.metadata || null,
         productType: card.productType || item.productType || null,
         demoPrice,
-        price: quote?.amount ?? null,
+        price: quote?.amount ?? demoPrice ?? null,
         quotes: card.quotes,
         historyStatus: card.historyStatus || null,
         priceHistory: quote
@@ -6737,13 +6771,18 @@ async function refreshLivePricing() {
               mergePriceHistory(item.priceHistory || [], card.history || []),
             )
           : mergePriceHistory(item.priceHistory || [], card.history || []),
-        pricingStatus: quote ? quoteStatus(quote) : "unavailable",
+        pricingStatus: quote
+          ? quoteStatus(quote)
+          : demoPrice == null
+            ? "unavailable"
+            : "preview",
         pricingUpdatedAt:
           quote?.observedAt || quote?.retrievedAt?.slice(0, 10) || null,
       };
       const movement = movementForItem(updated);
       return { ...updated, move: movement?.changePercent ?? null, movement };
     };
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = state.items.map(applyPricing);
     catalog = catalog.map((item) =>
       cards.has(item.id) ? applyPricing(item) : item,
@@ -6756,6 +6795,7 @@ async function refreshLivePricing() {
     if (state.route === "detail") renderDetail();
     if (state.route === "insights") void refreshMovementHistory();
   } catch {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.pricingStatus = "error";
     state.items = state.items.map((item) => ({
       ...item,
@@ -6767,7 +6807,10 @@ async function refreshLivePricing() {
 }
 
 async function refreshMovementHistory() {
+  const ownerId = state.session?.user?.id;
+  const loadVersion = sessionLoadVersion;
   if (
+    !ownerId ||
     !["idle", "error"].includes(state.movementStatus) ||
     !state.items.some((item) => item.cardState !== "sealed")
   )
@@ -6807,11 +6850,13 @@ async function refreshMovementHistory() {
         continue;
       }
       const payload = await response.json();
+      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       (payload.cards || []).forEach((card) => {
         cards.set(card.providerCardId, card);
         if (card.historyStatus === "plan_required") planLimited = true;
       });
     }
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = state.items.map((item) => {
       const card = cards.get(item.id);
       if (!card) return item;
@@ -6855,6 +6900,7 @@ async function refreshMovementHistory() {
           ? "error"
           : "unavailable";
   } catch {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.movementStatus = "error";
   }
   renderCollection();
@@ -6863,6 +6909,9 @@ async function refreshMovementHistory() {
 }
 
 async function refreshWatchlistPricing() {
+  const ownerId = state.session?.user?.id;
+  const loadVersion = sessionLoadVersion;
+  if (!ownerId) return;
   const unique = [
     ...new Map(
       state.watchlist.filter((item) => item.id).map((item) => [item.id, item]),
@@ -6907,6 +6956,7 @@ async function refreshWatchlistPricing() {
       if (!response.ok)
         throw new Error(`Watch pricing failed with ${response.status}`);
       const payload = await response.json();
+      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       batch.forEach((lookup) => processed.add(lookup.clientId));
       (payload.cards || []).forEach((card) =>
         cards.set(card.providerCardId, card),
@@ -6934,6 +6984,7 @@ async function refreshWatchlistPricing() {
           }
           if (!response.ok) throw new Error(String(response.status));
           const payload = await response.json();
+          if (!accountRequestIsCurrent(ownerId, loadVersion)) return null;
           sealedProcessed.add(item.id);
           return { item, product: payload.product };
         }),
@@ -6943,6 +6994,7 @@ async function refreshWatchlistPricing() {
           sealedProducts.set(result.value.item.id, result.value.product);
       });
     }
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.watchlist = state.watchlist.map((item) => {
       const sealed = item.cardState === "sealed";
       if (sealed && !sealedProcessed.has(item.id))
@@ -6988,6 +7040,7 @@ async function refreshWatchlistPricing() {
       };
     });
   } catch {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.watchlist = state.watchlist.map((item) => ({
       ...item,
       pricingStatus: "error",
@@ -7008,6 +7061,7 @@ async function refreshWatchlistPricing() {
 }
 
 function renderBusinessReview() {
+  if (!$("#businessReview")) return;
   const review = portfolioReview(state.items, state.watchlist);
   const actions = portfolioActions(state.items, state.watchlist);
   const signalCount = actions.reduce(
@@ -7566,31 +7620,13 @@ function renderTrade() {
     : '<div class="trade-side-empty">No cards added yet.</div>';
   $("#tradeGiveCash").value = state.trade.giveCash;
   $("#tradeReceiveCash").value = state.trade.receiveCash;
-  $$("[data-trade-side]").forEach((button) =>
-    button.setAttribute(
-      "aria-pressed",
-      String(button.dataset.tradeSide === state.trade.addingTo),
-    ),
-  );
-  const owned = state.items.filter((item) => item.quantity > 0).slice(0, 6);
-  $("#tradeOwned").innerHTML = owned.length
-    ? `<div class="trade-owned-head"><strong>Add from your library</strong><span>Uses the current matching reference when available.</span></div><div class="trade-owned-list">${owned.map((item) => `<button type="button" data-trade-owned="${esc(item.uid)}"><img src="${esc(item.thumb)}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)} · ${item.price == null ? "Value needed" : money(item.price)}</small></span><b>Give</b></button>`).join("")}</div>`
-    : "";
-  $$("[data-trade-owned]").forEach((button) =>
-    button.addEventListener("click", () =>
-      addTradeCard(
-        state.items.find((item) => item.uid === button.dataset.tradeOwned),
-        "give",
-        true,
-      ),
-    ),
-  );
   bindTradeItemRows();
   updateTradeSummary();
 }
 
 function renderTradeSearchResults() {
   const node = $("#tradeSearchResults");
+  if (!node) return;
   const results = state.trade.searchResults;
   node.innerHTML = results.length
     ? results
@@ -7601,14 +7637,15 @@ function renderTradeSearchResults() {
         .join("")
     : '<div class="find-empty"><strong>No matching cards</strong><span>Try the card name with its set or collector number.</span></div>';
   $$("[data-trade-card]", node).forEach((button) =>
-    button.addEventListener("click", () =>
+    button.addEventListener("click", () => {
       addTradeCard(
         state.trade.searchResults.find(
           (item) => item.id === button.dataset.tradeCard,
         ),
         state.trade.addingTo,
-      ),
-    ),
+      );
+      closeSheet({ discardHistory: true });
+    }),
   );
 }
 
@@ -7685,7 +7722,14 @@ function addTradeCard(card, side = state.trade.addingTo, owned = false) {
   if (card.price == null) void priceTradeCard(tradeItem, card);
 }
 
-function bindTradeUI() {
+function openTradeCardPicker(side) {
+  state.trade.addingTo = side;
+  state.trade.searchResults = [];
+  const label = side === "give" ? "What you're giving" : "What they're giving";
+  const owned = state.items.filter((item) => item.quantity > 0).slice(0, 8);
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add a card</h2><p>${label}</p></div><button class="sheet-close" aria-label="Close">×</button></div><button class="trade-camera" id="tradeCameraButton" type="button">Use camera</button><label class="find-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="tradeCardSearch" type="search" placeholder="Search name, set, or number" autocomplete="off" aria-label="Search for a card to add to the trade"></label><div class="trade-search-results" id="tradeSearchResults"><div class="find-empty compact"><strong>Find the exact card</strong><span>Mica fills its matching trade estimate when pricing is available.</span></div></div><div class="trade-owned" id="tradeOwned">${owned.length ? `<div class="trade-owned-head"><strong>Your library</strong><span>Tap once to add</span></div><div class="trade-owned-list">${owned.map((item) => `<button type="button" data-trade-owned="${esc(item.uid)}"><img src="${esc(item.thumb)}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)} · ${item.price == null ? "Value needed" : money(item.price)}</small></span><b>Add</b></button>`).join("")}</div>` : ""}</div>`,
+  );
   let timer;
   let requestId = 0;
   const input = $("#tradeCardSearch");
@@ -7716,13 +7760,29 @@ function bindTradeUI() {
       }
     }, 220);
   });
-  $$("[data-trade-side]").forEach((button) =>
+  $$("[data-trade-owned]").forEach((button) =>
     button.addEventListener("click", () => {
-      state.trade.addingTo = button.dataset.tradeSide;
-      $$("[data-trade-side]").forEach((candidate) =>
-        candidate.setAttribute("aria-pressed", String(candidate === button)),
+      addTradeCard(
+        state.items.find((item) => item.uid === button.dataset.tradeOwned),
+        side,
+        true,
       );
+      closeSheet({ discardHistory: true });
     }),
+  );
+  $("#tradeCameraButton").addEventListener("click", () => {
+    closeSheet({ discardHistory: true });
+    state.visionDestination = "trade";
+    void openAutoCapture();
+  });
+  requestAnimationFrame(() => input.focus());
+}
+
+function bindTradeUI() {
+  $$("[data-trade-add-side]").forEach((button) =>
+    button.addEventListener("click", () =>
+      openTradeCardPicker(button.dataset.tradeAddSide),
+    ),
   );
   $("#tradeGiveCash").addEventListener("input", (event) => {
     state.trade.giveCash = event.target.value;
@@ -7741,15 +7801,8 @@ function bindTradeUI() {
       addingTo: "give",
       searchResults: [],
     };
-    input.value = "";
     renderTrade();
-    $("#tradeSearchResults").innerHTML =
-      '<div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing. Mica fills the matching trade estimate.</span></div>';
     toast("Trade cleared");
-  });
-  $("#tradeCameraButton")?.addEventListener("click", () => {
-    state.visionDestination = "trade";
-    void openAutoCapture();
   });
   $("#copyTradeSummary").addEventListener("click", async () => {
     const text = tradeSummary({
@@ -8155,9 +8208,6 @@ function bindEvents() {
     if (state.accountLoadError) void retryAccountLoad();
     else routeTo("scan");
   });
-  $("#dashboardViewAll")?.addEventListener("click", () =>
-    openWorkspaceShortcut("collection"),
-  );
   $("#methodButton").addEventListener("click", openMethodSheet);
   $("#syncState")?.addEventListener("click", () => {
     if (state.accountLoadError) void retryAccountLoad();
@@ -8450,6 +8500,10 @@ function ensureProfileAccount() {
       .join("") || "ME";
   if ($("#sidebarAccountName"))
     $("#sidebarAccountName").textContent = profileName || "Collector";
+  if ($("#sidebarAccountPlan"))
+    $("#sidebarAccountPlan").textContent = isShowcaseAccount()
+      ? "Showcase account"
+      : "Mica account";
   if ($("#sidebarAvatar")) $("#sidebarAvatar").textContent = initials;
   if ($(".avatar")) $(".avatar").textContent = initials;
   if ($(".profile-avatar")) $(".profile-avatar").textContent = initials;
@@ -8593,17 +8647,20 @@ function openOnboarding() {
 
 async function retryAccountLoad() {
   if (state.accountLoading || !state.session) return;
+  const ownerId = state.session.user.id;
+  const loadVersion = ++sessionLoadVersion;
   state.accountLoading = true;
   renderCollection();
   try {
     const [items, watchlist, history, profile] = await Promise.all([
-      loadPortfolio(supabase),
-      loadWatchlist(supabase),
-      loadPortfolioValuationHistory(supabase)
+      loadPortfolio(supabase, ownerId),
+      loadWatchlist(supabase, ownerId),
+      loadPortfolioValuationHistory(supabase, ownerId)
         .then((data) => ({ data, error: null }))
         .catch((error) => ({ data: [], error })),
       loadProfile(supabase),
     ]);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = items;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
@@ -8619,6 +8676,7 @@ async function retryAccountLoad() {
     toast("Your cloud portfolio is available again");
     await Promise.all([refreshLivePricing(), refreshWatchlistPricing()]);
   } catch (error) {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = [];
     state.watchlist = [];
     state.storageStatus = "error";
@@ -8632,7 +8690,27 @@ async function retryAccountLoad() {
 }
 
 async function applySession(session) {
+  const loadVersion = ++sessionLoadVersion;
+  const ownerId = session?.user?.id || "";
+  const previousOwnerId = state.session?.user?.id || "";
   state.session = session;
+  if (previousOwnerId !== ownerId) {
+    state.intakeQueue = [];
+    state.bulkSelected.clear();
+    state.bulkMode = false;
+    state.trade = {
+      give: [],
+      receive: [],
+      giveCash: "0.00",
+      receiveCash: "0.00",
+      addingTo: "give",
+      searchResults: [],
+    };
+  }
+  state.portfolioHistoryMode =
+    session?.user?.app_metadata?.account_type === "showcase"
+      ? "value"
+      : "return";
   $("#skipLink").setAttribute("href", session ? "#main" : "#authGate");
   document.body.classList.toggle("authenticated", Boolean(session));
   $("#authGate").hidden = Boolean(session);
@@ -8646,6 +8724,23 @@ async function applySession(session) {
     state.movementStatus = "idle";
     state.accountLoading = false;
     state.accountLoadError = "";
+    state.profile = null;
+    state.preferences = {
+      tradeValuePercent: 90,
+      quickSalePercent: 80,
+      sellingFeePercent: 0,
+      otherSellingCosts: 0,
+      collectorGoal: "collecting",
+      experienceLevel: "beginner",
+    };
+    state.trade = {
+      give: [],
+      receive: [],
+      giveCash: "0.00",
+      receiveCash: "0.00",
+      addingTo: "give",
+      searchResults: [],
+    };
     chartInstance?.destroy();
     return;
   }
@@ -8677,13 +8772,14 @@ async function applySession(session) {
   );
   try {
     const [items, watchlist, history, profile] = await Promise.all([
-      loadPortfolio(supabase),
-      loadWatchlist(supabase),
-      loadPortfolioValuationHistory(supabase)
+      loadPortfolio(supabase, ownerId),
+      loadWatchlist(supabase, ownerId),
+      loadPortfolioValuationHistory(supabase, ownerId)
         .then((data) => ({ data, error: null }))
         .catch((error) => ({ data: [], error })),
       loadProfile(supabase),
     ]);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = items;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
@@ -8701,6 +8797,7 @@ async function applySession(session) {
     if (!profile.onboardingCompletedAt) openOnboarding();
     await Promise.all([refreshLivePricing(), refreshWatchlistPricing()]);
   } catch (error) {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = [];
     state.watchlist = [];
     state.storageStatus = "error";

@@ -21,7 +21,7 @@
       sizes="180x180"
       href="icons/apple-touch-icon.png"
     />
-    <link rel="stylesheet" href="styles.css?v=79" />
+    <link rel="stylesheet" href="styles.css?v=80" />
     <link rel="stylesheet" href="themes.css?v=73" />
     <title>Mica — Pokémon Card Library</title>
   </head>
@@ -444,7 +444,6 @@
           <div class="ledger-meta">
             <span id="resultCount">0 items</span>
             <div class="ledger-meta-actions">
-              <button id="dashboardViewAll" type="button">View all</button>
               <button
                 id="selectPositionsButton"
                 type="button"
@@ -524,112 +523,12 @@
           aria-labelledby="scanTitle"
         >
           <div class="scan-header">
-            <p class="eyebrow">Find any Pokémon card</p>
-            <h1 id="scanTitle">Add cards or sealed</h1>
+            <p class="eyebrow">One quick search</p>
+            <h1 id="scanTitle">Add to your collection</h1>
             <p>
-              Search identifies an exact card printing. Sealed search finds
-              booster boxes, ETBs, tins, bundles, and collections.
+              Search for the exact card, or use a photo and let Mica narrow it
+              down for you.
             </p>
-          </div>
-          <div class="find-actions">
-            <button
-              class="find-action primary-find"
-              id="autoCaptureButton"
-              type="button"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 8h3l1-2h8l1 2h3v11H4z" />
-                <circle cx="12" cy="13" r="4" />
-                <path d="M2 6V3h3M19 3h3v3M22 18v3h-3M5 21H2v-3" /></svg
-              ><span
-                ><strong>Snap a photo</strong
-                ><small>Use the camera to identify and add a card</small></span
-              >
-            </button>
-            <label class="find-action" for="galleryInput"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="16" rx="2" />
-                <circle cx="9" cy="10" r="2" />
-                <path d="m4 18 5-5 3 3 2-2 6 5" /></svg
-              ><span
-                ><strong>Choose from photo library</strong
-                ><small>Identify a card from an existing photo</small></span
-              ></label
-            >
-            <button
-              class="find-action receipt-find"
-              id="receiptCameraButton"
-              type="button"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
-                <path d="M9 8h6M9 12h6M9 16h3" /></svg
-              ><span
-                ><strong>Scan receipt or order</strong
-                ><small
-                  >Open the live camera and capture the document</small
-                ></span
-              >
-            </button>
-          </div>
-          <div class="find-divider">
-            <span>or search by name, set, number, or details</span>
-          </div>
-          <label class="find-search"
-            ><svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="6.5" />
-              <path d="m16 16 4 4" /></svg
-            ><input
-              id="quickCardSearch"
-              type="search"
-              placeholder="Mew ex 151/165"
-              autocomplete="off"
-              aria-label="Search cards by name, set, collector number, rarity, or finish"
-          /></label>
-          <div
-            class="search-examples"
-            role="group"
-            aria-label="Search examples"
-          >
-            <button type="button" data-search-example="Mew ex 151/165">
-              Mew ex 151/165
-            </button>
-            <button
-              type="button"
-              data-search-example="Charizard Base Set 4/102"
-            >
-              Charizard Base Set 4/102
-            </button>
-            <button type="button" data-search-example="Pikachu 151">
-              Pikachu 151
-            </button>
-          </div>
-          <button
-            class="sealed-search-launch"
-            id="sealedSearchButton"
-            type="button"
-          >
-            <span
-              ><strong>Find sealed products</strong
-              ><small
-                >Booster boxes, ETBs, tins, bundles, and collections</small
-              ></span
-            ><b>Search →</b>
-          </button>
-          <div class="search-options">
-            <label for="quickSearchLanguage">Card language</label
-            ><select id="quickSearchLanguage">
-              <option value="en">English</option>
-              <option value="ja">Japanese</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
-              <option value="es">Spanish</option>
-              <option value="it">Italian</option>
-              <option value="pt">Portuguese</option>
-              <option value="zh-tw">Traditional Chinese</option>
-              <option value="id">Indonesian</option>
-              <option value="th">Thai</option>
-            </select>
           </div>
           <section
             class="intake-queue-bar hidden"
@@ -644,20 +543,129 @@
               Review &amp; add
             </button>
           </section>
-          <div class="quick-results" id="quickSearchResults" aria-live="polite">
-            <div class="find-empty">
-              <strong>Find the exact printing</strong
-              ><span
-                >Results show the set and card number so you can pick the right
-                one.</span
+          <div class="add-cards-layout">
+            <section class="add-search-panel" aria-labelledby="addSearchTitle">
+              <div class="add-panel-heading">
+                <span>Fastest for most cards</span>
+                <h2 id="addSearchTitle">Search the catalog</h2>
+              </div>
+              <label class="find-search"
+                ><svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="6.5" />
+                  <path d="m16 16 4 4" /></svg
+                ><input
+                  id="quickCardSearch"
+                  type="search"
+                  placeholder="Try Mew ex 151/165"
+                  autocomplete="off"
+                  aria-label="Search cards by name, set, collector number, rarity, or finish"
+              /></label>
+              <div class="search-options">
+                <label for="quickSearchLanguage">Language</label
+                ><select id="quickSearchLanguage">
+                  <option value="en">English</option>
+                  <option value="ja">Japanese</option>
+                  <option value="fr">French</option>
+                  <option value="de">German</option>
+                  <option value="es">Spanish</option>
+                  <option value="it">Italian</option>
+                  <option value="pt">Portuguese</option>
+                  <option value="zh-tw">Traditional Chinese</option>
+                  <option value="id">Indonesian</option>
+                  <option value="th">Thai</option>
+                </select>
+              </div>
+              <div
+                class="search-examples"
+                role="group"
+                aria-label="Search examples"
               >
-            </div>
+                <button type="button" data-search-example="Mew ex 151/165">
+                  Mew ex 151/165
+                </button>
+                <button
+                  type="button"
+                  data-search-example="Charizard Base Set 4/102"
+                >
+                  Charizard Base Set
+                </button>
+                <button type="button" data-search-example="Pikachu 151">
+                  Pikachu 151
+                </button>
+              </div>
+              <div
+                class="quick-results"
+                id="quickSearchResults"
+                aria-live="polite"
+              >
+                <div class="find-empty compact">
+                  <strong>Type a name, set, or card number</strong
+                  ><span
+                    >Mica shows exact printings so you can choose once.</span
+                  >
+                </div>
+              </div>
+            </section>
+            <aside class="add-capture-panel" aria-labelledby="addCaptureTitle">
+              <div class="add-panel-heading">
+                <span>Hands-free options</span>
+                <h2 id="addCaptureTitle">Use a photo</h2>
+              </div>
+              <div class="find-actions">
+                <button
+                  class="find-action primary-find"
+                  id="autoCaptureButton"
+                  type="button"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 8h3l1-2h8l1 2h3v11H4z" />
+                    <circle cx="12" cy="13" r="4" />
+                    <path d="M2 6V3h3M19 3h3v3M22 18v3h-3M5 21H2v-3" /></svg
+                  ><span
+                    ><strong>Open camera</strong
+                    ><small>Identify one card</small></span
+                  >
+                </button>
+                <label class="find-action" for="galleryInput"
+                  ><svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                    <circle cx="9" cy="10" r="2" />
+                    <path d="m4 18 5-5 3 3 2-2 6 5" /></svg
+                  ><span
+                    ><strong>Choose a photo</strong
+                    ><small>Use an existing image</small></span
+                  ></label
+                >
+                <button
+                  class="find-action"
+                  id="receiptCameraButton"
+                  type="button"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
+                    <path d="M9 8h6M9 12h6M9 16h3" /></svg
+                  ><span
+                    ><strong>Scan receipt</strong
+                    ><small>Add an order faster</small></span
+                  >
+                </button>
+              </div>
+              <button
+                class="sealed-search-launch"
+                id="sealedSearchButton"
+                type="button"
+              >
+                <span
+                  ><strong>Add sealed products</strong
+                  ><small>ETBs, boxes, tins, and bundles</small></span
+                ><b>→</b>
+              </button>
+              <p class="simple-privacy">
+                Photos are analyzed once and are not saved. You confirm every
+                result.
+              </p>
+            </aside>
           </div>
-          <p class="simple-privacy">
-            AI photos are sent once for analysis and are not saved by Mica.
-            Every identity, condition, grade estimate, and receipt line still
-            requires your confirmation.
-          </p>
         </section>
 
         <section
@@ -761,10 +769,6 @@
               >Current quotes remain separate from historical movement.</span
             >
           </div>
-          <h2 class="section-heading action-center-heading">
-            What should I do next?
-          </h2>
-          <div id="businessReview" class="business-review"></div>
           <h2 class="section-heading">What changed</h2>
           <div id="moversList" class="movers-list"></div>
           <h2 class="section-heading">Your most valuable cards</h2>
@@ -952,9 +956,7 @@
           <div class="trade-share-actions">
             <button id="copyTradeSummary" type="button" disabled>
               Copy deal summary</button
-            ><span
-              >No notes, costs, storage, or account details are shared.</span
-            >
+            ><button id="resetTradeButton" type="button">Clear trade</button>
           </div>
           <div class="trade-sides">
             <section class="trade-side" aria-labelledby="tradeGiveTitle">
@@ -963,7 +965,12 @@
                   <span>You give</span>
                   <h2 id="tradeGiveTitle">Leaving your collection</h2>
                 </div>
-                <strong id="tradeGiveTotal">$0.00</strong>
+                <div class="trade-side-actions">
+                  <strong id="tradeGiveTotal">$0.00</strong
+                  ><button type="button" data-trade-add-side="give">
+                    + Add card
+                  </button>
+                </div>
               </div>
               <div class="trade-items" id="tradeGiveItems"></div>
               <div class="field trade-cash">
@@ -990,7 +997,12 @@
                   <span>You receive</span>
                   <h2 id="tradeReceiveTitle">Coming into your collection</h2>
                 </div>
-                <strong id="tradeReceiveTotal">$0.00</strong>
+                <div class="trade-side-actions">
+                  <strong id="tradeReceiveTotal">$0.00</strong
+                  ><button type="button" data-trade-add-side="receive">
+                    + Add card
+                  </button>
+                </div>
               </div>
               <div class="trade-items" id="tradeReceiveItems"></div>
               <div class="field trade-cash">
@@ -1009,54 +1021,6 @@
               </div>
             </section>
           </div>
-          <section class="trade-add" aria-labelledby="tradeAddTitle">
-            <div class="trade-add-head">
-              <div>
-                <p class="eyebrow">Add either side</p>
-                <h2 id="tradeAddTitle">Find or scan a card</h2>
-              </div>
-              <button id="resetTradeButton" type="button">Reset trade</button>
-            </div>
-            <button class="trade-camera" id="tradeCameraButton" type="button">
-              Snap their card
-            </button>
-            <div
-              class="trade-side-toggle"
-              role="group"
-              aria-label="Choose which side receives the next card"
-            >
-              <button type="button" data-trade-side="give" aria-pressed="true">
-                Add to You give</button
-              ><button
-                type="button"
-                data-trade-side="receive"
-                aria-pressed="false"
-              >
-                Add to You receive
-              </button>
-            </div>
-            <label class="find-search"
-              ><svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="11" cy="11" r="6.5" />
-                <path d="m16 16 4 4" /></svg
-              ><input
-                id="tradeCardSearch"
-                type="search"
-                placeholder="Search card name, set, or number"
-                autocomplete="off"
-                aria-label="Search for a card to add to the trade"
-            /></label>
-            <div class="trade-search-results" id="tradeSearchResults">
-              <div class="find-empty">
-                <strong>Search the catalog</strong
-                ><span
-                  >Pick the exact printing. Mica fills its matching market
-                  estimate automatically.</span
-                >
-              </div>
-            </div>
-            <div class="trade-owned" id="tradeOwned"></div>
-          </section>
           <p class="legal-copy">
             Trade Check is a planning tool, not an appraisal. Condition, grade,
             authenticity, venue, fees, and personal preference can change a fair
@@ -1326,6 +1290,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=85"></script>
+    <script type="module" src="app.js?v=86"></script>
   </body>
 </html>

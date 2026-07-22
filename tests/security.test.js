@@ -175,6 +175,10 @@ const appShell = await readFile(
   "utf8",
 );
 const appSource = await readFile(new URL("../app.js", import.meta.url), "utf8");
+const supabaseData = await readFile(
+  new URL("../lib/supabase-data.js", import.meta.url),
+  "utf8",
+);
 const vercelConfig = await readFile(
   new URL("../vercel.json", import.meta.url),
   "utf8",
@@ -228,7 +232,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v85/);
+  assert.match(serviceWorker, /mica-shell-v86/);
   assert.match(serviceWorker, /themes\.css\?v=73/);
 });
 
@@ -243,6 +247,38 @@ test("client presentation never turns demo values into market movement", () => {
   assert.match(appShell, /Recorded activity only/);
 });
 
+test("account switches discard stale portfolio responses and filter owned reads", () => {
+  assert.match(appSource, /let sessionLoadVersion = 0/);
+  assert.match(
+    appSource,
+    /function applySession\(session\)[\s\S]+\+\+sessionLoadVersion/,
+  );
+  assert.match(appSource, /accountRequestIsCurrent\(ownerId, loadVersion\)/);
+  assert.match(appSource, /loadPortfolio\(supabase, ownerId\)/);
+  assert.match(appSource, /loadWatchlist\(supabase, ownerId\)/);
+  assert.match(appSource, /loadPortfolioValuationHistory\(supabase, ownerId\)/);
+  assert.match(
+    supabaseData,
+    /equals:\s*ownerId\s*\?\s*\{\s*user_id:\s*ownerId\s*\}/,
+  );
+  assert.match(supabaseData, /signOut\(\{\s*scope:\s*["']local["']/);
+  assert.match(appSource, /previousOwnerId !== ownerId/);
+  assert.match(appSource, /state\.intakeQueue = \[\]/);
+  assert.match(appSource, /mica-target-alert-hits-\$\{/);
+});
+
+test("streamlined collection, intake, and trade surfaces keep primary actions visible", () => {
+  assert.match(appSource, /All your cards/);
+  assert.doesNotMatch(appSource, /Recent additions/);
+  assert.match(appSource, /data-add-purchase/);
+  assert.match(appSource, /data-open-position/);
+  assert.match(appShell, /class="add-cards-layout"/);
+  assert.match(appShell, /data-trade-add-side="give"/);
+  assert.match(appShell, /data-trade-add-side="receive"/);
+  assert.doesNotMatch(appShell, /What should I do next\?/i);
+  assert.doesNotMatch(appShell, /class="trade-add"/);
+});
+
 test("consolidated workspace navigation remains responsive and routes to real workflows", () => {
   assert.match(appShell, /class="desktop-sidebar"/);
   assert.equal([...appShell.matchAll(/class="sidebar-item/g)].length, 6);
@@ -251,8 +287,8 @@ test("consolidated workspace navigation remains responsive and routes to real wo
   assert.match(appShell, /data-condition-filter="Graded"/);
   assert.match(appShell, /data-condition-filter="Sealed"/);
   assert.match(appSource, /function openWorkspaceShortcut\(target\)/);
-  assert.match(appShell, /id="dashboardViewAll"/);
-  assert.match(appSource, /dashboardViewAll/);
+  assert.doesNotMatch(appShell, /id="dashboardViewAll"/);
+  assert.doesNotMatch(appSource, /dashboardViewAll/);
   assert.match(appSource, /async function openDeviceCamera\(/);
   assert.match(appShell, /id="defaultTradePercent"/);
   assert.match(appShell, /class="seller-tools-disclosure"/);
@@ -265,8 +301,8 @@ test("consolidated workspace navigation remains responsive and routes to real wo
 
 test("card, grading, and receipt scans use the live device camera", () => {
   assert.match(appShell, /id="autoCaptureButton"/);
-  assert.match(appShell, /Snap a photo/);
-  assert.match(appShell, /Choose from photo library/);
+  assert.match(appShell, /Open camera/);
+  assert.match(appShell, /Choose a photo/);
   assert.match(appShell, /id="receiptCameraButton"/);
   assert.doesNotMatch(appShell, /for="cameraInput"/);
   assert.doesNotMatch(appShell, /for="receiptInput"/);
