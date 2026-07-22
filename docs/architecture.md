@@ -11,6 +11,7 @@ Collection records never fall back to local demo storage. The browser receives o
 ```text
 Mobile PWA → Supabase Auth → ownership RLS → collection items / transactions / FIFO lots
           ↘ Vercel Functions → provider adapters → PkmnPrices / TCGdex
+          ↘ authenticated AI intake → Vercel AI Gateway → OpenAI structured vision output → user confirmation
 Vercel Cron → secured price sync → immutable normalized observations → charts / valuation
 Authenticated client → one private daily valuation → ledger cash-flow adjustment → portfolio performance
 ```
@@ -47,5 +48,6 @@ The existing `supabase/functions/sync-catalog` remains the resumable multilingua
 - Selected-card showcases and sale/reference lists exclude private ledger fields by construction. Certification numbers require an explicit opt-in, market references require a live exact match, share text is bounded, and the full CSV neutralizes spreadsheet formulas.
 - Grader certification actions use a fixed allowlist of official PSA, Beckett, CGC, TAG, and SGC destinations. Only conservatively recognized PSA, CGC, and TAG identifiers enter direct URLs; unexpected input never enters a URL, no grader is scraped, and the UI does not store or claim an authenticity verdict.
 - Private daily portfolio snapshots retain the exact-compatible displayed total and fresh/priced/unpriced coverage. Market performance is derived against the immutable transaction ledger; backdated/unknown or zero-cost inventory additions, destructive removal, and catalog corrections restart the baseline so data-entry changes cannot masquerade as returns.
+- AI intake validates the signed-in Supabase user before gateway access, sends only bounded in-memory image data, uses `store: false`, treats visible text as untrusted input, validates strict structured output, and does not write images or results to storage. Exact catalog identity and every financial or condition field still require owner confirmation.
 
 See [implementation plan](implementation-plan-market-portfolio.md) and [security review](security-review.md).

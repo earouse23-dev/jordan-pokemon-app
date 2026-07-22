@@ -3644,9 +3644,12 @@ function openPositionSheet(card, options = {}) {
     <form id="positionForm"><div class="form-grid">
       ${variants.length === 1 ? `<input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant)}"><div class="simple-note full"><strong>${esc(initialVariant)}</strong><br>Exact printing selected from the card match.</div>` : `<div class="field full"><label for="positionVariant">Exact printing</label><select id="positionVariant" name="variant" required>${variants.map((value) => `<option value="${esc(value)}" ${value === initialVariant ? "selected" : ""}>${esc(value)}</option>`).join("")}</select></div>`}
       <div class="field"><label for="positionState">Is it graded?</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>No · raw card</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Yes · professionally graded</option></select></div>
-      <div class="field raw-position"><label for="positionCondition">Condition</label><select id="positionCondition" name="rawCondition"><option value="near_mint" ${prefill.rawCondition === "near_mint" ? "selected" : ""}>Near Mint</option><option value="lightly_played" ${prefill.rawCondition === "lightly_played" ? "selected" : ""}>Lightly Played</option><option value="moderately_played" ${prefill.rawCondition === "moderately_played" ? "selected" : ""}>Moderately Played</option><option value="heavily_played" ${prefill.rawCondition === "heavily_played" ? "selected" : ""}>Heavily Played</option><option value="damaged" ${prefill.rawCondition === "damaged" ? "selected" : ""}>Damaged</option></select></div>
+      <div class="field raw-position"><label for="positionCondition">Condition</label><select id="positionCondition" name="rawCondition">${options.visionAnalysis && !prefill.rawCondition ? '<option value="" selected>Choose after inspection</option>' : ""}<option value="near_mint" ${prefill.rawCondition === "near_mint" ? "selected" : ""}>Near Mint</option><option value="lightly_played" ${prefill.rawCondition === "lightly_played" ? "selected" : ""}>Lightly Played</option><option value="moderately_played" ${prefill.rawCondition === "moderately_played" ? "selected" : ""}>Moderately Played</option><option value="heavily_played" ${prefill.rawCondition === "heavily_played" ? "selected" : ""}>Heavily Played</option><option value="damaged" ${prefill.rawCondition === "damaged" ? "selected" : ""}>Damaged</option></select></div>
       <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === prefill.grader ? "selected" : ""}>${value}</option>`).join("")}</select></div>
       <div class="field graded-position" hidden><label for="positionGrade">Grade</label><input id="positionGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(prefill.grade || "")}" placeholder="10"></div>
+      <div class="field full graded-position" hidden><label for="positionCertification">Certification number <span class="optional-label">Optional</span></label><input id="positionCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(prefill.certificationNumber || "")}"><small>Use only the number visible on this slab. Confirm it on the official grader site after saving.</small></div>
+      ${options.visionAnalysis ? `<div class="vision-prefill-note full"><strong>AI suggestion · confirm before saving</strong><span>${options.visionAnalysis.mode === "grade" ? `Possible professional grade ${esc(options.visionAnalysis.gradeRange || "unclear")} · ` : ""}${esc(conditionLabel(options.visionAnalysis.condition))} · ${esc(confidenceLabel(options.visionAnalysis.confidence))}. This is not an official grade or condition guarantee.</span></div>` : ""}
+      ${options.receiptSource ? `<div class="vision-prefill-note full"><strong>Receipt draft · confirm before saving</strong><span>${esc(options.receiptSource.vendor || "Vendor unclear")}${options.receiptSource.orderNumber ? ` · order ${esc(options.receiptSource.orderNumber)}` : ""}. ${options.receiptSource.needsCostReview ? "Enter the verified all-in USD acquisition cost; Mica left it blank instead of guessing." : "Confirm the suggested all-in USD acquisition cost."}${options.receiptSource.needsDateReview ? " The purchase date also needs review." : ""}</span></div>` : ""}
       <div class="field full acquisition-field"><label for="positionTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="0.00" required></div><small>One total for everything paid. No tax or fee breakdown.</small><label class="field-choice"><input id="positionCostUnknown" type="checkbox"> I don't have the purchase cost</label></div>
       <details class="full intake-more"><summary id="positionMoreSummary">Purchase details · ${initialQuantity} card${Number(initialQuantity) === 1 ? "" : "s"} · ${initialDate}</summary><div class="form-grid"><div class="field"><label for="positionQuantity">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(initialQuantity)}" required></div><div class="field"><label for="positionDate">When did you buy it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}" required><label class="field-choice"><input id="positionDateUnknown" type="checkbox"> Date isn't recorded</label></div></div></details>
       <p class="form-error" id="positionError" role="alert"></p>
@@ -3663,6 +3666,7 @@ function openPositionSheet(card, options = {}) {
     $("#positionCondition").disabled = graded;
     $("#positionGrader").disabled = !graded;
     $("#positionGrade").disabled = !graded;
+    $("#positionCertification").disabled = !graded;
   };
   const values = () => {
     const data = new FormData(form);
@@ -4622,6 +4626,7 @@ function openSheet(content, trigger = document.activeElement) {
 }
 function closeSheet(options = {}) {
   if ($("#bottomSheet").dataset.lockClose === "true" && !options.force) return;
+  const sensitive = $("#bottomSheet").dataset.sensitive === "true";
   $("#sheetBackdrop").hidden = true;
   $("#bottomSheet").hidden = true;
   document.body.style.overflow = "";
@@ -4640,6 +4645,18 @@ function closeSheet(options = {}) {
         : `#${state.route}`,
     );
   state.sheetHistory = false;
+  $("#bottomSheet").dataset.lockClose = "false";
+  delete $("#bottomSheet").dataset.visionOperation;
+  if (sensitive) {
+    if ($("#bottomSheet").dataset.sensitivePreviewUrl)
+      URL.revokeObjectURL($("#bottomSheet").dataset.sensitivePreviewUrl);
+    $("#sheetContent").replaceChildren();
+    delete $("#bottomSheet").dataset.sensitive;
+    delete $("#bottomSheet").dataset.sensitivePreviewUrl;
+    $("#capturePreview").innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4z"/><circle cx="12" cy="13" r="3.2"/></svg><strong>Position one card inside the frame</strong><span>Use a plain background and avoid glare</span>';
+    $("#qualityChip").innerHTML = "<span></span> Ready for a clear photo";
+  }
   if (shouldPop) history.back();
 }
 
@@ -4723,28 +4740,441 @@ function openMethodSheet() {
   );
 }
 
-function showProcessing(file) {
-  const url = URL.createObjectURL(file);
-  $("#capturePreview").innerHTML =
-    `<img src="${url}" alt="Selected card photograph">`;
-  let loadedImages = 0;
-  const releaseUrl = () => {
-    loadedImages += 1;
-    if (loadedImages === 2) URL.revokeObjectURL(url);
-  };
-  $("#capturePreview img").addEventListener("load", releaseUrl, { once: true });
-  $("#qualityChip").innerHTML = "<span></span> Photo ready";
-  openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Photo ready</h2><p>Use the visible card details to find the exact printing.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist"><img id="photoAssistImage" src="${url}" alt="Selected card photograph"><p><strong>Mica will not guess from this image.</strong> Automated image recognition is not connected in this build. Search the name, set, or collector number and confirm the matching card.</p></div><div class="sheet-actions"><button class="secondary" id="photoAssistCancel" type="button">Choose another</button><button class="primary" id="photoAssistSearch" type="button">Search card details</button></div>`,
-  );
-  $("#photoAssistImage").addEventListener("load", releaseUrl, { once: true });
-  $("#photoAssistCancel").addEventListener("click", closeSheet);
-  $("#photoAssistSearch").addEventListener("click", () => {
-    closeSheet();
-    routeTo("scan");
-    setTimeout(() => $("#quickCardSearch").focus(), 0);
-    toast("Enter the name, set, or number shown on the card");
+const visionLanguageCodes = {
+  english: "en",
+  japanese: "ja",
+  french: "fr",
+  german: "de",
+  spanish: "es",
+  italian: "it",
+  portuguese: "pt",
+  "traditional chinese": "zh-tw",
+  indonesian: "id",
+  thai: "th",
+};
+
+function visionLanguage(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return ["en", "ja", "fr", "de", "es", "it", "pt", "zh-tw", "id", "th"].includes(
+    normalized,
+  )
+    ? normalized
+    : visionLanguageCodes[normalized] || $("#quickSearchLanguage")?.value || "en";
+}
+
+function confidenceLabel(value) {
+  const number = Number(value) || 0;
+  if (number >= 0.85) return "High confidence";
+  if (number >= 0.6) return "Medium confidence";
+  return "Low confidence";
+}
+
+function conditionLabel(value) {
+  return {
+    near_mint: "Near Mint",
+    lightly_played: "Lightly Played",
+    moderately_played: "Moderately Played",
+    heavily_played: "Heavily Played",
+    damaged: "Damaged",
+    unknown: "Needs in-person review",
+  }[value] || "Needs in-person review";
+}
+
+function readBlobAsDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("image_read_failed"));
+    reader.readAsDataURL(blob);
   });
+}
+
+function canvasBlob(canvas, quality) {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("image_encode_failed"))),
+      "image/jpeg",
+      quality,
+    ),
+  );
+}
+
+async function decodeVisionImage(file) {
+  if (typeof createImageBitmap === "function") {
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {}
+  }
+  return await new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("image_decode_failed"));
+    };
+    image.src = url;
+  });
+}
+
+function sampledImageQuality(context, width, height) {
+  const sample = document.createElement("canvas");
+  sample.width = 64;
+  sample.height = 64;
+  const sampleContext = sample.getContext("2d", { willReadFrequently: true });
+  sampleContext.drawImage(context.canvas, 0, 0, width, height, 0, 0, 64, 64);
+  const pixels = sampleContext.getImageData(0, 0, 64, 64).data;
+  const luminance = [];
+  for (let index = 0; index < pixels.length; index += 4)
+    luminance.push(pixels[index] * 0.2126 + pixels[index + 1] * 0.7152 + pixels[index + 2] * 0.0722);
+  const average = luminance.reduce((sum, value) => sum + value, 0) / luminance.length;
+  const deviation = Math.sqrt(
+    luminance.reduce((sum, value) => sum + (value - average) ** 2, 0) / luminance.length,
+  );
+  const warnings = [];
+  if (average < 40) warnings.push("The image looks dark; brighter indirect light will improve the estimate.");
+  if (average > 225) warnings.push("The image looks overexposed; move away from direct light or flash.");
+  if (deviation < 22) warnings.push("The image has low contrast; use a plain background and steadier focus.");
+  return warnings;
+}
+
+async function prepareVisionImage(file) {
+  const decoded = await decodeVisionImage(file);
+  const sourceWidth = decoded.width || decoded.naturalWidth;
+  const sourceHeight = decoded.height || decoded.naturalHeight;
+  if (!sourceWidth || !sourceHeight || Math.min(sourceWidth, sourceHeight) < 600) {
+    decoded.close?.();
+    throw new Error("image_resolution_low");
+  }
+  const scale = Math.min(1, 2048 / Math.max(sourceWidth, sourceHeight));
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { alpha: false });
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(decoded, 0, 0, width, height);
+  decoded.close?.();
+  const warnings = sampledImageQuality(context, width, height);
+  let quality = 0.9;
+  let blob = await canvasBlob(canvas, quality);
+  while (blob.size > 1_250_000 && quality > 0.66) {
+    quality -= 0.06;
+    blob = await canvasBlob(canvas, quality);
+  }
+  if (blob.size > 1_350_000) throw new Error("image_encode_large");
+  return {
+    dataUrl: await readBlobAsDataUrl(blob),
+    width,
+    height,
+    bytes: blob.size,
+    warnings,
+  };
+}
+
+async function requestVisionAnalysis(mode, preparedImages) {
+  if (!state.session?.access_token) throw new Error("Sign in again before using AI analysis.");
+  const response = await fetch("/api/vision", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${state.session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ mode, images: preparedImages.map((image) => image.dataUrl) }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "AI analysis is temporarily unavailable.");
+  return payload;
+}
+
+function openVisionSearchFallback(query = "", language = "en") {
+  closeSheet({ discardHistory: true, force: true });
+  routeTo("scan");
+  const input = $("#quickCardSearch");
+  $("#quickSearchLanguage").value = visionLanguage(language);
+  input.value = query;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.focus();
+}
+
+function visionPrefill(analysis, mode) {
+  const identity = analysis.identity || {};
+  const graded = mode !== "grade" && identity.cardState === "graded";
+  const grader = normalizeGrader(identity.grader).normalized;
+  const suggestedCondition = analysis.condition?.rawCondition;
+  const conditionReliable =
+    analysis.quality?.usable && Number(analysis.condition?.confidence) >= 0.6;
+  return {
+    cardState: graded ? "graded" : "raw",
+    rawCondition:
+      conditionReliable && suggestedCondition && suggestedCondition !== "unknown"
+        ? suggestedCondition
+        : "",
+    grader: graded && ["PSA", "BGS", "CGC", "TAG", "SGC"].includes(grader) ? grader : "",
+    grade: graded && identity.grade != null ? String(identity.grade) : "",
+    certificationNumber: graded ? identity.certificationNumber || "" : "",
+    aiEstimate:
+      mode === "grade" && analysis.condition?.estimatedGradeLow != null
+        ? `${analysis.condition.estimatedGradeLow}–${analysis.condition.estimatedGradeHigh}`
+        : "",
+  };
+}
+
+function renderVisionResult(payload, mode, preparedImages) {
+  const analysis = payload.analysis;
+  const identity = analysis.identity || {};
+  const condition = analysis.condition || {};
+  const issues = analysis.quality?.issues || [];
+  const gradeRange =
+    condition.estimatedGradeLow == null
+      ? "Not reliable from these photos"
+      : `${condition.estimatedGradeLow}–${condition.estimatedGradeHigh}`;
+  const qualityMarkup = issues.length
+    ? `<div class="vision-quality ${analysis.quality.usable ? "warning" : "blocking"}"><strong>${analysis.quality.usable ? "Photo limitations" : "Retake recommended"}</strong>${issues.map((issue) => `<span>${esc(issue.message)}</span>`).join("")}</div>`
+    : '<div class="vision-quality ready"><strong>Images are usable</strong><span>Still confirm the physical card and exact printing.</span></div>';
+  const conditionMarkup =
+    mode === "grade"
+      ? `<section class="vision-grade" aria-labelledby="visionGradeTitle"><div><span>Estimated grade range</span><strong id="visionGradeTitle">${esc(gradeRange)}</strong><small>${esc(confidenceLabel(condition.confidence))} · not an official grade</small></div><div><span>Raw condition suggestion</span><strong>${esc(conditionLabel(condition.rawCondition))}</strong><small>Confirm in person before saving</small></div></section><div class="vision-subscore-grid">${(condition.subscores || []).map((item) => `<div><span>${esc(item.category)}</span><strong>${item.scoreLow == null ? "Review" : `${esc(item.scoreLow)}–${esc(item.scoreHigh)}`}</strong><small>${esc(item.summary)}</small></div>`).join("")}</div>${condition.defects?.length ? `<div class="vision-defects"><strong>Visible concerns</strong>${condition.defects.map((defect) => `<span><b>${esc(defect.side)} · ${esc(defect.area)}</b>${esc(defect.evidence)}</span>`).join("")}</div>` : ""}<p class="vision-disclaimer">AI cannot rule out dents, indentations, scratches, print lines, or other defects hidden by lighting, sleeves, focus, or angle. This is a planning estimate, not a promise of a professional grade.</p>`
+      : `<div class="vision-identity-summary"><div><span>Visible identity</span><strong>${esc(identity.name || "Card name unclear")}</strong><small>${esc([identity.setName, identity.collectorNumber, identity.language].filter(Boolean).join(" · ") || "Printed details need review")}</small></div><div><span>Detected state</span><strong>${identity.cardState === "graded" ? `${esc(identity.grader || "Grader unclear")} ${esc(identity.grade ?? "")}` : "Raw card"}</strong><small>${esc(confidenceLabel(identity.confidence))}</small></div></div>`;
+
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">AI analysis ready</h2><p>${esc(payload.model)} · photos were not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="vision-result-head"><img src="${preparedImages[0].dataUrl}" alt="Analyzed card front"><div><span>Suggested catalog search</span><strong>${esc(analysis.searchQuery || "Printed identity unclear")}</strong><small>Choose the exact printing below. Mica will not add a card automatically.</small></div></div>${qualityMarkup}${conditionMarkup}<div class="manual-results" id="visionCatalogResults" aria-live="polite"><div class="searching-cards"><i></i><span>Checking exact catalog printings…</span></div></div><div class="sheet-actions"><button class="secondary" id="visionRetake" type="button">Retake</button><button class="secondary" id="visionManualSearch" type="button">Search differently</button></div>`,
+  );
+  $("#bottomSheet").dataset.lockClose = "false";
+  $("#visionRetake").addEventListener("click", () => closeSheet({ force: true }));
+  $("#visionManualSearch").addEventListener("click", () =>
+    openVisionSearchFallback(analysis.searchQuery, identity.language),
+  );
+  const renderCandidates = async () => {
+    let cards = [];
+    try {
+      if (analysis.searchQuery?.length >= 2) {
+        const result = await searchCatalog(analysis.searchQuery, visionLanguage(identity.language), 12);
+        cards = result.items;
+      }
+    } catch {}
+    const node = $("#visionCatalogResults");
+    if (!node) return;
+    node.innerHTML = cards.length
+      ? `<div class="vision-match-instruction"><strong>Confirm the exact card</strong><span>Compare the image, set, number, language, and foil before continuing.</span></div>${cards.map((card) => `<button class="catalog-result" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Printing unknown")}</small>${matchReason(card)}</span><b>Use match</b></button>`).join("")}`
+      : '<div class="unavailable-panel">No reliable catalog match was found. Retake the card closer or search the printed details manually.</div>';
+    $$("[data-vision-card]", node).forEach((button) =>
+      button.addEventListener("click", () => {
+        const card = catalog.find((item) => item.id === button.dataset.visionCard);
+        if (!card) return;
+        const prefill = visionPrefill(analysis, mode);
+        closeSheet({ discardHistory: true, force: true });
+        openPositionSheet(card, {
+          prefill,
+          visionAnalysis: {
+            mode,
+            gradeRange: prefill.aiEstimate,
+            condition: condition.rawCondition,
+            confidence: condition.confidence,
+          },
+        });
+      }),
+    );
+  };
+  void renderCandidates();
+}
+
+async function analyzeCardImages(mode, preparedImages) {
+  $("#bottomSheet").dataset.lockClose = "true";
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Analyzing card evidence</h2><p>Reading printed identity and visible physical details</p></div></div><div class="vision-processing" role="status" aria-live="polite"><i></i><strong>${mode === "grade" ? "Comparing the front and back…" : "Reading the card or slab…"}</strong><span>The images are sent once and are not written to Mica storage.</span></div>`,
+  );
+  try {
+    const payload = await requestVisionAnalysis(mode, preparedImages);
+    renderVisionResult(payload, mode, preparedImages);
+  } catch (error) {
+    $("#bottomSheet").dataset.lockClose = "false";
+    openSheet(
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">AI scan did not finish</h2><p>Your photo was not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="unavailable-panel">${esc(error.message || "The analysis service is temporarily unavailable.")}</div><div class="sheet-actions"><button class="secondary" id="visionErrorClose" type="button">Choose another</button><button class="primary" id="visionErrorSearch" type="button">Search manually</button></div>`,
+    );
+    $("#visionErrorClose").addEventListener("click", () => closeSheet({ force: true }));
+    $("#visionErrorSearch").addEventListener("click", () => openVisionSearchFallback());
+  }
+}
+
+async function showProcessing(file) {
+  const operationId = crypto.randomUUID();
+  const previewUrl = URL.createObjectURL(file);
+  $("#capturePreview").innerHTML = `<img src="${previewUrl}" alt="Selected card photograph">`;
+  $("#qualityChip").innerHTML = "<span></span> Preparing photo";
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Analyze this card</h2><p>Identify it, or add the back for a raw grade estimate.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica prepares a smaller copy on this device, sends it once to OpenAI through Vercel, then asks you to confirm every result.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Preparing a private upload…</div><div class="vision-choice-grid"><button id="visionIdentify" type="button" disabled><strong>Identify & add</strong><span>Read the card or slab and find exact catalog matches.</span></button><label for="visionBackInput"><strong>Estimate raw grade</strong><span>Add a clear back photo, then review a conservative range.</span><input id="visionBackInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment" hidden></label></div><div class="vision-back-preview" id="visionBackPreview" hidden></div><div class="sheet-actions"><button class="secondary" id="photoAssistSearch" type="button">Search manually</button><button class="primary" id="visionGrade" type="button" disabled>Analyze front + back</button></div>`,
+  );
+  $("#bottomSheet").dataset.sensitive = "true";
+  $("#bottomSheet").dataset.visionOperation = operationId;
+  $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
+  const releasePreview = () => {
+    URL.revokeObjectURL(previewUrl);
+    if ($("#bottomSheet").dataset.sensitivePreviewUrl === previewUrl)
+      delete $("#bottomSheet").dataset.sensitivePreviewUrl;
+  };
+  $("#photoAssistImage").addEventListener("load", releasePreview, { once: true });
+  let front;
+  let back;
+  try {
+    front = await prepareVisionImage(file);
+    if (
+      !$("#visionIdentify") ||
+      $("#bottomSheet").dataset.visionOperation !== operationId
+    )
+      return;
+    $("#capturePreview").innerHTML = `<img src="${front.dataUrl}" alt="Selected card photograph">`;
+    $("#qualityChip").innerHTML = "<span></span> Ready for AI review";
+    $("#visionLocalCheck").innerHTML = front.warnings.length
+      ? `<strong>Improve accuracy if possible</strong>${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join("")}`
+      : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · original is not uploaded</span>`;
+    $("#visionIdentify").disabled = false;
+  } catch (error) {
+    if (!$("#visionLocalCheck")) return;
+    $("#visionLocalCheck").innerHTML =
+      `<strong>Could not prepare this image</strong><span>${error.message === "image_resolution_low" ? "Move closer and use a higher-resolution photo." : "This device could not decode the file. Try JPEG, PNG, or WebP."}</span>`;
+  }
+  $("#visionIdentify")?.addEventListener("click", () => front && void analyzeCardImages("identify", [front]));
+  $("#photoAssistSearch")?.addEventListener("click", () => openVisionSearchFallback());
+  $("#visionBackInput")?.addEventListener("change", async (event) => {
+    const selected = event.target.files[0];
+    event.target.value = "";
+    if (!selected) return;
+    $("#visionBackPreview").hidden = false;
+    $("#visionBackPreview").innerHTML = '<div class="searching-cards"><i></i><span>Preparing the back photo…</span></div>';
+    try {
+      back = await prepareVisionImage(selected);
+      if (
+        !$("#visionBackPreview") ||
+        $("#bottomSheet").dataset.visionOperation !== operationId
+      )
+        return;
+      $("#visionBackPreview").innerHTML = `<img src="${back.dataUrl}" alt="Selected card back"><div><strong>Back photo ready</strong><span>${back.warnings.length ? esc(back.warnings.join(" ")) : "Local quality check passed."}</span></div>`;
+      $("#visionGrade").disabled = false;
+    } catch {
+      if ($("#visionBackPreview"))
+        $("#visionBackPreview").innerHTML = '<div class="unavailable-panel">The back photo could not be prepared. Retake it as JPEG, PNG, or WebP.</div>';
+    }
+  });
+  $("#visionGrade")?.addEventListener("click", () =>
+    front && back ? void analyzeCardImages("grade", [front, back]) : null,
+  );
+}
+
+function receiptLinePrefill(receipt, line) {
+  const singleLine = receipt.lineItems.length === 1;
+  const exactLineTotals = Number(receipt.unallocatedAmount) === 0;
+  const compatibleCurrency = receipt.currency === "USD";
+  const safeDate =
+    /^\d{4}-\d{2}-\d{2}$/.test(String(receipt.purchaseDate || "")) &&
+    receipt.purchaseDate <= localIsoDate()
+      ? receipt.purchaseDate
+      : localIsoDate();
+  return {
+    quantity: line.quantity || 1,
+    transactionDate: safeDate,
+    totalAcquisitionCost:
+      compatibleCurrency && singleLine && receipt.totalAmount != null
+        ? receipt.totalAmount.toFixed(2)
+        : compatibleCurrency && exactLineTotals && line.lineTotal != null
+          ? line.lineTotal.toFixed(2)
+          : "",
+  };
+}
+
+function receiptMoney(value, currency) {
+  if (value == null) return "Not readable";
+  if (currency) return money(value, currency);
+  return `${Number(value).toFixed(2)} · currency unclear`;
+}
+
+function renderReceiptAnalysis(payload, matched = new Map()) {
+  const receipt = payload.analysis;
+  const currency = receipt.currency;
+  const uncertainTotal = receipt.unallocatedAmount != null && receipt.unallocatedAmount > 0.009;
+  const incompatibleCurrency = currency !== "USD";
+  const needsCostReview = uncertainTotal || incompatibleCurrency;
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Receipt intake draft</h2><p>${esc(receipt.vendor || "Vendor unclear")} · ${esc(receipt.purchaseDate || "Date unclear")} · image not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><section class="receipt-summary"><div><span>Order total</span><strong>${receiptMoney(receipt.totalAmount, currency)}</strong></div><div><span>Recognized card lines</span><strong>${receipt.lineItems.length}</strong></div><div><span>Still unallocated</span><strong>${receipt.unallocatedAmount == null ? "Unknown" : receiptMoney(receipt.unallocatedAmount, currency)}</strong></div></section>${incompatibleCurrency ? `<div class="vision-quality warning"><strong>${currency ? `${esc(currency)} purchase needs review` : "Purchase currency is unclear"}</strong><span>Mica records acquisition cost in USD and will not relabel or auto-convert this receipt. Enter the verified all-in USD cost yourself before saving.</span></div>` : ""}${uncertainTotal ? `<div class="vision-quality warning"><strong>Confirm all-in cost per card</strong><span>${receiptMoney(receipt.unallocatedAmount, currency)} of tax, shipping, fees, discounts, or other order value was not assigned to a card. Mica will not invent an allocation.</span></div>` : ""}<div class="receipt-lines">${receipt.lineItems.length ? receipt.lineItems.map((line, index) => `<article><div><strong>${esc(line.description)}</strong><span>${line.quantity} item${line.quantity === 1 ? "" : "s"} · ${line.lineTotal == null ? "line price unclear" : receiptMoney(line.lineTotal, currency)} · ${esc(confidenceLabel(line.confidence))}</span></div><button type="button" data-receipt-line="${index}" ${matched.has(index) ? "disabled" : ""}>${matched.has(index) ? "Matched ✓" : "Find exact card"}</button></article>`).join("") : '<div class="unavailable-panel">No Pokémon card line items were readable. Retake the receipt closer or use an order screenshot.</div>'}</div><p class="vision-disclaimer">Receipt text can establish purchase evidence but cannot prove card condition or an exact variant. Confirm every catalog match and the total acquisition cost before saving.</p><div class="sheet-actions"><button class="secondary" id="receiptRetake" type="button">Choose another</button><button class="primary" id="receiptReviewQueue" type="button" ${matched.size ? "" : "disabled"}>Review ${matched.size} queued</button></div>`,
+  );
+  $("#bottomSheet").dataset.lockClose = "false";
+  $("#receiptRetake").addEventListener("click", () => closeSheet({ force: true }));
+  $("#receiptReviewQueue").addEventListener("click", () => {
+    closeSheet({ discardHistory: true, force: true });
+    openIntakeQueueSheet();
+  });
+  $$("[data-receipt-line]", $("#sheetContent")).forEach((button) =>
+    button.addEventListener("click", async () => {
+      const index = Number(button.dataset.receiptLine);
+      const line = receipt.lineItems[index];
+      openSheet(
+        `<div class="sheet-heading"><div><h2 id="sheetTitle">Match receipt line</h2><p>${esc(line.description)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="manual-results" id="receiptMatchResults"><div class="searching-cards"><i></i><span>Finding exact printings…</span></div></div><div class="sheet-actions"><button class="secondary" id="receiptMatchBack" type="button">Back to receipt</button><button class="secondary" id="receiptMatchSearch" type="button">Search manually</button></div>`,
+      );
+      $("#receiptMatchBack").addEventListener("click", () => renderReceiptAnalysis(payload, matched));
+      $("#receiptMatchSearch").addEventListener("click", () =>
+        openVisionSearchFallback(line.searchQuery, "en"),
+      );
+      let cards = [];
+      try {
+        cards = (await searchCatalog(line.searchQuery, "en", 12)).items;
+      } catch {}
+      if (!$("#receiptMatchResults")) return;
+      $("#receiptMatchResults").innerHTML = cards.length
+        ? cards.map((card) => `<button class="catalog-result" type="button" data-receipt-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(card.variant || "Printing unknown")}</small>${matchReason(card)}</span><b>Queue</b></button>`).join("")
+        : '<div class="unavailable-panel">No exact catalog match found. Search the printed card details manually.</div>';
+      $$("[data-receipt-card]", $("#receiptMatchResults")).forEach((cardButton) =>
+        cardButton.addEventListener("click", () => {
+          const card = catalog.find((item) => item.id === cardButton.dataset.receiptCard);
+          if (!card) return;
+          queueIntakeCard(card, receiptLinePrefill(receipt, line), {
+            vendor: receipt.vendor,
+            orderNumber: receipt.orderNumber,
+            currency: receipt.currency,
+            needsCostReview,
+            needsDateReview:
+              !receipt.purchaseDate || receipt.purchaseDate > localIsoDate(),
+          });
+          matched.set(index, card.id);
+          renderReceiptAnalysis(payload, matched);
+        }),
+      );
+    }),
+  );
+}
+
+async function showReceiptProcessing(file) {
+  const operationId = crypto.randomUUID();
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Preparing receipt</h2><p>Nothing will be saved automatically</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="vision-processing" role="status"><i></i><strong>Checking the image on this device…</strong><span>Orders and receipts are sent once for extraction and are not written to Mica storage.</span></div>`,
+  );
+  $("#bottomSheet").dataset.sensitive = "true";
+  $("#bottomSheet").dataset.visionOperation = operationId;
+  try {
+    const prepared = await prepareVisionImage(file);
+    if (
+      $("#bottomSheet").hidden ||
+      $("#bottomSheet").dataset.visionOperation !== operationId
+    )
+      return;
+    $("#bottomSheet").dataset.lockClose = "true";
+    openSheet(
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Reading receipt</h2><p>Extracting purchase facts and Pokémon card lines</p></div></div><div class="vision-processing" role="status"><i></i><strong>Building a review draft…</strong><span>Mica will not allocate unclear order costs or add cards without confirmation.</span></div>`,
+    );
+    const payload = await requestVisionAnalysis("receipt", [prepared]);
+    renderReceiptAnalysis(payload);
+  } catch (error) {
+    $("#bottomSheet").dataset.lockClose = "false";
+    openSheet(
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Receipt scan did not finish</h2><p>The image was not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="unavailable-panel">${esc(error.message || "Try a clearer JPEG, PNG, or WebP image.")}</div><div class="sheet-actions"><button class="primary" id="receiptErrorClose" type="button">Choose another</button></div>`,
+    );
+    $("#receiptErrorClose").addEventListener("click", () => closeSheet({ force: true }));
+  }
 }
 
 function catalogItem(item) {
@@ -6824,9 +7254,9 @@ function renderIntakeQueueBar() {
     `${state.intakeQueue.length} exact card${state.intakeQueue.length === 1 ? "" : "s"} queued`;
 }
 
-function queueIntakeCard(card) {
+function queueIntakeCard(card, prefill = null, source = null) {
   if (!card) return;
-  state.intakeQueue.push({ queueEntryId: crypto.randomUUID(), card });
+  state.intakeQueue.push({ queueEntryId: crypto.randomUUID(), card, prefill, source });
   renderIntakeQueueBar();
   toast(`${card.name} queued · exact printing preserved`);
 }
@@ -6834,6 +7264,11 @@ function queueIntakeCard(card) {
 function openBatchIntakeSheet() {
   if (!state.intakeQueue.length) {
     toast("Your intake queue is empty");
+    return;
+  }
+  if (state.intakeQueue.some((entry) => entry.prefill || entry.source)) {
+    toast("Receipt cards need individual cost and condition confirmation");
+    openIntakeQueueSheet();
     return;
   }
   const today = localIsoDate();
@@ -6935,10 +7370,13 @@ function openIntakeQueueSheet() {
     toast("Your intake queue is empty");
     return;
   }
-  openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Rapid intake queue</h2><p>Confirm condition and one total acquisition cost for each exact printing.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="intake-batch-choice"><div><strong>Adding raw cards with the same condition?</strong><span>Review exact variants, quantities, and total costs together.</span></div><button id="batchRawIntake" type="button">Batch add raw</button></div><div class="intake-list">${state.intakeQueue.map((entry) => `<div class="intake-row"><img src="${esc(entry.card.thumb || entry.card.image || "./icons/icon.svg")}" alt=""><div><strong>${esc(entry.card.name)}</strong><span>${esc(entry.card.set)} · ${esc(entry.card.number)}<br>${esc(entry.card.variant || "Printing unknown")} · ${esc(languageName(entry.card.language || "en"))}</span></div><div class="intake-row-actions"><button type="button" data-intake-prepare="${esc(entry.queueEntryId)}">Add details</button><button class="remove" type="button" data-intake-remove="${esc(entry.queueEntryId)}">Remove</button></div></div>`).join("")}</div><p class="legal-copy">Mica never merges queued search results or guesses the condition. Use Add details for graded cards or cards that need different information.</p><div class="sheet-actions"><button class="secondary" id="clearIntakeQueue" type="button">Clear queue</button><button class="primary" id="intakeDone" type="button">Keep searching</button></div>`,
+  const hasReceiptDrafts = state.intakeQueue.some(
+    (entry) => entry.prefill || entry.source,
   );
-  $("#batchRawIntake").addEventListener("click", () => {
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Rapid intake queue</h2><p>Confirm condition and one total acquisition cost for each exact printing.</p></div><button class="sheet-close" aria-label="Close">×</button></div>${hasReceiptDrafts ? '<div class="vision-quality warning"><strong>Receipt details are suggestions</strong><span>Open each card to confirm its condition and all-in acquisition cost. Unallocated order costs stay blank instead of being guessed.</span></div>' : '<div class="intake-batch-choice"><div><strong>Adding raw cards with the same condition?</strong><span>Review exact variants, quantities, and total costs together.</span></div><button id="batchRawIntake" type="button">Batch add raw</button></div>'}<div class="intake-list">${state.intakeQueue.map((entry) => `<div class="intake-row"><img src="${esc(entry.card.thumb || entry.card.image || "./icons/icon.svg")}" alt=""><div><strong>${esc(entry.card.name)}</strong><span>${esc(entry.card.set)} · ${esc(entry.card.number)}<br>${esc(entry.card.variant || "Printing unknown")} · ${esc(languageName(entry.card.language || "en"))}${entry.source?.vendor ? `<br>Receipt: ${esc(entry.source.vendor)}${entry.prefill?.totalAcquisitionCost ? ` · ${money(Number(entry.prefill.totalAcquisitionCost))}` : " · cost needs review"}` : ""}</span></div><div class="intake-row-actions"><button type="button" data-intake-prepare="${esc(entry.queueEntryId)}">Confirm & add</button><button class="remove" type="button" data-intake-remove="${esc(entry.queueEntryId)}">Remove</button></div></div>`).join("")}</div><p class="legal-copy">Mica never merges queued search results or silently accepts an AI suggestion. Confirm exact printing, condition or grade, and purchase facts before saving.</p><div class="sheet-actions"><button class="secondary" id="clearIntakeQueue" type="button">Clear queue</button><button class="primary" id="intakeDone" type="button">Keep searching</button></div>`,
+  );
+  $("#batchRawIntake")?.addEventListener("click", () => {
     closeSheet({ discardHistory: true });
     openBatchIntakeSheet();
   });
@@ -6949,7 +7387,11 @@ function openIntakeQueueSheet() {
       );
       if (!entry) return;
       closeSheet({ discardHistory: true });
-      openPositionSheet(entry.card, { queueEntryId: entry.queueEntryId });
+      openPositionSheet(entry.card, {
+        queueEntryId: entry.queueEntryId,
+        prefill: entry.prefill || {},
+        receiptSource: entry.source || null,
+      });
     }),
   );
   $$("[data-intake-remove]", $("#sheetContent")).forEach((button) =>
@@ -7182,6 +7624,12 @@ function bindEvents() {
     event.target.value = "";
     validateImage(file);
   });
+  $("#receiptInput").addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    event.target.value = "";
+    if (!validateImageFile(file)) return;
+    void showReceiptProcessing(file);
+  });
   $("#sheetBackdrop").addEventListener("click", closeSheet);
   $("#exportButton").addEventListener("click", downloadAccountBackup);
   $("#exportCsvButton").addEventListener("click", downloadCollectionCsv);
@@ -7276,7 +7724,7 @@ function bindEvents() {
   applyUiTheme(uiTheme);
 }
 
-function validateImage(file) {
+function validateImageFile(file) {
   if (!file) return;
   const allowed = [
     "image/jpeg",
@@ -7287,13 +7735,18 @@ function validateImage(file) {
   ];
   if (!allowed.includes(file.type)) {
     toast("Choose a JPEG, PNG, WebP, HEIC, or HEIF image");
-    return;
+    return false;
   }
   if (file.size > 12 * 1024 * 1024) {
     toast("Image is over the 12 MB capture limit");
-    return;
+    return false;
   }
-  showProcessing(file);
+  return true;
+}
+
+function validateImage(file) {
+  if (!validateImageFile(file)) return;
+  void showProcessing(file);
 }
 
 let appEventsBound = false;

@@ -12,8 +12,9 @@ Requires Node 20+.
 2. Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for browser authentication.
 3. Configure `SUPABASE_SECRET_KEY` only for server-side synchronization.
 4. Configure `PKMNPRICES_API_KEY` for primary market pricing. Set `PKMNPRICES_PLAN=pro` after upgrading so Mica requests the prepared 365-day history, Japanese, marketplace-offer, and sealed-product paths.
-5. Apply the migrations in `supabase/migrations/` to the linked Supabase project.
-6. Run:
+5. AI card/receipt intake uses Vercel AI Gateway. On Vercel, OIDC supplies authentication automatically; for local or non-Vercel use, configure `AI_GATEWAY_API_KEY`. Keep the default `VISION_MODEL` or choose another approved OpenAI vision model.
+6. Apply the migrations in `supabase/migrations/` to the linked Supabase project.
+7. Run:
 
 ```bash
 npm run dev
@@ -56,6 +57,14 @@ The app opens on the port printed by the local server. It does not fall back to 
 
 Provider responses are normalized before reaching portfolio calculations or UI components. Current observations, history, source, market, currency, condition/grader/grade, and freshness remain explicit. Provider disagreements are shown separately and are not averaged by default.
 
+## AI-assisted intake
+
+Authenticated users can photograph a card or slab for identity suggestions, add front and back photos for a conservative raw-grade range, or scan a receipt/order confirmation for purchase facts. Images are resized and converted on-device, sent once through the server-only Vercel AI Gateway path, and are not written to Supabase, object storage, application logs, or portfolio records. The upstream request sets `store: false`.
+
+AI output is an untrusted draft. Mica always requires the user to choose the exact catalog printing and confirm raw/graded state, condition or grader/grade, certification, quantity, and total acquisition cost before saving. Grade ranges are planning estimates—not professional grades—and cannot rule out defects hidden by sleeves, glare, lighting, focus, or angle. Receipt extraction never invents allocation of tax, shipping, fees, discounts, or unclear order value.
+
+The endpoint requires a valid Supabase access token, atomically claims a durable owner-scoped usage allowance, accepts only bounded JPEG/PNG/WebP data URLs, uses strict structured output, hashes the user identifier before sending a safety identifier, and returns `no-store` responses. See [AI vision runbook](docs/ai-vision-runbook.md).
+
 The PkmnPrices account currently configured in this workspace can return current prices. Historical price and linked sold-listing endpoints may report `plan_required`; the app preserves that state rather than inventing history.
 
 ## Scheduled synchronization
@@ -79,6 +88,9 @@ See `.env.example`. Important values:
 - `PRICE_SYNC_SECRET` or Vercel `CRON_SECRET`
 - `PRICE_STALE_AFTER_HOURS`
 - `PRICE_ANOMALY_THRESHOLD_PERCENT`
+- `AI_GATEWAY_API_KEY` (local/non-Vercel fallback; do not expose to the browser)
+- `VISION_MODEL` (defaults to `openai/gpt-5.6-luna`)
+- `VISION_MAX_PER_HOUR` (defaults to `20` per authenticated user)
 - disabled `ALT_*` and `CARD_LADDER_*` values
 
 Do not commit credentials. Do not add `SUPABASE_SECRET_KEY`, provider keys, or synchronization secrets to public/browser-prefixed variables.
@@ -118,5 +130,6 @@ If a value is unavailable, inspect exact identity/variant mapping, state, condit
 - [Catalog synchronization](docs/catalog-sync-runbook.md)
 - [Continuous product improvement log](docs/continuous-improvement-2026-07-20.md)
 - [Security review](docs/security-review.md)
+- [AI vision runbook](docs/ai-vision-runbook.md)
 
 Mica is independent and is not affiliated with or endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak, TCGplayer, Cardmarket, eBay, PSA, CGC, Beckett, SGC, Alt, or Card Ladder.
