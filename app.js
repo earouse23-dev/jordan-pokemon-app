@@ -95,7 +95,7 @@ let deferredInstallPrompt = null;
 let motionPreference = "auto";
 let targetAlertsEnabled = false;
 let workspaceMode = "growth";
-let uiTheme = "clean";
+let uiTheme = "analytics";
 try {
   const savedMotion = localStorage.getItem("mica-motion-preference");
   if (["auto", "reduce", "full"].includes(savedMotion))
@@ -239,6 +239,7 @@ const state = {
   setCatalogLoading: new Set(),
   session: null,
   route: "collection",
+  sidebarTarget: "dashboard",
   ledgerView: "all",
   query: "",
   sort: "value-desc",
@@ -1334,6 +1335,16 @@ async function loadOffers(item, force = false) {
 function routeTo(route, options = {}) {
   const changed = state.route !== route;
   state.route = route;
+  if (options.sidebarTarget) state.sidebarTarget = options.sidebarTarget;
+  else if (route !== "detail")
+    state.sidebarTarget =
+      {
+        collection: "dashboard",
+        scan: "add",
+        insights: "analytics",
+        trade: "trades",
+        profile: "settings",
+      }[route] || state.sidebarTarget;
   $$(".view").forEach((view) => {
     const active = view.id === `view-${route}`;
     view.classList.toggle("active", active);
@@ -1357,6 +1368,7 @@ function routeTo(route, options = {}) {
   }[route] || ["Mica", "Your collection workspace"];
   if ($("#headerSection")) $("#headerSection").textContent = headerCopy[0];
   if ($("#headerSubtitle")) $("#headerSubtitle").textContent = headerCopy[1];
+  syncWorkspaceChrome();
   if (route === "detail") renderDetail();
   window.scrollTo({ top: 0, behavior: options.instant ? "auto" : "smooth" });
   if (changed && options.focus !== false)
@@ -1368,6 +1380,100 @@ function routeTo(route, options = {}) {
   const historyMode = options.history || (options.instant ? "replace" : "push");
   if (historyMode === "push" && changed) history.pushState({ route }, "", url);
   else if (historyMode === "replace") history.replaceState({ route }, "", url);
+}
+
+const workspaceCopy = Object.freeze({
+  dashboard: ["Dashboard", "Welcome back", "Here’s your collection overview."],
+  collection: ["Collection", "My Collection", "Browse, filter, and manage every item you own."],
+  sets: ["Sets", "All Sets", "Track exact set progress and missing cards."],
+  sealed: ["Sealed Products", "Sealed Products", "Booster boxes, ETBs, tins, bundles, and collections."],
+  graded: ["Graded Cards", "Graded Cards", "Your slabbed cards with exact grader and grade context."],
+  watchlist: ["Watchlist", "Watchlist", "Targets and exact items you’re following."],
+});
+
+function syncWorkspaceChrome() {
+  document.body.dataset.sidebarTarget = state.sidebarTarget;
+  $$("[data-sidebar-target]").forEach((button) => {
+    const active = button.dataset.sidebarTarget === state.sidebarTarget;
+    button.classList.toggle("active", active);
+    if (button.classList.contains("sidebar-item")) {
+      if (active) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    }
+  });
+  if (state.route !== "collection") return;
+  const copy = workspaceCopy[state.sidebarTarget] || workspaceCopy.collection;
+  if ($("#headerSection")) $("#headerSection").textContent = copy[0];
+  if ($("#headerSubtitle")) $("#headerSubtitle").textContent = copy[2];
+  if ($("#collectionTitle")) $("#collectionTitle").textContent = copy[1];
+  if ($(".collection-subtitle")) $(".collection-subtitle").textContent = copy[2];
+}
+
+function openWorkspaceShortcut(target) {
+  const collectionTarget = (ledgerView, condition = "") => {
+    state.sidebarTarget = target;
+    state.ledgerView = ledgerView;
+    state.conditionFilter = condition;
+    state.setFilter = "";
+    state.labelFilter = "";
+    syncTabs();
+    renderCollection();
+    routeTo("collection", { sidebarTarget: target });
+  };
+  if (target === "dashboard") return collectionTarget("all");
+  if (target === "collection") {
+    collectionTarget("all");
+    requestAnimationFrame(() => $(".view-tabs")?.scrollIntoView({ block: "start" }));
+    return;
+  }
+  if (target === "sets") return collectionTarget("sets");
+  if (target === "sealed") return collectionTarget("all", "Sealed");
+  if (target === "graded") return collectionTarget("graded");
+  if (target === "watchlist" || target === "alerts")
+    return collectionTarget("watchlist");
+  if (["add", "search", "photo"].includes(target)) {
+    routeTo("scan", { sidebarTarget: target === "photo" ? "add" : target });
+    if (target === "photo") $("#cameraInput")?.click();
+    else if (target === "search") $("#quickCardSearch")?.focus();
+    return;
+  }
+  if (target === "trades") {
+    renderTrade();
+    routeTo("trade", { sidebarTarget: target });
+    return;
+  }
+  if (["portfolio"].includes(target)) {
+    collectionTarget("all");
+    requestAnimationFrame(() => $("#portfolioHistory")?.scrollIntoView({ block: "center" }));
+    return;
+  }
+  if (["analytics", "sales", "purchases", "seller"].includes(target)) {
+    if (["sales", "purchases"].includes(target) && workspaceMode === "guided")
+      applyWorkspaceMode("growth", { announce: true });
+    renderInsights();
+    void refreshMovementHistory();
+    routeTo("insights", { sidebarTarget: target });
+    const selector =
+      target === "sales"
+        ? "#businessReportTitle"
+        : target === "purchases"
+          ? "#recentActivity"
+          : target === "seller"
+            ? "#liquidationTitle"
+            : "#view-insights .insight-feature";
+    requestAnimationFrame(() => $(selector)?.scrollIntoView({ block: "start" }));
+    return;
+  }
+  if (["reports", "import", "settings"].includes(target)) {
+    routeTo("profile", { sidebarTarget: target });
+    const selector =
+      target === "reports"
+        ? "#insuranceReportButton"
+        : target === "import"
+          ? "#importButton"
+          : ".appearance-settings";
+    requestAnimationFrame(() => $(selector)?.scrollIntoView({ block: "center" }));
+  }
 }
 
 function watchContextLabel(item) {
@@ -2004,7 +2110,7 @@ function renderCollection() {
   const sellerDesk = $("#sellerDesk");
   sellerDesk.classList.toggle("hidden", state.ledgerView !== "for-sale");
   const accountUnavailable = accountDataUnavailable();
-  $$('[data-route="scan"]').forEach((button) => {
+  $$('[data-route="scan"],[data-sidebar-target="add"],[data-sidebar-target="photo"]').forEach((button) => {
     button.disabled = accountUnavailable;
   });
   [
@@ -2094,7 +2200,15 @@ function renderCollection() {
       ? "Gain / loss"
       : "Known gain / loss";
   $("#ownedCount").textContent =
-    `${totals.quantity} item${totals.quantity === 1 ? "" : "s"}`;
+    totals.quantity.toLocaleString();
+  $("#gradedOwnedCount").textContent = gradedCount.toLocaleString();
+  $("#sealedOwnedCount").textContent = sealedCount.toLocaleString();
+  $("#gradedShare").textContent = totals.quantity
+    ? `${((gradedCount / totals.quantity) * 100).toFixed(1)}% of collection`
+    : "0% of collection";
+  $("#sealedShare").textContent = totals.quantity
+    ? `${((sealedCount / totals.quantity) * 100).toFixed(1)}% of collection`
+    : "0% of collection";
   $("#portfolioReturn").textContent =
     portfolioReturn === null
       ? "—"
@@ -2108,7 +2222,8 @@ function renderCollection() {
       : "Realized gain from FIFO-covered sales";
   $("#allocationSummary").textContent =
     `${rawCount} / ${gradedCount} / ${sealedCount}`;
-  $("#freshCoverage").textContent = `${totals.priced} of ${totals.quantity}`;
+  $("#freshCoverage").textContent =
+    `${totals.priced.toLocaleString()} live valuation${totals.priced === 1 ? "" : "s"}`;
   const partial = totals.unpriced
     ? ` · ${totals.unpriced} unpriced item${totals.unpriced === 1 ? "" : "s"} excluded`
     : "";
@@ -2227,7 +2342,16 @@ function renderCollection() {
       ? (itemValue(b) ?? -1) - (itemValue(a) ?? -1)
       : a.name.localeCompare(b.name),
   );
+  if (state.sidebarTarget === "dashboard") {
+    visible.sort((a, b) =>
+      String(b.acquisitionDate || b.createdAt || "").localeCompare(
+        String(a.acquisitionDate || a.createdAt || ""),
+      ),
+    );
+    visible = visible.slice(0, 8);
+  }
   const visibleKey = JSON.stringify([
+    state.sidebarTarget,
     state.ledgerView,
     state.query,
     state.sort,
@@ -2242,9 +2366,12 @@ function renderCollection() {
   const windowed = collectionWindow(visible, state.visibleLimit);
   const displayed = windowed.displayed;
   state.visiblePositionIds = displayed.map((item) => item.uid);
-  $("#resultCount").textContent = windowed.remaining
-    ? `Showing ${displayed.length} of ${windowed.total} items`
-    : `${windowed.total} item${windowed.total === 1 ? "" : "s"}`;
+  $("#resultCount").textContent =
+    state.sidebarTarget === "dashboard"
+      ? `Recent additions · ${windowed.total} item${windowed.total === 1 ? "" : "s"}`
+      : windowed.remaining
+        ? `Showing ${displayed.length} of ${windowed.total} items`
+        : `${windowed.total} item${windowed.total === 1 ? "" : "s"}`;
   const remaining = windowed.remaining;
   $("#loadMorePositions").hidden = remaining <= 0;
   $("#loadMorePositions").textContent =
@@ -6773,6 +6900,11 @@ function bindQuickCardSearch() {
 }
 
 function bindEvents() {
+  $$("[data-sidebar-target]").forEach((button) =>
+    button.addEventListener("click", () =>
+      openWorkspaceShortcut(button.dataset.sidebarTarget),
+    ),
+  );
   $$("[data-route]").forEach((button) =>
     button.addEventListener("click", () => {
       const route = button.dataset.route;
@@ -6787,8 +6919,17 @@ function bindEvents() {
   $$(".view-tab").forEach((tab) =>
     tab.addEventListener("click", () => {
       state.ledgerView = tab.dataset.ledgerView;
+      state.conditionFilter = "";
+      state.sidebarTarget =
+        {
+          sets: "sets",
+          graded: "graded",
+          watchlist: "watchlist",
+          "for-sale": "seller",
+        }[state.ledgerView] || "collection";
       syncTabs();
       renderCollection();
+      syncWorkspaceChrome();
     }),
   );
   $$(".view-tab").forEach((tab) =>
@@ -7107,6 +7248,24 @@ async function openAdminDiagnostics() {
 
 function ensureProfileAccount() {
   const email = state.session?.user?.email || "Signed in";
+  const profileName = String(
+    state.session?.user?.user_metadata?.full_name || email.split("@")[0],
+  )
+    .replace(/[._-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .trim();
+  const initials =
+    profileName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("") || "ME";
+  if ($("#sidebarAccountName"))
+    $("#sidebarAccountName").textContent = profileName || "Collector";
+  if ($("#sidebarAvatar")) $("#sidebarAvatar").textContent = initials;
+  if ($(".avatar")) $(".avatar").textContent = initials;
+  if ($(".profile-avatar")) $(".profile-avatar").textContent = initials;
   const heading = $("#profileTitle");
   if (heading) heading.textContent = "Your portfolio account";
   const profile = $(".profile-card");

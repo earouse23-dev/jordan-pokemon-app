@@ -199,15 +199,25 @@ test("motion preferences support device defaults and explicit reduction", () => 
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=70/);
+  assert.match(appShell, /themes\.css\?v=71/);
   assert.match(
     appSource,
     /localStorage\.setItem\(["']mica-ui-theme["'],\s*theme\)/,
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v78/);
-  assert.match(serviceWorker, /themes\.css\?v=70/);
+  assert.match(serviceWorker, /mica-shell-v79/);
+  assert.match(serviceWorker, /themes\.css\?v=71/);
+});
+
+test("reference workspace navigation remains responsive and routes to real workflows", () => {
+  assert.match(appShell, /class="desktop-sidebar"/);
+  assert.match(appShell, /data-sidebar-target="sealed"/);
+  assert.match(appShell, /data-sidebar-target="graded"/);
+  assert.match(appShell, /data-sidebar-target="seller"/);
+  assert.match(appSource, /function openWorkspaceShortcut\(target\)/);
+  assert.match(themes, /@media \(min-width: 1024px\)[\s\S]+\.desktop-sidebar/);
+  assert.match(themes, /@media \(max-width: 759px\)[\s\S]+grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
 });
 
 test("graded certification checks stay on official sites and avoid authenticity claims", () => {

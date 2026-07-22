@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f4f7fb">
+  <meta name="theme-color" content="#070c12">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Mica">
@@ -11,8 +11,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="styles.css?v=73">
-  <link rel="stylesheet" href="themes.css?v=70">
+  <link rel="stylesheet" href="styles.css?v=74">
+  <link rel="stylesheet" href="themes.css?v=71">
   <title>Mica — Pokémon Card Library</title>
 </head>
 <body>
@@ -38,6 +38,33 @@
     </div>
   </main>
   <div class="app-shell" id="appShell">
+    <aside class="desktop-sidebar" aria-label="Mica workspace navigation">
+      <button class="sidebar-brand" type="button" data-sidebar-target="dashboard" aria-label="Mica dashboard">
+        <span class="sidebar-gem" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span><strong>MICA</strong><small>Pokémon collector</small></span>
+      </button>
+      <nav class="sidebar-nav">
+        <button class="sidebar-item active" type="button" data-sidebar-target="dashboard"><span aria-hidden="true">⌂</span><b>Dashboard</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="collection"><span aria-hidden="true">▣</span><b>Collection</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="add"><span aria-hidden="true">⊕</span><b>Add Cards</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="search"><span aria-hidden="true">⌕</span><b>Search</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="sets"><span aria-hidden="true">▦</span><b>Sets</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="sealed"><span aria-hidden="true">□</span><b>Sealed Products</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="graded"><span aria-hidden="true">◇</span><b>Graded Cards</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="watchlist"><span aria-hidden="true">♡</span><b>Watchlist</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="trades"><span aria-hidden="true">⇄</span><b>Trades</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="portfolio"><span aria-hidden="true">♙</span><b>Portfolio</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="analytics"><span aria-hidden="true">⌁</span><b>Analytics</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="sales"><span aria-hidden="true">▤</span><b>Sales History</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="purchases"><span aria-hidden="true">▱</span><b>Purchase History</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="alerts"><span aria-hidden="true">♧</span><b>Alerts</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="seller"><span aria-hidden="true">$</span><b>Seller Tools</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="reports"><span aria-hidden="true">▧</span><b>Reports</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="import"><span aria-hidden="true">↕</span><b>Import / Export</b></button>
+        <button class="sidebar-item" type="button" data-sidebar-target="settings"><span aria-hidden="true">⚙</span><b>Settings</b></button>
+      </nav>
+      <button class="sidebar-account" type="button" data-sidebar-target="settings"><span class="sidebar-avatar" id="sidebarAvatar">ME</span><span><strong id="sidebarAccountName">Collector</strong><small id="sidebarAccountPlan">Mica account</small></span><b aria-hidden="true">›</b></button>
+    </aside>
     <header class="app-header">
       <button class="wordmark" type="button" data-route="collection" aria-label="Mica home">
         <span class="wordmark-gem" aria-hidden="true"><i></i></span>
@@ -45,6 +72,8 @@
       </button>
       <div class="header-context"><strong id="headerSection">Dashboard</strong><span id="headerSubtitle">Your collection at a glance</span></div>
       <div class="header-actions">
+        <button class="header-add-action" type="button" data-sidebar-target="add">+ Add Cards</button>
+        <button class="header-scan-action" type="button" data-sidebar-target="photo">Scan Cards</button>
         <button class="theme-quick-switch" type="button" id="themeQuickSwitch" aria-label="Switch to analytics dark interface"><i aria-hidden="true"></i><span id="themeQuickLabel">Clean</span></button>
         <button class="sync-state" type="button" id="syncState" aria-label="Pricing and save status" aria-live="polite">
           <span class="sync-dot"></span><span>Preview data</span>
@@ -57,38 +86,34 @@
       <section class="view active" id="view-collection" aria-labelledby="collectionTitle">
         <div class="collection-heading">
           <div>
-            <p class="eyebrow">Your portfolio</p>
-            <h1 id="collectionTitle">My library</h1>
+            <p class="eyebrow">Portfolio command center</p>
+            <h1 id="collectionTitle">Welcome back</h1>
+            <p class="collection-subtitle">Here’s your collection overview.</p>
           </div>
-          <div class="collection-actions"><button class="quick-add" type="button" data-route="scan">+ Add item</button><button class="icon-button" id="moreButton" type="button" aria-label="More library options" aria-expanded="false">
+          <div class="collection-actions"><button class="quick-add" type="button" data-sidebar-target="add">+ Add Cards</button><button class="secondary-add" type="button" data-sidebar-target="photo">Scan Cards</button><button class="icon-button" id="moreButton" type="button" aria-label="More library options" aria-expanded="false">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
           </button></div>
         </div>
 
-        <section class="portfolio-panel" aria-label="Portfolio summary">
-          <div class="portfolio-topline">
-            <span>Collection value</span>
-            <span class="status-label" aria-live="polite"><i></i> Checking price coverage</span>
-          </div>
-          <div class="portfolio-value" id="portfolioValue">$0.00</div>
-          <div class="portfolio-change" id="portfolioChange"></div>
-          <div class="portfolio-divider"></div>
-          <div class="portfolio-stats">
+        <section class="dashboard-kpis" aria-label="Portfolio summary">
+          <article class="dashboard-kpi primary"><div class="portfolio-topline"><span>Total collection value</span><span class="status-label" aria-live="polite"><i></i> Checking prices</span></div><strong class="portfolio-value" id="portfolioValue">$0.00</strong><small class="portfolio-change" id="portfolioChange"></small></article>
+          <article class="dashboard-kpi"><span>Total cards</span><strong id="ownedCount">0</strong><small id="freshCoverage">0 live prices</small></article>
+          <article class="dashboard-kpi"><span>Graded cards</span><strong id="gradedOwnedCount">0</strong><small id="gradedShare">0% of collection</small></article>
+          <article class="dashboard-kpi"><span>Sealed products</span><strong id="sealedOwnedCount">0</strong><small id="sealedShare">0% of collection</small></article>
+        </section>
+        <div class="dashboard-analytics-grid">
+          <section class="portfolio-history-panel" id="portfolioHistory" aria-label="Portfolio performance history" aria-live="polite">
+            <div class="portfolio-history-empty"><strong>Portfolio performance</strong><span>Mica is building your exact-compatible performance history.</span></div>
+          </section>
+          <section class="portfolio-detail-panel" aria-label="Portfolio performance details"><div class="panel-heading"><div><span>Portfolio snapshot</span><strong>Performance & coverage</strong></div></div><div class="portfolio-detail-grid">
             <div><span>You paid</span><strong id="costBasis">$0.00</strong></div>
             <div><span id="gainLabel">Gain / loss</span><strong id="unrealized">—</strong></div>
-            <div><span>Owned</span><strong id="ownedCount">0 items</strong></div>
-          </div>
-          <p class="valuation-note" id="valuationNote">Based on matching market prices. <button id="methodButton" type="button">How it works</button></p>
-        </section>
-        <div class="portfolio-detail-grid" aria-label="Portfolio performance details">
-          <div><span>Return</span><strong id="portfolioReturn">—</strong></div>
-          <div><span>Realized gain/loss</span><strong id="realizedGain">—</strong></div>
-          <div><span>Raw / graded / sealed</span><strong id="allocationSummary">—</strong></div>
-          <div><span>Fresh valuations</span><strong id="freshCoverage">—</strong></div>
+            <div><span>Return</span><strong id="portfolioReturn">—</strong></div>
+            <div><span>Realized gain/loss</span><strong id="realizedGain">—</strong></div>
+            <div><span>Raw / graded / sealed</span><strong id="allocationSummary">—</strong></div>
+            <div><span>Valuation method</span><strong>Exact matches</strong></div>
+          </div><p class="valuation-note" id="valuationNote">Based on matching market prices. <button id="methodButton" type="button">How it works</button></p></section>
         </div>
-        <section class="portfolio-history-panel" id="portfolioHistory" aria-label="Portfolio performance history" aria-live="polite">
-          <div class="portfolio-history-empty"><strong>Building an honest performance baseline</strong><span>Mica saves one exact-compatible valuation per day after live pricing finishes.</span></div>
-        </section>
 
         <div class="view-tabs" role="tablist" aria-label="Collection view">
           <button class="view-tab active" type="button" role="tab" aria-selected="true" data-ledger-view="all">All items <span id="allCount">0</span></button>
@@ -304,6 +329,6 @@
   </section>
   <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
   <script src="app-config.js?v=69"></script>
-  <script type="module" src="app.js?v=78"></script>
+  <script type="module" src="app.js?v=79"></script>
 </body>
 </html>

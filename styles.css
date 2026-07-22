@@ -139,7 +139,7 @@ h1 { font: 700 29px/1.12 var(--font-sans); letter-spacing: -.035em; margin: 0; }
 .row-move.down { color: var(--danger); }
 .row-move.none { color: var(--faint); }
 .empty-state { text-align: center; padding: 55px 25px; color: var(--muted); }
-#view-collection.empty-library .portfolio-panel,#view-collection.empty-library .portfolio-detail-grid,#view-collection.empty-library .portfolio-history-panel,#view-collection.empty-library .view-tabs,#view-collection.empty-library .ledger-tools,#view-collection.empty-library .ledger-meta { display: none; }
+#view-collection.empty-library .dashboard-kpis,#view-collection.empty-library .dashboard-analytics-grid,#view-collection.empty-library .view-tabs,#view-collection.empty-library .ledger-tools,#view-collection.empty-library .ledger-meta { display: none; }
 #view-collection.empty-library .empty-state { padding: 22px 0 36px; }
 .empty-mark { display: block; width: 35px; height: 48px; border: 1px dashed var(--faint); border-radius: 3px; margin: 0 auto 15px; transform: rotate(-4deg); }
 .empty-state h2 { font: 700 17px var(--font-sans); color: var(--ink); margin: 0 0 5px; }
