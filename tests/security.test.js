@@ -206,8 +206,16 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v77/);
+  assert.match(serviceWorker, /mica-shell-v78/);
   assert.match(serviceWorker, /themes\.css\?v=70/);
+});
+
+test("graded certification checks stay on official sites and avoid authenticity claims", () => {
+  assert.match(appSource, /Official grader check/);
+  assert.match(appSource, /target="_blank" rel="noopener noreferrer"/);
+  assert.match(appSource, /does not authenticate the slab/);
+  assert.match(appSource, /database match alone does not eliminate/);
+  assert.doesNotMatch(appSource, /fetch\([^)]*certificationNumber/);
 });
 
 test("large CSV imports are bounded, resumable, and protected from duplicate retries", () => {

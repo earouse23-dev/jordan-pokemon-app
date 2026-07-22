@@ -5,6 +5,7 @@ import { CardLadderProvider } from "../lib/providers/cardladder.js";
 import {
   canonicalCardFingerprint,
   detectPriceAnomaly,
+  graderCertificationLookup,
   isCompatibleObservation,
   normalizeGrade,
   normalizeGrader,
@@ -68,6 +69,49 @@ test("normalizes provider raw conditions while retaining the original label", ()
     normalized: "lightly_played",
     original: "Lightly Played",
   });
+});
+
+test("grader certification lookups use only official fixed destinations", () => {
+  assert.deepEqual(graderCertificationLookup("PSA", " 12345678 "), {
+    grader: "PSA",
+    graderName: "PSA",
+    certification: "12345678",
+    lookupUrl: "https://www.psacard.com/cert/12345678",
+    direct: true,
+    supported: true,
+    formatRecognized: true,
+    expectedFormat: "numbers printed beneath the barcode",
+  });
+  assert.equal(
+    graderCertificationLookup("CGC", "1234567890").lookupUrl,
+    "https://www.cgccards.com/certlookup/1234567890/",
+  );
+  assert.equal(
+    graderCertificationLookup("TAG", "t1234567").lookupUrl,
+    "https://tagd.co/T1234567",
+  );
+  assert.deepEqual(graderCertificationLookup("SGC", "1234567-ABC"), {
+    grader: "SGC",
+    graderName: "SGC",
+    certification: "1234567-ABC",
+    lookupUrl: "https://www.gosgc.com/auth-code",
+    direct: false,
+    supported: true,
+    formatRecognized: true,
+    expectedFormat:
+      "seven digits for black labels or all 11 characters for older labels",
+  });
+});
+
+test("grader certification lookup never places unrecognized input in a URL", () => {
+  const unsafe = graderCertificationLookup("PSA", '123\"><script>');
+  assert.equal(unsafe.lookupUrl, "https://www.psacard.com/cert");
+  assert.equal(unsafe.direct, false);
+  assert.equal(unsafe.formatRecognized, false);
+  assert.doesNotMatch(unsafe.lookupUrl, /script|123/);
+  const unsupported = graderCertificationLookup("Other", "private-cert");
+  assert.equal(unsupported.lookupUrl, null);
+  assert.equal(unsupported.supported, false);
 });
 
 test("normalizes graders and decimal grades without merging distinct grades", () => {

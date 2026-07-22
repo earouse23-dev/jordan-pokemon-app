@@ -1,6 +1,6 @@
 # Continuous product improvement — 2026-07-20
 
-This report records thirteen complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
+This report records fourteen complete research, implementation, critique, and fix cycles. Each cycle began by checking the current repository and production app so existing Mica capabilities were preserved rather than rebuilt.
 
 ## Baseline
 
@@ -124,16 +124,25 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 - Critique and fix: A beginner gets showcase mode by default in the guided workspace; a graded collector can deliberately include certs; a large owner gets a complete CSV without an unbounded message; a seller gets condition-aware asks rather than one portfolio total; a mobile user gets four 44px selection actions that fit the small-screen bar; and skeptical review added live-only market coverage, source/date evidence, missing-price disclosure, currency-separated totals, CSV formula neutralization, and tests proving private fields stay absent.
 - Result: Mica can now move from private inventory to a buyer-ready or collector-friendly selected list in one workflow, while making fewer privacy and pricing assumptions than a public all-or-nothing portfolio link.
 
+## Cycle 14 — Check graded slabs against official certification records
+
+- Problem: Mica recorded a slab’s grader, grade, and optional certification number, but that number was passive text. A buyer or trader still had to locate the correct grader site and remember what to compare, which is especially risky for a new collector under time pressure.
+- Evidence: A [recent collector warning](https://www.reddit.com/r/PokeInvesting/comments/1tg8ouy/buying_psa_slabs_pro_tip/) specifically tells buyers to check PSA or CGC records before buying, while another [2026 scam report](https://www.reddit.com/r/PokeInvesting/comments/1uekstx/warning_on_buying_slabs/) describes a TAG QR code that led to a real report whose certification did not match the slab. PSA’s [official certification page](https://www.psacard.com/cert) says a database match does not eliminate counterfeit risk. CGC says its [official lookup](https://www.cgccards.com/certlookup/) can show the recorded description, grade, and holder images; Beckett, TAG, and SGC also publish official lookup pages.
+- Change: Every owned graded position now has a “Slab verification” section. Missing numbers have a direct add action. Recorded PSA, CGC, and TAG identifiers open their official record when the format is recognized; Beckett and SGC open the official search page and Mica keeps the number ready to copy. Unsupported graders remain explicit instead of being sent to a guessed URL.
+- Trust boundary: Mica never calls, scrapes, mirrors, or interprets grader databases. It labels the action as an official grader check, opens external links with opener isolation, and tells users to compare the record’s card, grade, label, barcode, and available holder images. It explicitly warns that a database match is not authentication. Unexpected certificate input is never interpolated into a URL.
+- Critique and fix: A beginner gets a three-step checklist rather than an unexplained number; a graded collector reaches the relevant official evidence in one tap; a large owner sees a warning when one multi-copy position is trying to represent several individually certified slabs; a seller can copy the exact number without retyping; a mobile user gets stacked 44px actions; and skeptical review added hard-coded official destinations, conservative format recognition, no background request, no verification state that could become stale, and injection regression tests.
+- Result: Mica now helps users make a safer graded-card purchase, trade, or sale decision without pretending that a certificate lookup proves authenticity or adding a paid dependency.
+
 ## Verification
 
 - Formatting and diff whitespace checks
 - Source linting and JavaScript syntax/type checks
-- 139 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, grading-submission, portfolio-history, grading-ledger, position-split, selective-sharing, and regression tests
+- 142 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, grading-submission, portfolio-history, grading-ledger, position-split, selective-sharing, certification-trust, and regression tests
 - Connected Supabase table inspection with RLS enabled on every public table
 - Production build
 - Supabase security and performance advisors
 - Authenticated production browser verification at 390×844 and 1280×800
-- The in-app browser surface was unavailable during Cycles 9–13 after repeated availability checks; those cycles therefore used production build, local HTTP, connected Supabase rollback where database state changed, and deployed-artifact verification without claiming a new visual browser pass.
+- The in-app browser surface was unavailable during Cycles 9–14 after repeated availability checks; those cycles therefore used production build, local HTTP, connected Supabase rollback where database state changed, and deployed-artifact verification without claiming a new visual browser pass.
 - Clean and analytics themes, exact search/intake, collection, price confidence, bulk organization, deletion cleanup, responsive overflow, browser errors, and console regression checks
 
 ## Remaining competitive weaknesses and owner decisions

@@ -40,6 +40,7 @@ The app opens on the port printed by the local server. It does not fall back to 
 - Purchases remain separate lots. Partial sales allocate the oldest remaining lots first using FIFO.
 - A returned raw card can become graded in place: the original purchase and FIFO lots remain auditable, the all-in grading cost is capitalized to the remaining basis, and no fake sale or repurchase is created.
 - Raw positions can be tracked through a private grading pipeline from sent through returned. Submission estimates remain planning data; active positions cannot be sold, traded, archived, or have inventory state changed until the submission is cancelled or the result is recorded.
+- Owned slabs can open allowlisted official PSA, Beckett, CGC, TAG, or SGC certification lookups. Mica provides a comparison checklist but never treats a database match as proof of authenticity.
 - Additional copies can be recorded against an existing position without merging purchase lots or replacing their original costs.
 - The portfolio timeline defaults to cash-adjusted market change: purchases and grading costs are money added, net sales are money removed, and fresh complete price coverage is required before Mica reports a return. The separate total-value view intentionally includes collection additions and removals.
 - Future acquisition and transaction dates are rejected in the client, transactional RPC, and table constraints.

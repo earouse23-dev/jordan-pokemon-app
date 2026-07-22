@@ -54,6 +54,7 @@ import {
   watchPerformance,
 } from "./lib/portfolio.js";
 import {
+  graderCertificationLookup,
   normalizeGrade,
   normalizeGrader,
   normalizeRawCondition,
@@ -2726,6 +2727,28 @@ function positionTransactionRow(transaction, unitNoun) {
   return `<div class="transaction-row"><div><strong>${esc(label)} ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"}${transaction.notes ? ` · ${esc(transaction.notes)}` : ""}</span></div><b>${transaction.totalCost ? money(transaction.totalCost, transaction.currency) : "Recorded"}</b></div>`;
 }
 
+function renderCertificationVerification(item) {
+  if (!item.gradingCompany) return "";
+  const lookup = graderCertificationLookup(
+    item.gradingCompany,
+    item.certificationNumber,
+  );
+  if (!lookup.certification) {
+    return `<section class="detail-section certification-trust" aria-labelledby="certificationTrustTitle"><div class="detail-section-head"><h2 id="certificationTrustTitle">Slab verification</h2><span>Certification not recorded</span></div><div class="certification-empty"><strong>Add the number printed on this ${esc(lookup.graderName)} slab.</strong><p>Mica will give you the official grader lookup and a short comparison checklist. Adding a number does not mark a slab authentic.</p><button id="addCertificationButton" type="button">Add certification number</button></div></section>`;
+  }
+  const lookupAction = lookup.lookupUrl
+    ? `<a class="certification-lookup" href="${esc(lookup.lookupUrl)}" target="_blank" rel="noopener noreferrer">${lookup.direct ? "Open official record" : `Open ${esc(lookup.graderName)} lookup`}</a>`
+    : `<span class="certification-lookup unavailable">Official lookup not configured</span>`;
+  const formatNote = lookup.formatRecognized
+    ? `${esc(lookup.graderName)} format recognized`
+    : `Check the label format · expected ${esc(lookup.expectedFormat)}`;
+  const multipleCopyNote =
+    Number(item.quantity) > 1
+      ? `<div class="warning-panel"><strong>One certification number should identify one slab.</strong><p>This position contains ${Number(item.quantity)} copies. Separate the copies before recording a different number for each slab.</p></div>`
+      : "";
+  return `<section class="detail-section certification-trust" aria-labelledby="certificationTrustTitle"><div class="detail-section-head"><h2 id="certificationTrustTitle">Slab verification</h2><span>Official grader check</span></div><div class="certification-record"><div><span>${esc(lookup.graderName)} certification</span><strong>${esc(lookup.certification)}</strong><small>${formatNote}</small></div><button id="copyCertificationButton" type="button">Copy number</button>${lookupAction}</div>${multipleCopyNote}<ol class="certification-checklist"><li>Confirm the grader record shows the same card, label details, and grade.</li><li>Compare the official holder images, barcode, and card details when the grader provides them.</li><li>Inspect the physical holder for tampering and buy from a trustworthy seller.</li></ol><p class="certification-disclaimer">Mica opens the grader’s official site but does not authenticate the slab. A database match alone does not eliminate counterfeit or tampering risk.</p></section>`;
+}
+
 function renderDetail() {
   const owned =
     state.items.find((candidate) => candidate.uid === state.detailId) || null;
@@ -2881,6 +2904,7 @@ function renderDetail() {
     ${action}
     ${listingSection}
     ${gradingSubmissionSection}
+    ${owned ? renderCertificationVerification(item) : ""}
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
     ${renderMarketplaceOffers(item)}
     ${renderGradedPriceLadder(item)}
@@ -2901,6 +2925,17 @@ function renderDetail() {
   $("#editCopyButton")?.addEventListener("click", () =>
     openPositionEditSheet(item),
   );
+  $("#addCertificationButton")?.addEventListener("click", () =>
+    openPositionEditSheet(item),
+  );
+  $("#copyCertificationButton")?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(item.certificationNumber);
+      toast("Certification number copied");
+    } catch {
+      toast("Copy is unavailable in this browser");
+    }
+  });
   $("#manageListingButton")?.addEventListener("click", () =>
     openPositionEditSheet(item),
   );
@@ -4079,7 +4114,7 @@ function openPositionEditSheet(item) {
     ? "This position stays owned while it is at the grader. Record its return or cancel the submission before listing or archiving it."
     : "Choose Listed for sale to open seller details. A recorded sale remains a separate auditable transaction.";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Edit position details</h2><p>${esc(item.name)} · financial transactions remain auditable</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editStatus">What are you doing with it?</label><select id="editStatus" name="status">${statusOptions}</select><small>${statusHelp}</small></div><div class="listing-edit-fields full" id="listingEditFields"><div class="form-grid"><div class="field"><label for="editAskingPrice">Asking price · each</label><div class="money-input"><span>$</span><input id="editAskingPrice" name="askingPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${item.askingPrice ?? ""}" placeholder="0.00"></div></div><div class="field"><label for="editListedAt">Listed date</label><input id="editListedAt" name="listedAt" type="date" max="${today}" value="${esc(item.listedAt || today)}"></div><div class="field full"><label for="editListingVenue">Where is it listed?</label><input id="editListingVenue" name="listingVenue" maxlength="100" value="${esc(item.listingVenue || "")}" placeholder="eBay, TCGplayer, card show table…"></div></div><p>Mica compares your ask with the exact current market and flags it for another review after 7 days.</p></div><div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" value="${esc(item.certificationNumber || "")}"></div><div class="field full"><label for="editLocation">Storage location</label><input id="editLocation" name="location" maxlength="250" value="${esc(item.location || "")}" placeholder="Binder 1 · Page 4"></div><div class="field full"><label for="editTags">Labels <span class="optional-label">Optional</span></label><input id="editTags" name="tags" maxlength="500" value="${esc(labels.join(", "))}" placeholder="Trade binder, Grade next, Show case"><small>Separate labels with commas. Favorites is managed from the card page.</small></div><div class="field full"><label for="editNotes">Notes</label><textarea id="editNotes" name="notes" maxlength="10000">${esc(item.notes || "")}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Edit position details</h2><p>${esc(item.name)} · financial transactions remain auditable</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editStatus">What are you doing with it?</label><select id="editStatus" name="status">${statusOptions}</select><small>${statusHelp}</small></div><div class="listing-edit-fields full" id="listingEditFields"><div class="form-grid"><div class="field"><label for="editAskingPrice">Asking price · each</label><div class="money-input"><span>$</span><input id="editAskingPrice" name="askingPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${item.askingPrice ?? ""}" placeholder="0.00"></div></div><div class="field"><label for="editListedAt">Listed date</label><input id="editListedAt" name="listedAt" type="date" max="${today}" value="${esc(item.listedAt || today)}"></div><div class="field full"><label for="editListingVenue">Where is it listed?</label><input id="editListingVenue" name="listingVenue" maxlength="100" value="${esc(item.listingVenue || "")}" placeholder="eBay, TCGplayer, card show table…"></div></div><p>Mica compares your ask with the exact current market and flags it for another review after 7 days.</p></div>${item.gradingCompany ? `<div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(item.certificationNumber || "")}"><small>Use the number printed on this ${esc(item.gradingCompany)} slab. You can check it on the official grader site after saving.</small></div>` : ""}<div class="field full"><label for="editLocation">Storage location</label><input id="editLocation" name="location" maxlength="250" value="${esc(item.location || "")}" placeholder="Binder 1 · Page 4"></div><div class="field full"><label for="editTags">Labels <span class="optional-label">Optional</span></label><input id="editTags" name="tags" maxlength="500" value="${esc(labels.join(", "))}" placeholder="Trade binder, Grade next, Show case"><small>Separate labels with commas. Favorites is managed from the card page.</small></div><div class="field full"><label for="editNotes">Notes</label><textarea id="editNotes" name="notes" maxlength="10000">${esc(item.notes || "")}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`,
   );
   const syncListing = () => {
     const listed = $("#editStatus").value === "listed";
