@@ -221,15 +221,15 @@ test("motion preferences support device defaults and explicit reduction", () => 
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=71/);
+  assert.match(appShell, /themes\.css\?v=72/);
   assert.match(
     appSource,
     /localStorage\.setItem\(["']mica-ui-theme["'],\s*theme\)/,
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v83/);
-  assert.match(serviceWorker, /themes\.css\?v=71/);
+  assert.match(serviceWorker, /mica-shell-v84/);
+  assert.match(serviceWorker, /themes\.css\?v=72/);
 });
 
 test("consolidated workspace navigation remains responsive and routes to real workflows", () => {
@@ -240,13 +240,15 @@ test("consolidated workspace navigation remains responsive and routes to real wo
   assert.match(appShell, /data-condition-filter="Graded"/);
   assert.match(appShell, /data-condition-filter="Sealed"/);
   assert.match(appSource, /function openWorkspaceShortcut\(target\)/);
+  assert.match(appShell, /id="dashboardViewAll"/);
+  assert.match(appSource, /dashboardViewAll/);
   assert.match(appSource, /async function openDeviceCamera\(/);
   assert.match(appShell, /id="defaultTradePercent"/);
   assert.match(appShell, /class="seller-tools-disclosure"/);
   assert.match(themes, /@media \(min-width: 1024px\)[\s\S]+\.desktop-sidebar/);
   assert.match(
     themes,
-    /@media \(max-width: 759px\)[\s\S]+grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/,
+    /@media \(max-width: 759px\)[\s\S]+grid-template-columns: repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
   );
 });
 

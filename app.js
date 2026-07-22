@@ -401,12 +401,15 @@ function itemValue(item) {
 }
 
 function priceStatusText(item) {
-  if (item.price == null) return "Pricing unavailable";
+  if (item.price == null)
+    return item.gradingCompany
+      ? "Graded market price not connected"
+      : "Matching market price unavailable";
   if (item.pricingStatus === "live")
     return `Updated ${item.pricingUpdatedAt || "recently"}`;
   if (item.pricingStatus === "stale")
     return `Stale · observed ${item.pricingUpdatedAt || "date unknown"}`;
-  return "Preview fixture";
+  return "Demo estimate";
 }
 
 function applyWorkspaceMode(mode, { announce = false } = {}) {
@@ -1420,9 +1423,9 @@ function routeTo(route, options = {}) {
   const headerCopy = {
     collection: ["Dashboard", "Your collection at a glance"],
     scan: ["Add items", "Find exact cards and sealed products"],
-    insights: ["Market analytics", "Performance, profit, and pricing signals"],
+    insights: ["Market", "Prices, portfolio decisions, and seller tools"],
     trade: ["Trade check", "Compare both sides before you agree"],
-    profile: ["Settings", "Account, workspace, and appearance"],
+    profile: ["Settings", "Account, appearance, and preferences"],
     detail: ["Card details", "Exact identity, evidence, and decisions"],
   }[route] || ["Mica", "Your collection workspace"];
   if ($("#headerSection")) $("#headerSection").textContent = headerCopy[0];
@@ -2337,7 +2340,7 @@ function renderCollection() {
     totals.gainCoverage === totals.quantity
       ? "Based on matching market prices. "
       : `Gain/loss uses ${totals.gainCoverage} of ${totals.quantity} copies with both price and cost. `;
-  $("#allCount").textContent = state.items.length;
+  $("#allCount").textContent = totals.quantity.toLocaleString();
   $("#rawCount").textContent = rawCount.toLocaleString();
   $("#gradedCount").textContent = gradedCount.toLocaleString();
   $("#sealedCount").textContent = sealedCount.toLocaleString();
@@ -2361,7 +2364,7 @@ function renderCollection() {
       : state.pricingStatus === "live"
         ? `${pricedCount} of ${state.items.length} live prices`
         : state.pricingStatus === "partial"
-          ? `${pricedCount} live · ${state.items.length - pricedCount} need review`
+          ? `${pricedCount} live · ${state.items.length - pricedCount} awaiting matching prices`
           : state.pricingStatus === "error"
             ? "Provider unavailable · preview prices"
             : `${pricedCount} of ${state.items.length} preview prices`;
@@ -2529,7 +2532,7 @@ function renderCollection() {
       ${state.bulkMode ? `<span class="bulk-select-indicator" aria-hidden="true">${selected ? "✓" : ""}</span>` : ""}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity) || 0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span>${item.location ? `<span class="card-location" title="Storage location">${esc(item.location)}</span>` : ""}<div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-unit">${item.price == null ? "pricing unavailable" : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>
+      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-unit">${item.price == null ? (item.gradingCompany ? "graded price not connected" : "matching price unavailable") : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>
     </article>`;
     })
     .join("");
@@ -2953,7 +2956,7 @@ function renderOwnedDetailLegacy() {
   const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
   const sourceRows =
     item.price == null
-      ? `<div class="unavailable-panel"><strong>Pricing unavailable for this printing.</strong><br>The collection record is preserved and excluded from estimated totals. Mica will not substitute a different variant or condition.</div>`
+      ? `<div class="unavailable-panel"><strong>${item.gradingCompany ? "A matching graded price is not connected yet." : "A matching price is not available for this printing yet."}</strong><br>Your card stays in the collection and is excluded from estimated totals. Mica will not substitute a raw, different-grade, or different-printing value.</div>`
       : item.pricingStatus === "live"
         ? `${renderQuoteRow(tcgQuote, tcgQuote?.provider === "justtcg" ? "JustTCG market estimate" : "TCGplayer reference")}${renderQuoteRow(cardmarketQuote, "Cardmarket reference")}`
         : `<div class="price-source"><div><strong>Preview reference</strong><span>Fixture · ${esc(item.variant)} · USD</span><span>Live provider refresh has not completed.</span></div><div class="source-value"><b>${money(item.price)}</b><small>Clearly labeled demo data</small></div></div>`;
@@ -3056,7 +3059,7 @@ function renderDetail() {
       : pricingStatus === "stale"
         ? "Stale market reference"
         : previewPrice != null
-          ? "Preview fixture"
+          ? "Demo estimate"
           : "Current market";
   const statusCopy =
     pricingStatus === "live"
@@ -3076,8 +3079,8 @@ function renderDetail() {
     ? `${renderQuoteRow(tcgQuote, sealed ? "TCGplayer sealed market" : tcgQuote?.provider === "justtcg" ? "JustTCG market" : "TCGplayer market")}${renderQuoteRow(cardmarketQuote, sealed ? "Cardmarket sealed market" : "Cardmarket")}`
     : pricingStatus === "preview" ||
         (pricingStatus === "error" && previewPrice != null)
-      ? `<div class="price-source"><div><strong>Preview fixture</strong><span>${esc(item.variant || "Printing unknown")} · USD</span><span>${pricingStatus === "error" ? "The live provider could not be reached." : "Live refresh has not completed."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo data · not live</small></div></div>`
-      : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? "No matching market price is available for this printing, finish, and condition yet. Mica did not substitute another card." : pricingStatus === "rate_limited" ? "The pricing provider asked Mica to slow down. No value is being guessed." : pricingStatus === "error" ? "The pricing provider could not be reached. No value is being guessed." : "Loading the latest matching market price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
+      ? `<div class="price-source"><div><strong>Preview estimate</strong><span>${esc(item.variant || "Printing unknown")} · USD</span><span>${pricingStatus === "error" ? "The live provider could not be reached." : "Live refresh has not completed."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo data · not live</small></div></div>`
+      : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? (item.gradingCompany ? "A matching graded market price is not connected yet. Mica did not substitute the raw card or another grade." : "No matching market price is available for this printing, finish, and condition yet. Mica did not substitute another card.") : pricingStatus === "rate_limited" ? "The pricing source asked Mica to slow down. No value is being guessed." : pricingStatus === "error" ? "The pricing source could not be reached. No value is being guessed." : "Loading the latest matching market price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
   const backLabel =
     {
       collection: "My library",
@@ -8161,6 +8164,9 @@ function bindEvents() {
     if (state.accountLoadError) void retryAccountLoad();
     else routeTo("scan");
   });
+  $("#dashboardViewAll")?.addEventListener("click", () =>
+    openWorkspaceShortcut("collection"),
+  );
   $("#methodButton").addEventListener("click", openMethodSheet);
   $("#syncState")?.addEventListener("click", () => {
     if (state.accountLoadError) void retryAccountLoad();
@@ -8464,7 +8470,7 @@ function ensureProfileAccount() {
   if (strong) strong.textContent = email;
   if (span)
     span.textContent =
-      "Collection, transactions, and FIFO lots sync to Supabase";
+      "Collection and purchase history sync securely across devices";
   let button = $("#signOutButton");
   if (!button) {
     button = document.createElement("button");
