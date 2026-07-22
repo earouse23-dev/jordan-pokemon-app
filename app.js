@@ -284,6 +284,22 @@ const esc = (value) =>
         char
       ],
   );
+const workflowDefault = (key) => {
+  try {
+    const owner = state.session?.user?.id || "guest";
+    return localStorage.getItem(`mica-workflow-${owner}-${key}`) || "";
+  } catch {
+    return "";
+  }
+};
+const rememberWorkflowDefault = (key, value) => {
+  const normalized = String(value || "").trim();
+  if (!normalized) return;
+  try {
+    const owner = state.session?.user?.id || "guest";
+    localStorage.setItem(`mica-workflow-${owner}-${key}`, normalized);
+  } catch {}
+};
 const languageName = (code) =>
   ({
     en: "English",
@@ -940,6 +956,12 @@ function gradingQuote(item, grader, grade) {
 
 function renderGradingEstimator(item) {
   const defaultService = gradingServices.PSA[0];
+  const canTrackPlan =
+    Boolean(item.uid) &&
+    item.cardState !== "sealed" &&
+    !item.gradingCompany &&
+    !item.activeGradingSubmission;
+  const initialQuantity = item.uid ? Number(item.quantity) || 1 : 1;
   const rawContext = item.gradingCompany
     ? { condition: "Near Mint" }
     : { condition: item.condition || "Near Mint" };
@@ -960,11 +982,12 @@ function renderGradingEstimator(item) {
         .map((value) => `<option>${value}</option>`)
         .join("")}</select></div>
       <div class="field"><label for="estimateService">Service tier</label><select id="estimateService">${gradingServices.PSA.map((service, index) => `<option value="${index}">${esc(service.name)} · ${money(service.fee)}</option>`).join("")}</select></div>
-      <div class="field"><label for="estimateQuantity">Cards in submission</label><input id="estimateQuantity" type="number" inputmode="numeric" min="1" max="999" step="1" value="1"></div>
+      <div class="field"><label for="estimateQuantity">Cards in submission</label><input id="estimateQuantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${initialQuantity}"></div>
     </div>
     <details class="estimate-trip-costs"><summary>Add shipping, insurance, or selling costs</summary><div class="estimator-grid"><div class="field"><label for="estimateShipping">Round-trip shipping</label><input id="estimateShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateInsurance">Insurance</label><input id="estimateInsurance" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateSellingCosts">Expected selling costs</label><input id="estimateSellingCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></details>
     <div class="estimate-result" aria-live="polite"><div><span>Estimated all-in total</span><strong id="estimateTotal">${money(defaultService.fee)}</strong></div><div><span>Estimated per card</span><strong id="estimatePerCard">${money(defaultService.fee)}</strong></div></div>
     <p class="estimate-note" id="estimateNote">${esc(defaultService.note || "No listed submission minimum")}</p>
+    ${canTrackPlan ? `<button class="planner-record" id="useGradingPlanButton" type="button" disabled>Use this plan & track grading</button><p class="planner-fee-note" id="useGradingPlanHelp">The estimate will carry into the submission tracker. All ${item.quantity} card${item.quantity === 1 ? "" : "s"} in this position must be included.</p>` : ""}
     <div class="grading-decision">
       <div class="decision-heading"><div><span>Decision tool</span><h3>Should I grade it?</h3></div><p>Compare selling raw with the value you expect after grading.</p></div>
       <div class="estimator-grid decision-inputs">
@@ -990,6 +1013,8 @@ function bindGradingEstimator(item) {
   const rawValue = $("#estimateRawValue");
   const targetGrade = $("#estimateTargetGrade");
   const gradedValue = $("#estimateGradedValue");
+  const trackingButton = $("#useGradingPlanButton");
+  let latestSubmissionPlan = null;
   if (
     !grader ||
     !service ||
@@ -1032,6 +1057,22 @@ function bindGradingEstimator(item) {
       "estimate-warning",
       Boolean(entry.minimum && count < entry.minimum),
     );
+    const tracksWholePosition =
+      Boolean(item.uid) && count === Number(item.quantity);
+    latestSubmissionPlan =
+      total !== null &&
+      !(entry.minimum && count < entry.minimum) &&
+      tracksWholePosition
+        ? {
+            grader: grader.value,
+            estimatedTotalCost: (total / 100).toFixed(2),
+            notes: `${entry.name} service estimate from Mica`,
+          }
+        : null;
+    if (trackingButton) trackingButton.disabled = !latestSubmissionPlan;
+    if ($("#useGradingPlanHelp") && !tracksWholePosition)
+      $("#useGradingPlanHelp").textContent =
+        `This tracker covers all ${item.quantity} current card${item.quantity === 1 ? "" : "s"}. Use that quantity, or separate copies before tracking a smaller submission.`;
     const decision =
       total === null
         ? null
@@ -1095,6 +1136,10 @@ function bindGradingEstimator(item) {
   [service, quantity, shipping, insurance, selling, rawValue].forEach((input) =>
     input.addEventListener("input", update),
   );
+  trackingButton?.addEventListener("click", () => {
+    if (!latestSubmissionPlan) return;
+    openGradingSubmissionSheet(item, null, latestSubmissionPlan);
+  });
   update();
 }
 
@@ -1384,11 +1429,27 @@ function routeTo(route, options = {}) {
 
 const workspaceCopy = Object.freeze({
   dashboard: ["Dashboard", "Welcome back", "Here’s your collection overview."],
-  collection: ["Collection", "My Collection", "Browse, filter, and manage every item you own."],
+  collection: [
+    "Collection",
+    "My Collection",
+    "Browse, filter, and manage every item you own.",
+  ],
   sets: ["Sets", "All Sets", "Track exact set progress and missing cards."],
-  sealed: ["Sealed Products", "Sealed Products", "Booster boxes, ETBs, tins, bundles, and collections."],
-  graded: ["Graded Cards", "Graded Cards", "Your slabbed cards with exact grader and grade context."],
-  watchlist: ["Watchlist", "Watchlist", "Targets and exact items you’re following."],
+  sealed: [
+    "Sealed Products",
+    "Sealed Products",
+    "Booster boxes, ETBs, tins, bundles, and collections.",
+  ],
+  graded: [
+    "Graded Cards",
+    "Graded Cards",
+    "Your slabbed cards with exact grader and grade context.",
+  ],
+  watchlist: [
+    "Watchlist",
+    "Watchlist",
+    "Targets and exact items you’re following.",
+  ],
 });
 
 function syncWorkspaceChrome() {
@@ -1406,7 +1467,8 @@ function syncWorkspaceChrome() {
   if ($("#headerSection")) $("#headerSection").textContent = copy[0];
   if ($("#headerSubtitle")) $("#headerSubtitle").textContent = copy[2];
   if ($("#collectionTitle")) $("#collectionTitle").textContent = copy[1];
-  if ($(".collection-subtitle")) $(".collection-subtitle").textContent = copy[2];
+  if ($(".collection-subtitle"))
+    $(".collection-subtitle").textContent = copy[2];
 }
 
 function openWorkspaceShortcut(target) {
@@ -1423,7 +1485,9 @@ function openWorkspaceShortcut(target) {
   if (target === "dashboard") return collectionTarget("all");
   if (target === "collection") {
     collectionTarget("all");
-    requestAnimationFrame(() => $(".view-tabs")?.scrollIntoView({ block: "start" }));
+    requestAnimationFrame(() =>
+      $(".view-tabs")?.scrollIntoView({ block: "start" }),
+    );
     return;
   }
   if (target === "sets") return collectionTarget("sets");
@@ -1444,7 +1508,9 @@ function openWorkspaceShortcut(target) {
   }
   if (["portfolio"].includes(target)) {
     collectionTarget("all");
-    requestAnimationFrame(() => $("#portfolioHistory")?.scrollIntoView({ block: "center" }));
+    requestAnimationFrame(() =>
+      $("#portfolioHistory")?.scrollIntoView({ block: "center" }),
+    );
     return;
   }
   if (["analytics", "sales", "purchases", "seller"].includes(target)) {
@@ -1461,7 +1527,9 @@ function openWorkspaceShortcut(target) {
           : target === "seller"
             ? "#liquidationTitle"
             : "#view-insights .insight-feature";
-    requestAnimationFrame(() => $(selector)?.scrollIntoView({ block: "start" }));
+    requestAnimationFrame(() =>
+      $(selector)?.scrollIntoView({ block: "start" }),
+    );
     return;
   }
   if (["reports", "import", "settings"].includes(target)) {
@@ -1472,7 +1540,9 @@ function openWorkspaceShortcut(target) {
         : target === "import"
           ? "#importButton"
           : ".appearance-settings";
-    requestAnimationFrame(() => $(selector)?.scrollIntoView({ block: "center" }));
+    requestAnimationFrame(() =>
+      $(selector)?.scrollIntoView({ block: "center" }),
+    );
   }
 }
 
@@ -2000,7 +2070,8 @@ function openSelectedShareSheet() {
       });
       toast("Selected card list shared");
     } catch (error) {
-      if (error?.name !== "AbortError") toast("Sharing is unavailable right now");
+      if (error?.name !== "AbortError")
+        toast("Sharing is unavailable right now");
     } finally {
       button.disabled = false;
     }
@@ -2110,7 +2181,9 @@ function renderCollection() {
   const sellerDesk = $("#sellerDesk");
   sellerDesk.classList.toggle("hidden", state.ledgerView !== "for-sale");
   const accountUnavailable = accountDataUnavailable();
-  $$('[data-route="scan"],[data-sidebar-target="add"],[data-sidebar-target="photo"]').forEach((button) => {
+  $$(
+    '[data-route="scan"],[data-sidebar-target="add"],[data-sidebar-target="photo"]',
+  ).forEach((button) => {
     button.disabled = accountUnavailable;
   });
   [
@@ -2199,8 +2272,7 @@ function renderCollection() {
     totals.gainCoverage === totals.quantity
       ? "Gain / loss"
       : "Known gain / loss";
-  $("#ownedCount").textContent =
-    totals.quantity.toLocaleString();
+  $("#ownedCount").textContent = totals.quantity.toLocaleString();
   $("#gradedOwnedCount").textContent = gradedCount.toLocaleString();
   $("#sealedOwnedCount").textContent = sealedCount.toLocaleString();
   $("#gradedShare").textContent = totals.quantity
@@ -2754,7 +2826,7 @@ function renderBuyPlanner(item, displayPrice) {
     <div class="field"><label for="buyPlanCosts">Other selling costs · total</label><div class="money-input"><span>$</span><input id="buyPlanCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
     <div class="field"><label for="buyPlanRoi">Return you want %</label><input id="buyPlanRoi" type="number" inputmode="decimal" min="0" step="0.1" value="20"></div>
     <div class="field"><label for="buyPlanOffer">Seller's ask · each <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="buyPlanOffer" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Compare an offer"></div></div>
-  </div><p class="planner-fee-note">For a personal-collection purchase, set the desired return to 0%. Enter a venue's current fee only when you expect to resell.</p><div class="sale-plan-output" id="buyPlanOutput" aria-live="polite"></div><button class="planner-record" id="buyPlanWatchButton" type="button">Save max price as buy target</button></section>`;
+  </div><p class="planner-fee-note">For a personal-collection purchase, set the desired return to 0%. Enter a venue's current fee only when you expect to resell.</p><div class="sale-plan-output" id="buyPlanOutput" aria-live="polite"></div><div class="planner-actions"><button class="secondary" id="buyPlanWatchButton" type="button">Save max as buy target</button><button class="planner-record" id="buyPlanPurchaseButton" type="button" disabled>${item.uid ? "Add this purchase" : "Buy & add to library"}</button></div><p class="planner-fee-note" id="buyPlanPurchaseHelp">Enter the seller's ask to carry this decision straight into your purchase record.</p></section>`;
 }
 
 function bindBuyPlanner(item) {
@@ -2772,7 +2844,9 @@ function bindBuyPlanner(item) {
   const update = () => {
     latest = buyOfferPlan(values());
     const button = $("#buyPlanWatchButton");
+    const purchaseButton = $("#buyPlanPurchaseButton");
     button.disabled = !latest;
+    purchaseButton.disabled = !latest || latest.plannedOfferTotalMinor === null;
     if (!latest) {
       $("#buyPlanOutput").innerHTML =
         '<div class="unavailable-panel">Enter valid prices, costs, quantity, and target return.</div>';
@@ -2799,6 +2873,30 @@ function bindBuyPlanner(item) {
     if (!latest) return;
     openWatchlistSheet(item, matchingWatchEntry(item), {
       targetPrice: (latest.maxOfferEachMinor / 100).toFixed(2),
+    });
+  });
+  $("#buyPlanPurchaseButton").addEventListener("click", () => {
+    if (!latest || latest.plannedOfferTotalMinor === null) return;
+    const input = values();
+    const defaults = {
+      quantity: input.quantity,
+      totalAcquisitionCost: (latest.plannedOfferTotalMinor / 100).toFixed(2),
+    };
+    if (item.uid) {
+      openPurchaseLotSheet(item, defaults);
+      return;
+    }
+    openPositionSheet(item, {
+      prefill: {
+        ...defaults,
+        cardState: item.gradingCompany ? "graded" : "raw",
+        rawCondition:
+          normalizeRawCondition(item.condition || "Near Mint").normalized ||
+          "near_mint",
+        grader: item.gradingCompany || "",
+        grade: item.grade || "",
+        variant: item.variant,
+      },
     });
   });
   update();
@@ -3250,33 +3348,52 @@ function openSealedSearch() {
 function openSealedPositionSheet(product) {
   const today = localIsoDate();
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add sealed product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">When did you buy it?</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required></div><div class="field full acquisition-field"><label for="sealedTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>One total: everything paid to acquire this purchase.</small></div><div class="field full"><label for="sealedLocation">Storage location <span class="optional-label">Optional</span></label><input id="sealedLocation" name="location" maxlength="250" placeholder="Closet shelf · Bin 2"></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Case condition, seal notes, source…"></textarea></div><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add sealed product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field full acquisition-field"><label for="sealedTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>One total: everything paid to acquire this purchase.</small><label class="field-choice"><input id="sealedCostUnknown" type="checkbox"> I don't have the purchase cost</label></div><details class="full intake-more"><summary id="sealedMoreSummary">Purchase details · 1 product · ${today}</summary><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">When did you buy it?</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required><label class="field-choice"><input id="sealedDateUnknown" type="checkbox"> Date isn't recorded</label></div><div class="field full"><label for="sealedLocation">Storage location <span class="optional-label">Optional</span></label><input id="sealedLocation" name="location" maxlength="250" placeholder="Closet shelf · Bin 2"></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Case condition, seal notes, source…"></textarea></div></div></details><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><p class="unknown-basis-note" id="sealedUnknownBasisNote" hidden>Value tracking still works, but profit and ROI stay unavailable until you add the missing purchase facts.</p><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
   );
   const form = $("#sealedPositionForm");
   const values = () => Object.fromEntries(new FormData(form).entries());
   const update = () => {
     const input = values();
-    const breakdown = acquisitionFromTotal(
-      input.totalAcquisitionCost,
-      input.quantity,
-    );
+    const costUnknown = $("#sealedCostUnknown").checked;
+    const dateUnknown = $("#sealedDateUnknown").checked;
+    const breakdown = costUnknown
+      ? acquisitionFromTotal(0, input.quantity)
+      : acquisitionFromTotal(input.totalAcquisitionCost, input.quantity);
     const count = Number(input.quantity) || 0;
-    $("#sealedPositionTotal").textContent =
-      breakdown === null
+    $("#sealedPositionTotal").textContent = costUnknown
+      ? "Not recorded"
+      : breakdown === null
         ? "Enter an amount"
         : money(breakdown.totalMinor / 100);
     $("#sealedCostSummary").textContent =
       `Total for ${count || 0} product${count === 1 ? "" : "s"}`;
+    $("#sealedMoreSummary").textContent =
+      `Purchase details · ${count || 0} product${count === 1 ? "" : "s"} · ${dateUnknown ? "date not recorded" : input.transactionDate || today}`;
+    $("#sealedUnknownBasisNote").hidden = !costUnknown && !dateUnknown;
+  };
+  const syncKnownFacts = () => {
+    const costUnknown = $("#sealedCostUnknown").checked;
+    const dateUnknown = $("#sealedDateUnknown").checked;
+    $("#sealedTotalCost").disabled = costUnknown;
+    $("#sealedTotalCost").required = !costUnknown;
+    $("#sealedPurchaseDate").disabled = dateUnknown;
+    $("#sealedPurchaseDate").required = !dateUnknown;
+    update();
   };
   form.addEventListener("input", update);
+  $("#sealedCostUnknown").addEventListener("change", syncKnownFacts);
+  $("#sealedDateUnknown").addEventListener("change", syncKnownFacts);
   $("#sealedPositionCancel").addEventListener("click", closeSheet);
   update();
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const continueAdding = event.submitter?.value === "continue";
     const data = values();
+    const acquisitionCostKnown = !$("#sealedCostUnknown").checked;
+    const acquisitionDateKnown = !$("#sealedDateUnknown").checked;
+    data.transactionDate = data.transactionDate || today;
     const breakdown = acquisitionFromTotal(
-      data.totalAcquisitionCost,
+      acquisitionCostKnown ? data.totalAcquisitionCost : 0,
       data.quantity,
     );
     if (!breakdown) {
@@ -3296,7 +3413,11 @@ function openSealedPositionSheet(product) {
     try {
       itemId = await createPosition(supabase, {
         ...breakdown,
-        identity: identitySnapshot(product, "Sealed product"),
+        identity: {
+          ...identitySnapshot(product, "Sealed product"),
+          acquisitionCostKnown,
+          acquisitionDateKnown,
+        },
         cardId: null,
         variantId: null,
         cardState: "sealed",
@@ -3511,18 +3632,25 @@ function openPositionSheet(card, options = {}) {
     Array.isArray(card.variants) && card.variants.length
       ? card.variants
       : [card.variant || "Unknown"];
+  const prefill = options.prefill || {};
+  const initialVariant = variants.includes(prefill.variant)
+    ? prefill.variant
+    : variants[0];
+  const initialState = prefill.cardState === "graded" ? "graded" : "raw";
+  const initialQuantity = Number(prefill.quantity) > 0 ? prefill.quantity : 1;
+  const initialDate = prefill.transactionDate || today;
+  const initialTotal = prefill.totalAcquisitionCost ?? "";
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to your library</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)} · ${esc(languageName(card.language || "en"))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="positionForm"><div class="form-grid">
-      <div class="field full"><label for="positionVariant">Exact variant</label><select id="positionVariant" name="variant" required>${variants.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}</select></div>
-      <div class="field"><label for="positionState">Is it graded?</label><select id="positionState" name="cardState"><option value="raw">No · raw card</option><option value="graded">Yes · professionally graded</option></select></div>
-      <div class="field raw-position"><label for="positionCondition">Condition</label><select id="positionCondition" name="rawCondition"><option value="near_mint">Near Mint</option><option value="lightly_played">Lightly Played</option><option value="moderately_played">Moderately Played</option><option value="heavily_played">Heavily Played</option><option value="damaged">Damaged</option></select></div>
-      <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option>${value}</option>`).join("")}</select></div>
-      <div class="field graded-position" hidden><label for="positionGrade">Grade</label><input id="positionGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="10"></div>
-      <div class="field"><label for="positionQuantity">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div>
-      <div class="field"><label for="positionDate">When did you buy it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${today}" required></div>
-      <div class="field full acquisition-field"><label for="positionTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Enter the full amount you paid to acquire this purchase. No tax or fee breakdown needed.</small></div>
+      ${variants.length === 1 ? `<input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant)}"><div class="simple-note full"><strong>${esc(initialVariant)}</strong><br>Exact printing selected from the card match.</div>` : `<div class="field full"><label for="positionVariant">Exact printing</label><select id="positionVariant" name="variant" required>${variants.map((value) => `<option value="${esc(value)}" ${value === initialVariant ? "selected" : ""}>${esc(value)}</option>`).join("")}</select></div>`}
+      <div class="field"><label for="positionState">Is it graded?</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>No · raw card</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Yes · professionally graded</option></select></div>
+      <div class="field raw-position"><label for="positionCondition">Condition</label><select id="positionCondition" name="rawCondition"><option value="near_mint" ${prefill.rawCondition === "near_mint" ? "selected" : ""}>Near Mint</option><option value="lightly_played" ${prefill.rawCondition === "lightly_played" ? "selected" : ""}>Lightly Played</option><option value="moderately_played" ${prefill.rawCondition === "moderately_played" ? "selected" : ""}>Moderately Played</option><option value="heavily_played" ${prefill.rawCondition === "heavily_played" ? "selected" : ""}>Heavily Played</option><option value="damaged" ${prefill.rawCondition === "damaged" ? "selected" : ""}>Damaged</option></select></div>
+      <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === prefill.grader ? "selected" : ""}>${value}</option>`).join("")}</select></div>
+      <div class="field graded-position" hidden><label for="positionGrade">Grade</label><input id="positionGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(prefill.grade || "")}" placeholder="10"></div>
+      <div class="field full acquisition-field"><label for="positionTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="0.00" required></div><small>One total for everything paid. No tax or fee breakdown.</small><label class="field-choice"><input id="positionCostUnknown" type="checkbox"> I don't have the purchase cost</label></div>
+      <details class="full intake-more"><summary id="positionMoreSummary">Purchase details · ${initialQuantity} card${Number(initialQuantity) === 1 ? "" : "s"} · ${initialDate}</summary><div class="form-grid"><div class="field"><label for="positionQuantity">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(initialQuantity)}" required></div><div class="field"><label for="positionDate">When did you buy it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}" required><label class="field-choice"><input id="positionDateUnknown" type="checkbox"> Date isn't recorded</label></div></div></details>
       <p class="form-error" id="positionError" role="alert"></p>
-    </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div>
+    </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>Saved cards remain fully usable, but profit and ROI stay unavailable until you add the missing purchase facts.</p>
     <div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`);
   const form = $("#positionForm");
   const syncState = () => {
@@ -3532,11 +3660,9 @@ function openPositionSheet(card, options = {}) {
     $("#positionGrader").required = graded;
     $("#positionGrade").required = graded;
     $("#positionCondition").required = !graded;
-    if (graded) $("#positionCondition").value = "";
-    else {
-      $("#positionGrader").value = "";
-      $("#positionGrade").value = "";
-    }
+    $("#positionCondition").disabled = graded;
+    $("#positionGrader").disabled = !graded;
+    $("#positionGrade").disabled = !graded;
   };
   const values = () => {
     const data = new FormData(form);
@@ -3544,23 +3670,39 @@ function openPositionSheet(card, options = {}) {
   };
   const updateTotal = () => {
     const input = values();
-    const breakdown = acquisitionFromTotal(
-      input.totalAcquisitionCost,
-      input.quantity,
-    );
+    const costUnknown = $("#positionCostUnknown").checked;
+    const dateUnknown = $("#positionDateUnknown").checked;
+    const breakdown = costUnknown
+      ? acquisitionFromTotal(0, input.quantity)
+      : acquisitionFromTotal(input.totalAcquisitionCost, input.quantity);
     const count = Number(input.quantity) || 0;
-    $("#positionTotal").textContent =
-      breakdown === null
+    $("#positionTotal").textContent = costUnknown
+      ? "Not recorded"
+      : breakdown === null
         ? "Enter an amount"
         : money(breakdown.totalMinor / 100);
     $("#positionCostSummary").textContent =
       `Total for ${count || 0} card${count === 1 ? "" : "s"}`;
+    $("#positionMoreSummary").textContent =
+      `Purchase details · ${count || 0} card${count === 1 ? "" : "s"} · ${dateUnknown ? "date not recorded" : input.transactionDate || today}`;
+    $("#positionUnknownBasisNote").hidden = !costUnknown && !dateUnknown;
+  };
+  const syncKnownFacts = () => {
+    const costUnknown = $("#positionCostUnknown").checked;
+    const dateUnknown = $("#positionDateUnknown").checked;
+    $("#positionTotalCost").disabled = costUnknown;
+    $("#positionTotalCost").required = !costUnknown;
+    $("#positionDate").disabled = dateUnknown;
+    $("#positionDate").required = !dateUnknown;
+    updateTotal();
   };
   $("#positionState").addEventListener("change", () => {
     syncState();
     updateTotal();
   });
   form.addEventListener("input", updateTotal);
+  $("#positionCostUnknown").addEventListener("change", syncKnownFacts);
+  $("#positionDateUnknown").addEventListener("change", syncKnownFacts);
   $("#positionCancel").addEventListener("click", closeSheet);
   syncState();
   updateTotal();
@@ -3568,8 +3710,11 @@ function openPositionSheet(card, options = {}) {
     event.preventDefault();
     const continueAdding = event.submitter?.value === "continue";
     const formInput = values();
+    const acquisitionCostKnown = !$("#positionCostUnknown").checked;
+    const acquisitionDateKnown = !$("#positionDateUnknown").checked;
+    formInput.transactionDate = formInput.transactionDate || today;
     const breakdown = acquisitionFromTotal(
-      formInput.totalAcquisitionCost,
+      acquisitionCostKnown ? formInput.totalAcquisitionCost : 0,
       formInput.quantity,
     );
     if (!breakdown) {
@@ -3600,7 +3745,11 @@ function openPositionSheet(card, options = {}) {
     try {
       itemId = await createPosition(supabase, {
         ...input,
-        identity: identitySnapshot(card, input.variant),
+        identity: {
+          ...identitySnapshot(card, input.variant),
+          acquisitionCostKnown,
+          acquisitionDateKnown,
+        },
         cardId: card.cardId || null,
         variantId: card.variantId || null,
         idempotencyKey: crypto.randomUUID(),
@@ -3652,15 +3801,15 @@ function openPositionSheet(card, options = {}) {
   });
 }
 
-function openPurchaseLotSheet(item) {
+function openPurchaseLotSheet(item, defaults = {}) {
   const today = localIsoDate();
   const sealed = item.cardState === "sealed";
   const noun = sealed ? "product" : "card";
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add purchase lot</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)} · each purchase remains separate</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="purchaseLotForm"><div class="form-grid">
-      <div class="field"><label for="lotQuantity">How many ${noun}s?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div>
-      <div class="field"><label for="lotDate">When did you buy them?</label><input id="lotDate" name="transactionDate" type="date" max="${today}" value="${today}" required></div>
-      <div class="field full acquisition-field"><label for="lotTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="lotTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Enter everything you paid for this purchase as one total.</small></div>
+      <div class="field"><label for="lotQuantity">How many ${noun}s?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(defaults.quantity || 1)}" required></div>
+      <div class="field"><label for="lotDate">When did you buy them?</label><input id="lotDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div>
+      <div class="field full acquisition-field"><label for="lotTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="lotTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaults.totalAcquisitionCost ?? "")}" placeholder="0.00" required></div><small>Enter everything you paid for this purchase as one total.</small></div>
       <p class="form-error" id="purchaseLotError" role="alert"></p>
     </div><div class="position-total"><span id="purchaseLotSummary">Total for 1 card</span><strong id="purchaseLotTotal">$0.00</strong></div>
     <section class="blended-purchase" aria-labelledby="blendedPurchaseTitle"><div class="blended-purchase-head"><span>Position preview</span><strong id="blendedPurchaseTitle">After this purchase</strong></div><div class="blended-purchase-grid" id="blendedPurchaseGrid" aria-live="polite"></div><small>Uses your remaining FIFO basis and the current exact market reference. This purchase still stays as its own lot.</small></section>
@@ -3812,7 +3961,7 @@ function openCompletePurchaseHistorySheet(item, lot) {
   );
 }
 
-function openGradingSubmissionSheet(item, submission = null) {
+function openGradingSubmissionSheet(item, submission = null, defaults = {}) {
   const today = localIsoDate();
   const editing = Boolean(submission);
   const latestAcquisition =
@@ -3834,11 +3983,11 @@ function openGradingSubmissionSheet(item, submission = null) {
   );
   const availableStatuses = statuses.slice(currentIndex);
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${editing ? "Update grading submission" : "Send to grading"}</h2><p>${esc(item.name)} · ${item.quantity} raw card${item.quantity === 1 ? "" : "s"} · private manual tracking</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingSubmissionForm"><div class="form-grid">
-    ${editing ? `<div class="field"><label for="submissionStatus">Current stage</label><select id="submissionStatus" name="status" required>${availableStatuses.map(([value, label]) => `<option value="${value}" ${value === submission.status ? "selected" : ""}>${label}</option>`).join("")}<option value="cancelled">Cancel submission</option></select></div><div class="field"><label for="submissionStatusDate">Status date</label><input id="submissionStatusDate" name="statusUpdatedAt" type="date" min="${esc(submission.submittedAt)}" max="${today}" value="${today}" required></div>` : `<div class="field"><label for="submissionGrader">Grading company</label><select id="submissionGrader" name="grader" required><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option>${value}</option>`).join("")}</select></div><div class="field"><label for="submissionSentDate">Date sent</label><input id="submissionSentDate" name="submittedAt" type="date" min="${esc(latestAcquisition)}" max="${today}" value="${today}" required></div>`}
-    <div class="field"><label for="submissionExpectedDate">Expected return <span class="optional-label">Optional</span></label><input id="submissionExpectedDate" name="expectedReturnDate" type="date" min="${esc(editing ? submission.submittedAt : latestAcquisition || today)}" value="${esc(submission?.expectedReturnDate || "")}"></div>
-    ${editing ? "" : `<div class="field"><label for="submissionEstimatedCost">Estimated all-in cost <span class="optional-label">Planning only</span></label><div class="money-input"><span>$</span><input id="submissionEstimatedCost" name="estimatedTotalCost" type="number" inputmode="decimal" min="0" step="0.01" value="" placeholder="0.00"></div></div>`}
+    ${editing ? `<div class="field"><label for="submissionStatus">Current stage</label><select id="submissionStatus" name="status" required>${availableStatuses.map(([value, label]) => `<option value="${value}" ${value === submission.status ? "selected" : ""}>${label}</option>`).join("")}<option value="cancelled">Cancel submission</option></select></div><div class="field"><label for="submissionStatusDate">Status date</label><input id="submissionStatusDate" name="statusUpdatedAt" type="date" min="${esc(submission.submittedAt)}" max="${today}" value="${today}" required></div>` : `<div class="field"><label for="submissionGrader">Grading company</label><select id="submissionGrader" name="grader" required><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === defaults.grader ? "selected" : ""}>${value}</option>`).join("")}</select></div><div class="field"><label for="submissionSentDate">Date sent</label><input id="submissionSentDate" name="submittedAt" type="date" min="${esc(latestAcquisition)}" max="${today}" value="${esc(defaults.submittedAt || today)}" required></div>`}
+    <div class="field"><label for="submissionExpectedDate">Expected return <span class="optional-label">Optional</span></label><input id="submissionExpectedDate" name="expectedReturnDate" type="date" min="${esc(editing ? submission.submittedAt : latestAcquisition || today)}" value="${esc(submission?.expectedReturnDate || defaults.expectedReturnDate || "")}"></div>
+    ${editing ? "" : `<div class="field"><label for="submissionEstimatedCost">Estimated all-in cost <span class="optional-label">Planning only</span></label><div class="money-input"><span>$</span><input id="submissionEstimatedCost" name="estimatedTotalCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaults.estimatedTotalCost || "")}" placeholder="0.00"></div></div>`}
     <div class="field full"><label for="submissionReference">Submission reference <span class="optional-label">Optional</span></label><input id="submissionReference" name="submissionReference" maxlength="120" value="${esc(submission?.submissionReference || "")}" autocomplete="off" placeholder="Order or submission number"></div>
-    <div class="field full"><label for="submissionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="submissionNotes" name="notes" maxlength="10000" placeholder="Service level, middleman, shipping, or status details">${esc(submission?.notes || "")}</textarea></div>
+    <div class="field full"><label for="submissionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="submissionNotes" name="notes" maxlength="10000" placeholder="Service level, middleman, shipping, or status details">${esc(submission?.notes || defaults.notes || "")}</textarea></div>
     <p class="form-error" id="gradingSubmissionError" role="alert"></p>
   </div><div class="warning-panel"><strong>${editing ? "Status is manual" : "All current copies in this position are included"}.</strong><p>${editing ? "Mica does not claim a live connection to the grader. Choose only a stage you have verified. Recording the returned grade closes this submission automatically." : "Purchases and sales for this position pause while the cards are away. Estimated cost is not counted as paid or added to profit; enter the actual all-in total when the cards return."}</p></div><div class="sheet-actions"><button class="secondary" type="button" id="gradingSubmissionCancel">Close</button><button class="primary" type="submit">${editing ? "Save status" : "Start tracking"}</button></div></form>`);
   $("#gradingSubmissionCancel").addEventListener("click", closeSheet);
@@ -4103,8 +4252,13 @@ function openGradingResultSheet(item) {
 
 function openSaleSheet(item, defaults = {}) {
   const today = localIsoDate();
+  const suggestedUnitPrice = defaults.unitPrice ?? item.askingPrice ?? "";
+  const suggestedMarketplace =
+    defaults.marketplace ??
+    item.listingVenue ??
+    workflowDefault("sale-marketplace");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Record sale</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)} · ${item.quantity} owned</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saleForm"><div class="form-grid"><div class="field"><label for="saleQuantity">Quantity sold</label><input id="saleQuantity" name="quantity" type="number" min="1" max="${item.quantity}" step="1" value="${esc(defaults.quantity || "")}" required></div><div class="field"><label for="saleDate">Sale date</label><input id="saleDate" name="transactionDate" type="date" max="${today}" value="${today}" required></div><div class="field"><label for="salePrice">Unit sale price</label><input id="salePrice" name="unitPrice" type="number" min="0" step="0.01" value="${esc(defaults.unitPrice || "")}" required></div><div class="field"><label for="saleFees">Marketplace fees</label><input id="saleFees" name="marketplaceFees" type="number" min="0" step="0.01" value="${esc(defaults.marketplaceFees ?? "0.00")}"></div><div class="field"><label for="saleShipping">Shipping</label><input id="saleShipping" name="shipping" type="number" min="0" step="0.01" value="${esc(defaults.shipping ?? "0.00")}"></div><div class="field"><label for="saleOther">Other selling costs</label><input id="saleOther" name="otherCosts" type="number" min="0" step="0.01" value="${esc(defaults.otherCosts ?? "0.00")}"></div><div class="field full"><label for="saleMarketplace">Marketplace</label><input id="saleMarketplace" name="marketplace"></div><div class="field full"><label for="saleNotes">Notes</label><textarea id="saleNotes" name="notes"></textarea></div><p class="form-error" id="saleError" role="alert"></p></div><div class="warning-panel"><strong>FIFO allocation is automatic.</strong><p>The oldest remaining purchase lots will be allocated first and the allocation will remain in transaction history.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="saleCancel">Cancel</button><button class="primary" type="submit">Record sale</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Record sale</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)} · ${item.quantity} owned</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saleForm"><div class="form-grid"><div class="field"><label for="saleQuantity">Quantity sold</label><input id="saleQuantity" name="quantity" type="number" min="1" max="${item.quantity}" step="1" value="${esc(defaults.quantity || 1)}" required></div><div class="field"><label for="saleDate">Sale date</label><input id="saleDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div><div class="field"><label for="salePrice">Unit sale price</label><input id="salePrice" name="unitPrice" type="number" min="0" step="0.01" value="${esc(suggestedUnitPrice)}" required>${item.askingPrice != null && defaults.unitPrice == null ? "<small>Filled from this position's listing.</small>" : ""}</div><div class="field"><label for="saleFees">Marketplace fees</label><input id="saleFees" name="marketplaceFees" type="number" min="0" step="0.01" value="${esc(defaults.marketplaceFees ?? "0.00")}"></div><div class="field"><label for="saleShipping">Shipping</label><input id="saleShipping" name="shipping" type="number" min="0" step="0.01" value="${esc(defaults.shipping ?? "0.00")}"></div><div class="field"><label for="saleOther">Other selling costs</label><input id="saleOther" name="otherCosts" type="number" min="0" step="0.01" value="${esc(defaults.otherCosts ?? "0.00")}"></div><div class="field full"><label for="saleMarketplace">Marketplace</label><input id="saleMarketplace" name="marketplace" value="${esc(suggestedMarketplace)}" placeholder="eBay, TCGplayer, card show…"></div><div class="field full"><label for="saleNotes">Notes</label><textarea id="saleNotes" name="notes">${esc(defaults.notes || "")}</textarea></div><p class="form-error" id="saleError" role="alert"></p></div><div class="warning-panel"><strong>FIFO allocation is automatic.</strong><p>The oldest remaining purchase lots will be allocated first and the allocation will remain in transaction history.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="saleCancel">Cancel</button><button class="primary" type="submit">Record sale</button></div></form>`,
   );
   $("#saleCancel").addEventListener("click", closeSheet);
   $("#saleForm").addEventListener("submit", async (event) => {
@@ -4137,6 +4291,7 @@ function openSaleSheet(item, defaults = {}) {
         idempotencyKey: crypto.randomUUID(),
         currency: item.currency || "USD",
       });
+      rememberWorkflowDefault("sale-marketplace", data.marketplace);
       closeSheet({ discardHistory: true });
       await reloadPortfolio(item.uid);
       toast("Sale recorded and oldest purchase lots allocated first");
@@ -4234,6 +4389,14 @@ function openPositionEditSheet(item) {
     ? item.status
     : "owned";
   const atGrader = Boolean(item.activeGradingSubmission);
+  const suggestedAsk =
+    item.askingPrice ??
+    (item.pricingStatus === "live" &&
+    item.price != null &&
+    Number.isFinite(Number(item.price))
+      ? Number(item.price).toFixed(2)
+      : "");
+  const suggestedVenue = item.listingVenue || workflowDefault("listing-venue");
   const statusOptions = atGrader
     ? '<option value="owned" selected>At grader · keep owned</option>'
     : `<option value="owned" ${editableStatus === "owned" ? "selected" : ""}>Keeping it</option><option value="listed" ${editableStatus === "listed" ? "selected" : ""}>Listed for sale</option><option value="archived" ${editableStatus === "archived" ? "selected" : ""}>Archived</option>`;
@@ -4241,7 +4404,7 @@ function openPositionEditSheet(item) {
     ? "This position stays owned while it is at the grader. Record its return or cancel the submission before listing or archiving it."
     : "Choose Listed for sale to open seller details. A recorded sale remains a separate auditable transaction.";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Edit position details</h2><p>${esc(item.name)} · financial transactions remain auditable</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editStatus">What are you doing with it?</label><select id="editStatus" name="status">${statusOptions}</select><small>${statusHelp}</small></div><div class="listing-edit-fields full" id="listingEditFields"><div class="form-grid"><div class="field"><label for="editAskingPrice">Asking price · each</label><div class="money-input"><span>$</span><input id="editAskingPrice" name="askingPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${item.askingPrice ?? ""}" placeholder="0.00"></div></div><div class="field"><label for="editListedAt">Listed date</label><input id="editListedAt" name="listedAt" type="date" max="${today}" value="${esc(item.listedAt || today)}"></div><div class="field full"><label for="editListingVenue">Where is it listed?</label><input id="editListingVenue" name="listingVenue" maxlength="100" value="${esc(item.listingVenue || "")}" placeholder="eBay, TCGplayer, card show table…"></div></div><p>Mica compares your ask with the exact current market and flags it for another review after 7 days.</p></div>${item.gradingCompany ? `<div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(item.certificationNumber || "")}"><small>Use the number printed on this ${esc(item.gradingCompany)} slab. You can check it on the official grader site after saving.</small></div>` : ""}<div class="field full"><label for="editLocation">Storage location</label><input id="editLocation" name="location" maxlength="250" value="${esc(item.location || "")}" placeholder="Binder 1 · Page 4"></div><div class="field full"><label for="editTags">Labels <span class="optional-label">Optional</span></label><input id="editTags" name="tags" maxlength="500" value="${esc(labels.join(", "))}" placeholder="Trade binder, Grade next, Show case"><small>Separate labels with commas. Favorites is managed from the card page.</small></div><div class="field full"><label for="editNotes">Notes</label><textarea id="editNotes" name="notes" maxlength="10000">${esc(item.notes || "")}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Edit position details</h2><p>${esc(item.name)} · financial transactions remain auditable</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editStatus">What are you doing with it?</label><select id="editStatus" name="status">${statusOptions}</select><small>${statusHelp}</small></div><div class="listing-edit-fields full" id="listingEditFields"><div class="form-grid"><div class="field"><label for="editAskingPrice">Asking price · each</label><div class="money-input"><span>$</span><input id="editAskingPrice" name="askingPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(suggestedAsk)}" placeholder="0.00"></div>${item.askingPrice == null && suggestedAsk !== "" ? "<small>Suggested from the exact current market reference. Confirm before listing.</small>" : ""}</div><div class="field"><label for="editListedAt">Listed date</label><input id="editListedAt" name="listedAt" type="date" max="${today}" value="${esc(item.listedAt || today)}"></div><div class="field full"><label for="editListingVenue">Where is it listed?</label><input id="editListingVenue" name="listingVenue" maxlength="100" value="${esc(suggestedVenue)}" placeholder="eBay, TCGplayer, card show table…">${!item.listingVenue && suggestedVenue ? "<small>Filled from your last listing; change it for this sale if needed.</small>" : ""}</div></div><p>Mica compares your ask with the exact current market and flags it for another review after 7 days.</p></div>${item.gradingCompany ? `<div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(item.certificationNumber || "")}"><small>Use the number printed on this ${esc(item.gradingCompany)} slab. You can check it on the official grader site after saving.</small></div>` : ""}<div class="field full"><label for="editLocation">Storage location</label><input id="editLocation" name="location" maxlength="250" value="${esc(item.location || "")}" placeholder="Binder 1 · Page 4"></div><div class="field full"><label for="editTags">Labels <span class="optional-label">Optional</span></label><input id="editTags" name="tags" maxlength="500" value="${esc(labels.join(", "))}" placeholder="Trade binder, Grade next, Show case"><small>Separate labels with commas. Favorites is managed from the card page.</small></div><div class="field full"><label for="editNotes">Notes</label><textarea id="editNotes" name="notes" maxlength="10000">${esc(item.notes || "")}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`,
   );
   const syncListing = () => {
     const listed = $("#editStatus").value === "listed";
@@ -4301,6 +4464,7 @@ function openPositionEditSheet(item) {
         listedAt: listing ? data.listedAt || today : null,
         priceReviewedAt: listing ? today : null,
       });
+      if (listing) rememberWorkflowDefault("listing-venue", data.listingVenue);
       closeSheet({ discardHistory: true });
       await reloadPortfolio(item.uid);
       toast(
@@ -6251,7 +6415,7 @@ function renderInsights() {
                     ? "Returned graded"
                     : transaction.type === "position_split"
                       ? "Copies separated"
-                    : String(transaction.type).replaceAll("_", " ");
+                      : String(transaction.type).replaceAll("_", " ");
           const detail =
             transaction.type === "purchase"
               ? transaction.unitPrice == null
@@ -6265,7 +6429,7 @@ function renderInsights() {
                     ? `${transaction.gradingCompany || transaction.marketplace} · manual tracking`
                     : transaction.type === "position_split"
                       ? "FIFO basis transferred · no cash flow"
-                    : `${transaction.quantity} recorded`;
+                      : `${transaction.quantity} recorded`;
           return `<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(label)} ${esc(item.name)}</strong><span>${esc(transaction.date || "Date not recorded")} · ${esc(detail)}</span></div><b>×${transaction.quantity}</b></div>`;
         })
         .join("")

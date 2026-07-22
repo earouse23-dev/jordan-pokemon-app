@@ -163,14 +163,17 @@ const appSource = await readFile(new URL("../app.js", import.meta.url), "utf8");
 
 test("offline runtime caching is bounded and APIs remain network-only", () => {
   assert.match(serviceWorker, /RUNTIME_LIMIT\s*=\s*80/);
-  assert.match(serviceWorker, /keys\.slice\(0,keys\.length-RUNTIME_LIMIT\)/);
   assert.match(
     serviceWorker,
-    /pathname\.startsWith\('\/api\/'\)[\s\S]{0,100}respondWith\(fetch\(event\.request\)\)/,
+    /keys\.slice\(0,\s*keys\.length\s*-\s*RUNTIME_LIMIT\)/,
   );
   assert.match(
     serviceWorker,
-    /request\.mode\s*===\s*'navigate'[\s\S]{0,400}caches\.match\('\.\/index\.html'\)/,
+    /pathname\.startsWith\(["']\/api\/["']\)[\s\S]{0,120}respondWith\(fetch\(event\.request\)\)/,
+  );
+  assert.match(
+    serviceWorker,
+    /request\.mode\s*===\s*["']navigate["'][\s\S]{0,800}caches[\s\S]+\.match\(["']\.\/index\.html["']\)/,
   );
 });
 
@@ -188,11 +191,11 @@ test("motion preferences support device defaults and explicit reduction", () => 
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(
     styles,
-    /body\[data-motion="reduce"\][\s\S]+animation-duration: \.01ms!important/,
+    /body\[data-motion="reduce"\][\s\S]+animation-duration:\s*0?\.01ms\s*!important/,
   );
   assert.match(
     styles,
-    /body\[data-motion="full"\] \.view[\s\S]+animation-duration: \.22s!important/,
+    /body\[data-motion="full"\] \.view[\s\S]+animation-duration:\s*0?\.22s\s*!important/,
   );
 });
 
@@ -206,7 +209,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v79/);
+  assert.match(serviceWorker, /mica-shell-v80/);
   assert.match(serviceWorker, /themes\.css\?v=71/);
 });
 
@@ -217,7 +220,35 @@ test("reference workspace navigation remains responsive and routes to real workf
   assert.match(appShell, /data-sidebar-target="seller"/);
   assert.match(appSource, /function openWorkspaceShortcut\(target\)/);
   assert.match(themes, /@media \(min-width: 1024px\)[\s\S]+\.desktop-sidebar/);
-  assert.match(themes, /@media \(max-width: 759px\)[\s\S]+grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(
+    themes,
+    /@media \(max-width: 759px\)[\s\S]+grid-template-columns: repeat\(2,minmax\(0,1fr\)\)/,
+  );
+});
+
+test("guided intake preserves unknown purchase facts without inventing profit", () => {
+  assert.match(appSource, /positionCostUnknown/);
+  assert.match(appSource, /positionDateUnknown/);
+  assert.match(
+    appSource,
+    /identity:\s*\{[\s\S]+acquisitionCostKnown,[\s\S]+acquisitionDateKnown/,
+  );
+  assert.match(appSource, /profit and ROI stay unavailable/);
+});
+
+test("decision tools hand verified inputs into the next workflow", () => {
+  assert.match(
+    appSource,
+    /buyPlanPurchaseButton[\s\S]+openPurchaseLotSheet\(item, defaults\)/,
+  );
+  assert.match(
+    appSource,
+    /useGradingPlanButton[\s\S]+openGradingSubmissionSheet\(item, null, latestSubmissionPlan\)/,
+  );
+  assert.match(
+    appSource,
+    /suggestedUnitPrice[\s\S]+item\.askingPrice[\s\S]+suggestedMarketplace/,
+  );
 });
 
 test("graded certification checks stay on official sites and avoid authenticity claims", () => {

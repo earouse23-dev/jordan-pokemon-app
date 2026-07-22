@@ -420,6 +420,9 @@ body[data-workspace="pro"] .card-ledger { gap: 5px; }
 .sale-plan-output .unavailable-panel { grid-column: 1/-1; }
 .planner-record { width: 100%; min-height: 48px; margin-top: 10px; border: 0; border-radius: 6px; background: var(--pine); color: white; font-size: 10px; font-weight: 700; }
 .planner-record:disabled { background: #a7ada9; cursor: not-allowed; }
+.planner-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.planner-actions .planner-record { margin-top: 0; }
+.planner-actions .secondary { min-height: 48px; border: 1px solid var(--pine); border-radius: 6px; background: transparent; color: var(--pine); font-size: 9px; font-weight: 750; }
 .deal-planner { border-color: #b9d1bd; background: linear-gradient(145deg,#eef5e9,rgba(255,255,255,.45)); }
 .listing-edit-fields { padding: 12px; border: 1px solid #c7d9ca; border-radius: 7px; background: #f1f6ed; }
 .listing-edit-fields > p { margin: 9px 0 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
@@ -561,12 +564,22 @@ body.bulk-selecting #view-collection { padding-bottom: calc(190px + var(--safe-b
 .sheet-heading p { color: var(--muted); font-size: 10px; margin: 5px 0 0; }
 .sheet-close { min-width: 44px; min-height: 44px; border: 0; background: none; font-size: 23px; color: var(--muted); padding: 0 2px; }
 .form-grid { display: grid; grid-template-columns: 1fr; gap: 11px; }
+.form-grid > .full { grid-column: 1/-1; }
 .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 11px; }
 .field.full { grid-column: 1/-1; }
 .field label { font-size: 9px; font-weight: 700; color: var(--muted); }
 .field input, .field select, .field textarea { width: 100%; min-height: 44px; padding: 9px 10px; border: 1px solid var(--line-dark); border-radius: 4px; background: white; color: var(--ink); font-size: 11px; }
 .field textarea { resize: vertical; min-height: 70px; }
 .field > small { color: var(--muted); font-size: 9px; line-height: 1.45; }
+.field label.field-choice { display: flex; align-items: center; gap: 8px; min-height: 32px; margin-top: 2px; color: var(--pine-2); font-weight: 650; }
+.field label.field-choice input { width: 18px; min-height: 18px; padding: 0; accent-color: var(--pine); }
+.field input:disabled { cursor: not-allowed; opacity: .58; background: var(--mint); }
+.intake-more { margin: 0 0 11px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.42); }
+.intake-more summary { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; color: var(--pine-2); font-size: 9px; font-weight: 750; cursor: pointer; }
+.intake-more summary::after { content: "+"; font-size: 16px; font-weight: 400; }
+.intake-more[open] summary::after { content: "−"; }
+.intake-more > .form-grid { padding: 2px 12px 1px; }
+.unknown-basis-note { margin: -4px 0 12px; padding: 9px 11px; border-left: 3px solid var(--copper); background: rgba(238,228,205,.55); color: var(--muted); font-size: 8px; line-height: 1.45; }
 .money-input { display: grid; grid-template-columns: 38px minmax(0,1fr); align-items: stretch; }
 .money-input > span { display: grid; place-items: center; border: 1px solid var(--line-dark); border-right: 0; border-radius: 4px 0 0 4px; background: var(--mint); color: var(--pine); font-weight: 800; }
 .money-input input { border-radius: 0 4px 4px 0; font-size: 16px; font-weight: 700; }
