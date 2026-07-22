@@ -2506,11 +2506,17 @@ function renderCollection() {
   $("#cardLedger").innerHTML = displayed
     .map((item) => {
       const total = itemValue(item);
+      const showcaseValue = isShowcaseAccount() && item.demoPrice != null;
       const moveClass =
-        item.move == null ? "none" : item.move >= 0 ? "up" : "down";
-      const hasMovement = Number.isFinite(Number(item.move));
-      const movementLabel =
-        item.price != null && hasMovement
+        showcaseValue || item.move == null
+          ? "none"
+          : item.move >= 0
+            ? "up"
+            : "down";
+      const hasMovement = !showcaseValue && Number.isFinite(Number(item.move));
+      const movementLabel = showcaseValue
+        ? "Showcase value"
+        : item.price != null && hasMovement
           ? `${item.move >= 0 ? "↑" : "↓"} ${Math.abs(item.move).toFixed(1)}% · 30 days`
           : priceStatusText(item);
       const listing = listingReadiness([item]);

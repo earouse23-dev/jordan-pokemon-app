@@ -232,7 +232,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v86/);
+  assert.match(serviceWorker, /mica-shell-v87/);
   assert.match(serviceWorker, /themes\.css\?v=73/);
 });
 
@@ -243,6 +243,7 @@ test("client presentation never turns demo values into market movement", () => {
   );
   assert.match(appSource, /No verified movement yet/);
   assert.match(appSource, /Demo values are excluded from performance trends/);
+  assert.match(appSource, /showcaseValue[\s\S]+Showcase value/);
   assert.doesNotMatch(appShell, /Concept [25]/);
   assert.match(appShell, /Recorded activity only/);
 });
