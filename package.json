@@ -13,7 +13,7 @@
     "build": "node scripts/build.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": "22.x"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.7",
