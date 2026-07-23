@@ -93,6 +93,8 @@ import {
 const supabase = createAppSupabase();
 let chartInstance = null;
 let chartMountVersion = 0;
+let portfolioChartInstance = null;
+let portfolioChartMountVersion = 0;
 let deferredInstallPrompt = null;
 let activeCameraStream = null;
 let activeCameraTimer = null;
@@ -237,6 +239,7 @@ const state = {
   items: [],
   portfolioHistory: [],
   portfolioHistoryMode: "return",
+  portfolioHistoryRange: "3m",
   portfolioHistoryStatus: "idle",
   watchlist: [],
   intakeQueue: [],
@@ -493,6 +496,7 @@ function applyUiTheme(theme, { announce = false } = {}) {
     $("#uiThemeHelp").textContent = dark
       ? "Analytics focused uses a dark workspace with compact data panels. Your data does not change."
       : "Clean modern uses a bright workspace with airy cards and blue actions. Your data does not change.";
+  if (state.portfolioHistory.length) renderPortfolioHistory();
   if (announce)
     toast(`${dark ? "Analytics focused" : "Clean modern"} selected`);
 }
@@ -2116,6 +2120,188 @@ function portfolioTransactions() {
   return state.items.flatMap((item) => item.transactions || []);
 }
 
+function destroyPortfolioHistoryChart() {
+  portfolioChartMountVersion += 1;
+  portfolioChartInstance?.destroy();
+  portfolioChartInstance = null;
+}
+
+function portfolioHistoryRangePoints(points, range) {
+  if (range === "all" || points.length < 3) return points;
+  const latestTime = new Date(`${points.at(-1).date}T00:00:00Z`).getTime();
+  if (!Number.isFinite(latestTime)) return points;
+  const latestDate = new Date(latestTime);
+  const cutoff =
+    range === "ytd"
+      ? Date.UTC(latestDate.getUTCFullYear(), 0, 1)
+      : latestTime - ({ "1m": 31, "3m": 93 }[range] || 93) * 86_400_000;
+  const filtered = points.filter(
+    (point) => new Date(`${point.date}T00:00:00Z`).getTime() >= cutoff,
+  );
+  return filtered.length >= 2 ? filtered : points.slice(-2);
+}
+
+function shortPortfolioDate(value, includeYear = false) {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(includeYear ? { year: "numeric" } : {}),
+    timeZone: "UTC",
+  }).format(date);
+}
+
+async function mountPortfolioHistoryChart({
+  points,
+  values,
+  currency,
+  marketMode,
+  showcase,
+}) {
+  const version = ++portfolioChartMountVersion;
+  portfolioChartInstance?.destroy();
+  portfolioChartInstance = null;
+  const canvas = $("#portfolioHistoryChart");
+  if (!canvas || points.length < 2) return;
+  const { default: Chart } = await import("chart.js/auto");
+  if (version !== portfolioChartMountVersion || !canvas.isConnected) return;
+  const styles = getComputedStyle(document.body);
+  const accent = styles.getPropertyValue("--pine-2").trim() || "#a78bfa";
+  const muted = styles.getPropertyValue("--muted").trim() || "#98a3b3";
+  const line = styles.getPropertyValue("--line").trim() || "#1b2735";
+  const paper = styles.getPropertyValue("--paper").trim() || "#0d151f";
+  const ink = styles.getPropertyValue("--ink").trim() || "#f7f8fc";
+  const firstValue = values[0];
+  const compactCurrency = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
+  const crosshair = {
+    id: "portfolioCrosshair",
+    afterDatasetsDraw(chart) {
+      const active = chart.tooltip?.getActiveElements?.() || [];
+      if (!active.length) return;
+      const x = active[0].element.x;
+      const { ctx, chartArea } = chart;
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([3, 4]);
+      ctx.strokeStyle = muted;
+      ctx.lineWidth = 1;
+      ctx.moveTo(x, chartArea.top);
+      ctx.lineTo(x, chartArea.bottom);
+      ctx.stroke();
+      ctx.restore();
+    },
+  };
+  portfolioChartInstance = new Chart(canvas, {
+    type: "line",
+    plugins: [crosshair],
+    data: {
+      labels: points.map((point) => point.date),
+      datasets: [
+        {
+          label: marketMode ? "Cash-adjusted move" : "Portfolio value",
+          data: values,
+          borderColor: accent,
+          borderWidth: 2.25,
+          backgroundColor(context) {
+            const { chart } = context;
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return "rgba(139, 92, 246, 0.16)";
+            const gradient = ctx.createLinearGradient(
+              0,
+              chartArea.top,
+              0,
+              chartArea.bottom,
+            );
+            gradient.addColorStop(0, `${accent}45`);
+            gradient.addColorStop(1, `${accent}00`);
+            return gradient;
+          },
+          fill: true,
+          tension: 0.28,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: accent,
+          pointHoverBorderColor: paper,
+          pointHoverBorderWidth: 2,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: motionPreference === "reduce" ? false : { duration: 380 },
+      interaction: { mode: "index", intersect: false },
+      layout: { padding: { top: 10, right: 4, bottom: 0, left: 0 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          displayColors: false,
+          backgroundColor: paper,
+          borderColor: line,
+          borderWidth: 1,
+          titleColor: muted,
+          bodyColor: ink,
+          padding: 11,
+          callbacks: {
+            title(items) {
+              return shortPortfolioDate(items[0]?.label || "", true);
+            },
+            label(context) {
+              const value = Number(context.parsed.y);
+              const delta = value - firstValue;
+              return [
+                `${marketMode ? "Market move" : "Value"}: ${money(value, currency)}`,
+                `Selected range: ${delta >= 0 ? "+" : ""}${money(delta, currency)}`,
+              ];
+            },
+            afterBody() {
+              return showcase ? ["Showcase sample history"] : [];
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          border: { display: false },
+          ticks: {
+            color: muted,
+            autoSkip: true,
+            maxTicksLimit: 6,
+            maxRotation: 0,
+            padding: 8,
+            font: { size: 9, weight: 600 },
+            callback(index) {
+              return shortPortfolioDate(points[index]?.date || "");
+            },
+          },
+        },
+        y: {
+          position: "right",
+          grace: "10%",
+          grid: { color: line, drawTicks: false },
+          border: { display: false },
+          ticks: {
+            color: muted,
+            maxTicksLimit: 5,
+            padding: 8,
+            font: { size: 9, weight: 600 },
+            callback(value) {
+              return compactCurrency.format(value);
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
 function renderPortfolioHistory() {
   const root = $("#portfolioHistory");
   if (!root) return;
@@ -2125,54 +2311,70 @@ function renderPortfolioHistory() {
     "USD",
   );
   if (!history.points.length) {
+    destroyPortfolioHistoryChart();
     const failed = state.portfolioHistoryStatus === "error";
     root.innerHTML = `<div class="portfolio-history-empty"><strong>${failed ? "Performance history is temporarily unavailable" : "Tracking starts today"}</strong><span>${failed ? "Your collection and ledger are unchanged. Mica will retry after the next live price refresh." : "After current prices load, Mica saves today’s starting value. Your first real trend appears after another daily valuation."}</span></div>`;
     return;
   }
   const baseline = history.points[0];
-  const latest = history.points.at(-1);
   const showcase = isShowcaseAccount();
   if (history.points.length === 1) {
+    destroyPortfolioHistoryChart();
     root.innerHTML = `<div class="portfolio-history-head"><div><strong>Performance tracking started</strong><span>${esc(baseline.date)} · exact-compatible prices only</span></div></div><div class="portfolio-history-metrics"><div><span>Baseline value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Fresh prices</span><strong>${baseline.freshItems} of ${baseline.pricedItems}</strong></div><div><span>Unpriced</span><strong>${baseline.unpricedItems}</strong></div></div><p class="portfolio-history-note"><strong>Why there is no line yet:</strong> a second real daily valuation is required. Purchases will be treated as money added, not market growth.</p>`;
     return;
   }
-  const marketMode = state.portfolioHistoryMode === "return";
+  const marketRequested = state.portfolioHistoryMode === "return";
   const marketAvailable = history.status === "ready";
-  const plotted = marketMode
-    ? history.points.filter((point) => point.marketChangeMinor !== null)
-    : history.points;
+  const marketPoints = history.points.filter(
+    (point) => point.marketChangeMinor !== null,
+  );
+  const marketSeriesAvailable = marketPoints.length >= 2;
+  const marketMode = marketRequested && marketSeriesAvailable;
+  const compatible = marketMode ? marketPoints : history.points;
+  const plotted = portfolioHistoryRangePoints(
+    compatible,
+    state.portfolioHistoryRange,
+  );
   const values = plotted.map((point) =>
     marketMode ? point.marketChangeMinor / 100 : point.totalMinor / 100,
   );
-  let chart = "";
-  if (plotted.length >= 2) {
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const spread = max - min || 1;
-    const firstTime = new Date(`${plotted[0].date}T00:00:00Z`).getTime();
-    const lastTime = new Date(`${plotted.at(-1).date}T00:00:00Z`).getTime();
-    const elapsed = lastTime - firstTime || 1;
-    const coordinates = plotted.map((point, index) => ({
-      x:
-        ((new Date(`${point.date}T00:00:00Z`).getTime() - firstTime) /
-          elapsed) *
-        100,
-      y: 32 - ((values[index] - min) / spread) * 27,
-    }));
-    const polyline = coordinates
-      .map((point) => `${point.x},${point.y}`)
-      .join(" ");
-    const area = `M${coordinates[0].x},34 L${coordinates.map((point) => `${point.x},${point.y}`).join(" L")} L${coordinates.at(-1).x},34 Z`;
-    chart = `<svg class="portfolio-history-chart" viewBox="0 0 100 36" role="img" aria-label="${marketMode ? "Cash-adjusted market change" : "Recorded collection value"} from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}"><path d="${area}"/><polyline points="${polyline}"/></svg><div class="portfolio-history-dates"><span>${esc(plotted[0].date)}</span><span>${esc(plotted.at(-1).date)}</span></div>`;
-  }
-  const marketChange = latest.marketChangeMinor;
-  const totalChange = latest.totalMinor - baseline.totalMinor;
-  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio performance</strong><span>${showcase ? "Sample history for this showcase account" : `${history.points.length} real daily valuation${history.points.length === 1 ? "" : "s"}`} · ${esc(baseline.date)} to ${esc(latest.date)}</span></div><div class="portfolio-history-toggle" role="group" aria-label="Portfolio history view"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}">Market return</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${marketMode ? `<div><span>Market change</span><strong>${marketChange === null ? "—" : `${marketChange >= 0 ? "+" : ""}${money(marketChange / 100, history.currency)}`}</strong></div><div><span>Cash added / removed</span><strong>${latest.netContributionMinor >= 0 ? "+" : ""}${money(latest.netContributionMinor / 100, history.currency)}</strong></div><div><span>Cash-adjusted return</span><strong>${latest.returnPercent === null ? "—" : `${latest.returnPercent >= 0 ? "+" : ""}${latest.returnPercent.toFixed(1)}%`}</strong></div>` : `<div><span>Current value</span><strong>${money(latest.totalMinor / 100, history.currency)}</strong></div><div><span>Starting value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Value change</span><strong>${totalChange >= 0 ? "+" : ""}${money(totalChange / 100, history.currency)}</strong></div>`}</div>${chart}${showcase ? '<p class="portfolio-history-note"><strong>Showcase preview:</strong> this sample line demonstrates the finished portfolio experience. Live account history is built only from verified daily prices.</p>' : marketMode && !marketAvailable ? '<p class="portfolio-history-note"><strong>Return withheld:</strong> at least one endpoint has incomplete price coverage or an unknown cash flow. Use Total value to see recorded valuations; Mica will not label a coverage change as profit.</p>' : `<p class="portfolio-history-note"><strong>${marketMode ? "Purchases are not profit." : "This line includes buying and selling."}</strong> ${marketMode ? "Mica subtracts recorded purchases and grading costs, adds back net sale proceeds, and uses cash-flow timing for the return percentage." : "Switch to Market return to separate price movement from recorded money added or removed."}</p>`}`;
+  const rangeBaseline = plotted[0];
+  const rangeLatest = plotted.at(-1);
+  const rangeChange = values.at(-1) - values[0];
+  const rangePercent = rangeBaseline.totalMinor
+    ? (rangeChange / (rangeBaseline.totalMinor / 100)) * 100
+    : null;
+  const rangeCashFlow =
+    (rangeLatest.netContributionMinor - rangeBaseline.netContributionMinor) /
+    100;
+  const ranges = [
+    ["1m", "1M"],
+    ["3m", "3M"],
+    ["ytd", "YTD"],
+    ["all", "ALL"],
+  ];
+  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio market</strong><span>${showcase ? "Sample history for this showcase account" : `${history.points.length} verified daily valuation${history.points.length === 1 ? "" : "s"}`} · ${shortPortfolioDate(plotted[0].date, true)}–${shortPortfolioDate(plotted.at(-1).date, true)}</span></div><div class="portfolio-history-toggle" role="group" aria-label="Portfolio history view"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}" ${marketSeriesAvailable ? "" : "disabled"}>Market move</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${marketMode ? `<div><span>Range market move</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "+" : ""}${money(rangeChange, history.currency)}</strong></div><div><span>Range move</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div><div><span>Net cash flow</span><strong>${rangeCashFlow >= 0 ? "+" : ""}${money(rangeCashFlow, history.currency)}</strong></div>` : `<div><span>Current value</span><strong>${money(rangeLatest.totalMinor / 100, history.currency)}</strong></div><div><span>Range change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "+" : ""}${money(rangeChange, history.currency)}</strong></div><div><span>Range return</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div>`}</div><div class="portfolio-chart-toolbar"><span class="portfolio-chart-status"><i aria-hidden="true"></i>${showcase ? "Showcase history" : marketAvailable ? "Verified pricing history" : "Partial pricing history"}</span><div class="portfolio-chart-ranges" role="group" aria-label="Portfolio chart range">${ranges.map(([value, label]) => `<button type="button" data-portfolio-history-range="${value}" aria-pressed="${String(state.portfolioHistoryRange === value)}">${label}</button>`).join("")}</div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Interactive ${marketMode ? "cash-adjusted portfolio market movement" : "portfolio value"} chart from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${plotted.map((point, index) => `${shortPortfolioDate(point.date, true)}: ${money(values[index], history.currency)}`).join("; ")}</p><div class="portfolio-chart-foot"><span>Hover or tap for date and value</span><span>${plotted.length} valuation${plotted.length === 1 ? "" : "s"}</span></div>${showcase ? '<p class="portfolio-history-note"><strong>Showcase preview:</strong> this sample line demonstrates the finished portfolio experience. Live account history is built only from verified daily prices.</p>' : !marketSeriesAvailable ? '<p class="portfolio-history-note"><strong>Market move is withheld:</strong> current history does not have enough complete pricing and cash-flow coverage. Total value remains available.</p>' : marketMode && !marketAvailable ? '<p class="portfolio-history-note"><strong>Return withheld:</strong> at least one endpoint has incomplete price coverage or an unknown cash flow. Use Total value to see recorded valuations; Mica will not label a coverage change as profit.</p>' : `<p class="portfolio-history-note"><strong>${marketMode ? "Purchases are not profit." : "This line includes buying and selling."}</strong> ${marketMode ? "Mica subtracts recorded purchases and grading costs, adds back net sale proceeds, and uses cash-flow timing for the return percentage." : "Switch to Market move to separate price movement from recorded money added or removed."}</p>`}`;
   $$("[data-portfolio-history-mode]", root).forEach((button) =>
     button.addEventListener("click", () => {
       state.portfolioHistoryMode = button.dataset.portfolioHistoryMode;
       renderPortfolioHistory();
     }),
+  );
+  $$("[data-portfolio-history-range]", root).forEach((button) =>
+    button.addEventListener("click", () => {
+      state.portfolioHistoryRange = button.dataset.portfolioHistoryRange;
+      renderPortfolioHistory();
+    }),
+  );
+  requestAnimationFrame(
+    () =>
+      void mountPortfolioHistoryChart({
+        points: plotted,
+        values,
+        currency: history.currency,
+        marketMode,
+        showcase,
+      }),
   );
 }
 
@@ -8701,6 +8903,7 @@ async function applySession(session) {
   const previousOwnerId = state.session?.user?.id || "";
   state.session = session;
   if (previousOwnerId !== ownerId) {
+    state.portfolioHistoryRange = "3m";
     state.intakeQueue = [];
     state.bulkSelected.clear();
     state.bulkMode = false;
@@ -8748,6 +8951,7 @@ async function applySession(session) {
       searchResults: [],
     };
     chartInstance?.destroy();
+    destroyPortfolioHistoryChart();
     return;
   }
   if (!appEventsBound) {

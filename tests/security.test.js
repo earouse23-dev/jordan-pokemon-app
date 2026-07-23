@@ -232,7 +232,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v87/);
+  assert.match(serviceWorker, /mica-shell-v88/);
   assert.match(serviceWorker, /themes\.css\?v=73/);
 });
 
@@ -246,6 +246,23 @@ test("client presentation never turns demo values into market movement", () => {
   assert.match(appSource, /showcaseValue[\s\S]+Showcase value/);
   assert.doesNotMatch(appShell, /Concept [25]/);
   assert.match(appShell, /Recorded activity only/);
+});
+
+test("portfolio dashboard uses a responsive stock-style interactive chart", () => {
+  assert.match(appSource, /id="portfolioHistoryChart"/);
+  assert.match(appSource, /data-portfolio-history-range/);
+  assert.match(appSource, /\["1m", "1M"\]/);
+  assert.match(appSource, /\["3m", "3M"\]/);
+  assert.match(appSource, /\["ytd", "YTD"\]/);
+  assert.match(
+    appSource,
+    /interaction:\s*\{ mode: "index", intersect: false \}/,
+  );
+  assert.match(appSource, /maintainAspectRatio: false/);
+  assert.match(appSource, /Hover or tap for date and value/);
+  assert.match(appSource, /Showcase sample history/);
+  assert.match(styles, /\.portfolio-chart-shell[\s\S]+height: clamp/);
+  assert.match(styles, /\.portfolio-history-canvas[\s\S]+touch-action: pan-y/);
 });
 
 test("account switches discard stale portfolio responses and filter owned reads", () => {
