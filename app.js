@@ -536,7 +536,30 @@ function renderQuoteRow(quote, label) {
   return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.condition || "Condition-neutral")} · ${esc(quote.currency)}</span><span>Observed ${esc(friendlyObservedAt(quote.observedAt))} · retrieved ${esc(friendlyObservedAt(quote.retrievedAt))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
 }
 
+function showcaseReference(item) {
+  const amount = Number(item?.demoPrice ?? item?.price);
+  return isShowcaseAccount() && Number.isFinite(amount) && amount > 0
+    ? amount
+    : null;
+}
+
+function usesShowcaseFallback(item, pricingStatus = item?.pricingStatus) {
+  return (
+    showcaseReference(item) !== null &&
+    !["live", "stale"].includes(String(pricingStatus || ""))
+  );
+}
+
 function renderPriceEvidence(item, context) {
+  if (usesShowcaseFallback(item)) {
+    const contextLabel =
+      item.cardState === "sealed"
+        ? "Sealed product"
+        : context.gradingCompany
+          ? `${String(context.gradingCompany).toUpperCase()} ${context.grade}`
+          : `Raw · ${context.condition || "Near Mint"}`;
+    return `<section class="price-confidence preview" aria-label="Price confidence"><div class="price-confidence-head"><div><span>Price confidence</span><strong>Showcase sample</strong></div><b>Not live</b></div><p>This labeled sample demonstrates the finished valuation workflow. It is never used outside the showcase account.</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>Sample valuation</span><span>PkmnPrices Pro-ready</span></div></section>`;
+  }
   const report = priceEvidence(
     item.quotes,
     item.variant,
@@ -564,13 +587,19 @@ function renderPriceEvidence(item, context) {
 function renderGradedPriceLadder(item) {
   if (item.cardState === "sealed") return "";
   const rows = gradedPriceLadder(item.quotes, item.variant, "USD");
+  const showcaseAmount =
+    item.gradingCompany && !rows.length && usesShowcaseFallback(item)
+      ? showcaseReference(item)
+      : null;
   const ownedGrade = item.gradingCompany
     ? `${String(item.gradingCompany).toUpperCase()}:${item.grade}`
     : "";
   const content = rows.length
     ? `<div class="grade-ladder">${rows.map((row) => `<div class="grade-ladder-row${ownedGrade === `${row.grader}:${row.grade}` ? " current" : ""}"><div><strong>${esc(row.grader)} ${esc(row.grade)}</strong><span>${esc(row.priceType)} · ${esc(row.provider)}${row.observedAt ? ` · ${esc(String(row.observedAt).slice(0, 10))}` : ""}</span></div><b>${money(row.amount, row.currency)}</b></div>`).join("")}</div>`
+    : showcaseAmount !== null
+      ? `<div class="grade-ladder"><div class="grade-ladder-row current"><div><strong>${esc(String(item.gradingCompany).toUpperCase())} ${esc(item.grade)}</strong><span>Showcase sample · not a live quote</span></div><b>${money(showcaseAmount, item.currency || "USD")}</b></div></div><div class="pro-data-empty"><strong>Full graded ladder is ready</strong><p>PkmnPrices Pro will replace this labeled sample and populate compatible grades without changing this screen.</p></div>`
     : `<div class="pro-data-empty"><strong>Ready for graded pricing</strong><p>When PkmnPrices returns matching graded quotes, PSA, BGS, and CGC grades will appear here automatically. Mica will never substitute a different printing or invent a grade value.</p></div>`;
-  return `<section class="detail-section"><div class="detail-section-head"><h2>Graded value ladder</h2><span>${rows.length ? `${rows.length} exact grade reference${rows.length === 1 ? "" : "s"}` : "PkmnPrices-ready"}</span></div>${content}</section>`;
+  return `<section class="detail-section"><div class="detail-section-head"><h2>Graded value ladder</h2><span>${rows.length ? `${rows.length} exact grade reference${rows.length === 1 ? "" : "s"}` : showcaseAmount !== null ? "Showcase sample · Pro-ready" : "PkmnPrices-ready"}</span></div>${content}</section>`;
 }
 
 function renderCardMetadata(item) {
@@ -649,7 +678,7 @@ function renderMarketplaceOffers(item) {
 
 function historySeriesForItem(item) {
   const finish = finishForVariant(item.variant);
-  const exact = (item.priceHistory || []).filter((point) => {
+  let exact = (item.priceHistory || []).filter((point) => {
     if (point.finish !== finish) return false;
     if (point.currency && point.currency !== (item.currency || "USD"))
       return false;
@@ -664,6 +693,32 @@ function historySeriesForItem(item) {
       (!point.condition || point.condition === item.condition)
     );
   });
+  const showcaseAmount = showcaseReference(item);
+  if (exact.length < 2 && showcaseAmount !== null) {
+    const today = new Date();
+    const multipliers = [0.74, 0.79, 0.77, 0.84, 0.88, 0.86, 0.94, 1];
+    exact = multipliers.map((multiplier, index) => {
+      const observed = new Date(
+        Date.UTC(
+          today.getUTCFullYear(),
+          today.getUTCMonth() - (multipliers.length - index - 1),
+          15,
+        ),
+      );
+      return {
+        provider: "Showcase sample",
+        providerVariantId: `showcase:${item.uid || item.id}`,
+        amount: Number((showcaseAmount * multiplier).toFixed(2)),
+        currency: item.currency || "USD",
+        finish,
+        condition: item.gradingCompany ? null : item.condition,
+        gradingCompany: item.gradingCompany || null,
+        grade: item.gradingCompany ? String(item.grade) : null,
+        recordedAt: observed.toISOString(),
+        quality: { sample: true },
+      };
+    });
+  }
   const reference = selectReferenceQuote(
     item.quotes || [],
     item.variant,
@@ -793,6 +848,7 @@ function renderEntryPoints(item, currentPrice = item.price) {
 
 function renderInteractiveHistory(item, currentPrice = item.price) {
   const history = historyForItem(item);
+  const showcaseHistory = history.some((point) => point.quality?.sample);
   const entryPoints = renderEntryPoints(item, currentPrice);
   if (item.historyStatus === "plan_required" && history.length < 2)
     return `${entryPoints}<div class="unavailable-panel"><strong>Price history is plan-limited.</strong><br>The connected PkmnPrices key can return current prices, but historical observations require a higher provider plan. Your recorded entry points remain visible without Pro.</div>`;
@@ -817,7 +873,7 @@ function renderInteractiveHistory(item, currentPrice = item.price) {
   const context = item.gradingCompany
     ? `${item.gradingCompany} ${item.grade}`
     : item.condition;
-  return `${entryPoints}<div class="history-summary"><div><span>Observed average</span><strong>${money(average, last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Daily samples</span><strong>${history.length} observations</strong></div>${saleCount ? `<div><span>Reported sales</span><strong>${saleCount}</strong></div>` : ""}</div>
+  return `${entryPoints}<div class="history-summary"><div><span>${showcaseHistory ? "Sample average" : "Observed average"}</span><strong>${money(average, last.currency)}</strong></div><div><span>${showcaseHistory ? "Sample range" : "Observed range"}</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>${showcaseHistory ? "Showcase samples" : "Daily samples"}</span><strong>${history.length} ${showcaseHistory ? "sample points" : "observations"}</strong></div>${saleCount ? `<div><span>Reported sales</span><strong>${saleCount}</strong></div>` : ""}</div>
     <div class="history-controls" role="group" aria-label="Price history range">${[
       ["1m", "1 month"],
       ["3m", "3 months"],
@@ -830,7 +886,7 @@ function renderInteractiveHistory(item, currentPrice = item.price) {
           `<button type="button" data-chart-range="${value}" aria-pressed="${String(state.chartRange === value)}">${label}</button>`,
       )
       .join("")}</div>
-    <p class="chart-context">Exact series: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. Provider observations remain separate.</p>
+    <p class="chart-context">${showcaseHistory ? "Labeled showcase series" : "Exact series"}: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. ${showcaseHistory ? "Sample points are confined to this demo account and are not market evidence." : "Provider observations remain separate."}</p>
     <div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="Historical ${esc(context)} prices with purchase entry markers"></canvas></div>`;
 }
 
@@ -3309,25 +3365,37 @@ function renderDetail() {
     conditionContext,
   );
   const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
-  const pricingStatus =
+  const providerPricingStatus =
     item.pricingStatus ||
     (state.pricingStatus === "error"
       ? "error"
       : item.price != null
         ? "preview"
         : "loading");
+  const showcaseFallback = usesShowcaseFallback(item, providerPricingStatus);
+  const pricingStatus = showcaseFallback
+    ? "showcase"
+    : providerPricingStatus;
   const livePrice = ["live", "stale"].includes(pricingStatus)
     ? (tcgQuote?.amount ?? null)
     : null;
-  const previewPrice = ["preview", "error"].includes(pricingStatus)
-    ? (item.demoPrice ?? item.price ?? null)
-    : null;
+  const previewPrice =
+    pricingStatus === "showcase"
+      ? showcaseReference(item)
+      : ["preview", "error"].includes(pricingStatus)
+        ? (item.demoPrice ?? item.price ?? null)
+        : null;
   const displayPrice = livePrice ?? previewPrice;
+  const showcaseHistory = historyForItem(item).some(
+    (point) => point.quality?.sample,
+  );
   const marketLabel =
     pricingStatus === "live"
       ? "Current market"
       : pricingStatus === "stale"
         ? "Stale market reference"
+        : pricingStatus === "showcase"
+          ? "Showcase value"
         : previewPrice != null
           ? "Demo estimate"
           : "Current market";
@@ -3336,6 +3404,8 @@ function renderDetail() {
       ? `Updated ${esc(friendlyObservedAt(item.pricingUpdatedAt))}`
       : pricingStatus === "stale"
         ? `Last observed ${esc(friendlyObservedAt(item.pricingUpdatedAt))} · refresh needed`
+        : pricingStatus === "showcase"
+          ? "Labeled sample · replaced automatically after PkmnPrices Pro connects"
         : pricingStatus === "preview"
           ? "Demo data · not a live quote"
           : pricingStatus === "error"
@@ -3347,6 +3417,8 @@ function renderDetail() {
                 : "Checking this exact printing";
   const sourceRows = ["live", "stale"].includes(pricingStatus)
     ? `${renderQuoteRow(tcgQuote, sealed ? "TCGplayer sealed market" : tcgQuote?.provider === "justtcg" ? "JustTCG market" : "TCGplayer market")}${renderQuoteRow(cardmarketQuote, sealed ? "Cardmarket sealed market" : "Cardmarket")}`
+    : pricingStatus === "showcase"
+      ? `<div class="price-source"><div><strong>Showcase valuation</strong><span>${esc(item.variant || "Printing unknown")} · ${esc(item.currency || "USD")}</span><span>Demonstration data for the showcase account only.</span></div><div class="source-value"><b>${money(previewPrice, item.currency || "USD")}</b><small>Sample · not live market data</small></div></div>`
     : pricingStatus === "preview" ||
         (pricingStatus === "error" && previewPrice != null)
       ? `<div class="price-source"><div><strong>Demo estimate</strong><span>${esc(item.variant || "Printing unknown")} · USD</span><span>${pricingStatus === "error" ? "The live provider could not be reached." : "Live refresh has not completed."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo data · not live</small></div></div>`
@@ -3398,7 +3470,7 @@ function renderDetail() {
       (lot) => !lot.costBasisKnown || !lot.acquisitionDateKnown,
     ) || null;
   const positionSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>${item.lots?.length || 0} purchase lot${item.lots?.length === 1 ? "" : "s"} · FIFO cost basis</span></div><div class="position-summary"><div><span>${item.gradingCompany ? "Total cost basis" : "Total acquisition cost"}</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Value today</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Gain / loss today</span><strong>${performance.unrealizedGainMinor === null ? "Needs acquisition cost" : money(performance.unrealizedGainMinor / 100, item.currency)}</strong></div><div><span>Return since purchase</span><strong>${performance.returnPercent === null ? "Unavailable" : `${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>First purchased</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Valuation source</span><strong>${esc(tcgQuote?.provider || "Unavailable")}</strong></div></div>${incompleteLot ? `<div class="warning-panel"><strong>Complete this purchase history</strong><p>Add the total cost or original date you know. Until then, Mica keeps profit and return unavailable instead of treating missing cost as $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This position is at the grader.</strong><br>${incompleteLot ? "Complete every missing acquisition cost and date before separating returned grades." : "You can separate copies to record mixed returned grades."} Adding purchases and recording sales remain paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate copies from this position</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate sealed position" : "Add this card with a different condition or grade"}</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>${item.lots?.length || 0} purchase lot${item.lots?.length === 1 ? "" : "s"} · FIFO cost basis</span></div><div class="position-summary"><div><span>${item.gradingCompany ? "Total cost basis" : "Total acquisition cost"}</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Value today</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Gain / loss today</span><strong>${performance.unrealizedGainMinor === null ? "Needs acquisition cost" : money(performance.unrealizedGainMinor / 100, item.currency)}</strong></div><div><span>Return since purchase</span><strong>${performance.returnPercent === null ? "Unavailable" : `${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>First purchased</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Valuation source</span><strong>${esc(showcaseFallback ? "Showcase sample" : tcgQuote?.provider || "Unavailable")}</strong></div></div>${incompleteLot ? `<div class="warning-panel"><strong>Complete this purchase history</strong><p>Add the total cost or original date you know. Until then, Mica keeps profit and return unavailable instead of treating missing cost as $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This position is at the grader.</strong><br>${incompleteLot ? "Complete every missing acquisition cost and date before separating returned grades." : "You can separate copies to record mixed returned grades."} Adding purchases and recording sales remain paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate copies from this position</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate sealed position" : "Add this card with a different condition or grade"}</button></section>`
     : "";
   const favorite =
     owned &&
@@ -3444,7 +3516,7 @@ function renderDetail() {
     ${listingSection}
     ${gradingSubmissionSection}
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderInteractiveHistory(item, displayPrice)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>${showcaseHistory ? "Labeled sample history" : "Real observations"}</span></div>${renderInteractiveHistory(item, displayPrice)}</section>
     <details class="detail-tool-group"><summary><span><strong>Buy &amp; sell decisions</strong><small>Offer ceiling${owned ? ", fees, net, and break-even" : " and buy target"}</small></span><b>Open tools</b></summary><div class="detail-tool-content">${renderBuyPlanner(item, displayPrice)}${owned ? renderSalePlanner(item, displayPrice) : ""}</div></details>
     ${sealed ? "" : `<details class="detail-tool-group"><summary><span><strong>Grading tools</strong><small>Grade values, submission cost, and grading decision</small></span><b>Open tools</b></summary><div class="detail-tool-content">${renderGradedPriceLadder(item)}${renderGradingEstimator(item)}</div></details>`}
     <details class="detail-tool-group"><summary><span><strong>More market evidence</strong><small>Seller asks and completed-sale links</small></span><b>Open evidence</b></summary><div class="detail-tool-content">${renderMarketplaceOffers(item)}${sealed ? '<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>Not supplied for sealed products</span></div><div class="unavailable-panel">PkmnPrices currently exposes a sealed market reference, but its documented sold-listing endpoint is card-specific. Mica does not substitute card sales or active asks.</div></section>' : `<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === "live" ? "Completed listings" : "Verified links when available"}</span></div>${renderSales(item)}</section>`}</div></details>

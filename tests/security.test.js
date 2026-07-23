@@ -233,7 +233,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v89/);
+  assert.match(serviceWorker, /mica-shell-v90/);
   assert.match(serviceWorker, /themes\.css\?v=74/);
 });
 
@@ -247,6 +247,24 @@ test("client presentation never turns demo values into market movement", () => {
   assert.match(appSource, /showcaseValue[\s\S]+Showcase value/);
   assert.doesNotMatch(appShell, /Concept [25]/);
   assert.match(appShell, /Recorded activity only/);
+});
+
+test("showcase card details stay complete without leaking samples into real accounts", () => {
+  assert.match(
+    appSource,
+    /function showcaseReference\(item\)[\s\S]+isShowcaseAccount\(\)/,
+  );
+  assert.match(
+    appSource,
+    /function usesShowcaseFallback\(item,[\s\S]+!\["live", "stale"\]\.includes/,
+  );
+  assert.match(appSource, /Showcase valuation/);
+  assert.match(appSource, /Sample · not live market data/);
+  assert.match(
+    appSource,
+    /Sample points are confined to this demo account and are not market evidence/,
+  );
+  assert.match(appSource, /PkmnPrices Pro will replace this labeled sample/);
 });
 
 test("portfolio dashboard uses a responsive stock-style interactive chart", () => {
