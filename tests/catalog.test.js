@@ -18,7 +18,7 @@ function comparable(value) {
   return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-function installCatalogFetch() {
+function installCatalogFetch({ ignoreName = false } = {}) {
   const requested = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async rawUrl => {
@@ -34,7 +34,7 @@ function installCatalogFetch() {
     const setName = comparable(url.searchParams.get('set.name'));
     const setId = comparable(url.searchParams.get('set.id'));
     const total = comparable(url.searchParams.get('set.cardCount.official'));
-    const matches = cards.filter(card => (!name || comparable(card.name).includes(name))
+    const matches = cards.filter(card => (!name || ignoreName || comparable(card.name).includes(name))
       && (!localId || comparable(card.localId) === localId)
       && (!setName || comparable(card.set.name) === setName)
       && (!setId || comparable(card.set.id) === setId)
@@ -43,6 +43,17 @@ function installCatalogFetch() {
   };
   return { requested, restore:() => { globalThis.fetch = originalFetch; } };
 }
+
+test('does not call an unrelated name a strong match solely because its collector number matches', async () => {
+  const mock = installCatalogFetch({ ignoreName:true });
+  try {
+    const results = await searchTcgdexCards('Mew ex 151/165', 'en', 12);
+    assert.equal(results[0].externalIds.tcgdex, 'sv03.5-151');
+    const unrelated = results.find(card => card.externalIds.tcgdex === 'ecard1-151');
+    assert.ok(unrelated);
+    assert.equal(unrelated.match.confidence, 'Number-only alternative');
+  } finally { mock.restore(); }
+});
 
 test('parses mixed collector searches without treating the full query as a name', () => {
   assert.deepEqual(parseCatalogQuery('Mew ex 151/165'), {

@@ -137,7 +137,7 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 
 - Formatting and diff whitespace checks
 - Source linting and JavaScript syntax/type checks
-- 142 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, grading-submission, portfolio-history, grading-ledger, position-split, selective-sharing, certification-trust, and regression tests
+- 162 automated domain, pricing, API, security, offline, bulk, paging, import, scheduler, remapping, grading-submission, portfolio-history, grading-ledger, position-split, selective-sharing, certification-trust, capability-status, and regression tests
 - Connected Supabase table inspection with RLS enabled on every public table
 - Production build
 - Supabase security and performance advisors

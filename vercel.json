@@ -4,6 +4,7 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "functions": {
+    "api/capabilities.js": { "maxDuration": 10 },
     "api/cards.js": { "maxDuration": 10 },
     "api/catalog.js": { "maxDuration": 10 },
     "api/sales.js": { "maxDuration": 10 },
@@ -24,6 +25,10 @@
         {
           "key": "Permissions-Policy",
           "value": "camera=(self), geolocation=(), microphone=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://assets.tcgdex.net https://images.pokemontcg.io; connect-src 'self' https://*.supabase.co wss://*.supabase.co; media-src 'self' blob:; font-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
         }
       ]
     },

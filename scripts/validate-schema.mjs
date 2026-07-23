@@ -13,8 +13,12 @@ const sql = [
   )),
 ].join("\n");
 const tables = [
-  ...sql.matchAll(/create table if not exists public\.([a-z_]+)/gi),
-].map((match) => match[1]);
+  ...new Set(
+    [...sql.matchAll(/create table if not exists public\.([a-z_]+)/gi)].map(
+      (match) => match[1],
+    ),
+  ),
+];
 const rlsTables = new Set(
   [
     ...sql.matchAll(

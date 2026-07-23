@@ -21,8 +21,8 @@
       sizes="180x180"
       href="icons/apple-touch-icon.png"
     />
-    <link rel="stylesheet" href="styles.css?v=81" />
-    <link rel="stylesheet" href="themes.css?v=73" />
+    <link rel="stylesheet" href="styles.css?v=82" />
+    <link rel="stylesheet" href="themes.css?v=74" />
     <title>Mica — Pokémon Card Library</title>
   </head>
   <body>
@@ -57,15 +57,18 @@
           </div>
           <div class="field">
             <label for="authPassword">Password</label
-            ><input
-              id="authPassword"
-              name="password"
-              type="password"
-              autocomplete="current-password"
-              minlength="8"
-              required
-            />
+            ><div class="password-input"><input
+                id="authPassword"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                minlength="8"
+                required
+              /><button id="toggleAuthPassword" type="button" aria-pressed="false" aria-label="Show password">Show</button></div>
           </div>
+          <button class="auth-text-action" type="button" id="forgotPassword">
+            Forgot password?
+          </button>
           <button class="primary" type="submit" id="passwordSignIn">
             Sign in
           </button>
@@ -73,6 +76,11 @@
             Create account
           </button>
         </form>
+        <p class="auth-legal-copy">
+          By creating an account, you agree to Mica’s
+          <button type="button" data-auth-legal="terms">Terms</button> and
+          <button type="button" data-auth-legal="privacy">Privacy notice</button>.
+        </p>
         <div class="auth-divider"><span>or</span></div>
         <form id="magicLinkForm" class="auth-form auth-magic">
           <label for="magicEmail">Email me a secure sign-in link</label>
@@ -95,6 +103,21 @@
         ></p>
       </div>
     </section>
+    <dialog class="auth-dialog" id="authLegalDialog" aria-labelledby="authLegalTitle">
+      <article>
+        <div class="auth-dialog-head"><h2 id="authLegalTitle">Mica terms</h2><button type="button" data-close-auth-dialog aria-label="Close">×</button></div>
+        <div id="authLegalContent"></div>
+        <button class="primary" type="button" data-close-auth-dialog>Done</button>
+      </article>
+    </dialog>
+    <dialog class="auth-dialog" id="passwordResetDialog" aria-labelledby="passwordResetTitle">
+      <form method="dialog" id="passwordResetForm">
+        <div class="auth-dialog-head"><div><h2 id="passwordResetTitle">Choose a new password</h2><p>Your recovery link is verified. Use at least 8 characters.</p></div><button type="button" data-close-reset-dialog aria-label="Close">×</button></div>
+        <div class="field"><label for="newAccountPassword">New password</label><input id="newAccountPassword" name="password" type="password" autocomplete="new-password" minlength="8" required></div>
+        <p class="auth-message" id="passwordResetMessage" role="status" aria-live="polite"></p>
+        <button class="primary" type="submit">Update password</button>
+      </form>
+    </dialog>
     <div class="app-shell" id="appShell">
       <aside class="desktop-sidebar" aria-label="Mica workspace navigation">
         <button
@@ -303,7 +326,8 @@
                   ><strong id="unrealized">—</strong>
                 </div>
                 <div>
-                  <span>Return</span><strong id="portfolioReturn">—</strong>
+                  <span>Return on cost</span
+                  ><strong id="portfolioReturn">—</strong>
                 </div>
                 <div>
                   <span>Realized gain/loss</span
@@ -332,7 +356,7 @@
               aria-selected="true"
               data-ledger-view="all"
             >
-              All items <span id="allCount">0</span>
+              All cards <span id="allCount">0</span>
             </button>
             <button
               class="view-tab"
@@ -373,6 +397,15 @@
             >
               Favorites <span id="favoritesCount">0</span>
             </button>
+            <button
+              class="view-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+              data-ledger-view="watchlist"
+            >
+              Watchlist <span id="watchlistCount">0</span>
+            </button>
             <details class="collection-more">
               <summary>More views</summary>
               <div>
@@ -384,15 +417,6 @@
                   data-ledger-view="for-sale"
                 >
                   For sale <span id="forSaleCount">0</span>
-                </button>
-                <button
-                  class="view-tab"
-                  type="button"
-                  role="tab"
-                  aria-selected="false"
-                  data-ledger-view="watchlist"
-                >
-                  Watchlist <span id="watchlistCount">0</span>
                 </button>
                 <button
                   class="view-tab"
@@ -536,7 +560,7 @@
             aria-live="polite"
           >
             <div>
-              <span>Rapid intake</span
+              <span>Cards to add</span
               ><strong id="intakeQueueCount">0 exact cards queued</strong>
             </div>
             <button id="reviewIntakeQueue" type="button">
@@ -608,7 +632,7 @@
             </section>
             <aside class="add-capture-panel" aria-labelledby="addCaptureTitle">
               <div class="add-panel-heading">
-                <span>Hands-free options</span>
+                <span>Photo tools</span>
                 <h2 id="addCaptureTitle">Use a photo</h2>
               </div>
               <div class="find-actions">
@@ -1127,6 +1151,15 @@
             </button>
             <p id="workflowDefaultsStatus" role="status" aria-live="polite"></p>
           </div>
+          <div class="settings-group connection-settings">
+            <h2>Feature connections</h2>
+            <p>Every workflow is built. These statuses show what the current deployment can actually run.</p>
+            <div class="connection-row"><span><strong>Card catalog</strong><small>Exact card search and printing selection</small></span><b id="catalogConnectionState">Checking…</b></div>
+            <div class="connection-row"><span><strong>Expanded prices</strong><small>Graded ladders, history, offers, sealed, and sold links</small></span><b id="pricingConnectionState">Checking…</b></div>
+            <div class="connection-row"><span><strong>AI photo analysis</strong><small>Card matching, receipt reading, and raw grade estimate</small></span><b id="visionConnectionState">Checking…</b></div>
+            <div class="connection-row"><span><strong>Push alerts</strong><small>Buy-target notifications when Mica is closed</small></span><b id="pushConnectionState">Developer mode</b></div>
+            <p class="connection-note" id="connectionStatusNote" role="status" aria-live="polite">Checking this deployment without exposing keys…</p>
+          </div>
           <div class="settings-group">
             <h2>Collection</h2>
             <button type="button" id="sharePortfolioButton">
@@ -1174,7 +1207,7 @@
             <button type="button" id="installAppButton">
               <span
                 >Install Mica on this device<small id="installAppHelp"
-                  >Open from your home screen with offline access</small
+                  >Open the app shell from your home screen; private data still needs a connection</small
                 ></span
               ><strong id="installAppState">Check</strong>
             </button>
@@ -1229,10 +1262,24 @@
       </main>
 
       <nav class="bottom-nav" aria-label="Mobile and tablet navigation">
-        <button class="nav-item active" type="button" data-route="collection">
+        <button
+          class="nav-item active"
+          type="button"
+          data-sidebar-target="dashboard"
+        >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5" /></svg
           ><span>Home</span>
+        </button>
+        <button
+          class="nav-item"
+          type="button"
+          data-sidebar-target="collection"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="5" y="3" width="14" height="18" rx="2" />
+            <path d="M8 7h8M8 11h8M8 15h5" /></svg
+          ><span>Library</span>
         </button>
         <button class="nav-item scan-nav" type="button" data-route="scan">
           <span class="scan-button"
@@ -1249,12 +1296,6 @@
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4" /></svg
           ><span>Trade</span>
-        </button>
-        <button class="nav-item" type="button" data-route="profile">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M5 21a7 7 0 0 1 14 0" /></svg
-          ><span>Profile</span>
         </button>
       </nav>
       <div
@@ -1290,6 +1331,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=88"></script>
+    <script type="module" src="app.js?v=89"></script>
   </body>
 </html>

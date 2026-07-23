@@ -80,12 +80,14 @@ import {
   recordSale,
   remapCollectionPosition,
   sendMagicLink,
+  sendPasswordReset,
   saveProfile,
   signInWithPassword,
   signOut,
   signUpWithPassword,
   splitCollectionPosition,
   updateGradingSubmission,
+  updateAccountPassword,
   updatePosition,
   updateWatchlistEntry,
 } from "./lib/supabase-data.js";
@@ -410,15 +412,35 @@ function itemValue(item) {
     : Number(item.price) * Number(item.quantity || 0);
 }
 
+function currencyInputValue(value) {
+  const amount = Number(value);
+  return value === null || value === undefined || !Number.isFinite(amount)
+    ? ""
+    : amount.toFixed(2);
+}
+
+function friendlyObservedAt(value) {
+  if (!value) return "date unavailable";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function priceStatusText(item) {
   if (item.price == null)
     return item.gradingCompany
       ? "Graded market price not connected"
       : "Matching market price unavailable";
   if (item.pricingStatus === "live")
-    return `Updated ${item.pricingUpdatedAt || "recently"}`;
+    return `Updated ${friendlyObservedAt(item.pricingUpdatedAt)}`;
   if (item.pricingStatus === "stale")
-    return `Stale · observed ${item.pricingUpdatedAt || "date unknown"}`;
+    return `Stale · observed ${friendlyObservedAt(item.pricingUpdatedAt)}`;
   return "Demo estimate";
 }
 
@@ -511,7 +533,7 @@ function renderQuoteRow(quote, label) {
   const source = quote.providerUrl
     ? `<a href="${esc(quote.providerUrl)}" target="_blank" rel="noreferrer">${esc(label)}</a>`
     : `<strong>${esc(label)}</strong>`;
-  return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.condition || "Condition-neutral")} · ${esc(quote.currency)}</span><span>Observed ${esc(quote.observedAt || "date unavailable")} · retrieved ${esc(quote.retrievedAt?.slice?.(0, 10) || "date unavailable")}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
+  return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.condition || "Condition-neutral")} · ${esc(quote.currency)}</span><span>Observed ${esc(friendlyObservedAt(quote.observedAt))} · retrieved ${esc(friendlyObservedAt(quote.retrievedAt))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
 }
 
 function renderPriceEvidence(item, context) {
@@ -1017,9 +1039,9 @@ function renderGradingEstimator(item) {
     <div class="grading-decision">
       <div class="decision-heading"><div><span>Decision tool</span><h3>Should I grade it?</h3></div><p>Compare selling raw with the value you expect after grading.</p></div>
       <div class="estimator-grid decision-inputs">
-        <div class="field"><label for="estimateRawValue">Raw value today</label><div class="money-input"><span>$</span><input id="estimateRawValue" type="number" inputmode="decimal" min="0" step="0.01" value="${rawQuote?.amount ?? ""}" placeholder="Enter raw value"></div></div>
+        <div class="field"><label for="estimateRawValue">Raw value today</label><div class="money-input"><span>$</span><input id="estimateRawValue" type="number" inputmode="decimal" min="0" step="0.01" value="${currencyInputValue(rawQuote?.amount)}" placeholder="Enter raw value"></div></div>
         <div class="field"><label for="estimateTargetGrade">Expected grade</label><select id="estimateTargetGrade">${["10", "9.5", "9", "8.5", "8", "7", "6"].map((value) => `<option ${value === "10" ? "selected" : ""}>${value}</option>`).join("")}</select></div>
-        <div class="field"><label for="estimateGradedValue">Expected graded value</label><div class="money-input"><span>$</span><input id="estimateGradedValue" type="number" inputmode="decimal" min="0" step="0.01" value="${gradedQuote?.amount ?? ""}" placeholder="Enter expected value"></div></div>
+        <div class="field"><label for="estimateGradedValue">Expected graded value</label><div class="money-input"><span>$</span><input id="estimateGradedValue" type="number" inputmode="decimal" min="0" step="0.01" value="${currencyInputValue(gradedQuote?.amount)}" placeholder="Enter expected value"></div></div>
       </div>
       <p class="decision-source" id="decisionSource">${gradedQuote ? `Using a matching ${esc(gradedQuote.gradingCompany)} ${esc(gradedQuote.grade)} market reference. Raw and graded values remain editable.` : "No matching PSA 10 reference is available. Enter the result you realistically expect."}</p>
       <div class="decision-verdict neutral" id="decisionVerdict" aria-live="polite"><span>Complete the values above</span><strong>Then Mica will compare both paths.</strong></div>
@@ -1137,7 +1159,7 @@ function bindGradingEstimator(item) {
   };
   const syncExpectedQuote = () => {
     const quote = gradingQuote(item, grader.value, targetGrade.value);
-    gradedValue.value = quote?.amount ?? "";
+    gradedValue.value = currencyInputValue(quote?.amount);
     $("#decisionSource").textContent = quote
       ? `Using a matching ${quote.gradingCompany} ${quote.grade} market reference. Raw and graded values remain editable.`
       : `No matching ${grader.value} ${targetGrade.value} reference is available. Enter the result you realistically expect.`;
@@ -1440,8 +1462,11 @@ function routeTo(route, options = {}) {
   if ($("#headerSection")) $("#headerSection").textContent = headerCopy[0];
   if ($("#headerSubtitle")) $("#headerSubtitle").textContent = headerCopy[1];
   syncWorkspaceChrome();
+  if (route === "profile") void refreshCapabilityStatus();
   if (route === "detail") renderDetail();
-  window.scrollTo({ top: 0, behavior: options.instant ? "auto" : "smooth" });
+  // A newly selected workspace should never inherit the previous page's
+  // scroll position. Smooth scrolling exposed half-rendered transitions.
+  window.scrollTo({ top: 0, behavior: "auto" });
   if (changed && options.focus !== false)
     requestAnimationFrame(() => $("#main").focus({ preventScroll: true }));
   const url =
@@ -1511,9 +1536,6 @@ function openWorkspaceShortcut(target) {
   if (target === "dashboard") return collectionTarget("all");
   if (target === "collection") {
     collectionTarget("all");
-    requestAnimationFrame(() =>
-      $(".view-tabs")?.scrollIntoView({ block: "start" }),
-    );
     return;
   }
   if (target === "sets") return collectionTarget("sets");
@@ -2353,7 +2375,16 @@ function renderPortfolioHistory() {
     ["ytd", "YTD"],
     ["all", "ALL"],
   ];
-  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio market</strong><span>${showcase ? "Sample history for this showcase account" : `${history.points.length} verified daily valuation${history.points.length === 1 ? "" : "s"}`} · ${shortPortfolioDate(plotted[0].date, true)}–${shortPortfolioDate(plotted.at(-1).date, true)}</span></div><div class="portfolio-history-toggle" role="group" aria-label="Portfolio history view"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}" ${marketSeriesAvailable ? "" : "disabled"}>Market move</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${marketMode ? `<div><span>Range market move</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "+" : ""}${money(rangeChange, history.currency)}</strong></div><div><span>Range move</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div><div><span>Net cash flow</span><strong>${rangeCashFlow >= 0 ? "+" : ""}${money(rangeCashFlow, history.currency)}</strong></div>` : `<div><span>Current value</span><strong>${money(rangeLatest.totalMinor / 100, history.currency)}</strong></div><div><span>Range change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "+" : ""}${money(rangeChange, history.currency)}</strong></div><div><span>Range return</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div>`}</div><div class="portfolio-chart-toolbar"><span class="portfolio-chart-status"><i aria-hidden="true"></i>${showcase ? "Showcase history" : marketAvailable ? "Verified pricing history" : "Partial pricing history"}</span><div class="portfolio-chart-ranges" role="group" aria-label="Portfolio chart range">${ranges.map(([value, label]) => `<button type="button" data-portfolio-history-range="${value}" aria-pressed="${String(state.portfolioHistoryRange === value)}">${label}</button>`).join("")}</div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Interactive ${marketMode ? "cash-adjusted portfolio market movement" : "portfolio value"} chart from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${plotted.map((point, index) => `${shortPortfolioDate(point.date, true)}: ${money(values[index], history.currency)}`).join("; ")}</p><div class="portfolio-chart-foot"><span>Hover or tap for date and value</span><span>${plotted.length} valuation${plotted.length === 1 ? "" : "s"}</span></div>${showcase ? '<p class="portfolio-history-note"><strong>Showcase preview:</strong> this sample line demonstrates the finished portfolio experience. Live account history is built only from verified daily prices.</p>' : !marketSeriesAvailable ? '<p class="portfolio-history-note"><strong>Market move is withheld:</strong> current history does not have enough complete pricing and cash-flow coverage. Total value remains available.</p>' : marketMode && !marketAvailable ? '<p class="portfolio-history-note"><strong>Return withheld:</strong> at least one endpoint has incomplete price coverage or an unknown cash flow. Use Total value to see recorded valuations; Mica will not label a coverage change as profit.</p>' : `<p class="portfolio-history-note"><strong>${marketMode ? "Purchases are not profit." : "This line includes buying and selling."}</strong> ${marketMode ? "Mica subtracts recorded purchases and grading costs, adds back net sale proceeds, and uses cash-flow timing for the return percentage." : "Switch to Market move to separate price movement from recorded money added or removed."}</p>`}`;
+  const rangeButtons = ranges
+    .map(([value, label]) => {
+      const redundant =
+        value !== "all" &&
+        portfolioHistoryRangePoints(compatible, value).length ===
+          compatible.length;
+      return `<button type="button" data-portfolio-history-range="${value}" aria-pressed="${String(state.portfolioHistoryRange === value)}" ${redundant ? 'disabled title="No additional history in this range yet"' : ""}>${label}</button>`;
+    })
+    .join("");
+  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio market</strong><span>${showcase ? "Sample history for this showcase account" : `${history.points.length} verified daily valuation${history.points.length === 1 ? "" : "s"}`} · ${shortPortfolioDate(plotted[0].date, true)}–${shortPortfolioDate(plotted.at(-1).date, true)}</span></div><div class="portfolio-history-toggle" role="group" aria-label="Portfolio history view"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}" ${marketSeriesAvailable ? "" : "disabled"}>Market move</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${marketMode ? `<div><span>Range market move</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "+" : ""}${money(rangeChange, history.currency)}</strong></div><div><span>Range move</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div><div><span>Net cash flow</span><strong>${rangeCashFlow >= 0 ? "+" : ""}${money(rangeCashFlow, history.currency)}</strong></div>` : `<div><span>Current value</span><strong>${money(rangeLatest.totalMinor / 100, history.currency)}</strong></div><div><span>Range change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "+" : ""}${money(rangeChange, history.currency)}</strong></div><div><span>Range return</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div>`}</div><div class="portfolio-chart-toolbar"><span class="portfolio-chart-status"><i aria-hidden="true"></i>${showcase ? "Showcase history" : marketAvailable ? "Verified pricing history" : "Partial pricing history"}</span><div class="portfolio-chart-ranges" role="group" aria-label="Portfolio chart range">${rangeButtons}</div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Interactive ${marketMode ? "cash-adjusted portfolio market movement" : "portfolio value"} chart from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${plotted.map((point, index) => `${shortPortfolioDate(point.date, true)}: ${money(values[index], history.currency)}`).join("; ")}</p><div class="portfolio-chart-foot"><span>Hover or tap for date and value</span><span>${plotted.length} valuation${plotted.length === 1 ? "" : "s"}</span></div>${showcase ? '<p class="portfolio-history-note"><strong>Showcase preview:</strong> this sample line demonstrates the finished portfolio experience. Live account history is built only from verified daily prices.</p>' : !marketSeriesAvailable ? '<p class="portfolio-history-note"><strong>Market move is withheld:</strong> current history does not have enough complete pricing and cash-flow coverage. Total value remains available.</p>' : marketMode && !marketAvailable ? '<p class="portfolio-history-note"><strong>Return withheld:</strong> at least one endpoint has incomplete price coverage or an unknown cash flow. Use Total value to see recorded valuations; Mica will not label a coverage change as profit.</p>' : `<p class="portfolio-history-note"><strong>${marketMode ? "Purchases are not profit." : "This line includes buying and selling."}</strong> ${marketMode ? "Mica subtracts recorded purchases and grading costs, adds back net sale proceeds, and uses cash-flow timing for the return percentage." : "Switch to Market move to separate price movement from recorded money added or removed."}</p>`}`;
   $$("[data-portfolio-history-mode]", root).forEach((button) =>
     button.addEventListener("click", () => {
       state.portfolioHistoryMode = button.dataset.portfolioHistoryMode;
@@ -2457,7 +2488,9 @@ function renderCollection() {
       : "Your library couldn't load";
     $("#collectionEmptyCopy").textContent = state.accountLoading
       ? "Mica is securely checking your account again."
-      : "Your saved data was not changed. Check your connection and try again.";
+      : navigator.onLine
+        ? "Your saved data was not changed. Check your connection and try again."
+        : "You’re offline. For privacy, the installed shell does not keep a readable copy of your collection on this device. Reconnect to load it.";
     $("#firstCardGuide").classList.add("hidden");
     $("#emptyAddCard").classList.remove("hidden");
     $("#emptyAddCard").disabled = state.accountLoading;
@@ -2690,19 +2723,28 @@ function renderCollection() {
     state.visibleKey = visibleKey;
     state.visibleLimit = 100;
   }
-  const windowed = collectionWindow(visible, state.visibleLimit);
+  const dashboardLimit =
+    state.sidebarTarget === "dashboard" ? 8 : state.visibleLimit;
+  const windowed = collectionWindow(visible, dashboardLimit);
   const displayed = windowed.displayed;
   state.visiblePositionIds = displayed.map((item) => item.uid);
+  const visibleCopies = visible.reduce(
+    (sum, item) => sum + Number(item.quantity || 0),
+    0,
+  );
+  const groupedLabel = `${windowed.total} grouped position${windowed.total === 1 ? "" : "s"} · ${visibleCopies} card${visibleCopies === 1 ? "" : "s"}`;
   $("#resultCount").textContent =
     state.sidebarTarget === "dashboard"
-      ? `All your cards · ${windowed.total} position${windowed.total === 1 ? "" : "s"}`
+      ? `Top cards · ${displayed.length} of ${windowed.total} grouped positions · ${visibleCopies} cards total`
       : windowed.remaining
-        ? `Showing ${displayed.length} of ${windowed.total} items`
-        : `${windowed.total} item${windowed.total === 1 ? "" : "s"}`;
+        ? `Showing ${displayed.length} of ${windowed.total} grouped positions · ${visibleCopies} cards total`
+        : groupedLabel;
   const remaining = windowed.remaining;
   $("#loadMorePositions").hidden = remaining <= 0;
   $("#loadMorePositions").textContent =
-    `Show ${Math.min(100, remaining)} more · ${remaining} remaining`;
+    state.sidebarTarget === "dashboard"
+      ? `View full collection · ${remaining} more position${remaining === 1 ? "" : "s"}`
+      : `Show ${Math.min(100, remaining)} more · ${remaining} remaining`;
   $("#sortButton").firstChild.textContent =
     state.sort === "value-desc" ? "Value, high to low " : "Name, A to Z ";
   $("#cardLedger").innerHTML = displayed
@@ -2750,7 +2792,7 @@ function renderCollection() {
       ${state.bulkMode ? "" : `<button class="ledger-open-overlay" type="button" data-open-position="${esc(item.uid)}" aria-label="Open ${esc(item.name)} details"></button>`}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity) || 0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span>${item.location ? `<span class="card-location" title="Storage location">${esc(item.location)}</span>` : ""}<div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-unit">${item.price == null ? (item.gradingCompany ? "graded price not connected" : "matching price unavailable") : `${money(item.price)} each`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>${state.bulkMode ? "" : `<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button>`}
+      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-total-label">Position total</span><span class="row-unit">${item.price == null ? (item.gradingCompany ? "graded price not connected" : "matching price unavailable") : `${money(item.price)} per card`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>${state.bulkMode ? "" : `<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">Add copy</button>`}
     </article>`;
     })
     .join("");
@@ -3035,11 +3077,11 @@ function renderSalePlanner(item, displayPrice) {
   return `<section class="detail-section sale-planner" aria-labelledby="salePlannerTitle"><div class="detail-section-head"><h2 id="salePlannerTitle">Plan a sale</h2><span>Preview before recording</span></div><p class="planner-intro">See what you could keep after fees and costs. Nothing is saved until you choose Record this sale.</p><div class="sale-planner-inputs">
     <div class="field"><label for="planSaleQuantity">${noun} to sell</label><input id="planSaleQuantity" type="number" inputmode="numeric" min="1" max="${item.quantity}" step="1" value="1"></div>
     <div class="field"><label for="planSalePrice">Expected price · each</label><div class="money-input"><span>$</span><input id="planSalePrice" type="number" inputmode="decimal" min="0" step="0.01" value="${displayPrice == null ? "" : Number(displayPrice).toFixed(2)}" placeholder="0.00"></div></div>
-    <div class="field"><label for="planFeePercent">Marketplace fee %</label><input id="planFeePercent" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="0" placeholder="Enter current venue fee"></div>
+    <div class="field"><label for="planFeePercent">Marketplace fee %</label><input id="planFeePercent" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${currencyInputValue(state.preferences.sellingFeePercent || 0)}" placeholder="Enter current venue fee"></div>
     <div class="field"><label for="planShipping">Shipping you pay</label><div class="money-input"><span>$</span><input id="planShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
     <div class="field"><label for="planOtherCosts">Other selling costs</label><div class="money-input"><span>$</span><input id="planOtherCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
     <div class="field"><label for="planTargetProfit">Target profit · total <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="planTargetProfit" type="number" inputmode="decimal" min="0" step="0.01" placeholder="50.00"></div></div>
-  </div><p class="planner-fee-note">Enter the marketplace's current fee. Mica does not assume a venue or hard-code a rate.</p><div class="sale-plan-output" id="salePlanOutput" aria-live="polite"><div class="unavailable-panel">Enter an expected selling price to calculate the plan.</div></div><button class="planner-record" id="planRecordSaleButton" type="button" disabled>Use this plan to record a sale</button></section>`;
+  </div><p class="planner-fee-note">Starts with your saved selling-fee default. Confirm the current venue fee before deciding.</p><div class="sale-plan-output" id="salePlanOutput" aria-live="polite"><div class="unavailable-panel">Enter an expected selling price to calculate the plan.</div></div><button class="planner-record" id="planRecordSaleButton" type="button" disabled>Use this plan to record a sale</button></section>`;
 }
 
 function bindSalePlanner(item) {
@@ -3091,10 +3133,10 @@ function bindSalePlanner(item) {
 function renderBuyPlanner(item, displayPrice) {
   if (displayPrice == null)
     return `<section class="detail-section deal-planner"><div class="detail-section-head"><h2>What should I pay?</h2><span>Exact price required</span></div><div class="unavailable-panel">Mica needs a matching market reference before it can calculate a responsible buy ceiling.</div></section>`;
-  return `<section class="detail-section sale-planner deal-planner" aria-labelledby="buyPlannerTitle"><div class="detail-section-head"><h2 id="buyPlannerTitle">What should I pay?</h2><span>Deal guardrail</span></div><p class="planner-intro">Start with this exact market reference, subtract selling costs, then protect the return you want. This is a planning ceiling—not an appraisal.</p><div class="sale-planner-inputs">
+  return `<section class="detail-section deal-planner" aria-labelledby="buyPlannerTitle"><div class="detail-section-head"><h2 id="buyPlannerTitle">What should I pay?</h2><span>Deal guardrail</span></div><p class="planner-intro">Start with this exact market reference, subtract selling costs, then protect the return you want. This is a planning ceiling—not an appraisal.</p><div class="sale-planner-inputs">
     <div class="field"><label for="buyPlanQuantity">Quantity</label><input id="buyPlanQuantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1"></div>
     <div class="field"><label for="buyPlanResale">Expected resale · each</label><div class="money-input"><span>$</span><input id="buyPlanResale" type="number" inputmode="decimal" min="0" step="0.01" value="${Number(displayPrice).toFixed(2)}"></div></div>
-    <div class="field"><label for="buyPlanFees">Selling fee %</label><input id="buyPlanFees" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="0" placeholder="Enter current venue fee"></div>
+    <div class="field"><label for="buyPlanFees">Selling fee %</label><input id="buyPlanFees" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${currencyInputValue(state.preferences.sellingFeePercent || 0)}" placeholder="Enter current venue fee"></div>
     <div class="field"><label for="buyPlanCosts">Other selling costs · total</label><div class="money-input"><span>$</span><input id="buyPlanCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
     <div class="field"><label for="buyPlanRoi">Return you want %</label><input id="buyPlanRoi" type="number" inputmode="decimal" min="0" step="0.1" value="20"></div>
     <div class="field"><label for="buyPlanOffer">Seller's ask · each <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="buyPlanOffer" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Compare an offer"></div></div>
@@ -3291,9 +3333,9 @@ function renderDetail() {
           : "Current market";
   const statusCopy =
     pricingStatus === "live"
-      ? `Updated ${esc(item.pricingUpdatedAt || "recently")}`
+      ? `Updated ${esc(friendlyObservedAt(item.pricingUpdatedAt))}`
       : pricingStatus === "stale"
-        ? `Last observed ${esc(item.pricingUpdatedAt || "date unknown")} · refresh needed`
+        ? `Last observed ${esc(friendlyObservedAt(item.pricingUpdatedAt))} · refresh needed`
         : pricingStatus === "preview"
           ? "Demo data · not a live quote"
           : pricingStatus === "error"
@@ -3395,24 +3437,19 @@ function renderDetail() {
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
     <div class="detail-identity"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(sealed ? "Sealed product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)}${item.number ? ` · ${esc(item.number)}` : ""}</p><div class="detail-meta">${detailMeta}</div></div></div>
     ${matchDetails}
-    <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : money(displayPrice)}</strong><small>${statusCopy}</small></section>
     ${renderPriceEvidence(item, conditionContext)}
+    <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : money(displayPrice)}</strong><small>${statusCopy}</small></section>
     ${watchedSection}
     ${action}
     ${listingSection}
     ${gradingSubmissionSection}
-    ${owned ? renderCertificationVerification(item) : ""}
     <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
-    ${renderMarketplaceOffers(item)}
-    ${renderGradedPriceLadder(item)}
-    ${renderCardMetadata(item)}
-    ${renderBuyPlanner(item, displayPrice)}
-    ${sealed ? "" : renderGradingEstimator(item)}
-    ${owned ? renderSalePlanner(item, displayPrice) : ""}
     <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>Real observations</span></div>${renderInteractiveHistory(item, displayPrice)}</section>
-    ${sealed ? '<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>Not supplied for sealed products</span></div><div class="unavailable-panel">PkmnPrices currently exposes a sealed market reference, but its documented sold-listing endpoint is card-specific. Mica does not substitute card sales or active asks.</div></section>' : `<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === "live" ? "Completed listings" : "Verified links when available"}</span></div>${renderSales(item)}</section>`}
-    ${positionSection}
-    ${ownedSection}
+    <details class="detail-tool-group"><summary><span><strong>Buy &amp; sell decisions</strong><small>Offer ceiling${owned ? ", fees, net, and break-even" : " and buy target"}</small></span><b>Open tools</b></summary><div class="detail-tool-content">${renderBuyPlanner(item, displayPrice)}${owned ? renderSalePlanner(item, displayPrice) : ""}</div></details>
+    ${sealed ? "" : `<details class="detail-tool-group"><summary><span><strong>Grading tools</strong><small>Grade values, submission cost, and grading decision</small></span><b>Open tools</b></summary><div class="detail-tool-content">${renderGradedPriceLadder(item)}${renderGradingEstimator(item)}</div></details>`}
+    <details class="detail-tool-group"><summary><span><strong>More market evidence</strong><small>Seller asks and completed-sale links</small></span><b>Open evidence</b></summary><div class="detail-tool-content">${renderMarketplaceOffers(item)}${sealed ? '<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>Not supplied for sealed products</span></div><div class="unavailable-panel">PkmnPrices currently exposes a sealed market reference, but its documented sold-listing endpoint is card-specific. Mica does not substitute card sales or active asks.</div></section>' : `<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === "live" ? "Completed listings" : "Verified links when available"}</span></div>${renderSales(item)}</section>`}</div></details>
+    ${renderCardMetadata(item) ? `<details class="detail-tool-group"><summary><span><strong>Card information</strong><small>Pokémon, artist, attacks, and set metadata</small></span><b>Open details</b></summary><div class="detail-tool-content">${renderCardMetadata(item)}</div></details>` : ""}
+    ${owned ? `<details class="detail-tool-group"><summary><span><strong>Manage this position</strong><small>Purchases, sales, grading, storage, and copy details</small></span><b>Open position</b></summary><div class="detail-tool-content">${owned ? renderCertificationVerification(item) : ""}${positionSection}${ownedSection}</div></details>` : ""}
     <p class="legal-copy">Prices are market references, not guaranteed sale values. ${sealed ? "Packaging and seal condition" : "Card condition"} can materially change realized value.</p>`;
   $("#detailBack").addEventListener("click", () =>
     state.detailCanPop
@@ -6067,6 +6104,52 @@ function openInfo(kind) {
   );
 }
 
+async function refreshCapabilityStatus() {
+  const setStatus = (id, copy, stateName) => {
+    const node = $(`#${id}`);
+    if (!node) return;
+    node.textContent = copy;
+    node.dataset.connectionState = stateName;
+  };
+  try {
+    const response = await fetch("/api/capabilities", {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    const capabilities = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error("Connection check unavailable");
+    setStatus("catalogConnectionState", "Active", "active");
+    setStatus(
+      "pricingConnectionState",
+      capabilities.pricing?.status === "connected"
+        ? `Connected · ${String(capabilities.pricing.plan || "free").toUpperCase()}`
+        : "Public pricing only",
+      capabilities.pricing?.status === "connected" ? "active" : "limited",
+    );
+    setStatus(
+      "visionConnectionState",
+      capabilities.vision?.status === "connected"
+        ? "Connected"
+        : capabilities.vision?.status === "vercel_managed"
+          ? "Gateway check on first scan"
+          : "Connect AI Gateway",
+      capabilities.vision?.status === "connected" ? "active" : "limited",
+    );
+    setStatus("pushConnectionState", "Developer mode", "limited");
+    $("#connectionStatusNote").textContent =
+      "Unavailable features explain the required connection at the point of use; no placeholder is presented as live data.";
+  } catch {
+    [
+      "catalogConnectionState",
+      "pricingConnectionState",
+      "visionConnectionState",
+      "pushConnectionState",
+    ].forEach((id) => setStatus(id, "Check unavailable", "limited"));
+    $("#connectionStatusNote").textContent =
+      "Mica could not inspect this deployment. Existing collection data is unchanged.";
+  }
+}
+
 function openAutomationInfo(kind) {
   const features = {
     capture: {
@@ -7688,7 +7771,7 @@ function renderInsights() {
         `<div class="insight-kicker">30-day price change</div><strong>${comparable.length ? `${change >= 0 ? "+" : ""}${money(change)}` : `${movements.length} matching price series`}</strong><span>${percent === null ? "Matching price history" : `${percent >= 0 ? "+" : ""}${percent.toFixed(1)}% across ${comparable.length} card${comparable.length === 1 ? "" : "s"}`} · current quantities</span><div class="unavailable-panel">Uses the same printing, condition or grade, currency, and price source. This is price movement, not profit from a sale.</div>`;
     } else {
       $(".insight-feature").innerHTML =
-        `<div class="insight-kicker">${state.pricingStatus === "partial" ? "Partial" : "Live"} pricing status</div><strong>${priced} of ${state.items.length} items priced</strong><span>Exact-product matches only · ${state.items.length - priced} need review</span><div class="unavailable-panel">${state.movementStatus === "loading" ? "Loading exact historical observations…" : state.movementStatus === "plan_required" ? "Historical observations are ready for PkmnPrices Pro. Current prices remain available on the connected plan." : state.movementStatus === "error" ? "Historical pricing could not be refreshed. Current portfolio values are unchanged." : "Price trends appear after at least 30 days of matching history exist."}</div>`;
+        `<div class="insight-kicker">${state.pricingStatus === "partial" ? "Partial" : "Live"} pricing status</div><strong>${priced} of ${state.items.length} positions priced</strong><span>Exact-product matches only · ${state.items.length - priced} need review</span><div class="unavailable-panel">${isShowcaseAccount() ? "The Dashboard contains clearly labeled sample history. This page waits for verified observations so showcase movement is never presented as market evidence." : state.movementStatus === "loading" ? "Loading exact historical observations…" : state.movementStatus === "plan_required" ? "Historical observations are ready for PkmnPrices Pro. Current prices remain available on the connected plan." : state.movementStatus === "error" ? "Historical pricing could not be refreshed. Current portfolio values are unchanged." : "Price trends appear after at least 30 days of matching history exist."}</div>`;
     }
     $("#moversList").innerHTML = movements.length
       ? movements
@@ -7708,7 +7791,9 @@ function renderInsights() {
             return `<button type="button" class="mover mover-button" data-mover-id="${esc(item.uid)}"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(context)} · ${esc(provider)} · ${money(movement.fromAmount, movement.currency)} to ${money(movement.toAmount, movement.currency)}</span></div><b class="${movement.changePercent < 0 ? "negative" : ""}">${movement.changePercent >= 0 ? "+" : ""}${movement.changePercent.toFixed(1)}%</b></button>`;
           })
           .join("")
-      : '<div class="data-boundary"><strong>Price history is still building</strong><p>A 30-day comparison needs an older price for the exact same printing and condition or grade. Mica will not mix unlike cards.</p></div>';
+      : isShowcaseAccount()
+        ? '<div class="data-boundary"><strong>Sample movement is on the Dashboard</strong><p>This Market page waits for verified exact-printing history. The separation keeps sample movement from being mistaken for evidence.</p></div>'
+        : '<div class="data-boundary"><strong>Price history is still building</strong><p>A 30-day comparison needs an older price for the exact same printing and condition or grade. Mica will not mix unlike cards.</p></div>';
     $$("[data-mover-id]").forEach((button) =>
       button.addEventListener("click", () =>
         openCardDetail(
@@ -7760,7 +7845,7 @@ function updateTradeSummary() {
   if (!state.trade.give.length || !state.trade.receive.length) {
     verdict.className = "trade-verdict neutral";
     verdict.innerHTML =
-      '<span>Build both sides</span><strong>Add at least one card to You give and You receive.</strong><small id="tradeBalanceHelp">You can use market references or type the value both people agreed on.</small>';
+      '<span>Build both sides</span><strong>Add at least one card to each side.</strong><small id="tradeBalanceHelp">Use matching market references or type the value both people agreed on.</small>';
     return;
   }
   const copy =
@@ -8054,11 +8139,15 @@ function renderIntakeQueueBar() {
   if (!bar) return;
   bar.classList.toggle("hidden", state.intakeQueue.length === 0);
   $("#intakeQueueCount").textContent =
-    `${state.intakeQueue.length} exact card${state.intakeQueue.length === 1 ? "" : "s"} queued`;
+    `${state.intakeQueue.length} card${state.intakeQueue.length === 1 ? "" : "s"} ready to review`;
 }
 
 function queueIntakeCard(card, prefill = null, source = null) {
   if (!card) return;
+  if (state.intakeQueue.some((entry) => entry.card.id === card.id)) {
+    toast(`${card.name} is already ready to review`);
+    return;
+  }
   state.intakeQueue.push({
     queueEntryId: crypto.randomUUID(),
     card,
@@ -8066,7 +8155,7 @@ function queueIntakeCard(card, prefill = null, source = null) {
     source,
   });
   renderIntakeQueueBar();
-  toast(`${card.name} queued · exact printing preserved`);
+  toast(`${card.name} added for review`);
 }
 
 function openBatchIntakeSheet() {
@@ -8082,7 +8171,7 @@ function openBatchIntakeSheet() {
   const today = localIsoDate();
   const entries = [...state.intakeQueue];
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Batch add raw cards</h2><p>One condition and purchase date · exact details stay visible for every card.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="batchIntakeForm"><div class="form-grid batch-shared-fields"><div class="field"><label for="batchCondition">Condition for every card</label><select id="batchCondition"><option value="near_mint">Near Mint</option><option value="lightly_played">Lightly Played</option><option value="moderately_played">Moderately Played</option><option value="heavily_played">Heavily Played</option><option value="damaged">Damaged</option></select></div><div class="field"><label for="batchDate">Purchase date</label><input id="batchDate" type="date" max="${today}" value="${today}" required></div></div><div class="batch-intake-list">${entries
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add raw cards together</h2><p>Use one condition and purchase date while each exact printing stays separate.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="batchIntakeForm"><div class="form-grid batch-shared-fields"><div class="field"><label for="batchCondition">Condition for every card</label><select id="batchCondition"><option value="near_mint">Near Mint</option><option value="lightly_played">Lightly Played</option><option value="moderately_played">Moderately Played</option><option value="heavily_played">Heavily Played</option><option value="damaged">Damaged</option></select></div><div class="field"><label for="batchDate">Purchase date</label><input id="batchDate" type="date" max="${today}" value="${today}" required></div></div><div class="batch-intake-list">${entries
       .map((entry, index) => {
         const variants =
           Array.isArray(entry.card.variants) && entry.card.variants.length
@@ -8182,7 +8271,7 @@ function openIntakeQueueSheet() {
     (entry) => entry.prefill || entry.source,
   );
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Rapid intake queue</h2><p>Confirm condition and one total acquisition cost for each exact printing.</p></div><button class="sheet-close" aria-label="Close">×</button></div>${hasReceiptDrafts ? '<div class="vision-quality warning"><strong>Receipt details are suggestions</strong><span>Open each card to confirm its condition and all-in acquisition cost. Unallocated order costs stay blank instead of being guessed.</span></div>' : '<div class="intake-batch-choice"><div><strong>Adding raw cards with the same condition?</strong><span>Review exact variants, quantities, and total costs together.</span></div><button id="batchRawIntake" type="button">Batch add raw</button></div>'}<div class="intake-list">${state.intakeQueue.map((entry) => `<div class="intake-row"><img src="${esc(entry.card.thumb || entry.card.image || "./icons/icon.svg")}" alt=""><div><strong>${esc(entry.card.name)}</strong><span>${esc(entry.card.set)} · ${esc(entry.card.number)}<br>${esc(entry.card.variant || "Printing unknown")} · ${esc(languageName(entry.card.language || "en"))}${entry.source?.vendor ? `<br>Receipt: ${esc(entry.source.vendor)}${entry.prefill?.totalAcquisitionCost ? ` · ${money(Number(entry.prefill.totalAcquisitionCost))}` : " · cost needs review"}` : ""}</span></div><div class="intake-row-actions"><button type="button" data-intake-prepare="${esc(entry.queueEntryId)}">Confirm & add</button><button class="remove" type="button" data-intake-remove="${esc(entry.queueEntryId)}">Remove</button></div></div>`).join("")}</div><p class="legal-copy">Mica never merges queued search results or silently accepts an AI suggestion. Confirm exact printing, condition or grade, and purchase facts before saving.</p><div class="sheet-actions"><button class="secondary" id="clearIntakeQueue" type="button">Clear queue</button><button class="primary" id="intakeDone" type="button">Keep searching</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Cards ready to add</h2><p>Review condition and one total acquisition cost for each exact printing.</p></div><button class="sheet-close" aria-label="Close">×</button></div>${hasReceiptDrafts ? '<div class="vision-quality warning"><strong>Receipt details are suggestions</strong><span>Open each card to confirm its condition and all-in acquisition cost. Unallocated order costs stay blank instead of being guessed.</span></div>' : '<div class="intake-batch-choice"><div><strong>Adding raw cards with the same condition?</strong><span>Review exact variants, quantities, and total costs together.</span></div><button id="batchRawIntake" type="button">Add as raw cards</button></div>'}<div class="intake-list">${state.intakeQueue.map((entry) => `<div class="intake-row"><img src="${esc(entry.card.thumb || entry.card.image || "./icons/icon.svg")}" alt=""><div><strong>${esc(entry.card.name)}</strong><span>${esc(entry.card.set)} · ${esc(entry.card.number)}<br>${esc(entry.card.variant || "Printing unknown")} · ${esc(languageName(entry.card.language || "en"))}${entry.source?.vendor ? `<br>Receipt: ${esc(entry.source.vendor)}${entry.prefill?.totalAcquisitionCost ? ` · ${money(Number(entry.prefill.totalAcquisitionCost))}` : " · cost needs review"}` : ""}</span></div><div class="intake-row-actions"><button type="button" data-intake-prepare="${esc(entry.queueEntryId)}">Review</button><button class="remove" type="button" data-intake-remove="${esc(entry.queueEntryId)}">Remove</button></div></div>`).join("")}</div><p class="legal-copy">Mica never merges search results or silently accepts an AI suggestion. Confirm exact printing, condition or grade, and purchase facts before saving.</p><div class="sheet-actions"><button class="secondary" id="clearIntakeQueue" type="button">Clear all</button><button class="primary" id="intakeDone" type="button">Back to search</button></div>`,
   );
   $("#batchRawIntake")?.addEventListener("click", () => {
     closeSheet({ discardHistory: true });
@@ -8245,7 +8334,15 @@ function bindQuickCardSearch() {
       ? `${setFilterMarkup(allResults, selectedSet)}${visible
           .map((item) => {
             const owned = ownedCardSummary(item, state.items);
-            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Printing unknown")}</em>${ownedSearchStatus(item)}${matchReason(item)}</span><b>${owned.quantity ? "Owned" : "View"}</b></button><button class="queue-card-button" type="button" data-queue-card="${esc(item.id)}" aria-label="Queue exact ${esc(item.name)} printing for rapid intake">+ Queue</button></div>`;
+            const queued = state.intakeQueue.some(
+              (entry) => entry.card.id === item.id,
+            );
+            const addLabel = queued
+              ? "Added"
+              : owned.quantity
+                ? "Add another"
+                : "Add";
+            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Printing unknown")}</em>${ownedSearchStatus(item)}${matchReason(item)}</span><b>${owned.quantity ? "Owned" : "View"}</b></button><button class="queue-card-button${queued ? " queued" : ""}" type="button" data-queue-card="${esc(item.id)}" aria-label="${queued ? "Already added" : owned.quantity ? "Add another" : "Add"} exact ${esc(item.name)} printing" ${queued ? "disabled" : ""}>${addLabel}</button></div>`;
           })
           .join("")}`
       : '<div class="find-empty"><strong>No matching cards</strong><span>Try fewer details, verify the language, or search the collector number by itself.</span></div>';
@@ -8263,11 +8360,12 @@ function bindQuickCardSearch() {
       ),
     );
     $$("[data-queue-card]", resultsNode).forEach((button) =>
-      button.addEventListener("click", () =>
+      button.addEventListener("click", () => {
         queueIntakeCard(
           catalog.find((card) => card.id === button.dataset.queueCard),
-        ),
-      ),
+        );
+        showResults();
+      }),
     );
   };
   const search = async () => {
@@ -8384,6 +8482,10 @@ function bindEvents() {
     renderCollection();
   });
   $("#loadMorePositions").addEventListener("click", () => {
+    if (state.sidebarTarget === "dashboard") {
+      openWorkspaceShortcut("collection");
+      return;
+    }
     state.visibleLimit += 100;
     renderCollection();
   });
@@ -8585,6 +8687,41 @@ function authMessage(message, error = false) {
   node.style.color = error ? "var(--danger)" : "var(--pine-2)";
 }
 
+function friendlyAuthError(error) {
+  const message = String(error?.message || error || "").toLowerCase();
+  if (message.includes("invalid login credentials"))
+    return "The email or password is incorrect.";
+  if (message.includes("email not confirmed"))
+    return "Confirm your email first, then sign in.";
+  if (message.includes("rate") || message.includes("too many"))
+    return "Too many attempts. Wait a moment and try again.";
+  if (message.includes("password"))
+    return "Use a password with at least 8 characters.";
+  return "Mica could not complete that sign-in request. Please try again.";
+}
+
+function openAuthLegal(kind) {
+  const dialog = $("#authLegalDialog");
+  const title = $("#authLegalTitle");
+  const content = $("#authLegalContent");
+  if (kind === "privacy") {
+    title.textContent = "Privacy notice";
+    content.innerHTML =
+      "<p>Mica stores account, collection, purchase, sale, watchlist, and portfolio information so the app can provide its private collector tools.</p><p>Collection records are scoped to the signed-in account. Card photos sent for AI-assisted analysis are processed for that request and are not intentionally kept by Mica’s vision endpoint.</p><p>Market references may be requested from connected pricing providers. Do not add sensitive payment information to notes.</p><p>Before a public launch, the owner must add the final legal entity, support contact, retention period, and jurisdiction-specific disclosures.</p>";
+  } else {
+    title.textContent = "Mica terms";
+    content.innerHTML =
+      "<p>Mica is a collection and decision-support tool. Prices, grading estimates, sale plans, and trade comparisons are references—not appraisals, guarantees, or financial advice.</p><p>You are responsible for confirming card identity, condition, authenticity, provider prices, fees, and transaction details before acting.</p><p>Do not use Mica to violate marketplace, data-provider, or intellectual-property terms. Public-release entity, jurisdiction, and dispute language must be approved by the owner before launch.</p>";
+  }
+  dialog.showModal();
+}
+
+function openPasswordResetDialog() {
+  const dialog = $("#passwordResetDialog");
+  if (!dialog.open) dialog.showModal();
+  requestAnimationFrame(() => $("#newAccountPassword")?.focus());
+}
+
 function bindAuthUI() {
   $("#passwordAuthForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -8595,7 +8732,7 @@ function bindAuthUI() {
       String(data.get("email")).trim(),
       String(data.get("password")),
     );
-    if (error) authMessage(error.message, true);
+    if (error) authMessage(friendlyAuthError(error), true);
   });
   $("#passwordSignUp").addEventListener("click", async () => {
     const form = $("#passwordAuthForm");
@@ -8607,7 +8744,7 @@ function bindAuthUI() {
       String(data.get("email")).trim(),
       String(data.get("password")),
     );
-    if (error) authMessage(error.message, true);
+    if (error) authMessage(friendlyAuthError(error), true);
     else
       authMessage(
         result.session
@@ -8621,10 +8758,60 @@ function bindAuthUI() {
     authMessage("Sending your secure magic link…");
     const { error } = await sendMagicLink(supabase, email);
     authMessage(
-      error ? error.message : "Magic link sent. Check your email.",
+      error ? friendlyAuthError(error) : "Magic link sent. Check your email.",
       Boolean(error),
     );
   });
+  $("#toggleAuthPassword").addEventListener("click", (event) => {
+    const input = $("#authPassword");
+    const showing = input.type === "text";
+    input.type = showing ? "password" : "text";
+    event.currentTarget.textContent = showing ? "Show" : "Hide";
+    event.currentTarget.setAttribute("aria-pressed", String(!showing));
+    event.currentTarget.setAttribute(
+      "aria-label",
+      showing ? "Show password" : "Hide password",
+    );
+  });
+  $("#forgotPassword").addEventListener("click", async () => {
+    const email = $("#authEmail");
+    if (!email.reportValidity()) return;
+    authMessage("Sending password reset instructions…");
+    const { error } = await sendPasswordReset(supabase, email.value.trim());
+    authMessage(
+      error
+        ? friendlyAuthError(error)
+        : "If that email has an account, password reset instructions are on the way.",
+      Boolean(error),
+    );
+  });
+  $$('[data-auth-legal]').forEach((button) =>
+    button.addEventListener("click", () => openAuthLegal(button.dataset.authLegal)),
+  );
+  $$('[data-close-auth-dialog]').forEach((button) =>
+    button.addEventListener("click", () => $("#authLegalDialog").close()),
+  );
+  $("#authLegalDialog").addEventListener("click", (event) => {
+    if (event.target === event.currentTarget) event.currentTarget.close();
+  });
+  $("#passwordResetForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const password = $("#newAccountPassword");
+    if (!event.currentTarget.reportValidity()) return;
+    const status = $("#passwordResetMessage");
+    status.textContent = "Updating password…";
+    const { error } = await updateAccountPassword(supabase, password.value);
+    if (error) {
+      status.textContent = friendlyAuthError(error);
+      return;
+    }
+    password.value = "";
+    status.textContent = "Password updated.";
+    setTimeout(() => $("#passwordResetDialog").close(), 500);
+  });
+  $("[data-close-reset-dialog]").addEventListener("click", () =>
+    $("#passwordResetDialog").close(),
+  );
 }
 
 async function openAdminDiagnostics() {
@@ -8903,7 +9090,8 @@ async function applySession(session) {
   const previousOwnerId = state.session?.user?.id || "";
   state.session = session;
   if (previousOwnerId !== ownerId) {
-    state.portfolioHistoryRange = "3m";
+    state.portfolioHistoryRange =
+      session?.user?.app_metadata?.account_type === "showcase" ? "all" : "3m";
     state.intakeQueue = [];
     state.bulkSelected.clear();
     state.bulkMode = false;
@@ -9030,16 +9218,19 @@ async function bootstrap() {
     return;
   }
   bindAuthUI();
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "INITIAL_SESSION") return;
+    setTimeout(async () => {
+      await applySession(session);
+      if (event === "PASSWORD_RECOVERY") openPasswordResetDialog();
+    }, 0);
+  });
   const { data, error } = await supabase.auth.getSession();
   if (error) {
     authMessage(error.message, true);
     return;
   }
   await applySession(data.session);
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (event === "INITIAL_SESSION") return;
-    setTimeout(() => void applySession(session), 0);
-  });
   if ("serviceWorker" in navigator && location.protocol !== "file:")
     navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
@@ -9053,6 +9244,9 @@ window.addEventListener("appinstalled", () => {
   deferredInstallPrompt = null;
   updateInstallControl();
   toast("Mica installed");
+});
+window.addEventListener("online", () => {
+  if (state.session && state.accountLoadError) void retryAccountLoad();
 });
 window
   .matchMedia("(display-mode: standalone)")

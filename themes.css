@@ -461,10 +461,10 @@ body[data-ui-theme="analytics"] .bottom-nav {
   border-color: var(--line);
 }
 body[data-ui-theme="analytics"] .wordmark-gem {
-  background: #f3f5f4;
+  background: linear-gradient(145deg, #c5a8ff 0 28%, #8050df 29% 65%, #4b249b 66%);
 }
 body[data-ui-theme="analytics"] .wordmark-gem i {
-  border-color: #111514;
+  border: 0;
 }
 body[data-ui-theme="analytics"] .portfolio-panel {
   border: 1px solid var(--line);
@@ -539,17 +539,20 @@ body[data-ui-theme="analytics"] .queue-card-button {
   color: #8ddd93;
 }
 body[data-ui-theme="analytics"] .intake-queue-bar {
-  border-color: #39433e;
-  background: #f2f4f3;
-  color: #101311;
+  border-color: #364255;
+  background: #111923;
+  color: #f4f6f8;
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
 }
 body[data-ui-theme="analytics"] .intake-queue-bar span {
-  color: #68716d;
+  color: #aab4c2;
 }
 body[data-ui-theme="analytics"] .intake-queue-bar button {
-  background: #111513;
+  background: #8050df;
   color: #fff;
+}
+body[data-ui-theme="analytics"] .suffix-input {
+  background: var(--paper-strong);
 }
 body[data-ui-theme="analytics"] .intake-row-actions button,
 body[data-ui-theme="analytics"] .batch-intake-row,
@@ -656,15 +659,21 @@ body[data-ui-theme="analytics"] .trade-verdict.balanced {
   color: #e6d587;
 }
 body[data-ui-theme="analytics"] .owned-banner {
-  background: #eef1ef;
-  color: #111513;
+  border: 1px solid var(--line);
+  background: #111923;
+  color: #f4f6f8;
 }
 body[data-ui-theme="analytics"] .owned-banner span {
-  color: #606863;
+  color: #aab4c2;
 }
 body[data-ui-theme="analytics"] .owned-banner button {
-  border-color: #b6bbb8;
-  color: #111513;
+  border-color: #364255;
+  color: #f4f6f8;
+}
+body[data-ui-theme="analytics"] .owned-banner button[aria-pressed="true"] {
+  border-color: #8050df;
+  background: #251b3d;
+  color: #c5a8ff;
 }
 body[data-ui-theme="analytics"] .detail-sticky-action {
   background: rgba(11, 13, 14, 0.94);
@@ -1786,6 +1795,17 @@ body[data-ui-theme] .view select,
 body[data-ui-theme] .view textarea {
   font-size: 12px;
 }
+body[data-ui-theme] .view small {
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+@media (pointer: coarse) {
+  body[data-ui-theme] .view button,
+  body[data-ui-theme] .view summary {
+    min-height: 44px;
+  }
+}
 body[data-ui-theme] .detail-section-head span,
 body[data-ui-theme] .price-source span,
 body[data-ui-theme] .price-confidence-head span,
@@ -1812,8 +1832,26 @@ body[data-ui-theme] .sale-row span,
 body[data-ui-theme] .mover span,
 body[data-ui-theme] .data-boundary p,
 body[data-ui-theme] .legal-copy {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
+}
+body[data-ui-theme] .wordmark-gem {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 96% 32%, 78% 100%, 22% 100%, 4% 32%);
+  transform: none;
+  background: linear-gradient(145deg, #d7c4ff 0 28%, #8050df 29% 65%, #4b249b 66%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+body[data-ui-theme] .wordmark-gem i {
+  width: 1px;
+  height: 70%;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 0;
+  transform: rotate(22deg);
+}
+body[data-ui-theme] .collection-actions .quick-add {
+  min-height: 44px;
 }
 
 @media (max-width: 759px) {

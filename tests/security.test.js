@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import accountHandler from "../api/account.js";
+import capabilitiesHandler from "../api/capabilities.js";
 import priceSyncHandler, {
   compatibleHistory,
   loadPriceSyncBatch,
@@ -225,15 +226,15 @@ test("motion preferences support device defaults and explicit reduction", () => 
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=73/);
+  assert.match(appShell, /themes\.css\?v=74/);
   assert.match(
     appSource,
     /localStorage\.setItem\(["']mica-ui-theme["'],\s*theme\)/,
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v88/);
-  assert.match(serviceWorker, /themes\.css\?v=73/);
+  assert.match(serviceWorker, /mica-shell-v89/);
+  assert.match(serviceWorker, /themes\.css\?v=74/);
 });
 
 test("client presentation never turns demo values into market movement", () => {
@@ -286,7 +287,7 @@ test("account switches discard stale portfolio responses and filter owned reads"
 });
 
 test("streamlined collection, intake, and trade surfaces keep primary actions visible", () => {
-  assert.match(appSource, /All your cards/);
+  assert.match(appSource, /Top cards/);
   assert.doesNotMatch(appSource, /Recent additions/);
   assert.match(appSource, /data-add-purchase/);
   assert.match(appSource, /data-open-position/);
@@ -301,6 +302,12 @@ test("consolidated workspace navigation remains responsive and routes to real wo
   assert.match(appShell, /class="desktop-sidebar"/);
   assert.equal([...appShell.matchAll(/class="sidebar-item/g)].length, 6);
   assert.doesNotMatch(appShell, /data-sidebar-target="business"/);
+  const bottomNavigation =
+    appShell.match(/<nav class="bottom-nav"[\s\S]*?<\/nav>/)?.[0] || "";
+  assert.match(bottomNavigation, /data-sidebar-target="dashboard"/);
+  assert.match(bottomNavigation, /data-sidebar-target="collection"/);
+  assert.doesNotMatch(bottomNavigation, /data-route="profile"/);
+  assert.match(appSource, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
   assert.match(appShell, /data-condition-filter="Raw"/);
   assert.match(appShell, /data-condition-filter="Graded"/);
   assert.match(appShell, /data-condition-filter="Sealed"/);
@@ -310,11 +317,41 @@ test("consolidated workspace navigation remains responsive and routes to real wo
   assert.match(appSource, /async function openDeviceCamera\(/);
   assert.match(appShell, /id="defaultTradePercent"/);
   assert.match(appShell, /class="seller-tools-disclosure"/);
+  assert.match(appShell, /id="forgotPassword"/);
+  assert.match(appShell, /id="passwordResetDialog"/);
+  assert.match(supabaseData, /resetPasswordForEmail/);
+  assert.match(vercelConfig, /Content-Security-Policy/);
   assert.match(themes, /@media \(min-width: 1024px\)[\s\S]+\.desktop-sidebar/);
   assert.match(
     themes,
     /@media \(max-width: 759px\)[\s\S]+grid-template-columns: repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
   );
+});
+
+test("public capability status is explicit and never exposes provider secrets", () => {
+  const originalKey = process.env.PKMNPRICES_API_KEY;
+  process.env.PKMNPRICES_API_KEY = "secret-never-returned";
+  let body;
+  const response = {
+    setHeader() {},
+    status(status) {
+      this.statusCode = status;
+      return this;
+    },
+    json(value) {
+      body = value;
+      return value;
+    },
+  };
+  try {
+    capabilitiesHandler({ method: "GET" }, response);
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.pricing.status, "connected");
+    assert.equal(JSON.stringify(body).includes("secret-never-returned"), false);
+  } finally {
+    if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;
+    else process.env.PKMNPRICES_API_KEY = originalKey;
+  }
 });
 
 test("card, grading, and receipt scans use the live device camera", () => {
