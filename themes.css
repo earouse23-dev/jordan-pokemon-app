@@ -314,6 +314,43 @@ body[data-ui-theme] .auth-card {
   font-size: 12px;
   text-transform: uppercase;
 }
+.detail-options {
+  display: grid;
+  gap: 8px;
+}
+.detail-options > button {
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line-dark);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+.detail-options > button.active {
+  border-color: var(--pine-2);
+  background: color-mix(in srgb, var(--pine-2) 8%, transparent);
+  box-shadow: inset 0 0 0 1px var(--pine-2);
+}
+.detail-options strong,
+.detail-options small {
+  display: block;
+}
+.detail-options small,
+.detail-settings > p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.detail-options b {
+  color: var(--pine-2);
+  font-size: 12px;
+}
 .theme-preview {
   grid-column: 1/-1;
   height: 72px;
@@ -461,7 +498,12 @@ body[data-ui-theme="analytics"] .bottom-nav {
   border-color: var(--line);
 }
 body[data-ui-theme="analytics"] .wordmark-gem {
-  background: linear-gradient(145deg, #c5a8ff 0 28%, #8050df 29% 65%, #4b249b 66%);
+  background: linear-gradient(
+    145deg,
+    #c5a8ff 0 28%,
+    #8050df 29% 65%,
+    #4b249b 66%
+  );
 }
 body[data-ui-theme="analytics"] .wordmark-gem i {
   border: 0;
@@ -1372,8 +1414,14 @@ body[data-ui-theme="analytics"] .price-chart polyline {
   .dashboard-kpis {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+  body[data-workspace="guided"] .dashboard-kpis {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  }
   .dashboard-analytics-grid {
     grid-template-columns: minmax(0, 1.75fr) minmax(275px, 0.85fr);
+  }
+  body[data-workspace="guided"] .dashboard-analytics-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1859,7 +1907,12 @@ body[data-ui-theme] .wordmark-gem {
   border-radius: 0;
   clip-path: polygon(50% 0, 96% 32%, 78% 100%, 22% 100%, 4% 32%);
   transform: none;
-  background: linear-gradient(145deg, #d7c4ff 0 28%, #8050df 29% 65%, #4b249b 66%);
+  background: linear-gradient(
+    145deg,
+    #d7c4ff 0 28%,
+    #8050df 29% 65%,
+    #4b249b 66%
+  );
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
 }
 body[data-ui-theme] .wordmark-gem i {

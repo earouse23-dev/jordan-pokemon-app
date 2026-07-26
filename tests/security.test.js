@@ -259,15 +259,41 @@ test("working interfaces keep readable text at a twelve-pixel minimum", () => {
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=74/);
+  assert.match(appShell, /themes\.css\?v=75/);
   assert.match(
     appSource,
     /localStorage\.setItem\(["']mica-ui-theme["'],\s*theme\)/,
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v97/);
-  assert.match(serviceWorker, /themes\.css\?v=74/);
+  assert.match(serviceWorker, /mica-shell-v98/);
+  assert.match(serviceWorker, /themes\.css\?v=75/);
+});
+
+test("beginner mode is the default and uses plain-language decisions", () => {
+  assert.match(appSource, /let workspaceMode = "guided"/);
+  assert.match(
+    appSource,
+    /function recommendedWorkspace|const recommendedWorkspace/,
+  );
+  assert.match(
+    appSource,
+    /experienceLevel === "beginner"[\s\S]+guided|:\s*"guided"/,
+  );
+  assert.match(appShell, /data-workspace-mode="guided"/);
+  assert.match(appShell, />Simple</);
+  assert.match(appShell, /Everyday collection tasks with plain explanations/);
+  assert.match(appShell, />Recommended</);
+  assert.match(appSource, /Total paid/);
+  assert.match(appShell, /Unopened/);
+  assert.match(appSource, /What would you like to do\?/);
+  assert.match(appSource, /number printed at the bottom|bottom number/);
+  assert.doesNotMatch(`${appShell}\n${appSource}`, /Sample average/);
+  assert.doesNotMatch(
+    appShell,
+    /Return on cost|Realized gain\/loss|ETBs|slabs/,
+  );
+  assert.match(styles, /body\[data-workspace="guided"\] \.advanced-workspace/);
 });
 
 test("client presentation never turns demo values into market movement", () => {
@@ -275,9 +301,12 @@ test("client presentation never turns demo values into market movement", () => {
     appSource,
     /Preview movement · fixture data|\+\$124\.18|preview fixture/,
   );
-  assert.match(appSource, /No verified movement yet/);
-  assert.match(appSource, /Demo values are excluded from performance trends/);
-  assert.match(appSource, /showcaseValue[\s\S]+Showcase value/);
+  assert.match(appSource, /No verified price changes yet/);
+  assert.match(
+    appSource,
+    /Demo prices are never used to claim a real price change/,
+  );
+  assert.match(appSource, /showcaseValue[\s\S]+Demo price/);
   assert.doesNotMatch(appShell, /Concept [25]/);
   assert.match(appShell, /Recorded activity only/);
 });
@@ -291,28 +320,25 @@ test("showcase card details stay complete without leaking samples into real acco
     appSource,
     /function usesShowcaseFallback\(item,[\s\S]+!\["live", "stale"\]\.includes/,
   );
-  assert.match(appSource, /Showcase valuation/);
-  assert.match(appSource, /Sample · not live market data/);
-  assert.match(
-    appSource,
-    /Sample points are confined to this demo account and are not market evidence/,
-  );
-  assert.match(appSource, /PkmnPrices Pro will replace this labeled sample/);
+  assert.match(appSource, /Made-up data for the demo account only/);
+  assert.match(appSource, /Demo · not live/);
+  assert.match(appSource, /made-up demo days only show how the chart works/);
+  assert.match(appSource, /PkmnPrices Pro will replace this demo price/);
 });
 
 test("portfolio dashboard uses a responsive stock-style interactive chart", () => {
   assert.match(appSource, /id="portfolioHistoryChart"/);
   assert.match(appSource, /data-portfolio-history-range/);
-  assert.match(appSource, /\["1m", "1M"\]/);
-  assert.match(appSource, /\["3m", "3M"\]/);
-  assert.match(appSource, /\["ytd", "YTD"\]/);
+  assert.match(appSource, /\["1m", "1 month"\]/);
+  assert.match(appSource, /\["3m", "3 months"\]/);
+  assert.match(appSource, /\["ytd", "This year"\]/);
   assert.match(
     appSource,
     /interaction:\s*\{ mode: "index", intersect: false \}/,
   );
   assert.match(appSource, /maintainAspectRatio: false/);
-  assert.match(appSource, /Hover or tap for date and value/);
-  assert.match(appSource, /Showcase sample history/);
+  assert.match(appSource, /Hover or tap for the date and value/);
+  assert.match(appSource, /Showcase sample history|Demo history/);
   assert.match(styles, /\.portfolio-chart-shell[\s\S]+height: clamp/);
   assert.match(styles, /\.portfolio-history-canvas[\s\S]+touch-action: pan-y/);
 });
@@ -367,7 +393,7 @@ test("consolidated workspace navigation remains responsive and routes to real wo
   assert.doesNotMatch(appSource, /dashboardViewAll/);
   assert.match(appSource, /async function openDeviceCamera\(/);
   assert.match(appShell, /id="defaultTradePercent"/);
-  assert.match(appShell, /class="seller-tools-disclosure"/);
+  assert.match(appShell, /class="seller-tools-disclosure advanced-workspace"/);
   assert.match(appShell, /id="forgotPassword"/);
   assert.match(appShell, /id="passwordResetDialog"/);
   assert.match(supabaseData, /resetPasswordForEmail/);
@@ -406,7 +432,8 @@ test("public capability status is explicit and never exposes provider secrets", 
 });
 
 test("configured provider keys are not presented as live before a real request", () => {
-  assert.match(appSource, /Configured.*live check required/);
+  assert.match(appSource, /plan connected/);
+  assert.doesNotMatch(appSource, /pricingConnectionState", "Live"/);
 });
 
 test("card, grading, and receipt scans use the live device camera", () => {
@@ -432,7 +459,10 @@ test("guided intake preserves unknown purchase facts without inventing profit", 
     appSource,
     /identity:\s*\{[\s\S]+acquisitionCostKnown,[\s\S]+acquisitionDateKnown/,
   );
-  assert.match(appSource, /profit and ROI stay unavailable/);
+  assert.match(
+    appSource,
+    /cannot show money gained until you add what you paid/,
+  );
 });
 
 test("decision tools hand verified inputs into the next workflow", () => {
@@ -451,15 +481,18 @@ test("decision tools hand verified inputs into the next workflow", () => {
 });
 
 test("graded certification checks stay on official sites and avoid authenticity claims", () => {
-  assert.match(appSource, /Official grader check/);
+  assert.match(appSource, /Check the graded card/);
   assert.match(appSource, /target="_blank" rel="noopener noreferrer"/);
-  assert.match(appSource, /does not authenticate the slab/);
-  assert.match(appSource, /database match alone does not eliminate/);
+  assert.match(appSource, /cannot prove the card or case is authentic/);
+  assert.match(
+    appSource,
+    /matching database record does not remove counterfeit risk/,
+  );
   assert.doesNotMatch(appSource, /fetch\([^)]*certificationNumber/);
 });
 
 test("large CSV imports are bounded, resumable, and protected from duplicate retries", () => {
-  assert.match(appShell, /Up to 5,000 positions/);
+  assert.match(appShell, /up to 5,000 saved entries/i);
   assert.doesNotMatch(appSource, /records\.slice\(0,\s*100\)/);
   assert.match(appSource, /runBoundedTasks\(\s*pending/);
   assert.match(appSource, /concurrency:\s*4/);
@@ -1169,7 +1202,7 @@ test("AI image intake authenticates owners, avoids persistence, and requires con
   assert.match(appSource, /glareRatio > 0\.14[\s\S]+sharpness < 5\.5/);
   assert.match(
     appSource,
-    /AI compare top matches[\s\S]+selectedCandidateId[\s\S]+confidence\) >= 0\.72/,
+    /Compare with AI[\s\S]+selectedCandidateId[\s\S]+confidence\) >= 0\.72/,
   );
   assert.match(
     visionLibrary,

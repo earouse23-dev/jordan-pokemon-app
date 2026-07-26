@@ -1,13 +1,13 @@
-const SHELL_CACHE = "mica-shell-v97";
+const SHELL_CACHE = "mica-shell-v98";
 const RUNTIME_CACHE = "mica-runtime-v1";
 const RUNTIME_LIMIT = 80;
 const SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=83",
-  "./themes.css?v=74",
+  "./styles.css?v=84",
+  "./themes.css?v=75",
   "./app-config.js?v=69",
-  "./app.js?v=96",
+  "./app.js?v=97",
   "./manifest.webmanifest",
   "./icons/icon.svg",
   "./icons/icon-192.png",

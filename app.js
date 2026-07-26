@@ -104,7 +104,7 @@ let activeCameraStream = null;
 let activeCameraTimer = null;
 let motionPreference = "auto";
 let targetAlertsEnabled = false;
-let workspaceMode = "growth";
+let workspaceMode = "guided";
 let uiTheme = "analytics";
 let sessionLoadVersion = 0;
 try {
@@ -341,6 +341,21 @@ const languageName = (code) =>
     id: "Indonesian",
     th: "Thai",
   })[String(code || "").toLowerCase()] || String(code || "English");
+const recommendedWorkspace = (preferences = state.preferences) =>
+  preferences?.experienceLevel === "professional"
+    ? "pro"
+    : preferences?.experienceLevel === "familiar"
+      ? "growth"
+      : "guided";
+function applyProfileDetailDefault() {
+  try {
+    if (localStorage.getItem("mica-detail-level-version") === "2") return;
+    applyWorkspaceMode(recommendedWorkspace());
+    localStorage.setItem("mica-detail-level-version", "2");
+  } catch {
+    applyWorkspaceMode(recommendedWorkspace());
+  }
+}
 const normalizeIdentity = (value) =>
   String(value ?? "")
     .normalize("NFKD")
@@ -446,12 +461,16 @@ function priceStatusText(item) {
   return "Demo estimate";
 }
 
-function applyWorkspaceMode(mode, { announce = false } = {}) {
+function applyWorkspaceMode(
+  mode,
+  { announce = false, userSelected = false } = {},
+) {
   if (!["guided", "growth", "pro"].includes(mode)) return;
   workspaceMode = mode;
   document.body.dataset.workspace = mode;
   try {
     localStorage.setItem("mica-workspace-mode", mode);
+    if (userSelected) localStorage.setItem("mica-detail-level-version", "2");
   } catch {}
   $$("[data-workspace-mode]").forEach((button) => {
     const active = button.dataset.workspaceMode === mode;
@@ -460,22 +479,22 @@ function applyWorkspaceMode(mode, { announce = false } = {}) {
   });
   const copy = {
     guided: {
-      title: "Guided workspace",
+      title: "Simple view",
       intro:
-        "See what your collection may be worth, what you could realistically take home, and the clearest next step.",
-      help: "Guided keeps essential collection decisions visible and tucks away seller reporting.",
+        "See important price changes and the clearest thing to review next.",
+      help: "Simple shows everyday collection tasks and hides seller math.",
     },
     growth: {
-      title: "Growing seller workspace",
+      title: "More tools view",
       intro:
-        "See what needs attention, how your inventory is performing, and where prices come from.",
-      help: "Growing seller shows grading, inventory health, cash flow, and profit tools.",
+        "See price changes, grading choices, selling estimates, and money reports.",
+      help: "More tools adds grading, selling, and collection business reports.",
     },
     pro: {
-      title: "Pro desk",
+      title: "Everything view",
       intro:
-        "Run valuation, inventory, grading, sales, and cash-flow decisions from one dense workspace.",
-      help: "Pro desk keeps every tool visible and fits more inventory into each screen.",
+        "Use every price, grading, sales, and collection business tool in one denser view.",
+      help: "Everything keeps all tools visible and fits more cards on each screen.",
     },
   }[mode];
   if ($("#insightsIntro")) $("#insightsIntro").textContent = copy.intro;
@@ -500,7 +519,7 @@ function applyUiTheme(theme, { announce = false } = {}) {
     localStorage.setItem("mica-ui-theme", theme);
   } catch {}
   const dark = theme === "analytics";
-  const label = dark ? "Analytics" : "Clean";
+  const label = dark ? "Dark" : "Light";
   const meta = $('meta[name="theme-color"]');
   if (meta) meta.content = dark ? "#0b0d0e" : "#f4f7fb";
   $$("[data-ui-theme-option]").forEach((button) => {
@@ -514,15 +533,14 @@ function applyUiTheme(theme, { announce = false } = {}) {
       "aria-label",
       dark
         ? "Switch to clean modern interface"
-        : "Switch to analytics dark interface",
+        : "Switch to dark dashboard interface",
     );
   if ($("#uiThemeHelp"))
     $("#uiThemeHelp").textContent = dark
-      ? "Analytics focused uses a dark workspace with compact data panels. Your data does not change."
-      : "Clean modern uses a bright workspace with airy cards and blue actions. Your data does not change.";
+      ? "Dark dashboard uses a dark background and fits more on screen. Your saved cards do not change."
+      : "Clean modern uses a bright background and more space. Your saved cards do not change.";
   if (state.portfolioHistory.length) renderPortfolioHistory();
-  if (announce)
-    toast(`${dark ? "Analytics focused" : "Clean modern"} selected`);
+  if (announce) toast(`${dark ? "Dark dashboard" : "Clean modern"} selected`);
 }
 
 function quoteStatus(quote) {
@@ -535,7 +553,7 @@ function renderQuoteRow(quote, label) {
   const source = quote.providerUrl
     ? `<a href="${esc(quote.providerUrl)}" target="_blank" rel="noreferrer">${esc(label)}</a>`
     : `<strong>${esc(label)}</strong>`;
-  return `<div class="price-source"><div>${source}<span>${esc(quote.priceType)} · ${esc(quote.finish)} · ${esc(quote.condition || "Condition-neutral")} · ${esc(quote.currency)}</span><span>Observed ${esc(friendlyObservedAt(quote.observedAt))} · retrieved ${esc(friendlyObservedAt(quote.retrievedAt))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
+  return `<div class="price-source"><div>${source}<span>${esc(quote.finish)} · ${esc(quote.condition ? conditionLabel(quote.condition) : "Wear not specified")} · ${esc(quote.currency)}</span><span>Price dated ${esc(friendlyObservedAt(quote.observedAt))} · checked ${esc(friendlyObservedAt(quote.retrievedAt))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
 }
 
 function showcaseReference(item) {
@@ -556,11 +574,11 @@ function renderPriceEvidence(item, context) {
   if (usesShowcaseFallback(item)) {
     const contextLabel =
       item.cardState === "sealed"
-        ? "Sealed product"
+        ? "Unopened product"
         : context.gradingCompany
           ? `${String(context.gradingCompany).toUpperCase()} ${context.grade}`
-          : `Raw · ${context.condition || "Near Mint"}`;
-    return `<section class="price-confidence preview" aria-label="Price confidence"><div class="price-confidence-head"><div><span>Price confidence</span><strong>Showcase sample</strong></div><b>Not live</b></div><p>This labeled sample demonstrates the finished valuation workflow. It is never used outside the showcase account.</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>Sample valuation</span><span>PkmnPrices Pro-ready</span></div></section>`;
+          : `Ungraded · ${conditionLabel(context.condition || "Near Mint")}`;
+    return `<section class="price-confidence preview" aria-label="How reliable this price is"><div class="price-confidence-head"><div><span>How reliable is this price?</span><strong>Demo price</strong></div><b>Not live</b></div><p>This made-up price only shows how the finished screen works. It is limited to the demo account.</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>Demo only</span><span>Real price connection ready</span></div></section>`;
   }
   const report = priceEvidence(
     item.quotes,
@@ -570,20 +588,24 @@ function renderPriceEvidence(item, context) {
   );
   const contextLabel =
     item.cardState === "sealed"
-      ? "Sealed product"
+      ? "Unopened product"
       : context.gradingCompany
         ? `${String(context.gradingCompany).toUpperCase()} ${context.grade}`
-        : `Raw · ${context.condition || "Near Mint"}`;
+        : `Ungraded · ${conditionLabel(context.condition || "Near Mint")}`;
   const agreement =
     report.sourceCount === 0
-      ? "No matching source"
+      ? "No matching price source"
       : report.spreadPercent === null
-        ? "One-source reference"
-        : `${report.spreadPercent.toFixed(1)}% source spread`;
+        ? "One matching source"
+        : report.spreadPercent <= 10
+          ? "Sources are close"
+          : report.spreadPercent <= 25
+            ? "Sources differ somewhat"
+            : "Sources differ a lot";
   const freshness = report.freshestAt
-    ? `Newest ${String(report.freshestAt).slice(0, 10)}`
-    : "No dated evidence";
-  return `<section class="price-confidence ${report.level}" aria-label="Price confidence"><div class="price-confidence-head"><div><span>Price confidence</span><strong>${esc(report.label)}</strong></div><b>${report.sourceCount} compatible source${report.sourceCount === 1 ? "" : "s"}</b></div><p>${esc(report.summary)}</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>${esc(agreement)}</span><span>${esc(freshness)}</span></div></section>`;
+    ? `Newest price ${String(report.freshestAt).slice(0, 10)}`
+    : "No price date";
+  return `<section class="price-confidence ${report.level}" aria-label="How reliable this price is"><div class="price-confidence-head"><div><span>How reliable is this price?</span><strong>${esc(report.label)}</strong></div><b>${report.sourceCount} matching source${report.sourceCount === 1 ? "" : "s"}</b></div><p>${esc(report.summary)}</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>${esc(agreement)}</span><span>${esc(freshness)}</span></div></section>`;
 }
 
 function renderGradedPriceLadder(item) {
@@ -599,20 +621,20 @@ function renderGradedPriceLadder(item) {
   const content = rows.length
     ? `<div class="grade-ladder">${rows.map((row) => `<div class="grade-ladder-row${ownedGrade === `${row.grader}:${row.grade}` ? " current" : ""}"><div><strong>${esc(row.grader)} ${esc(row.grade)}</strong><span>${esc(row.priceType)} · ${esc(row.provider)}${row.observedAt ? ` · ${esc(String(row.observedAt).slice(0, 10))}` : ""}</span></div><b>${money(row.amount, row.currency)}</b></div>`).join("")}</div>`
     : showcaseAmount !== null
-      ? `<div class="grade-ladder"><div class="grade-ladder-row current"><div><strong>${esc(String(item.gradingCompany).toUpperCase())} ${esc(item.grade)}</strong><span>Showcase sample · not a live quote</span></div><b>${money(showcaseAmount, item.currency || "USD")}</b></div></div><div class="pro-data-empty"><strong>Full graded ladder is ready</strong><p>PkmnPrices Pro will replace this labeled sample and populate compatible grades without changing this screen.</p></div>`
-      : `<div class="pro-data-empty"><strong>Ready for graded pricing</strong><p>When PkmnPrices returns matching graded quotes, PSA, BGS, and CGC grades will appear here automatically. Mica will never substitute a different printing or invent a grade value.</p></div>`;
-  return `<section class="detail-section"><div class="detail-section-head"><h2>Graded value ladder</h2><span>${rows.length ? `${rows.length} exact grade reference${rows.length === 1 ? "" : "s"}` : showcaseAmount !== null ? "Showcase sample · Pro-ready" : "PkmnPrices-ready"}</span></div>${content}</section>`;
+      ? `<div class="grade-ladder"><div class="grade-ladder-row current"><div><strong>${esc(String(item.gradingCompany).toUpperCase())} ${esc(item.grade)}</strong><span>Demo price · not live</span></div><b>${money(showcaseAmount, item.currency || "USD")}</b></div></div><div class="pro-data-empty"><strong>All professional grades are ready</strong><p>PkmnPrices Pro will replace this demo price and fill in matching grades automatically.</p></div>`
+      : `<div class="pro-data-empty"><strong>Ready for professionally graded prices</strong><p>When PkmnPrices Pro is connected, matching PSA, BGS, and CGC prices will appear here. Mica will not use a different card version or grade.</p></div>`;
+  return `<section class="detail-section advanced-workspace"><div class="detail-section-head"><h2>Prices by professional grade</h2><span>${rows.length ? `${rows.length} matching grade price${rows.length === 1 ? "" : "s"}` : showcaseAmount !== null ? "Demo price · Pro-ready" : "PkmnPrices-ready"}</span></div>${content}</section>`;
 }
 
 function renderCardMetadata(item) {
   const data = item.metadata || {};
   const facts = [
-    ["HP", data.hp],
-    ["Stage", data.stage],
-    ["Type", data.cardType],
+    ["Hit points (HP)", data.hp],
+    ["Evolution stage", data.stage],
+    ["Card type", data.cardType],
     ["Weakness", data.weakness],
     ["Resistance", data.resistance],
-    ["Retreat", data.retreatCost],
+    ["Retreat cost", data.retreatCost],
     ["Energy", (data.energyTypes || []).join(", ")],
     ["Ability", data.ability],
   ].filter(
@@ -673,9 +695,9 @@ function renderMarketplaceOffers(item) {
     })
     .join("");
   const context = item.gradingCompany
-    ? "These are raw-card asking prices, not slab comparables. Use the graded ladder and completed sales for this copy."
-    : "These are active seller asks, not completed sales or guaranteed value.";
-  return `<section class="detail-section"><div class="detail-section-head"><h2>Live marketplace offers</h2><span>Active asks · lowest first</span></div>${item.offersStatus === "loading" ? '<div class="unavailable-panel">Loading exact-printing seller offers…</div>' : item.offersStatus === "unconfigured" ? '<div class="pro-data-empty"><strong>Ready for live offers</strong><p>Connect PkmnPrices to populate TCGplayer and Cardmarket seller asks here.</p></div>' : item.offersStatus === "error" ? '<div class="unavailable-panel">Live offers are temporarily unavailable.<br><button class="inline-retry" id="retryOffersButton" type="button">Try offers again</button></div>' : `<div class="offer-grid">${groups}</div>`}<p class="offer-disclaimer">${context}</p></section>`;
+    ? "These are prices sellers want for ungraded copies. They are not comparisons for this professionally graded card."
+    : "These are prices sellers are asking, not completed sales or a guaranteed value.";
+  return `<section class="detail-section advanced-workspace"><div class="detail-section-head"><h2>Cards currently for sale</h2><span>Lowest asking prices first</span></div>${item.offersStatus === "loading" ? '<div class="unavailable-panel">Loading prices for this card version…</div>' : item.offersStatus === "unconfigured" ? '<div class="pro-data-empty"><strong>Ready for cards currently for sale</strong><p>Connect PkmnPrices Pro to show matching TCGplayer and Cardmarket listings.</p></div>' : item.offersStatus === "error" ? '<div class="unavailable-panel">Seller prices are temporarily unavailable.<br><button class="inline-retry" id="retryOffersButton" type="button">Try again</button></div>' : `<div class="offer-grid">${groups}</div>`}<p class="offer-disclaimer">${context}</p></section>`;
 }
 
 function historySeriesForItem(item) {
@@ -815,9 +837,9 @@ function historyForItem(item) {
 function renderHistory(item) {
   const history = historyForItem(item);
   if (item.historyStatus === "plan_required" && history.length < 2)
-    return `<div class="unavailable-panel"><strong>Price history is plan-limited.</strong><br>The connected PkmnPrices key can return current prices, but historical observations require a higher provider plan. Mica does not invent a trend.</div>`;
+    return `<div class="unavailable-panel"><strong>Price history needs PkmnPrices Pro.</strong><br>Today’s matching price still works. Mica will not draw a line until real past prices are connected.</div>`;
   if (history.length < 2)
-    return `<div class="unavailable-panel">Not enough comparable observations exist for a price chart yet. Daily source data is never expanded into artificial minute-by-minute points.</div>`;
+    return `<div class="unavailable-panel">Mica needs matching prices from at least two different days before it can draw this chart.</div>`;
   const values = history.map((point) => point.amount);
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -831,7 +853,7 @@ function renderHistory(item) {
   const average = values.reduce((sum, value) => sum + value, 0) / values.length;
   const first = history[0];
   const last = history.at(-1);
-  return `<div class="history-summary"><div><span>Observed average</span><strong>${money(average, last.currency)}</strong></div><div><span>Observed range</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Samples</span><strong>${history.length} observations</strong></div></div>
+  return `<div class="history-summary"><div><span>Typical recorded price</span><strong>${money(average, last.currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Days with prices</span><strong>${history.length}</strong></div></div>
     <svg class="price-chart" viewBox="0 0 100 42" role="img" aria-label="Price history from ${esc(first.recordedAt.slice(0, 10))} to ${esc(last.recordedAt.slice(0, 10))}"><path d="M0 40H100"/><polyline points="${points}"/></svg>
     <div class="chart-dates"><span>${esc(first.recordedAt.slice(0, 10))}</span><span>${esc(last.recordedAt.slice(0, 10))}</span></div>`;
 }
@@ -845,7 +867,7 @@ function renderEntryPoints(item, currentPrice = item.price) {
       ? null
       : Number(currentPrice);
   const noun = item.cardState === "sealed" ? "product" : "card";
-  return `<section class="entry-points" aria-label="Your purchase entry points"><div class="entry-points-head"><div><span>Your entry points</span><strong>${entries.length} purchase${entries.length === 1 ? "" : "s"} recorded</strong></div><div><span>Current exact reference</span><strong>${current === null ? "Unavailable" : `${money(current, currency)} each`}</strong></div></div><div class="entry-point-list">${entries.map((entry) => `<div class="entry-point-row"><div><strong>${esc(entry.date || "Date not recorded")}</strong><span>${entry.quantity} ${noun}${entry.quantity === 1 ? "" : "s"} · ${money(entry.totalCostMinor / 100, currency)} total</span></div><div><span>Entry · each</span><strong>${money(entry.unitCostMinor / 100, currency)}</strong></div><div><span>Change · each</span><strong>${entry.changeMinor === null ? "Unavailable" : `${entry.changeMinor >= 0 ? "+" : ""}${money(entry.changeMinor / 100, currency)}`}</strong><small>${entry.returnPercent === null ? "" : `${entry.returnPercent >= 0 ? "+" : ""}${entry.returnPercent.toFixed(1)}%`}</small></div></div>`).join("")}</div></section>`;
+  return `<section class="entry-points" aria-label="Your purchases"><div class="entry-points-head"><div><span>Your purchases</span><strong>${entries.length} recorded</strong></div><div><span>Matching price today</span><strong>${current === null ? "Unavailable" : `${money(current, currency)} each`}</strong></div></div><div class="entry-point-list">${entries.map((entry) => `<div class="entry-point-row"><div><strong>${esc(entry.date || "Date not recorded")}</strong><span>${entry.quantity} ${noun}${entry.quantity === 1 ? "" : "s"} · ${money(entry.totalCostMinor / 100, currency)} total</span></div><div><span>You paid per ${noun}</span><strong>${money(entry.unitCostMinor / 100, currency)}</strong></div><div><span>Change per ${noun}</span><strong>${entry.changeMinor === null ? "Unavailable" : `${entry.changeMinor >= 0 ? "Up " : "Down "}${money(Math.abs(entry.changeMinor) / 100, currency)}`}</strong>${workspaceMode === "guided" ? "" : `<small>${entry.returnPercent === null ? "" : `${entry.returnPercent >= 0 ? "+" : ""}${entry.returnPercent.toFixed(1)}%`}</small>`}</div></div>`).join("")}</div></section>`;
 }
 
 function renderInteractiveHistory(item, currentPrice = item.price) {
@@ -853,9 +875,9 @@ function renderInteractiveHistory(item, currentPrice = item.price) {
   const showcaseHistory = history.some((point) => point.quality?.sample);
   const entryPoints = renderEntryPoints(item, currentPrice);
   if (item.historyStatus === "plan_required" && history.length < 2)
-    return `${entryPoints}<div class="unavailable-panel"><strong>Price history is plan-limited.</strong><br>The connected PkmnPrices key can return current prices, but historical observations require a higher provider plan. Your recorded entry points remain visible without Pro.</div>`;
+    return `${entryPoints}<div class="unavailable-panel"><strong>Price history needs PkmnPrices Pro.</strong><br>Today’s matching price and your recorded purchases still work.</div>`;
   if (history.length < 2)
-    return `${entryPoints}<div class="unavailable-panel">Not enough exact ${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)} observations exist for a chart. Your real purchase entries remain visible; a raw or different-grade series is never substituted.</div>`;
+    return `${entryPoints}<div class="unavailable-panel">Mica needs prices from at least two days for this same ${item.gradingCompany ? `${esc(item.gradingCompany)} grade ${esc(item.grade)}` : esc(conditionLabel(item.condition))} card before it can draw a chart.</div>`;
   const values = history.map((point) => point.amount);
   const lows = history
     .map((point) => Number(point.low))
@@ -873,9 +895,9 @@ function renderInteractiveHistory(item, currentPrice = item.price) {
     0,
   );
   const context = item.gradingCompany
-    ? `${item.gradingCompany} ${item.grade}`
-    : item.condition;
-  return `${entryPoints}<div class="history-summary"><div><span>${showcaseHistory ? "Sample average" : "Observed average"}</span><strong>${money(average, last.currency)}</strong></div><div><span>${showcaseHistory ? "Sample range" : "Observed range"}</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>${showcaseHistory ? "Showcase samples" : "Daily samples"}</span><strong>${history.length} ${showcaseHistory ? "sample points" : "observations"}</strong></div>${saleCount ? `<div><span>Reported sales</span><strong>${saleCount}</strong></div>` : ""}</div>
+    ? `${item.gradingCompany} grade ${item.grade}`
+    : conditionLabel(item.condition);
+  return `${entryPoints}<div class="history-summary"><div><span>${showcaseHistory ? "Typical demo price" : "Typical recorded price"}</span><strong>${money(average, last.currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>${showcaseHistory ? "Demo days shown" : "Days with prices"}</span><strong>${history.length}</strong></div>${saleCount ? `<div><span>Reported sales</span><strong>${saleCount}</strong></div>` : ""}</div>
     <div class="history-controls" role="group" aria-label="Price history range">${[
       ["1m", "1 month"],
       ["3m", "3 months"],
@@ -888,8 +910,8 @@ function renderInteractiveHistory(item, currentPrice = item.price) {
           `<button type="button" data-chart-range="${value}" aria-pressed="${String(state.chartRange === value)}">${label}</button>`,
       )
       .join("")}</div>
-    <p class="chart-context">${showcaseHistory ? "Labeled showcase series" : "Exact series"}: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. ${showcaseHistory ? "Sample points are confined to this demo account and are not market evidence." : "Provider observations remain separate."}</p>
-    <div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="Historical ${esc(context)} prices with purchase entry markers"></canvas></div>`;
+    <p class="chart-context">${showcaseHistory ? "Demo price line" : "Matching price line"}: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. ${showcaseHistory ? "These made-up demo days only show how the chart works; they are not real market prices." : "Each price source stays separate so unlike prices are never mixed."}</p>
+    <div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} prices over time with the dates you bought this card"></canvas></div>`;
 }
 
 async function mountPriceChart(item) {
@@ -925,7 +947,7 @@ async function mountPriceChart(item) {
   );
   if (purchases.length)
     datasets.push({
-      label: "Your entry points",
+      label: "When you bought it",
       type: "scatter",
       data: purchases.map((transaction) => ({
         x: transaction.date,
@@ -948,7 +970,7 @@ async function mountPriceChart(item) {
       ]),
     ].sort();
     datasets.push({
-      label: "Remaining cost basis / card",
+      label: "What you paid per card",
       data: labels.map((date) => ({
         x: date,
         y: item.costBasis / item.quantity,
@@ -1031,24 +1053,24 @@ function comparableSales(item) {
 
 function renderSales(item) {
   if (item.salesStatus === "loading")
-    return `<div class="unavailable-panel">Loading licensed sold-listing evidence…</div>`;
+    return `<div class="unavailable-panel">Checking recent sales for this exact card…</div>`;
   const sales = comparableSales(item);
   if (!sales.length) {
     const copy =
       item.salesStatus === "unconfigured"
-        ? "No licensed sold-listing provider is connected. Active listings are not presented as completed sales."
+        ? "Recent sale prices are not connected yet. Cards that are merely listed for sale are not counted as completed sales."
         : item.salesStatus === "plan_required"
-          ? "The connected PkmnPrices key is valid, but its current plan does not allow linked sold evidence for this request."
+          ? "Recent sale prices are ready, but they need the PkmnPrices Pro plan."
           : item.salesStatus === "error"
-            ? "The sold-data provider could not be reached. This is not evidence that the card has no sales."
-            : "No verified sales matched this exact raw/graded context. A broader card sale is not substituted.";
+            ? "Recent sales could not be checked. That does not mean the card has never sold."
+            : "No recent sales matched this exact card and condition. Mica will not use a different card as a substitute.";
     return `<div class="unavailable-panel">${copy}${item.salesStatus === "error" ? '<br><button class="inline-retry" id="retrySalesButton" type="button">Try sales again</button>' : ""}</div>`;
   }
   return `<div class="sales-list">${sales
     .slice(0, 5)
     .map(
       (sale) =>
-        `<a class="sale-row" href="${esc(sale.sourceUrl)}" target="_blank" rel="noreferrer"><div><strong>${esc(sale.title)}</strong><span>${esc(sale.soldAt)} · ${esc(sale.gradingCompany ? `${sale.gradingCompany} ${sale.grade}` : "Raw")}</span></div><b>${money(sale.amount, sale.currency)}</b></a>`,
+        `<a class="sale-row" href="${esc(sale.sourceUrl)}" target="_blank" rel="noreferrer"><div><strong>${esc(sale.title)}</strong><span>${esc(sale.soldAt)} · ${esc(sale.gradingCompany ? `${sale.gradingCompany} grade ${sale.grade}` : "Ungraded")}</span></div><b>${money(sale.amount, sale.currency)}</b></a>`,
     )
     .join("")}</div>`;
 }
@@ -1079,31 +1101,31 @@ function renderGradingEstimator(item) {
   );
   const gradedQuote = gradingQuote(item, "PSA", "10");
   return `<section class="detail-section grading-estimator" aria-labelledby="gradingEstimatorTitle">
-    <div class="detail-section-head"><h2 id="gradingEstimatorTitle">Grading cost estimator</h2><span>Plan a submission</span></div>
-    <p class="estimator-intro">See an estimated all-in grading cost before you submit this card.</p>
+    <div class="detail-section-head"><h2 id="gradingEstimatorTitle">Should I get this card graded?</h2><span>Cost and value estimate</span></div>
+    <p class="estimator-intro">See what professional grading may cost and whether it may be worth it.</p>
     <div class="estimator-grid">
       <div class="field"><label for="estimateGrader">Grading company</label><select id="estimateGrader">${Object.keys(
         gradingServices,
       )
         .map((value) => `<option>${value}</option>`)
         .join("")}</select></div>
-      <div class="field"><label for="estimateService">Service tier</label><select id="estimateService">${gradingServices.PSA.map((service, index) => `<option value="${index}">${esc(service.name)} · ${money(service.fee)}</option>`).join("")}</select></div>
-      <div class="field"><label for="estimateQuantity">Cards in submission</label><input id="estimateQuantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${initialQuantity}"></div>
+      <div class="field"><label for="estimateService">Speed and price option</label><select id="estimateService">${gradingServices.PSA.map((service, index) => `<option value="${index}">${esc(service.name)} · ${money(service.fee)}</option>`).join("")}</select></div>
+      <div class="field"><label for="estimateQuantity">How many cards are you sending?</label><input id="estimateQuantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${initialQuantity}"></div>
     </div>
-    <details class="estimate-trip-costs"><summary>Add shipping, insurance, or selling costs</summary><div class="estimator-grid"><div class="field"><label for="estimateShipping">Round-trip shipping</label><input id="estimateShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateInsurance">Insurance</label><input id="estimateInsurance" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateSellingCosts">Expected selling costs</label><input id="estimateSellingCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></details>
-    <div class="estimate-result" aria-live="polite"><div><span>Estimated all-in total</span><strong id="estimateTotal">${money(defaultService.fee)}</strong></div><div><span>Estimated per card</span><strong id="estimatePerCard">${money(defaultService.fee)}</strong></div></div>
+    <details class="estimate-trip-costs"><summary>Add optional costs</summary><div class="estimator-grid"><div class="field"><label for="estimateShipping">Shipping there and back</label><input id="estimateShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateInsurance">Shipping insurance</label><input id="estimateInsurance" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="estimateSellingCosts">Fees if you sell it</label><input id="estimateSellingCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></details>
+    <div class="estimate-result" aria-live="polite"><div><span>Estimated total cost</span><strong id="estimateTotal">${money(defaultService.fee)}</strong></div><div><span>Estimated cost for each card</span><strong id="estimatePerCard">${money(defaultService.fee)}</strong></div></div>
     <p class="estimate-note" id="estimateNote">${esc(defaultService.note || "No listed submission minimum")}</p>
-    ${canTrackPlan ? `<button class="planner-record" id="useGradingPlanButton" type="button" disabled>Use this plan & track grading</button><p class="planner-fee-note" id="useGradingPlanHelp">The estimate will carry into the submission tracker. All ${item.quantity} card${item.quantity === 1 ? "" : "s"} in this position must be included.</p>` : ""}
+    ${canTrackPlan ? `<button class="planner-record" id="useGradingPlanButton" type="button" disabled>Save this estimate and track my cards</button><p class="planner-fee-note" id="useGradingPlanHelp">Mica will remember this estimate while the cards are away. All ${item.quantity} card${item.quantity === 1 ? "" : "s"} in this saved entry must be included.</p>` : ""}
     <div class="grading-decision">
-      <div class="decision-heading"><div><span>Decision tool</span><h3>Should I grade it?</h3></div><p>Compare selling raw with the value you expect after grading.</p></div>
+      <div class="decision-heading"><div><span>Simple comparison</span><h3>Could grading be worth it?</h3></div><p>Compare the card’s value now with what it may be worth after grading.</p></div>
       <div class="estimator-grid decision-inputs">
-        <div class="field"><label for="estimateRawValue">Raw value today</label><div class="money-input"><span>$</span><input id="estimateRawValue" type="number" inputmode="decimal" min="0" step="0.01" value="${currencyInputValue(rawQuote?.amount)}" placeholder="Enter raw value"></div></div>
-        <div class="field"><label for="estimateTargetGrade">Expected grade</label><select id="estimateTargetGrade">${["10", "9.5", "9", "8.5", "8", "7", "6"].map((value) => `<option ${value === "10" ? "selected" : ""}>${value}</option>`).join("")}</select></div>
-        <div class="field"><label for="estimateGradedValue">Expected graded value</label><div class="money-input"><span>$</span><input id="estimateGradedValue" type="number" inputmode="decimal" min="0" step="0.01" value="${currencyInputValue(gradedQuote?.amount)}" placeholder="Enter expected value"></div></div>
+        <div class="field"><label for="estimateRawValue">What it may sell for now</label><div class="money-input"><span>$</span><input id="estimateRawValue" type="number" inputmode="decimal" min="0" step="0.01" value="${currencyInputValue(rawQuote?.amount)}" placeholder="Enter current value"></div></div>
+        <div class="field"><label for="estimateTargetGrade">Grade you think it may receive</label><select id="estimateTargetGrade">${["10", "9.5", "9", "8.5", "8", "7", "6"].map((value) => `<option ${value === "10" ? "selected" : ""}>${value}</option>`).join("")}</select></div>
+        <div class="field"><label for="estimateGradedValue">What it may sell for after grading</label><div class="money-input"><span>$</span><input id="estimateGradedValue" type="number" inputmode="decimal" min="0" step="0.01" value="${currencyInputValue(gradedQuote?.amount)}" placeholder="Enter expected value"></div></div>
       </div>
-      <p class="decision-source" id="decisionSource">${gradedQuote ? `Using a matching ${esc(gradedQuote.gradingCompany)} ${esc(gradedQuote.grade)} market reference. Raw and graded values remain editable.` : "No matching PSA 10 reference is available. Enter the result you realistically expect."}</p>
+      <p class="decision-source" id="decisionSource">${gradedQuote ? `Using a matching price for ${esc(gradedQuote.gradingCompany)} grade ${esc(gradedQuote.grade)}. You can change either value.` : "No matching PSA grade 10 price is available. Enter a realistic amount yourself."}</p>
       <div class="decision-verdict neutral" id="decisionVerdict" aria-live="polite"><span>Complete the values above</span><strong>Then Mica will compare both paths.</strong></div>
-      <div class="decision-metrics"><div><span>Break-even graded value</span><strong id="decisionBreakEven">—</strong></div><div><span>Value added vs raw</span><strong id="decisionValueAdded">—</strong></div><div><span>Potential profit vs your cost</span><strong id="decisionProfit">—</strong></div></div>
+      <div class="decision-metrics advanced-workspace"><div><span>Minimum graded value to cover the cost</span><strong id="decisionBreakEven">—</strong></div><div><span>Possible value gained by grading</span><strong id="decisionValueAdded">—</strong></div><div><span>Possible money gained after what you paid</span><strong id="decisionProfit">—</strong></div></div>
     </div>
     <p class="estimate-disclaimer">Planning estimate only. Service availability, declared-value limits, memberships, taxes, shipping, and insurance can change. Fees last checked July 2026; confirm with the grader before submitting.</p>
   </section>`;
@@ -1178,7 +1200,7 @@ function bindGradingEstimator(item) {
     if (trackingButton) trackingButton.disabled = !latestSubmissionPlan;
     if ($("#useGradingPlanHelp") && !tracksWholePosition)
       $("#useGradingPlanHelp").textContent =
-        `This tracker covers all ${item.quantity} current card${item.quantity === 1 ? "" : "s"}. Use that quantity, or separate copies before tracking a smaller submission.`;
+        `This tracker covers all ${item.quantity} card${item.quantity === 1 ? "" : "s"} in this saved entry. Use that number, or separate the copies before sending fewer cards.`;
     const decision =
       total === null
         ? null
@@ -1194,7 +1216,7 @@ function bindGradingEstimator(item) {
     if (!decision) {
       verdict.className = "decision-verdict neutral";
       verdict.innerHTML =
-        "<span>Add realistic raw and graded values</span><strong>Then Mica will compare both paths.</strong>";
+        "<span>Add realistic values now and after grading</span><strong>Then Mica will compare both choices.</strong>";
       $("#decisionBreakEven").textContent = "—";
       $("#decisionValueAdded").textContent = "—";
       $("#decisionProfit").textContent = "—";
@@ -1203,8 +1225,8 @@ function bindGradingEstimator(item) {
     const favorable = decision.valueAddedMinor >= 0;
     verdict.className = `decision-verdict ${favorable ? "positive" : "negative"}`;
     verdict.innerHTML = favorable
-      ? `<span>Grading may add value</span><strong>About ${money(decision.valueAddedMinor / 100)} more than selling raw.</strong>`
-      : `<span>Raw may be the stronger path</span><strong>Grading is about ${money(Math.abs(decision.valueAddedMinor) / 100)} behind.</strong>`;
+      ? `<span>Grading may be worth it</span><strong>The graded card may be worth about ${money(decision.valueAddedMinor / 100)} more after estimated costs.</strong>`
+      : `<span>Keeping it ungraded may be better</span><strong>After estimated costs, grading may leave you about ${money(Math.abs(decision.valueAddedMinor) / 100)} worse off.</strong>`;
     $("#decisionBreakEven").textContent = money(
       decision.breakEvenGradedValuePerCardMinor / 100,
     );
@@ -1219,8 +1241,8 @@ function bindGradingEstimator(item) {
     const quote = gradingQuote(item, grader.value, targetGrade.value);
     gradedValue.value = currencyInputValue(quote?.amount);
     $("#decisionSource").textContent = quote
-      ? `Using a matching ${quote.gradingCompany} ${quote.grade} market reference. Raw and graded values remain editable.`
-      : `No matching ${grader.value} ${targetGrade.value} reference is available. Enter the result you realistically expect.`;
+      ? `Using a matching price for ${quote.gradingCompany} grade ${quote.grade}. You can change either value.`
+      : `No matching price for ${grader.value} grade ${targetGrade.value} is available. Enter a realistic amount yourself.`;
     update();
   };
   const fillServices = () => {
@@ -1236,7 +1258,7 @@ function bindGradingEstimator(item) {
   targetGrade.addEventListener("change", syncExpectedQuote);
   gradedValue.addEventListener("input", () => {
     $("#decisionSource").textContent =
-      "Using your expected graded value. Keep it conservative and account for selling costs.";
+      "Using the amount you entered. Choose a realistic value and include any selling fees.";
     update();
   });
   [service, quantity, shipping, insurance, selling, rawValue].forEach((input) =>
@@ -1259,7 +1281,7 @@ function openBatchGradingPlanner() {
   );
   if (!rawItems.length) {
     openSheet(
-      `<div class="sheet-heading"><div><h2 id="sheetTitle">Batch grading planner</h2><p>Build one submission from raw cards you already own.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="find-empty"><strong>No raw cards in your library</strong><span>Add a raw card first, then Mica can compare a grading batch with selling those cards raw.</span></div><div class="sheet-actions"><button class="primary" id="batchAddRawCard" type="button">Add a raw card</button></div>`,
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Grade several cards</h2><p>Estimate the cost and possible value before sending ungraded cards.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="find-empty"><strong>No ungraded cards in your library</strong><span>Add an ungraded card first. Then Mica can compare keeping it ungraded with sending it for professional grading.</span></div><div class="sheet-actions"><button class="primary" id="batchAddRawCard" type="button">Add an ungraded card</button></div>`,
     );
     $("#batchAddRawCard").addEventListener("click", () => {
       closeSheet({ discardHistory: true });
@@ -1282,17 +1304,17 @@ function openBatchGradingPlanner() {
   const rows = rawItems
     .map((item, index) => {
       const graded = gradingQuote(item, initialGrader, initialGrade);
-      return `<article class="batch-grade-row${preselected.has(index) ? " selected" : ""}" data-batch-index="${index}"><label class="batch-grade-select"><input data-batch-selected type="checkbox" ${preselected.has(index) ? "checked" : ""}><img src="${esc(item.thumb || "./icons/icon.svg")}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number)} · ${esc(item.condition || "Raw")}</small></span></label><div class="batch-grade-values"><label>Qty<input data-batch-quantity type="number" inputmode="numeric" min="1" max="${Number(item.quantity)}" step="1" value="1"></label><label>Raw now<div class="money-input"><span>$</span><input data-batch-raw type="number" inputmode="decimal" min="0" step="0.01" value="${item.price ?? ""}" placeholder="0.00"></div></label><label>Expected graded<div class="money-input"><span>$</span><input data-batch-expected type="number" inputmode="decimal" min="0" step="0.01" value="${graded?.amount ?? ""}" placeholder="Enter value"></div></label></div></article>`;
+      return `<article class="batch-grade-row${preselected.has(index) ? " selected" : ""}" data-batch-index="${index}"><label class="batch-grade-select"><input data-batch-selected type="checkbox" ${preselected.has(index) ? "checked" : ""}><img src="${esc(item.thumb || "./icons/icon.svg")}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number)} · ${esc(conditionLabel(item.condition || "Near Mint"))}</small></span></label><div class="batch-grade-values"><label>How many?<input data-batch-quantity type="number" inputmode="numeric" min="1" max="${Number(item.quantity)}" step="1" value="1"></label><label>Value now<div class="money-input"><span>$</span><input data-batch-raw type="number" inputmode="decimal" min="0" step="0.01" value="${item.price ?? ""}" placeholder="0.00"></div></label><label>Value after grading<div class="money-input"><span>$</span><input data-batch-expected type="number" inputmode="decimal" min="0" step="0.01" value="${graded?.amount ?? ""}" placeholder="Enter value"></div></label></div></article>`;
     })
     .join("");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Batch grading planner</h2><p>Compare one submission with selling the same cards raw.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="batch-grade-controls"><div class="field"><label for="batchGrader">Grading company</label><select id="batchGrader">${Object.keys(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Grade several cards</h2><p>Compare keeping them ungraded with sending them for professional grading.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="batch-grade-controls"><div class="field"><label for="batchGrader">Grading company</label><select id="batchGrader">${Object.keys(
       gradingServices,
     )
       .map((value) => `<option>${value}</option>`)
       .join(
         "",
-      )}</select></div><div class="field"><label for="batchService">Service tier</label><select id="batchService"></select></div><div class="field"><label for="batchTargetGrade">Expected grade</label><select id="batchTargetGrade">${["10", "9.5", "9", "8.5", "8", "7", "6"].map((value) => `<option>${value}</option>`).join("")}</select></div></div><details class="estimate-trip-costs"><summary>Add shared shipping, insurance, or selling costs</summary><div class="batch-grade-controls"><div class="field"><label for="batchShipping">Round-trip shipping</label><input id="batchShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="batchInsurance">Insurance</label><input id="batchInsurance" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="batchSelling">Expected selling costs</label><input id="batchSelling" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></details><div class="batch-grade-head"><strong>Choose raw cards</strong><span id="batchSelectedCount">0 cards selected</span></div><div class="batch-grade-list">${rows}</div><p class="estimate-note" id="batchServiceNote"></p><div id="batchGradeOutput" aria-live="polite"></div><p class="estimate-disclaimer">Planning estimate only. Expected grades and prices are uncertain. Fees last checked July 2026; confirm service availability, declared-value limits, membership rules, shipping, insurance, and current pricing with the grader before submitting.</p>`,
+      )}</select></div><div class="field"><label for="batchService">Speed and price option</label><select id="batchService"></select></div><div class="field"><label for="batchTargetGrade">Grade you think they may receive</label><select id="batchTargetGrade">${["10", "9.5", "9", "8.5", "8", "7", "6"].map((value) => `<option>${value}</option>`).join("")}</select></div></div><details class="estimate-trip-costs"><summary>Add optional costs</summary><div class="batch-grade-controls"><div class="field"><label for="batchShipping">Shipping there and back</label><input id="batchShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="batchInsurance">Shipping insurance</label><input id="batchInsurance" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div><div class="field"><label for="batchSelling">Fees if you sell them</label><input id="batchSelling" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div></details><div class="batch-grade-head"><strong>Choose ungraded cards</strong><span id="batchSelectedCount">0 cards selected</span></div><div class="batch-grade-list">${rows}</div><p class="estimate-note" id="batchServiceNote"></p><div id="batchGradeOutput" aria-live="polite"></div><p class="estimate-disclaimer">This is only an estimate. Grades, prices, and fees can change. Check the grading company’s current rules and prices before sending your cards.</p>`,
   );
   const grader = $("#batchGrader");
   const service = $("#batchService");
@@ -1354,12 +1376,12 @@ function openBatchGradingPlanner() {
     });
     if (!plan) {
       $("#batchGradeOutput").innerHTML =
-        '<div class="unavailable-panel"><strong>Complete the selected cards.</strong><br>Use no more than you own, and add the current raw value plus a realistic expected graded value for each selected row.</div>';
+        '<div class="unavailable-panel"><strong>Check the selected cards.</strong><br>Do not enter more cards than you own. Add a current value and a realistic value after grading for each card.</div>';
       return;
     }
     const favorable = plan.valueAddedMinor >= 0;
     $("#batchGradeOutput").innerHTML =
-      `<div class="decision-verdict ${favorable ? "positive" : "negative"}"><span>${favorable ? "Batch may add value" : "Selling raw may be stronger"}</span><strong>${favorable ? `${money(plan.valueAddedMinor / 100)} projected value added after costs.` : `Grading is ${money(Math.abs(plan.valueAddedMinor) / 100)} behind selling raw.`}</strong></div><div class="batch-grade-summary"><div><span>Raw value today</span><strong>${money(plan.rawValueTotalMinor / 100)}</strong></div><div><span>Expected graded value</span><strong>${money(plan.expectedGradedValueTotalMinor / 100)}</strong></div><div><span>All-in grading cost</span><strong>${money(plan.gradingCostMinor / 100)}</strong></div><div><span>Break-even average</span><strong>${money(plan.breakEvenAverageMinor / 100)}</strong></div><div><span>Value added vs raw</span><strong>${plan.valueAddedMinor >= 0 ? "+" : ""}${money(plan.valueAddedMinor / 100)}</strong></div><div><span>Potential profit vs basis</span><strong>${plan.potentialProfitMinor === null ? "Basis incomplete" : `${plan.potentialProfitMinor >= 0 ? "+" : ""}${money(plan.potentialProfitMinor / 100)}`}</strong></div></div>`;
+      `<div class="decision-verdict ${favorable ? "positive" : "negative"}"><span>${favorable ? "Grading may be worth it" : "Keeping them ungraded may be better"}</span><strong>${favorable ? `The cards may be worth ${money(plan.valueAddedMinor / 100)} more after estimated costs.` : `After estimated costs, grading may leave you ${money(Math.abs(plan.valueAddedMinor) / 100)} worse off.`}</strong></div><div class="batch-grade-summary advanced-workspace"><div><span>Value now</span><strong>${money(plan.rawValueTotalMinor / 100)}</strong></div><div><span>Possible value after grading</span><strong>${money(plan.expectedGradedValueTotalMinor / 100)}</strong></div><div><span>Estimated grading cost</span><strong>${money(plan.gradingCostMinor / 100)}</strong></div><div><span>Average value needed to cover the cost</span><strong>${money(plan.breakEvenAverageMinor / 100)}</strong></div><div><span>Possible value gained by grading</span><strong>${plan.valueAddedMinor >= 0 ? "+" : ""}${money(plan.valueAddedMinor / 100)}</strong></div><div><span>Possible money gained after what you paid</span><strong>${plan.potentialProfitMinor === null ? "Add what you paid first" : `${plan.potentialProfitMinor >= 0 ? "+" : ""}${money(plan.potentialProfitMinor / 100)}`}</strong></div></div>`;
   };
   const fillServices = () => {
     service.innerHTML = gradingServices[grader.value]
@@ -1511,11 +1533,11 @@ function routeTo(route, options = {}) {
   $(".bottom-nav").classList.toggle("hidden", route === "detail");
   const headerCopy = {
     collection: ["Dashboard", "Your collection at a glance"],
-    scan: ["Add items", "Find exact cards and sealed products"],
-    insights: ["Market", "Prices, portfolio decisions, and seller tools"],
+    scan: ["Add items", "Find cards and unopened products"],
+    insights: ["Prices", "Price changes and clear next steps"],
     trade: ["Trade check", "Compare both sides before you agree"],
     profile: ["Settings", "Account, appearance, and preferences"],
-    detail: ["Card details", "Exact identity, evidence, and decisions"],
+    detail: ["Card details", "Identity, price, and your purchase"],
   }[route] || ["Mica", "Your collection workspace"];
   if ($("#headerSection")) $("#headerSection").textContent = headerCopy[0];
   if ($("#headerSubtitle")) $("#headerSubtitle").textContent = headerCopy[1];
@@ -1545,19 +1567,19 @@ const workspaceCopy = Object.freeze({
   ],
   sets: ["Sets", "All Sets", "Track exact set progress and missing cards."],
   sealed: [
-    "Sealed Products",
-    "Sealed Products",
-    "Booster boxes, ETBs, tins, bundles, and collections.",
+    "Unopened Products",
+    "Unopened Products",
+    "Booster boxes, Elite Trainer Boxes, tins, and bundles.",
   ],
   graded: [
     "Graded Cards",
     "Graded Cards",
-    "Your slabbed cards with exact grader and grade context.",
+    "Cards checked and sealed in a case by a professional grading company.",
   ],
   watchlist: [
-    "Watchlist",
-    "Watchlist",
-    "Targets and exact items you’re following.",
+    "Watching",
+    "Cards You’re Watching",
+    "Cards and unopened products you may want to buy.",
   ],
 });
 
@@ -1665,10 +1687,10 @@ function openWorkspaceShortcut(target) {
 
 function watchContextLabel(item) {
   return item.cardState === "sealed"
-    ? "Sealed product"
+    ? "Unopened product"
     : item.cardState === "graded"
-      ? `${item.gradingCompany} ${item.grade}`
-      : item.condition || "Raw card";
+      ? `${item.gradingCompany} grade ${item.grade}`
+      : conditionLabel(item.condition || "Near Mint");
 }
 
 function matchingWatchEntry(card) {
@@ -1724,7 +1746,7 @@ function renderWatchlistRows() {
   $("#resultCount").textContent =
     `${visible.length} watched item${visible.length === 1 ? "" : "s"}`;
   $("#sortButton").firstChild.textContent =
-    state.sort === "value-desc" ? "Value, high to low " : "Name, A to Z ";
+    state.sort === "value-desc" ? "Most valuable first " : "Name, A to Z ";
   $("#cardLedger").innerHTML = visible
     .map((item) => {
       const hasTarget = item.targetPrice !== null;
@@ -1737,7 +1759,7 @@ function renderWatchlistRows() {
         currentPrice: item.currentPrice,
       });
       const movement = performance
-        ? `${performance.changeMinor >= 0 ? "+" : "−"}${money(Math.abs(performance.changeMinor) / 100, item.currency)} (${performance.changePercent >= 0 ? "+" : ""}${performance.changePercent.toFixed(1)}%) since watch`
+        ? `${performance.changeMinor >= 0 ? "Up " : "Down "}${money(Math.abs(performance.changeMinor) / 100, item.currency)} since you started watching`
         : null;
       const targetStatus =
         item.pricingStatus === "loading"
@@ -1759,10 +1781,10 @@ function renderWatchlistRows() {
   const trulyEmpty = state.watchlist.length === 0;
   $("#collectionEmpty").classList.toggle("hidden", visible.length > 0);
   $("#collectionEmptyTitle").textContent = trulyEmpty
-    ? "Your watchlist is empty"
+    ? "You are not watching any cards yet"
     : "No watched items match";
   $("#collectionEmptyCopy").textContent = trulyEmpty
-    ? "Find a card or sealed product and choose Watch to save a price target."
+    ? "Find a card or unopened product and choose Watch. Mica can tell you when it reaches the price you want."
     : "Try clearing the search or changing your filters.";
   $("#firstCardGuide").classList.add("hidden");
   $("#emptyAddCard").classList.toggle("hidden", !trulyEmpty);
@@ -1902,7 +1924,7 @@ function renderSetRows() {
   $("#resultCount").textContent =
     `${groups.length} set${groups.length === 1 ? "" : "s"} in progress`;
   $("#sortButton").firstChild.textContent =
-    state.sort === "value-desc" ? "Completion, high to low " : "Name, A to Z ";
+    state.sort === "value-desc" ? "Closest to complete " : "Name, A to Z ";
   $("#cardLedger").innerHTML = groups
     .map((group) => {
       const loading = state.setCatalogLoading.has(group.key);
@@ -1950,7 +1972,7 @@ function setSheetMarkup(group) {
   const catalog = group.catalog;
   if (!catalog)
     return `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(group.name)}</h2><p>Set checklist</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="unavailable-panel"><strong>The exact checklist is temporarily unavailable.</strong><br>Your owned cards remain safe. Try this set again after the public catalog refreshes.</div>`;
-  return `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(catalog.name)}</h2><p>${group.ownedCount} of ${catalog.totalCount} unique cards · ${group.percent?.toFixed(1) || 0}% complete</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="set-sheet-progress"><span>Set progress</span><strong>${catalog.totalCount - group.ownedCount} missing</strong><div class="set-progress-track"><i style="width:${group.percent || 0}%"></i></div></div><div class="set-share-action"><div><strong>Missing-card list</strong><span>Copy collector numbers and names without sharing private collection data.</span></div><button id="copyMissingList" type="button" ${catalog.totalCount === group.ownedCount ? "disabled" : ""}>${catalog.totalCount === group.ownedCount ? "Set complete" : "Copy list"}</button></div><div class="set-check-tools"><label class="search-field"><span class="sr-only">Search this set</span><input id="setChecklistSearch" type="search" placeholder="Search this set"></label><label class="missing-toggle"><input id="missingOnly" type="checkbox" checked> Missing only</label></div><div class="set-checklist" id="setChecklist" aria-live="polite"></div>`;
+  return `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(catalog.name)}</h2><p>You have ${group.ownedCount} of ${catalog.totalCount} different cards · ${group.percent?.toFixed(1) || 0}% complete</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="set-sheet-progress"><span>Your progress</span><strong>${catalog.totalCount - group.ownedCount} cards left</strong><div class="set-progress-track"><i style="width:${group.percent || 0}%"></i></div></div><div class="set-share-action"><div><strong>Cards you still need</strong><span>Copy card names and the numbers printed at the bottom without sharing private collection data.</span></div><button id="copyMissingList" type="button" ${catalog.totalCount === group.ownedCount ? "disabled" : ""}>${catalog.totalCount === group.ownedCount ? "Set complete" : "Copy list"}</button></div><div class="set-check-tools"><label class="search-field"><span class="sr-only">Search this set</span><input id="setChecklistSearch" type="search" placeholder="Search this set"></label><label class="missing-toggle"><input id="missingOnly" type="checkbox" checked> Show only cards I need</label></div><div class="set-checklist" id="setChecklist" aria-live="polite"></div>`;
 }
 
 function bindSetSheet(group) {
@@ -2016,7 +2038,7 @@ function bindSetSheet(group) {
 async function openSetProgressSheet(group) {
   if (!group) return;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(group.name)}</h2><p>Loading exact set checklist…</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="searching-cards"><i></i><span>Checking every collector number…</span></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(group.name)}</h2><p>Loading the card list…</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="searching-cards"><i></i><span>Checking every card number…</span></div>`,
   );
   await loadSetCatalog(group);
   const refreshed =
@@ -2069,11 +2091,11 @@ function openBulkOrganizeSheet() {
     state.bulkSelected.has(item.uid),
   );
   if (!selected.length) {
-    toast("Select at least one position");
+    toast("Select at least one saved card");
     return;
   }
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Organize ${selected.length} position${selected.length === 1 ? "" : "s"}</h2><p>Apply only the changes you choose. Card identity, grade, cost, and transactions stay untouched.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="bulkOrganizeForm"><div class="form-grid"><div class="field"><label for="bulkLabelMode">Label</label><select id="bulkLabelMode" name="labelMode"><option value="keep">No label change</option><option value="add">Add a label</option><option value="remove">Remove a label</option></select></div><div class="field" id="bulkLabelField" hidden><label for="bulkLabel">Label name</label><input id="bulkLabel" name="label" maxlength="40" placeholder="Trade binder"></div><div class="field"><label for="bulkLocationMode">Storage location</label><select id="bulkLocationMode" name="locationMode"><option value="keep">No location change</option><option value="set">Set one location</option><option value="clear">Clear location</option></select></div><div class="field" id="bulkLocationField" hidden><label for="bulkLocation">Location</label><input id="bulkLocation" name="location" maxlength="250" placeholder="Binder 2 · Shelf A"></div><div class="field full"><label for="bulkStatus">Collection status</label><select id="bulkStatus" name="status"><option value="keep">No status change</option><option value="owned">Keeping</option><option value="archived">Archived</option></select><small>Listing cards stays a one-at-a-time review so Mica never guesses an asking price or sales venue.</small></div><p class="form-error" id="bulkOrganizeError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="bulkOrganizeCancel">Cancel</button><button class="primary" type="submit">Apply changes</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Organize ${selected.length} saved card${selected.length === 1 ? "" : "s"}</h2><p>Only the choices below will change. Card details, grade, what you paid, and purchase history stay the same.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="bulkOrganizeForm"><div class="form-grid"><div class="field"><label for="bulkLabelMode">Label</label><select id="bulkLabelMode" name="labelMode"><option value="keep">Keep current labels</option><option value="add">Add a label</option><option value="remove">Remove a label</option></select></div><div class="field" id="bulkLabelField" hidden><label for="bulkLabel">Label name</label><input id="bulkLabel" name="label" maxlength="40" placeholder="Trade binder"></div><div class="field"><label for="bulkLocationMode">Where they are stored</label><select id="bulkLocationMode" name="locationMode"><option value="keep">Keep current locations</option><option value="set">Use one location</option><option value="clear">Remove locations</option></select></div><div class="field" id="bulkLocationField" hidden><label for="bulkLocation">Location</label><input id="bulkLocation" name="location" maxlength="250" placeholder="Binder 2 · Shelf A"></div><div class="field full"><label for="bulkStatus">Keep these in your main collection?</label><select id="bulkStatus" name="status"><option value="keep">No change</option><option value="owned">Yes, keep them here</option><option value="archived">No, move them to archived</option></select><small>Cards for sale are reviewed one at a time so Mica never guesses a selling price.</small></div><p class="form-error" id="bulkOrganizeError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="bulkOrganizeCancel">Cancel</button><button class="primary" type="submit">Save changes</button></div></form>`,
   );
   const labelMode = $("#bulkLabelMode");
   const locationMode = $("#bulkLocationMode");
@@ -2107,12 +2129,12 @@ function openBulkOrganizeSheet() {
       );
       renderCollection();
       toast(
-        `${selected.length} position${selected.length === 1 ? "" : "s"} organized`,
+        `${selected.length} saved card${selected.length === 1 ? "" : "s"} organized`,
       );
     } catch (error) {
       submit.disabled = false;
       $("#bulkOrganizeError").textContent =
-        `Could not organize these positions: ${error.message || "Unknown error"}`;
+        `Could not organize these saved cards: ${error.message || "Unknown error"}`;
     }
   });
 }
@@ -2123,12 +2145,12 @@ function openSelectedShareSheet() {
     state.bulkSelected.has(item.uid),
   );
   if (!selected.length) {
-    toast("Select at least one position");
+    toast("Select at least one saved card");
     return;
   }
   const defaultMode = workspaceMode === "guided" ? "showcase" : "asking";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Share selected cards</h2><p>${selected.length} chosen position${selected.length === 1 ? "" : "s"} · preview exactly what leaves Mica</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="field"><label for="selectedShareMode">List type</label><select id="selectedShareMode"><option value="showcase" ${defaultMode === "showcase" ? "selected" : ""}>Showcase · no prices</option><option value="asking" ${defaultMode === "asking" ? "selected" : ""}>For sale · asking prices</option><option value="market">Reference check · live market prices</option></select><small>Missing values stay unavailable; Mica never substitutes another condition, grade, or printing.</small></div>${selected.some((item) => item.gradingCompany && item.certificationNumber) ? '<label class="share-performance"><input id="selectedShareCertifications" type="checkbox"> Include graded certification numbers</label>' : ""}<div class="share-list-status" id="selectedShareStatus" aria-live="polite"></div><pre class="share-preview" id="selectedSharePreview"></pre><div class="simple-note"><strong>Private fields stay private.</strong><br>Cost basis, profit, purchase dates, notes, storage, transactions, and account details are never included. Certification numbers are excluded unless you explicitly opt in. Text is limited to 50 positions; the CSV always contains the complete selection.</div><div class="sheet-actions share-list-actions"><button class="secondary" id="downloadSelectedList" type="button">Download CSV</button><button class="secondary" id="copySelectedList" type="button">Copy list</button>${navigator.share ? '<button class="primary" id="nativeShareSelectedList" type="button">Share…</button>' : ""}</div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Share selected cards</h2><p>${selected.length} saved card${selected.length === 1 ? "" : "s"} selected · preview exactly what will be shared</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="field"><label for="selectedShareMode">What should the list show?</label><select id="selectedShareMode"><option value="showcase" ${defaultMode === "showcase" ? "selected" : ""}>Card list · no prices</option><option value="asking" ${defaultMode === "asking" ? "selected" : ""}>For sale · my selling prices</option><option value="market">Price check · today’s matching prices</option></select><small>Missing prices stay blank. Mica never uses the price of a different card, wear level, or grade.</small></div>${selected.some((item) => item.gradingCompany && item.certificationNumber) ? '<label class="share-performance"><input id="selectedShareCertifications" type="checkbox"> Include graded-card certification numbers</label>' : ""}<div class="share-list-status" id="selectedShareStatus" aria-live="polite"></div><pre class="share-preview" id="selectedSharePreview"></pre><div class="simple-note"><strong>Your private details stay private.</strong><br>What you paid, money gained, purchase dates, notes, storage, account details, and purchase or sale history are never included. Certification numbers are excluded unless you choose to include them.</div><div class="sheet-actions share-list-actions"><button class="secondary" id="downloadSelectedList" type="button">Download spreadsheet</button><button class="secondary" id="copySelectedList" type="button">Copy list</button>${navigator.share ? '<button class="primary" id="nativeShareSelectedList" type="button">Share…</button>' : ""}</div>`,
   );
   const shareRows = selected.map((item) => {
     const quote = selectReferenceQuote(
@@ -2156,7 +2178,7 @@ function openSelectedShareSheet() {
     $("#selectedShareStatus").textContent =
       share.mode === "showcase"
         ? `${share.units} item${share.units === 1 ? "" : "s"} · prices excluded`
-        : `${share.pricedPositions} of ${share.positions} positions have the selected price`;
+        : `${share.pricedPositions} of ${share.positions} saved cards have the selected price`;
   };
   $("#selectedShareMode").addEventListener("change", update);
   $("#selectedShareCertifications")?.addEventListener("change", update);
@@ -2284,7 +2306,9 @@ async function mountPortfolioHistoryChart({
       labels: points.map((point) => point.date),
       datasets: [
         {
-          label: marketMode ? "Cash-adjusted move" : "Portfolio value",
+          label: marketMode
+            ? "Price change without purchases or sales"
+            : "Collection value",
           data: values,
           borderColor: accent,
           borderWidth: 2.25,
@@ -2404,10 +2428,11 @@ function renderPortfolioHistory() {
   const baseline = history.points[0];
   if (history.points.length === 1) {
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><div><strong>Performance tracking started</strong><span>${esc(baseline.date)} · exact-compatible prices only</span></div></div><div class="portfolio-history-metrics"><div><span>Baseline value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Fresh prices</span><strong>${baseline.freshItems} of ${baseline.pricedItems}</strong></div><div><span>Unpriced</span><strong>${baseline.unpricedItems}</strong></div></div><p class="portfolio-history-note"><strong>Why there is no line yet:</strong> a second real daily valuation is required. Purchases will be treated as money added, not market growth.</p>`;
+    root.innerHTML = `<div class="portfolio-history-head"><div><strong>Value tracking started</strong><span>${esc(baseline.date)} · prices for the same card version and condition</span></div></div><div class="portfolio-history-metrics"><div><span>Starting value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Cards with current prices</span><strong>${baseline.freshItems} of ${baseline.pricedItems}</strong></div><div><span>Missing prices</span><strong>${baseline.unpricedItems}</strong></div></div><p class="portfolio-history-note"><strong>Why there is no line yet:</strong> Mica needs a value from another day. Buying more cards will count as money you added, not as profit.</p>`;
     return;
   }
-  const marketRequested = state.portfolioHistoryMode === "return";
+  const marketRequested =
+    workspaceMode !== "guided" && state.portfolioHistoryMode === "return";
   const marketAvailable = history.status === "ready";
   const marketPoints = history.points.filter(
     (point) => point.marketChangeMinor !== null,
@@ -2432,10 +2457,10 @@ function renderPortfolioHistory() {
     (rangeLatest.netContributionMinor - rangeBaseline.netContributionMinor) /
     100;
   const ranges = [
-    ["1m", "1M"],
-    ["3m", "3M"],
-    ["ytd", "YTD"],
-    ["all", "ALL"],
+    ["1m", "1 month"],
+    ["3m", "3 months"],
+    ["ytd", "This year"],
+    ["all", "All"],
   ];
   const rangeButtons = ranges
     .map(([value, label]) => {
@@ -2446,7 +2471,17 @@ function renderPortfolioHistory() {
       return `<button type="button" data-portfolio-history-range="${value}" aria-pressed="${String(state.portfolioHistoryRange === value)}" ${redundant ? 'disabled title="No additional history in this range yet"' : ""}>${label}</button>`;
     })
     .join("");
-  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio market</strong><span>${showcase ? "Sample history for this showcase account" : `${history.points.length} verified daily valuation${history.points.length === 1 ? "" : "s"}`} · ${shortPortfolioDate(plotted[0].date, true)}–${shortPortfolioDate(plotted.at(-1).date, true)}</span></div><div class="portfolio-history-toggle" role="group" aria-label="Portfolio history view"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}" ${marketSeriesAvailable ? "" : "disabled"}>Market move</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${marketMode ? `<div><span>Range market move</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "+" : ""}${money(rangeChange, history.currency)}</strong></div><div><span>Range move</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div><div><span>Net cash flow</span><strong>${rangeCashFlow >= 0 ? "+" : ""}${money(rangeCashFlow, history.currency)}</strong></div>` : `<div><span>Current value</span><strong>${money(rangeLatest.totalMinor / 100, history.currency)}</strong></div><div><span>Range change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "+" : ""}${money(rangeChange, history.currency)}</strong></div><div><span>Range return</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div>`}</div><div class="portfolio-chart-toolbar"><span class="portfolio-chart-status"><i aria-hidden="true"></i>${showcase ? "Showcase history" : marketAvailable ? "Verified pricing history" : "Partial pricing history"}</span><div class="portfolio-chart-ranges" role="group" aria-label="Portfolio chart range">${rangeButtons}</div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Interactive ${marketMode ? "cash-adjusted portfolio market movement" : "portfolio value"} chart from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${plotted.map((point, index) => `${shortPortfolioDate(point.date, true)}: ${money(values[index], history.currency)}`).join("; ")}</p><div class="portfolio-chart-foot"><span>Hover or tap for date and value</span><span>${plotted.length} valuation${plotted.length === 1 ? "" : "s"}</span></div>${showcase ? '<p class="portfolio-history-note"><strong>Showcase preview:</strong> this sample line demonstrates the finished portfolio experience. Live account history is built only from verified daily prices.</p>' : !marketSeriesAvailable ? '<p class="portfolio-history-note"><strong>Market move is withheld:</strong> current history does not have enough complete pricing and cash-flow coverage. Total value remains available.</p>' : marketMode && !marketAvailable ? '<p class="portfolio-history-note"><strong>Return withheld:</strong> at least one endpoint has incomplete price coverage or an unknown cash flow. Use Total value to see recorded valuations; Mica will not label a coverage change as profit.</p>' : `<p class="portfolio-history-note"><strong>${marketMode ? "Purchases are not profit." : "This line includes buying and selling."}</strong> ${marketMode ? "Mica subtracts recorded purchases and grading costs, adds back net sale proceeds, and uses cash-flow timing for the return percentage." : "Switch to Market move to separate price movement from recorded money added or removed."}</p>`}`;
+  const historyMetrics = marketMode
+    ? `<div><span>Price change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "Up " : "Down "}${money(Math.abs(rangeChange), history.currency)}</strong></div><div><span>Percent change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div><div><span>Money you added or removed</span><strong>${rangeCashFlow >= 0 ? "+" : ""}${money(rangeCashFlow, history.currency)}</strong></div>`
+    : `<div><span>Value now</span><strong>${money(rangeLatest.totalMinor / 100, history.currency)}</strong></div><div><span>Change during this time</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "Up " : "Down "}${money(Math.abs(rangeChange), history.currency)}</strong></div>${workspaceMode === "guided" ? "" : `<div><span>Percent change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div>`}`;
+  const historyNote = showcase
+    ? '<p class="portfolio-history-note"><strong>Demo line:</strong> these made-up daily values only show how the chart will work. They are not real market prices.</p>'
+    : !marketSeriesAvailable
+      ? '<p class="portfolio-history-note"><strong>Price-only change is not ready yet.</strong> Mica needs more complete prices and purchase history. Your total value is still shown.</p>'
+      : marketMode && !marketAvailable
+        ? '<p class="portfolio-history-note"><strong>Price-only percentage is hidden.</strong> At least one day has a missing price or purchase amount, so Mica will not guess.</p>'
+        : `<p class="portfolio-history-note"><strong>${marketMode ? "Buying more cards is not profit." : "This line includes cards you bought or sold."}</strong> ${marketMode ? "Mica removes recorded buying, selling, and grading money to show price change only." : "Choose Price change in More tools to remove money added or taken out."}</p>`;
+  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Collection value</strong><span>${showcase ? "Demo history for this showcase account" : `${history.points.length} day${history.points.length === 1 ? "" : "s"} with saved values`} · ${shortPortfolioDate(plotted[0].date, true)}–${shortPortfolioDate(plotted.at(-1).date, true)}</span></div><div class="portfolio-history-toggle advanced-workspace" role="group" aria-label="Choose what the value chart shows"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}" ${marketSeriesAvailable ? "" : "disabled"}>Price change</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${historyMetrics}</div><div class="portfolio-chart-toolbar"><span class="portfolio-chart-status"><i aria-hidden="true"></i>${showcase ? "Demo history" : marketAvailable ? "Prices checked" : "Some prices are missing"}</span><div class="portfolio-chart-ranges" role="group" aria-label="Time shown on chart">${rangeButtons}</div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Interactive ${marketMode ? "price change" : "collection value"} chart from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${plotted.map((point, index) => `${shortPortfolioDate(point.date, true)}: ${money(values[index], history.currency)}`).join("; ")}</p><div class="portfolio-chart-foot"><span>Hover or tap for the date and value</span><span>${plotted.length} day${plotted.length === 1 ? "" : "s"} shown</span></div>${historyNote}`;
   $$("[data-portfolio-history-mode]", root).forEach((button) =>
     button.addEventListener("click", () => {
       state.portfolioHistoryMode = button.dataset.portfolioHistoryMode;
@@ -2567,8 +2602,8 @@ function renderCollection() {
       syncState.setAttribute(
         "aria-label",
         state.accountLoading
-          ? "Reconnecting to your cloud portfolio."
-          : "Cloud portfolio could not load. Select to try again.",
+          ? "Reconnecting to your saved collection."
+          : "Your saved collection could not load. Select to try again.",
       );
     }
     return;
@@ -2610,8 +2645,8 @@ function renderCollection() {
     : "—";
   $("#gainLabel").textContent =
     totals.gainCoverage === totals.quantity
-      ? "Gain / loss"
-      : "Known gain / loss";
+      ? "Change in value"
+      : "Known change in value";
   $("#ownedCount").textContent = totals.quantity.toLocaleString();
   $("#gradedOwnedCount").textContent = gradedCount.toLocaleString();
   $("#sealedOwnedCount").textContent = sealedCount.toLocaleString();
@@ -2630,14 +2665,14 @@ function renderCollection() {
     : "—";
   $("#realizedGain").title =
     soldPositions.length - knownRealized.length
-      ? `${soldPositions.length - knownRealized.length} sold position${soldPositions.length - knownRealized.length === 1 ? " has" : "s have"} unknown acquisition cost`
-      : "Realized gain from FIFO-covered sales";
+      ? `${soldPositions.length - knownRealized.length} sold entr${soldPositions.length - knownRealized.length === 1 ? "y has" : "ies have"} no purchase cost`
+      : "Profit from completed sales with a recorded purchase cost";
   $("#allocationSummary").textContent =
     `${rawCount} / ${gradedCount} / ${sealedCount}`;
   const hasProviderPricing = ["live", "partial"].includes(state.pricingStatus);
   const showcase = isShowcaseAccount();
   $("#freshCoverage").textContent =
-    `${totals.priced.toLocaleString()} ${showcase ? "showcase" : hasProviderPricing ? "live" : "demo"} valuation${totals.priced === 1 ? "" : "s"}`;
+    `${totals.priced.toLocaleString()} of ${totals.quantity.toLocaleString()} ${showcase ? "demo prices" : hasProviderPricing ? "prices found" : "demo prices"}`;
   const partial = totals.unpriced
     ? ` · ${totals.unpriced} unpriced item${totals.unpriced === 1 ? "" : "s"} excluded`
     : "";
@@ -2645,14 +2680,14 @@ function renderCollection() {
     ? ` · ${totals.unknownCost} missing purchase cost`
     : "";
   $("#portfolioChange").textContent = showcase
-    ? `Showcase preview · live raw pricing with sample graded values${costCoverage}`
+    ? `Demo account · live ungraded prices and clearly labeled demo graded prices${costCoverage}`
     : hasProviderPricing
-      ? `Current matching provider snapshots${partial}${costCoverage}`
-      : `Demo portfolio values${partial}${costCoverage}`;
+      ? `Prices for the same card version and condition${partial}${costCoverage}`
+      : `Demo collection values${partial}${costCoverage}`;
   $("#valuationNote").firstChild.textContent =
     totals.gainCoverage === totals.quantity
       ? "Based on matching market prices. "
-      : `Gain/loss uses ${totals.gainCoverage} of ${totals.quantity} copies with both price and cost. `;
+      : `Change in value uses ${totals.gainCoverage} of ${totals.quantity} cards that have both a current price and the amount paid. `;
   $("#allCount").textContent = totals.quantity.toLocaleString();
   $("#rawCount").textContent = rawCount.toLocaleString();
   $("#gradedCount").textContent = gradedCount.toLocaleString();
@@ -2701,7 +2736,7 @@ function renderCollection() {
       "aria-label",
       state.storageStatus === "error"
         ? "Session only. Changes may be lost when this page closes."
-        : `Portfolio saved to your account. ${syncLabels[state.pricingStatus] || "Pricing ready"}.`,
+        : `Collection saved to your account. ${syncLabels[state.pricingStatus] || "Prices ready"}.`,
     );
   }
   renderPortfolioHistory();
@@ -2727,7 +2762,7 @@ function renderCollection() {
   if (state.ledgerView === "for-sale") {
     const readiness = listingReadiness(state.items);
     const gap = readiness.askingValueMinor - readiness.marketValueMinor;
-    sellerDesk.innerHTML = `<div class="seller-desk-head"><div><span>Seller desk</span><strong>${readiness.units} unit${readiness.units === 1 ? "" : "s"} actively listed</strong></div><b>${readiness.needsReview ? `${readiness.needsReview} need review` : "Listings ready"}</b></div><div class="seller-desk-grid"><div><span>Total asking value</span><strong>${money(readiness.askingValueMinor / 100)}</strong></div><div><span>Matching market value</span><strong>${readiness.pricedPositions ? money(readiness.marketValueMinor / 100) : "Unavailable"}</strong></div><div><span>Ask vs market</span><strong>${readiness.pricedPositions ? `${gap >= 0 ? "+" : ""}${money(gap / 100)}` : "—"}</strong></div><div><span>Missing details</span><strong>${readiness.missingAsk} price · ${readiness.missingVenue} venue</strong></div></div><p>Review flags appear when the ask differs from market by 10% or more, required listing details are missing, or pricing has not been reviewed in 7 days.</p>`;
+    sellerDesk.innerHTML = `<div class="seller-desk-head"><div><span>Cards for sale</span><strong>${readiness.units} item${readiness.units === 1 ? "" : "s"} listed</strong></div><b>${readiness.needsReview ? `${readiness.needsReview} need review` : "Ready"}</b></div><div class="seller-desk-grid"><div><span>Total price you are asking</span><strong>${money(readiness.askingValueMinor / 100)}</strong></div><div><span>Total matching price</span><strong>${readiness.pricedPositions ? money(readiness.marketValueMinor / 100) : "Unavailable"}</strong></div><div><span>Difference</span><strong>${readiness.pricedPositions ? `${gap >= 0 ? "Above by " : "Below by "}${money(Math.abs(gap) / 100)}` : "—"}</strong></div><div><span>Missing details</span><strong>${readiness.missingAsk} price · ${readiness.missingVenue} place to sell</strong></div></div><p>Mica asks you to check a listing when its price differs from the matching price by 10% or more, details are missing, or its price has not been checked in 7 days.</p>`;
   }
   let visible = state.items.filter((item) => matchesSearch(item, state.query));
   if (state.ledgerView === "favorites")
@@ -2794,21 +2829,21 @@ function renderCollection() {
     (sum, item) => sum + Number(item.quantity || 0),
     0,
   );
-  const groupedLabel = `${windowed.total} grouped position${windowed.total === 1 ? "" : "s"} · ${visibleCopies} card${visibleCopies === 1 ? "" : "s"}`;
+  const groupedLabel = `${windowed.total} saved entr${windowed.total === 1 ? "y" : "ies"} · ${visibleCopies} card${visibleCopies === 1 ? "" : "s"}`;
   $("#resultCount").textContent =
     state.sidebarTarget === "dashboard"
-      ? `Top cards · ${displayed.length} of ${windowed.total} grouped positions · ${visibleCopies} cards total`
+      ? `Top cards · showing ${displayed.length} of ${windowed.total} saved entries`
       : windowed.remaining
-        ? `Showing ${displayed.length} of ${windowed.total} grouped positions · ${visibleCopies} cards total`
+        ? `Showing ${displayed.length} of ${windowed.total} saved entries · ${visibleCopies} cards total`
         : groupedLabel;
   const remaining = windowed.remaining;
   $("#loadMorePositions").hidden = remaining <= 0;
   $("#loadMorePositions").textContent =
     state.sidebarTarget === "dashboard"
-      ? `View full collection · ${remaining} more position${remaining === 1 ? "" : "s"}`
+      ? `View full collection · ${remaining} more saved entr${remaining === 1 ? "y" : "ies"}`
       : `Show ${Math.min(100, remaining)} more · ${remaining} remaining`;
   $("#sortButton").firstChild.textContent =
-    state.sort === "value-desc" ? "Value, high to low " : "Name, A to Z ";
+    state.sort === "value-desc" ? "Most valuable first " : "Name, A to Z ";
   $("#cardLedger").innerHTML = displayed
     .map((item) => {
       const total = itemValue(item);
@@ -2821,9 +2856,13 @@ function renderCollection() {
             : "down";
       const hasMovement = !showcaseValue && Number.isFinite(Number(item.move));
       const movementLabel = showcaseValue
-        ? "Showcase value"
+        ? "Demo price"
         : item.price != null && hasMovement
-          ? `${item.move >= 0 ? "↑" : "↓"} ${Math.abs(item.move).toFixed(1)}% · 30 days`
+          ? workspaceMode === "guided"
+            ? item.move >= 0
+              ? "Price is up over the last 30 days"
+              : "Price is down over the last 30 days"
+            : `${item.move >= 0 ? "↑" : "↓"} ${Math.abs(item.move).toFixed(1)}% · 30 days`
           : priceStatusText(item);
       const listing = listingReadiness([item]);
       const listingTag =
@@ -2841,10 +2880,10 @@ function renderCollection() {
           : null;
       const tags = [
         item.cardState === "sealed"
-          ? "Sealed"
+          ? "Unopened"
           : item.gradingCompany
-            ? `${item.gradingCompany} ${item.grade}`
-            : item.condition,
+            ? `${item.gradingCompany} grade ${item.grade}`
+            : conditionLabel(item.condition),
         listingTag || statusTag,
         ...(item.tags || []).slice(0, listingTag || statusTag ? 0 : 1),
       ].filter(Boolean);
@@ -2854,7 +2893,7 @@ function renderCollection() {
       ${state.bulkMode ? "" : `<button class="ledger-open-overlay" type="button" data-open-position="${esc(item.uid)}" aria-label="Open ${esc(item.name)} details"></button>`}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity) || 0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span>${item.location ? `<span class="card-location" title="Storage location">${esc(item.location)}</span>` : ""}<div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-total-label">Position total</span><span class="row-unit">${item.price == null ? (item.gradingCompany ? "graded price not connected" : "matching price unavailable") : `${money(item.price)} per card`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>${state.bulkMode ? "" : `<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">Add copy</button>`}
+      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-total-label">Total value</span><span class="row-unit">${item.price == null ? (item.gradingCompany ? "graded price not connected" : "matching price unavailable") : `${money(item.price)} for each card`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>${state.bulkMode ? "" : `<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">Add copy</button>`}
     </article>`;
     })
     .join("");
@@ -2864,7 +2903,7 @@ function renderCollection() {
     ? "Your library is empty"
     : "No items match this view";
   $("#collectionEmptyCopy").textContent = trulyEmpty
-    ? "Start with one card or sealed product. Mica only asks for the details that apply."
+    ? "Start with one card or unopened product. Mica only asks for the details that apply."
     : "Try clearing the search or changing your filters.";
   $("#firstCardGuide").classList.toggle("hidden", !trulyEmpty);
   $("#emptyAddCard").classList.toggle("hidden", !trulyEmpty);
@@ -3138,12 +3177,12 @@ function renderSalePlanner(item, displayPrice) {
   const noun = item.cardState === "sealed" ? "Products" : "Cards";
   return `<section class="detail-section sale-planner" aria-labelledby="salePlannerTitle"><div class="detail-section-head"><h2 id="salePlannerTitle">Plan a sale</h2><span>Preview before recording</span></div><p class="planner-intro">See what you could keep after fees and costs. Nothing is saved until you choose Record this sale.</p><div class="sale-planner-inputs">
     <div class="field"><label for="planSaleQuantity">${noun} to sell</label><input id="planSaleQuantity" type="number" inputmode="numeric" min="1" max="${item.quantity}" step="1" value="1"></div>
-    <div class="field"><label for="planSalePrice">Expected price · each</label><div class="money-input"><span>$</span><input id="planSalePrice" type="number" inputmode="decimal" min="0" step="0.01" value="${displayPrice == null ? "" : Number(displayPrice).toFixed(2)}" placeholder="0.00"></div></div>
-    <div class="field"><label for="planFeePercent">Marketplace fee %</label><input id="planFeePercent" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${currencyInputValue(state.preferences.sellingFeePercent || 0)}" placeholder="Enter current venue fee"></div>
+    <div class="field"><label for="planSalePrice">Expected selling price for each</label><div class="money-input"><span>$</span><input id="planSalePrice" type="number" inputmode="decimal" min="0" step="0.01" value="${displayPrice == null ? "" : Number(displayPrice).toFixed(2)}" placeholder="0.00"></div></div>
+    <div class="field"><label for="planFeePercent">Selling site fee (%)</label><input id="planFeePercent" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${currencyInputValue(state.preferences.sellingFeePercent || 0)}" placeholder="Enter the current fee"></div>
     <div class="field"><label for="planShipping">Shipping you pay</label><div class="money-input"><span>$</span><input id="planShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
     <div class="field"><label for="planOtherCosts">Other selling costs</label><div class="money-input"><span>$</span><input id="planOtherCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
-    <div class="field"><label for="planTargetProfit">Target profit · total <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="planTargetProfit" type="number" inputmode="decimal" min="0" step="0.01" placeholder="50.00"></div></div>
-  </div><p class="planner-fee-note">Starts with your saved selling-fee default. Confirm the current venue fee before deciding.</p><div class="sale-plan-output" id="salePlanOutput" aria-live="polite"><div class="unavailable-panel">Enter an expected selling price to calculate the plan.</div></div><button class="planner-record" id="planRecordSaleButton" type="button" disabled>Use this plan to record a sale</button></section>`;
+    <div class="field"><label for="planTargetProfit">Money you hope to make <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="planTargetProfit" type="number" inputmode="decimal" min="0" step="0.01" placeholder="50.00"></div></div>
+  </div><p class="planner-fee-note">Starts with your saved selling-fee setting. Confirm the current fee where you plan to sell.</p><div class="sale-plan-output" id="salePlanOutput" aria-live="polite"><div class="unavailable-panel">Enter an expected selling price to calculate the plan.</div></div><button class="planner-record" id="planRecordSaleButton" type="button" disabled>Use this plan to record a sale</button></section>`;
 }
 
 function bindSalePlanner(item) {
@@ -3172,7 +3211,7 @@ function bindSalePlanner(item) {
     }
     const profitClass = latest.profitMinor >= 0 ? "positive" : "negative";
     $("#salePlanOutput").innerHTML =
-      `<div><span>Gross sale</span><strong>${money(latest.grossMinor / 100, item.currency)}</strong></div><div><span>Marketplace fees</span><strong>${latest.marketplaceFeesMinor ? `−${money(latest.marketplaceFeesMinor / 100, item.currency)}` : money(0, item.currency)}</strong></div><div><span>Estimated net</span><strong>${money(latest.netProceedsMinor / 100, item.currency)}</strong></div><div><span>FIFO cost basis</span><strong>${money(latest.costBasisMinor / 100, item.currency)}</strong></div><div class="${profitClass}"><span>Estimated profit</span><strong>${latest.profitMinor >= 0 ? "+" : ""}${money(latest.profitMinor / 100, item.currency)}</strong></div><div><span>ROI on cost</span><strong>${latest.roiPercent === null ? "—" : `${latest.roiPercent >= 0 ? "+" : ""}${latest.roiPercent.toFixed(1)}%`}</strong></div><div><span>Break-even price · each</span><strong>${money(latest.breakEvenPriceEachMinor / 100, item.currency)}</strong></div>${latest.targetPriceEachMinor === null ? "" : `<div class="target"><span>List for target profit · each</span><strong>${money(latest.targetPriceEachMinor / 100, item.currency)}</strong></div>`}`;
+      `<div><span>Total sale price</span><strong>${money(latest.grossMinor / 100, item.currency)}</strong></div><div><span>Selling site fees</span><strong>${latest.marketplaceFeesMinor ? `−${money(latest.marketplaceFeesMinor / 100, item.currency)}` : money(0, item.currency)}</strong></div><div><span>Money left after selling costs</span><strong>${money(latest.netProceedsMinor / 100, item.currency)}</strong></div><div><span>What you paid for the cards sold</span><strong>${money(latest.costBasisMinor / 100, item.currency)}</strong></div><div class="${profitClass}"><span>Estimated money gained</span><strong>${latest.profitMinor >= 0 ? "+" : ""}${money(latest.profitMinor / 100, item.currency)}</strong></div><div class="advanced-workspace"><span>Percent gained compared with what you paid</span><strong>${latest.roiPercent === null ? "—" : `${latest.roiPercent >= 0 ? "+" : ""}${latest.roiPercent.toFixed(1)}%`}</strong></div><div class="advanced-workspace"><span>Minimum price needed to avoid losing money</span><strong>${money(latest.breakEvenPriceEachMinor / 100, item.currency)}</strong></div>${latest.targetPriceEachMinor === null ? "" : `<div class="target"><span>Price each to make the amount you want</span><strong>${money(latest.targetPriceEachMinor / 100, item.currency)}</strong></div>`}`;
   };
   $$(
     "#planSaleQuantity,#planSalePrice,#planFeePercent,#planShipping,#planOtherCosts,#planTargetProfit",
@@ -3194,15 +3233,15 @@ function bindSalePlanner(item) {
 
 function renderBuyPlanner(item, displayPrice) {
   if (displayPrice == null)
-    return `<section class="detail-section deal-planner"><div class="detail-section-head"><h2>What should I pay?</h2><span>Exact price required</span></div><div class="unavailable-panel">Mica needs a matching market reference before it can calculate a responsible buy ceiling.</div></section>`;
-  return `<section class="detail-section deal-planner" aria-labelledby="buyPlannerTitle"><div class="detail-section-head"><h2 id="buyPlannerTitle">What should I pay?</h2><span>Deal guardrail</span></div><p class="planner-intro">Start with this exact market reference, subtract selling costs, then protect the return you want. This is a planning ceiling—not an appraisal.</p><div class="sale-planner-inputs">
-    <div class="field"><label for="buyPlanQuantity">Quantity</label><input id="buyPlanQuantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1"></div>
-    <div class="field"><label for="buyPlanResale">Expected resale · each</label><div class="money-input"><span>$</span><input id="buyPlanResale" type="number" inputmode="decimal" min="0" step="0.01" value="${Number(displayPrice).toFixed(2)}"></div></div>
-    <div class="field"><label for="buyPlanFees">Selling fee %</label><input id="buyPlanFees" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${currencyInputValue(state.preferences.sellingFeePercent || 0)}" placeholder="Enter current venue fee"></div>
-    <div class="field"><label for="buyPlanCosts">Other selling costs · total</label><div class="money-input"><span>$</span><input id="buyPlanCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
-    <div class="field"><label for="buyPlanRoi">Return you want %</label><input id="buyPlanRoi" type="number" inputmode="decimal" min="0" step="0.1" value="20"></div>
-    <div class="field"><label for="buyPlanOffer">Seller's ask · each <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="buyPlanOffer" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Compare an offer"></div></div>
-  </div><p class="planner-fee-note">For a personal-collection purchase, set the desired return to 0%. Enter a venue's current fee only when you expect to resell.</p><div class="sale-plan-output" id="buyPlanOutput" aria-live="polite"></div><div class="planner-actions"><button class="secondary" id="buyPlanWatchButton" type="button">Save max as buy target</button><button class="planner-record" id="buyPlanPurchaseButton" type="button" disabled>${item.uid ? "Add this purchase" : "Buy & add to library"}</button></div><p class="planner-fee-note" id="buyPlanPurchaseHelp">Enter the seller's ask to carry this decision straight into your purchase record.</p></section>`;
+    return `<section class="detail-section deal-planner"><div class="detail-section-head"><h2>What should I pay?</h2><span>Matching price needed</span></div><div class="unavailable-panel">Mica needs a current price for this exact card before it can suggest a highest price to pay.</div></section>`;
+  return `<section class="detail-section deal-planner" aria-labelledby="buyPlannerTitle"><div class="detail-section-head"><h2 id="buyPlannerTitle">What should I pay?</h2><span>Buying helper</span></div><p class="planner-intro">Mica starts with today’s matching price and subtracts likely selling costs. The result is a helpful limit—not a guarantee of value.</p><div class="sale-planner-inputs">
+    <div class="field"><label for="buyPlanQuantity">How many?</label><input id="buyPlanQuantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1"></div>
+    <div class="field"><label for="buyPlanResale">What each card may sell for</label><div class="money-input"><span>$</span><input id="buyPlanResale" type="number" inputmode="decimal" min="0" step="0.01" value="${Number(displayPrice).toFixed(2)}"></div></div>
+    <div class="field"><label for="buyPlanFees">Selling site fee (%)</label><input id="buyPlanFees" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${currencyInputValue(state.preferences.sellingFeePercent || 0)}" placeholder="Enter the current fee"></div>
+    <div class="field"><label for="buyPlanCosts">Other selling costs</label><div class="money-input"><span>$</span><input id="buyPlanCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
+    <div class="field advanced-workspace"><label for="buyPlanRoi">Percent you hope to make</label><input id="buyPlanRoi" type="number" inputmode="decimal" min="0" step="0.1" value="20"></div>
+    <div class="field"><label for="buyPlanOffer">Price the seller wants for each <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="buyPlanOffer" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Compare an offer"></div></div>
+  </div><p class="planner-fee-note">Buying it only for your collection? Set the percent you hope to make to 0. Add selling fees only if you expect to resell it.</p><div class="sale-plan-output" id="buyPlanOutput" aria-live="polite"></div><div class="planner-actions"><button class="secondary" id="buyPlanWatchButton" type="button">Watch for this price</button><button class="planner-record" id="buyPlanPurchaseButton" type="button" disabled>${item.uid ? "Add this purchase" : "Buy & add to library"}</button></div><p class="planner-fee-note" id="buyPlanPurchaseHelp">Enter the seller’s price to carry it into your purchase record.</p></section>`;
 }
 
 function bindBuyPlanner(item) {
@@ -3225,7 +3264,7 @@ function bindBuyPlanner(item) {
     purchaseButton.disabled = !latest || latest.plannedOfferTotalMinor === null;
     if (!latest) {
       $("#buyPlanOutput").innerHTML =
-        '<div class="unavailable-panel">Enter valid prices, costs, quantity, and target return.</div>';
+        '<div class="unavailable-panel">Check the prices, costs, number of cards, and percent you hope to make.</div>';
       return;
     }
     const offerClass =
@@ -3237,9 +3276,9 @@ function bindBuyPlanner(item) {
     const offerRows =
       latest.plannedOfferTotalMinor === null
         ? ""
-        : `<div><span>Seller ask · total</span><strong>${money(latest.plannedOfferTotalMinor / 100, item.currency || "USD")}</strong></div><div class="${offerClass}"><span>Profit at that ask</span><strong>${latest.projectedProfitMinor >= 0 ? "+" : ""}${money(latest.projectedProfitMinor / 100, item.currency || "USD")}</strong></div><div class="${offerClass}"><span>ROI at that ask</span><strong>${latest.projectedRoiPercent === null ? "—" : `${latest.projectedRoiPercent >= 0 ? "+" : ""}${latest.projectedRoiPercent.toFixed(1)}%`}</strong></div>`;
+        : `<div><span>Total price the seller wants</span><strong>${money(latest.plannedOfferTotalMinor / 100, item.currency || "USD")}</strong></div><div class="${offerClass}"><span>Possible money gained at that price</span><strong>${latest.projectedProfitMinor >= 0 ? "+" : ""}${money(latest.projectedProfitMinor / 100, item.currency || "USD")}</strong></div><div class="${offerClass} advanced-workspace"><span>Possible percent gained</span><strong>${latest.projectedRoiPercent === null ? "—" : `${latest.projectedRoiPercent >= 0 ? "+" : ""}${latest.projectedRoiPercent.toFixed(1)}%`}</strong></div>`;
     $("#buyPlanOutput").innerHTML =
-      `<div><span>Expected gross resale</span><strong>${money(latest.grossMinor / 100, item.currency || "USD")}</strong></div><div><span>Fees + other costs</span><strong>−${money((latest.marketplaceFeesMinor + latest.otherSellingCostsMinor) / 100, item.currency || "USD")}</strong></div><div class="target"><span>Maximum offer · each</span><strong>${money(latest.maxOfferEachMinor / 100, item.currency || "USD")}</strong></div><div class="target"><span>Maximum offer · total</span><strong>${money(latest.maxAcquisitionMinor / 100, item.currency || "USD")}</strong></div>${offerRows}`;
+      `<div><span>What the cards may sell for</span><strong>${money(latest.grossMinor / 100, item.currency || "USD")}</strong></div><div><span>Selling fees and other costs</span><strong>−${money((latest.marketplaceFeesMinor + latest.otherSellingCostsMinor) / 100, item.currency || "USD")}</strong></div><div class="target"><span>Highest suggested price for each</span><strong>${money(latest.maxOfferEachMinor / 100, item.currency || "USD")}</strong></div><div class="target"><span>Highest suggested total price</span><strong>${money(latest.maxAcquisitionMinor / 100, item.currency || "USD")}</strong></div>${offerRows}`;
   };
   $$(
     "#buyPlanQuantity,#buyPlanResale,#buyPlanFees,#buyPlanCosts,#buyPlanRoi,#buyPlanOffer",
@@ -3290,16 +3329,16 @@ function renderOwnedDetailLegacy() {
     item.price == null
       ? `<div class="unavailable-panel"><strong>${item.gradingCompany ? "A matching graded price is not connected yet." : "A matching price is not available for this printing yet."}</strong><br>Your card stays in the collection and is excluded from estimated totals. Mica will not substitute a raw, different-grade, or different-printing value.</div>`
       : item.pricingStatus === "live"
-        ? `${renderQuoteRow(tcgQuote, tcgQuote?.provider === "justtcg" ? "JustTCG market estimate" : "TCGplayer reference")}${renderQuoteRow(cardmarketQuote, "Cardmarket reference")}`
-        : `<div class="price-source"><div><strong>Demo reference</strong><span>${esc(item.variant)} · USD</span><span>Live provider refresh has not completed.</span></div><div class="source-value"><b>${money(item.price)}</b><small>Demo data · not live</small></div></div>`;
+        ? `${renderQuoteRow(tcgQuote, tcgQuote?.provider === "justtcg" ? "JustTCG price" : "TCGplayer price")}${renderQuoteRow(cardmarketQuote, "Cardmarket price")}`
+        : `<div class="price-source"><div><strong>Demo price</strong><span>${esc(item.variant)} · USD</span><span>The live price check has not finished.</span></div><div class="source-value"><b>${money(item.price)}</b><small>Demo only · not live</small></div></div>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>Collection</button>
     <div class="detail-identity"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity)}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant)}</strong></div><div><span>Language</span><strong>English</strong></div><div><span>Released</span><strong>${esc(item.release)}</strong></div><div><span>Artist</span><strong>${esc(item.artist)}</strong></div></div></div></div>
-    <div class="owned-banner"><div><span>Your position</span><strong>${item.quantity} owned · ${total == null ? "Unpriced" : money(total)}</strong></div><button id="editCopyButton" type="button">Edit record</button></div>
-    <section class="detail-section"><div class="detail-section-head"><h2>Market references</h2><span>${item.price == null ? "No supported quote" : item.pricingStatus === "live" ? "Live provider data" : "Demo data · not live"}</span></div>${sourceRows}<p class="legal-copy">These values are market references, not guaranteed value or an appraisal. Condition and venue can materially affect realized price.</p></section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Owned copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>Purchased ${esc(item.purchaseDate || "date not recorded")} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="unavailable-panel">${esc(item.notes)}</div>` : ""}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2><span>Provider observations · no synthetic ticks</span></div>${renderInteractiveHistory(item)}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Recent sold evidence</h2><span>${item.salesStatus === "live" ? "Linked completed sales" : "Licensed source required"}</span></div>${renderSales(item)}</section>`;
+    <div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${total == null ? "Price unavailable" : money(total)}</strong></div><button id="editCopyButton" type="button">Edit details</button></div>
+    <section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>${item.price == null ? "No matching price" : item.pricingStatus === "live" ? "Live price" : "Demo only · not live"}</span></div>${sourceRows}<p class="legal-copy">Prices are estimates, not guaranteed sale amounts. Wear and where you sell can change what someone will pay.</p></section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} grade ${esc(item.grade)}` : esc(conditionLabel(item.condition))}</strong><span>Bought ${esc(item.purchaseDate || "date not recorded")} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="unavailable-panel">${esc(item.notes)}</div>` : ""}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>Recorded matching prices</span></div>${renderInteractiveHistory(item)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Recent completed sales</h2><span>${item.salesStatus === "live" ? "Completed sale links" : "Needs a connected price source"}</span></div>${renderSales(item)}</section>`;
   $("#detailBack").addEventListener("click", () => routeTo("collection"));
   $("#editCopyButton").addEventListener("click", () =>
     openPositionEditSheet(item),
@@ -3309,19 +3348,19 @@ function renderOwnedDetailLegacy() {
 
 function positionTransactionRow(transaction, unitNoun) {
   if (transaction.type === "purchase")
-    return `<div class="transaction-row"><div><strong>Purchased ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · total acquisition${transaction.marketplace ? ` · ${esc(transaction.marketplace)}` : ""}</span></div><b>${transaction.totalCost == null ? "Not recorded" : money(transaction.totalCost, transaction.currency)}</b></div>`;
+    return `<div class="transaction-row"><div><strong>Bought ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · total paid${transaction.marketplace ? ` · ${esc(transaction.marketplace)}` : ""}</span></div><b>${transaction.totalCost == null ? "Not recorded" : money(transaction.totalCost, transaction.currency)}</b></div>`;
   if (transaction.type === "sale")
     return `<div class="transaction-row"><div><strong>Sold ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} at ${money(transaction.unitPrice, transaction.currency)}${transaction.marketplace ? ` · ${esc(transaction.marketplace)}` : ""}</span></div><b>${money(transaction.netProceeds, transaction.currency)}</b></div>`;
   if (transaction.type === "grading_submission")
-    return `<div class="transaction-row"><div><strong>Sent to grading ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · ${esc(transaction.gradingCompany || transaction.marketplace || "grader")} · estimated costs excluded from basis</span></div><b>Tracking</b></div>`;
+    return `<div class="transaction-row"><div><strong>Sent for professional grading ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · ${esc(transaction.gradingCompany || transaction.marketplace || "grading company")} · estimated cost is not counted as money paid yet</span></div><b>Tracking</b></div>`;
   if (transaction.type === "grading_return") {
     const prior = String(transaction.previousRawCondition || "raw")
       .replaceAll("_", " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
-    return `<div class="transaction-row"><div><strong>Returned graded ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · ${esc(transaction.gradingCompany)} ${esc(transaction.grade)} · previously ${esc(prior)}${transaction.certificationNumber ? ` · cert ${esc(transaction.certificationNumber)}` : ""}</span></div><b>+${money(transaction.gradingFees, transaction.currency)} basis</b></div>`;
+    return `<div class="transaction-row"><div><strong>Returned from grading ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · ${esc(transaction.gradingCompany)} grade ${esc(transaction.grade)} · previously ${esc(conditionLabel(prior))}${transaction.certificationNumber ? ` · certification number ${esc(transaction.certificationNumber)}` : ""}</span></div><b>Added ${money(transaction.gradingFees, transaction.currency)} to amount paid</b></div>`;
   }
   if (transaction.type === "position_split")
-    return `<div class="transaction-row"><div><strong>Copies separated ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · FIFO basis transferred · no purchase or sale</span></div><b>No cash flow</b></div>`;
+    return `<div class="transaction-row"><div><strong>Copies separated ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · their original purchase cost moved with them</span></div><b>No money moved</b></div>`;
   const label = String(transaction.type || "adjustment")
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -3335,7 +3374,7 @@ function renderCertificationVerification(item) {
     item.certificationNumber,
   );
   if (!lookup.certification) {
-    return `<section class="detail-section certification-trust" aria-labelledby="certificationTrustTitle"><div class="detail-section-head"><h2 id="certificationTrustTitle">Slab verification</h2><span>Certification not recorded</span></div><div class="certification-empty"><strong>Add the number printed on this ${esc(lookup.graderName)} slab.</strong><p>Mica will give you the official grader lookup and a short comparison checklist. Adding a number does not mark a slab authentic.</p><button id="addCertificationButton" type="button">Add certification number</button></div></section>`;
+    return `<section class="detail-section certification-trust" aria-labelledby="certificationTrustTitle"><div class="detail-section-head"><h2 id="certificationTrustTitle">Check the graded card</h2><span>Certification number not recorded</span></div><div class="certification-empty"><strong>Add the number printed on the ${esc(lookup.graderName)} label.</strong><p>Mica will open the grading company’s official record and show a short checklist. A matching number alone does not prove the card or case is authentic.</p><button id="addCertificationButton" type="button">Add certification number</button></div></section>`;
   }
   const lookupAction = lookup.lookupUrl
     ? `<a class="certification-lookup" href="${esc(lookup.lookupUrl)}" target="_blank" rel="noopener noreferrer">${lookup.direct ? "Open official record" : `Open ${esc(lookup.graderName)} lookup`}</a>`
@@ -3345,9 +3384,9 @@ function renderCertificationVerification(item) {
     : `Check the label format · expected ${esc(lookup.expectedFormat)}`;
   const multipleCopyNote =
     Number(item.quantity) > 1
-      ? `<div class="warning-panel"><strong>One certification number should identify one slab.</strong><p>This position contains ${Number(item.quantity)} copies. Separate the copies before recording a different number for each slab.</p></div>`
+      ? `<div class="warning-panel"><strong>Each graded card should have its own certification number.</strong><p>This saved entry contains ${Number(item.quantity)} copies. Separate the copies before adding a different number to each one.</p></div>`
       : "";
-  return `<section class="detail-section certification-trust" aria-labelledby="certificationTrustTitle"><div class="detail-section-head"><h2 id="certificationTrustTitle">Slab verification</h2><span>Official grader check</span></div><div class="certification-record"><div><span>${esc(lookup.graderName)} certification</span><strong>${esc(lookup.certification)}</strong><small>${formatNote}</small></div><button id="copyCertificationButton" type="button">Copy number</button>${lookupAction}</div>${multipleCopyNote}<ol class="certification-checklist"><li>Confirm the grader record shows the same card, label details, and grade.</li><li>Compare the official holder images, barcode, and card details when the grader provides them.</li><li>Inspect the physical holder for tampering and buy from a trustworthy seller.</li></ol><p class="certification-disclaimer">Mica opens the grader’s official site but does not authenticate the slab. A database match alone does not eliminate counterfeit or tampering risk.</p></section>`;
+  return `<section class="detail-section certification-trust" aria-labelledby="certificationTrustTitle"><div class="detail-section-head"><h2 id="certificationTrustTitle">Check the graded card</h2><span>Official grading-company record</span></div><div class="certification-record"><div><span>${esc(lookup.graderName)} certification</span><strong>${esc(lookup.certification)}</strong><small>${formatNote}</small></div><button id="copyCertificationButton" type="button">Copy number</button>${lookupAction}</div>${multipleCopyNote}<ol class="certification-checklist"><li>Confirm the official record shows the same card and grade.</li><li>Compare the label, barcode, card details, and official photos when available.</li><li>Check the physical case for signs it was opened or changed.</li></ol><p class="certification-disclaimer">Mica opens the official record but cannot prove the card or case is authentic. A matching database record does not remove counterfeit risk.</p></section>`;
 }
 
 function renderDetail() {
@@ -3395,42 +3434,42 @@ function renderDetail() {
   );
   const marketLabel =
     pricingStatus === "live"
-      ? "Current market"
+      ? "Matching price today"
       : pricingStatus === "stale"
-        ? "Stale market reference"
+        ? "Older matching price"
         : pricingStatus === "showcase"
-          ? "Showcase value"
+          ? "Demo price"
           : previewPrice != null
-            ? "Demo estimate"
-            : "Current market";
+            ? "Demo price"
+            : "Matching price today";
   const statusCopy =
     pricingStatus === "live"
       ? `Updated ${esc(friendlyObservedAt(item.pricingUpdatedAt))}`
       : pricingStatus === "stale"
-        ? `Last observed ${esc(friendlyObservedAt(item.pricingUpdatedAt))} · refresh needed`
+        ? `Last price from ${esc(friendlyObservedAt(item.pricingUpdatedAt))} · needs refresh`
         : pricingStatus === "showcase"
-          ? "Labeled sample · replaced automatically after PkmnPrices Pro connects"
+          ? "Made-up demo price · replaced when PkmnPrices Pro connects"
           : pricingStatus === "preview"
-            ? "Demo data · not a live quote"
+            ? "Demo only · not a live price"
             : pricingStatus === "error"
-              ? "Live refresh failed · demo value shown"
+              ? "Could not check a live price · demo shown"
               : pricingStatus === "rate_limited"
-                ? "Provider rate limit reached · retry shortly"
+                ? "Price source is busy · try again shortly"
                 : pricingStatus === "unavailable"
-                  ? "No exact-printing quote available"
-                  : "Checking this exact printing";
+                  ? "No price found for this card version"
+                  : "Checking this card version";
   const sourceRows = ["live", "stale"].includes(pricingStatus)
     ? `${renderQuoteRow(tcgQuote, sealed ? "TCGplayer sealed market" : tcgQuote?.provider === "justtcg" ? "JustTCG market" : "TCGplayer market")}${renderQuoteRow(cardmarketQuote, sealed ? "Cardmarket sealed market" : "Cardmarket")}`
     : pricingStatus === "showcase"
-      ? `<div class="price-source"><div><strong>Showcase valuation</strong><span>${esc(item.variant || "Printing unknown")} · ${esc(item.currency || "USD")}</span><span>Demonstration data for the showcase account only.</span></div><div class="source-value"><b>${money(previewPrice, item.currency || "USD")}</b><small>Sample · not live market data</small></div></div>`
+      ? `<div class="price-source"><div><strong>Demo price</strong><span>${esc(item.variant || "Card version unknown")} · ${esc(item.currency || "USD")}</span><span>Made-up data for the demo account only.</span></div><div class="source-value"><b>${money(previewPrice, item.currency || "USD")}</b><small>Demo · not live</small></div></div>`
       : pricingStatus === "preview" ||
           (pricingStatus === "error" && previewPrice != null)
-        ? `<div class="price-source"><div><strong>Demo estimate</strong><span>${esc(item.variant || "Printing unknown")} · USD</span><span>${pricingStatus === "error" ? "The live provider could not be reached." : "Live refresh has not completed."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo data · not live</small></div></div>`
-        : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? (item.gradingCompany ? "A matching graded market price is not connected yet. Mica did not substitute the raw card or another grade." : "No matching market price is available for this printing, finish, and condition yet. Mica did not substitute another card.") : pricingStatus === "rate_limited" ? "The pricing source asked Mica to slow down. No value is being guessed." : pricingStatus === "error" ? "The pricing source could not be reached. No value is being guessed." : "Loading the latest matching market price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
+        ? `<div class="price-source"><div><strong>Demo price</strong><span>${esc(item.variant || "Card version unknown")} · USD</span><span>${pricingStatus === "error" ? "The live price source could not be reached." : "The live price check is not finished."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo · not live</small></div></div>`
+        : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? (item.gradingCompany ? "A price for this exact grading company and grade is not connected yet. Mica did not use an ungraded price or another grade." : "No price is available for this card version and wear level yet. Mica did not use a different card.") : pricingStatus === "rate_limited" ? "The price source is busy. Mica is not guessing a value." : pricingStatus === "error" ? "The price source could not be reached. Mica is not guessing a value." : "Loading the latest matching price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
   const backLabel =
     {
       collection: "My library",
-      insights: "Market",
+      insights: "Prices",
       trade: "Trade check",
       profile: "Profile",
     }[state.detailReturnRoute] || "Find cards";
@@ -3440,15 +3479,15 @@ function renderDetail() {
         submitted: "Sent to grader",
         received: "Received by grader",
         grading: "Grading in progress",
-        assembly: "Slab assembly",
+        assembly: "Being sealed in its case",
         shipped: "Return shipped",
       }[activeSubmission.status] || "At grader"
     : "";
   const gradingSubmissionSection = activeSubmission
-    ? `<section class="detail-section grading-submission-status"><div class="detail-section-head"><h2>Grading submission</h2><span>${esc(activeSubmission.grader)} · ${esc(gradingStatusLabel)}</span></div><div class="position-summary"><div><span>Cards away</span><strong>${activeSubmission.quantity}</strong></div><div><span>Sent</span><strong>${esc(activeSubmission.submittedAt)}</strong></div><div><span>Status updated</span><strong>${esc(activeSubmission.statusUpdatedAt)}</strong></div><div><span>Expected back</span><strong>${esc(activeSubmission.expectedReturnDate || "Not estimated")}</strong></div><div><span>Reference</span><strong>${esc(activeSubmission.submissionReference || "Not added")}</strong></div><div><span>Estimated cost</span><strong>${activeSubmission.estimatedTotalCost === null ? "Not estimated" : money(activeSubmission.estimatedTotalCost, item.currency)}</strong></div></div><p class="legal-copy">Status is your private manual record, not a live feed from ${esc(activeSubmission.grader)}. Estimated cost does not enter profit until you record the actual returned total.</p><div class="sheet-actions"><button class="secondary" id="updateGradingSubmissionButton" type="button">Update status</button><button class="primary" id="recordGradingResultButton" type="button">Record returned grade</button></div></section>`
+    ? `<section class="detail-section grading-submission-status"><div class="detail-section-head"><h2>Cards sent for grading</h2><span>${esc(activeSubmission.grader)} · ${esc(gradingStatusLabel)}</span></div><div class="position-summary"><div><span>Cards away</span><strong>${activeSubmission.quantity}</strong></div><div><span>Date sent</span><strong>${esc(activeSubmission.submittedAt)}</strong></div><div><span>Last update</span><strong>${esc(activeSubmission.statusUpdatedAt)}</strong></div><div><span>Expected back</span><strong>${esc(activeSubmission.expectedReturnDate || "Not estimated")}</strong></div><div><span>Order number</span><strong>${esc(activeSubmission.submissionReference || "Not added")}</strong></div><div><span>Estimated cost</span><strong>${activeSubmission.estimatedTotalCost === null ? "Not estimated" : money(activeSubmission.estimatedTotalCost, item.currency)}</strong></div></div><p class="legal-copy">You update this status yourself; it is not connected to ${esc(activeSubmission.grader)}. Mica adds grading cost only after you enter the amount you actually paid.</p><div class="sheet-actions"><button class="secondary" id="updateGradingSubmissionButton" type="button">Update status</button><button class="primary" id="recordGradingResultButton" type="button">Add returned grade</button></div></section>`
     : "";
   const ownedSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location || "Location not set")}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(item.condition)}</strong><span>${item.purchaseDate ? `Bought ${esc(item.purchaseDate)}` : "Purchase date not added"}${item.cost !== null && item.cost !== undefined ? ` · ${money(item.cost)} each` : " · Cost not recorded"}</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="unavailable-panel">${esc(item.notes)}</div>` : ""}${!sealed && !item.gradingCompany && item.status === "owned" && !activeSubmission ? '<button class="position-new-state" id="startGradingSubmissionButton" type="button">Send to grading</button><button class="position-new-state" id="recordGradingResultButton" type="button">Record a grade already returned</button>' : ""}${sealed ? "" : '<button class="position-new-state" id="correctPositionMatchButton" type="button">Correct card or printing</button>'}<button class="record-remove" id="removeCopyButton" type="button">Remove this owned record</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location || "Location not set")}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : esc(conditionLabel(item.condition))}</strong><span>${item.purchaseDate ? `Bought ${esc(item.purchaseDate)}` : "Purchase date not added"}${item.cost !== null && item.cost !== undefined ? ` · ${money(item.cost)} each` : " · Amount paid not recorded"}</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="unavailable-panel">${esc(item.notes)}</div>` : ""}${!sealed && !item.gradingCompany && item.status === "owned" && !activeSubmission ? '<button class="position-new-state" id="startGradingSubmissionButton" type="button">Send to professional grading</button><button class="position-new-state" id="recordGradingResultButton" type="button">Record a grade already returned</button>' : ""}${sealed ? "" : '<button class="position-new-state" id="correctPositionMatchButton" type="button">Choose a different card version</button>'}<button class="record-remove" id="removeCopyButton" type="button">Remove this saved entry</button></section>`
     : "";
   const performance = owned
     ? positionPerformance({
@@ -3474,7 +3513,7 @@ function renderDetail() {
       (lot) => !lot.costBasisKnown || !lot.acquisitionDateKnown,
     ) || null;
   const positionSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Current position</h2><span>${item.lots?.length || 0} purchase lot${item.lots?.length === 1 ? "" : "s"} · FIFO cost basis</span></div><div class="position-summary"><div><span>${item.gradingCompany ? "Total cost basis" : "Total acquisition cost"}</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Value today</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Gain / loss today</span><strong>${performance.unrealizedGainMinor === null ? "Needs acquisition cost" : money(performance.unrealizedGainMinor / 100, item.currency)}</strong></div><div><span>Return since purchase</span><strong>${performance.returnPercent === null ? "Unavailable" : `${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%`}</strong></div><div><span>First purchased</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Valuation source</span><strong>${esc(showcaseFallback ? "Showcase sample" : tcgQuote?.provider || "Unavailable")}</strong></div></div>${incompleteLot ? `<div class="warning-panel"><strong>Complete this purchase history</strong><p>Add the total cost or original date you know. Until then, Mica keeps profit and return unavailable instead of treating missing cost as $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This position is at the grader.</strong><br>${incompleteLot ? "Complete every missing acquisition cost and date before separating returned grades." : "You can separate copies to record mixed returned grades."} Adding purchases and recording sales remain paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate copies from this position</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate sealed position" : "Add this card with a different condition or grade"}</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Total you paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Value today</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Change in value</span><strong>${performance.unrealizedGainMinor === null ? "Needs the amount you paid" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${money(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}`}</strong></div>${workspaceMode === "guided" ? "" : `<div><span>Percent change since purchase</span><strong>${performance.returnPercent === null ? "Unavailable" : `${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%`}</strong></div>`}<div><span>First bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Price source</span><strong>${esc(showcaseFallback ? "Demo price" : tcgQuote?.provider || "Unavailable")}</strong></div></div>${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
     : "";
   const favorite =
     owned &&
@@ -3489,29 +3528,29 @@ function renderDetail() {
       })
     : null;
   const watchedMovement = watchedPerformance
-    ? ` · ${watchedPerformance.changeMinor >= 0 ? "+" : "−"}${money(Math.abs(watchedPerformance.changeMinor) / 100, watched.currency)} (${watchedPerformance.changePercent >= 0 ? "+" : ""}${watchedPerformance.changePercent.toFixed(1)}%) since watch`
+    ? ` · ${watchedPerformance.changeMinor >= 0 ? "up " : "down "}${money(Math.abs(watchedPerformance.changeMinor) / 100, watched.currency)} since you started watching`
     : "";
   const watchedSection =
     watched && !owned
-      ? `<section class="watch-banner"><div><span>On your watchlist · ${esc(watchContextLabel(watched))}</span><strong>${watched.targetPrice === null ? "No buy target set" : `Buy at ${money(watched.targetPrice, watched.currency)}`}</strong><small>${watched.currentPrice === null ? "Current exact price unavailable" : `Current exact reference ${money(watched.currentPrice, watched.currency)}${esc(watchedMovement)}`}</small></div><button id="editWatchButton" type="button">Edit target</button></section>`
+      ? `<section class="watch-banner"><div><span>You’re watching this · ${esc(watchContextLabel(watched))}</span><strong>${watched.targetPrice === null ? "No target price set" : `Tell me at ${money(watched.targetPrice, watched.currency)}`}</strong><small>${watched.currentPrice === null ? "Matching price unavailable" : `Matching price now ${money(watched.currentPrice, watched.currency)}${esc(watchedMovement)}`}</small></div><button id="editWatchButton" type="button">Edit alert</button></section>`
       : "";
   const listingSection =
     owned && item.status === "listed"
-      ? `<section class="detail-section listing-status"><div class="detail-section-head"><h2>Active listing</h2><span>Reviewed ${esc(item.priceReviewedAt || "not yet")}</span></div><div class="position-summary"><div><span>Asking price · each</span><strong>${item.askingPrice === null ? "Missing" : money(item.askingPrice, item.currency)}</strong></div><div><span>Current market · each</span><strong>${displayPrice === null ? "Unavailable" : money(displayPrice, item.currency)}</strong></div><div><span>Venue</span><strong>${esc(item.listingVenue || "Missing")}</strong></div><div><span>Listed</span><strong>${esc(item.listedAt || "Not recorded")}</strong></div></div><button class="planner-record" id="manageListingButton" type="button">Review or update listing</button></section>`
+      ? `<section class="detail-section listing-status advanced-workspace"><div class="detail-section-head"><h2>Currently listed for sale</h2><span>Price checked ${esc(item.priceReviewedAt || "not yet")}</span></div><div class="position-summary"><div><span>Your price per card</span><strong>${item.askingPrice === null ? "Missing" : money(item.askingPrice, item.currency)}</strong></div><div><span>Matching price today</span><strong>${displayPrice === null ? "Unavailable" : money(displayPrice, item.currency)}</strong></div><div><span>Where it is listed</span><strong>${esc(item.listingVenue || "Missing")}</strong></div><div><span>Listed on</span><strong>${esc(item.listedAt || "Not recorded")}</strong></div></div><button class="planner-record" id="manageListingButton" type="button">Review or update sale listing</button></section>`
       : "";
   const matchDetails =
     !owned && item.match?.reasons?.length
-      ? `<section class="match-explanation" aria-label="Why this card matched"><strong>${esc(item.match.confidence || "Possible match")}</strong><span>${esc(item.match.reasons.join(" · "))}</span><small>TCGdex ID ${esc(item.externalIds?.tcgdex || item.id)}</small></section>`
+      ? `<section class="match-explanation" aria-label="Why this card matched"><strong>Why Mica chose this card</strong><span>${esc(item.match.reasons.join(" · "))}</span><small class="advanced-workspace">Card database ID ${esc(item.externalIds?.tcgdex || item.id)}</small></section>`
       : "";
   const productType = String(item.productType || "sealed product")
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
   const detailMeta = sealed
-    ? `<div><span>Type</span><strong>${esc(productType)}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Provider ID</span><strong>${esc(item.externalIds?.pkmnpricesSealed || "—")}</strong></div><div><span>Package state</span><strong>Sealed</strong></div>`
-    : `<div><span>Printing</span><strong>${esc(item.variant || "Unknown")}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Released</span><strong>${esc(item.release || "—")}</strong></div><div><span>Artist</span><strong>${esc(item.artist || "—")}</strong></div>`;
+    ? `<div><span>Product type</span><strong>${esc(productType)}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div class="advanced-workspace"><span>Catalog ID</span><strong>${esc(item.externalIds?.pkmnpricesSealed || "—")}</strong></div><div><span>Package</span><strong>Unopened</strong></div>`
+    : `<div><span>Card version</span><strong>${esc(item.variant || "Unknown")}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Released</span><strong>${esc(item.release || "—")}</strong></div><div><span>Artist</span><strong>${esc(item.artist || "—")}</strong></div>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(sealed ? "Sealed product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)}${item.number ? ` · ${esc(item.number)}` : ""}</p><div class="detail-meta">${detailMeta}</div></div></div>
+    <div class="detail-identity"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)}${item.number ? ` · card ${esc(item.number)}` : ""}</p><div class="detail-meta">${detailMeta}</div></div></div>
     ${matchDetails}
     ${renderPriceEvidence(item, conditionContext)}
     <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : money(displayPrice)}</strong><small>${statusCopy}</small></section>
@@ -3519,14 +3558,14 @@ function renderDetail() {
     ${action}
     ${listingSection}
     ${gradingSubmissionSection}
-    <section class="detail-section"><div class="detail-section-head"><h2>Market prices</h2><span>Matching printing only</span></div>${sourceRows}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price trend</h2><span>${showcaseHistory ? "Labeled sample history" : "Real observations"}</span></div>${renderInteractiveHistory(item, displayPrice)}</section>
-    <details class="detail-tool-group"><summary><span><strong>Buy &amp; sell decisions</strong><small>Offer ceiling${owned ? ", fees, net, and break-even" : " and buy target"}</small></span><b>Open tools</b></summary><div class="detail-tool-content">${renderBuyPlanner(item, displayPrice)}${owned ? renderSalePlanner(item, displayPrice) : ""}</div></details>
-    ${sealed ? "" : `<details class="detail-tool-group"><summary><span><strong>Grading tools</strong><small>Grade values, submission cost, and grading decision</small></span><b>Open tools</b></summary><div class="detail-tool-content">${renderGradedPriceLadder(item)}${renderGradingEstimator(item)}</div></details>`}
-    <details class="detail-tool-group"><summary><span><strong>More market evidence</strong><small>Seller asks and completed-sale links</small></span><b>Open evidence</b></summary><div class="detail-tool-content">${renderMarketplaceOffers(item)}${sealed ? '<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>Not supplied for sealed products</span></div><div class="unavailable-panel">PkmnPrices currently exposes a sealed market reference, but its documented sold-listing endpoint is card-specific. Mica does not substitute card sales or active asks.</div></section>' : `<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>${item.salesStatus === "live" ? "Completed listings" : "Verified links when available"}</span></div>${renderSales(item)}</section>`}</div></details>
-    ${renderCardMetadata(item) ? `<details class="detail-tool-group"><summary><span><strong>Card information</strong><small>Pokémon, artist, attacks, and set metadata</small></span><b>Open details</b></summary><div class="detail-tool-content">${renderCardMetadata(item)}</div></details>` : ""}
-    ${owned ? `<details class="detail-tool-group"><summary><span><strong>Manage this position</strong><small>Purchases, sales, grading, storage, and copy details</small></span><b>Open position</b></summary><div class="detail-tool-content">${owned ? renderCertificationVerification(item) : ""}${positionSection}${ownedSection}</div></details>` : ""}
-    <p class="legal-copy">Prices are market references, not guaranteed sale values. ${sealed ? "Packaging and seal condition" : "Card condition"} can materially change realized value.</p>`;
+    <section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${showcaseHistory ? "Made-up demo days" : "Recorded prices"}</span></div>${renderInteractiveHistory(item, displayPrice)}</section>
+    <details class="detail-tool-group advanced-workspace"><summary><span><strong>Buying &amp; selling calculator</strong><small>Plan an offer${owned ? " or estimate what you keep after selling" : " or set a target price"}</small></span><b>Open</b></summary><div class="detail-tool-content">${renderBuyPlanner(item, displayPrice)}${owned ? renderSalePlanner(item, displayPrice) : ""}</div></details>
+    ${sealed ? "" : `<details class="detail-tool-group advanced-workspace"><summary><span><strong>Professional grading calculator</strong><small>Compare grading cost with possible graded prices</small></span><b>Open</b></summary><div class="detail-tool-content">${renderGradedPriceLadder(item)}${renderGradingEstimator(item)}</div></details>`}
+    <details class="detail-tool-group advanced-workspace"><summary><span><strong>More price proof</strong><small>Cards currently for sale and completed-sale links</small></span><b>Open</b></summary><div class="detail-tool-content">${renderMarketplaceOffers(item)}${sealed ? '<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>Not available for unopened products</span></div><div class="unavailable-panel">PkmnPrices has a current unopened-product price, but its sold links only support individual cards. Mica does not use unrelated sales.</div></section>' : `<section class="detail-section"><div class="detail-section-head"><h2>Recent completed sales</h2><span>${item.salesStatus === "live" ? "Completed listings" : "Verified links when available"}</span></div>${renderSales(item)}</section>`}</div></details>
+    ${renderCardMetadata(item) ? `<details class="detail-tool-group"><summary><span><strong>Card information</strong><small>Character, artist, moves, and set details</small></span><b>Open details</b></summary><div class="detail-tool-content">${renderCardMetadata(item)}</div></details>` : ""}
+    ${owned ? `<details class="detail-tool-group"><summary><span><strong>Purchases &amp; notes</strong><small>What you paid, sales, grading, storage, and copies</small></span><b>Open</b></summary><div class="detail-tool-content">${owned ? renderCertificationVerification(item) : ""}${positionSection}${ownedSection}</div></details>` : ""}
+    <p class="legal-copy">Prices are estimates, not guaranteed sale amounts. ${sealed ? "The box and seal" : "Wear on the card"} can change what someone will pay.</p>`;
   $("#detailBack").addEventListener("click", () =>
     state.detailCanPop
       ? history.back()
@@ -3641,7 +3680,7 @@ function identitySnapshot(card, variant) {
 
 function openSealedSearch() {
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find sealed products</h2><p>Search official PkmnPrices product records.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search sealed products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option></select></div></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search sealed inventory</strong><span>Try a set name plus booster box, ETB, tin, bundle, or collection.</span></div></div><p class="legal-copy">Product records and current prices come from PkmnPrices. Confirm the exact product and language before adding it.</p>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find unopened products</h2><p>Search the PkmnPrices product list.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search unopened products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option></select></div></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search unopened products</strong><span>Try a set name plus booster box, Elite Trainer Box, tin, bundle, or collection.</span></div></div><p class="legal-copy">Product details and prices come from PkmnPrices. Confirm the exact product and language before adding it.</p>`,
   );
   const input = $("#sealedQuery");
   const language = $("#sealedLanguage");
@@ -3654,11 +3693,11 @@ function openSealedSearch() {
     const current = ++requestId;
     if (query.length < 2) {
       results.innerHTML =
-        '<div class="find-empty"><strong>Search sealed inventory</strong><span>Type at least two characters.</span></div>';
+        '<div class="find-empty"><strong>Search unopened products</strong><span>Type at least two characters.</span></div>';
       return;
     }
     results.innerHTML =
-      '<div class="searching-cards"><i></i><span>Finding sealed products…</span></div>';
+      '<div class="searching-cards"><i></i><span>Finding unopened products…</span></div>';
     try {
       const response = await fetch(
         `/api/sealed?q=${encodeURIComponent(query)}&language=${encodeURIComponent(language.value)}`,
@@ -3668,7 +3707,7 @@ function openSealedSearch() {
       if (current !== requestId) return;
       if (response.status === 403) {
         results.innerHTML =
-          '<div class="pro-data-empty"><strong>Sealed housing is ready</strong><p>The current PkmnPrices key cannot search sealed products. After the plan upgrade, results will appear here without another app change.</p></div>';
+          '<div class="pro-data-empty"><strong>Unopened-product search is ready to connect</strong><p>The current PkmnPrices plan cannot search these products. After the plan upgrade, results will appear here without another app change.</p></div>';
         return;
       }
       if (!response.ok) throw new Error(payload.error || "Search unavailable");
@@ -3677,10 +3716,10 @@ function openSealedSearch() {
         ? products
             .map(
               (product) =>
-                `<button class="quick-card-result" type="button" data-sealed-id="${esc(product.externalIds?.pkmnpricesSealed)}"><img src="${esc(product.thumb || "./icons/icon.svg")}" alt="${esc(product.name)}"><span><strong>${esc(product.name)}</strong><small>${esc(product.set)}</small><em>${esc(languageName(product.language))} · Sealed product</em></span><b>View</b></button>`,
+                `<button class="quick-card-result" type="button" data-sealed-id="${esc(product.externalIds?.pkmnpricesSealed)}"><img src="${esc(product.thumb || "./icons/icon.svg")}" alt="${esc(product.name)}"><span><strong>${esc(product.name)}</strong><small>${esc(product.set)}</small><em>${esc(languageName(product.language))} · Unopened product</em></span><b>View</b></button>`,
             )
             .join("")
-        : '<div class="find-empty"><strong>No sealed matches</strong><span>Try the set name or a simpler product description.</span></div>';
+        : '<div class="find-empty"><strong>No unopened products found</strong><span>Try the set name or a simpler product description.</span></div>';
       $$("[data-sealed-id]", results).forEach((button) =>
         button.addEventListener("click", async () => {
           button.disabled = true;
@@ -3733,7 +3772,7 @@ function openSealedSearch() {
 function openSealedPositionSheet(product) {
   const today = localIsoDate();
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add sealed product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field full acquisition-field"><label for="sealedTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>One total: everything paid to acquire this purchase.</small><label class="field-choice"><input id="sealedCostUnknown" type="checkbox"> I don't have the purchase cost</label></div><details class="full intake-more"><summary id="sealedMoreSummary">Purchase details · 1 product · ${today}</summary><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">When did you buy it?</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required><label class="field-choice"><input id="sealedDateUnknown" type="checkbox"> Date isn't recorded</label></div><div class="field full"><label for="sealedLocation">Storage location <span class="optional-label">Optional</span></label><input id="sealedLocation" name="location" maxlength="250" placeholder="Closet shelf · Bin 2"></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Case condition, seal notes, source…"></textarea></div></div></details><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><p class="unknown-basis-note" id="sealedUnknownBasisNote" hidden>Value tracking still works, but profit and ROI stay unavailable until you add the missing purchase facts.</p><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add unopened product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field full acquisition-field"><label for="sealedTotalCost">Total paid</label><div class="money-input"><span>$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Include the item, tax, shipping, and fees in one total.</small><label class="field-choice"><input id="sealedCostUnknown" type="checkbox"> I don't know what I paid</label></div><details class="full intake-more"><summary id="sealedMoreSummary">More purchase details · 1 product · ${today}</summary><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">When did you buy it?</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required><label class="field-choice"><input id="sealedDateUnknown" type="checkbox"> I don't know the date</label></div><div class="field full"><label for="sealedLocation">Where is it stored? <span class="optional-label">Optional</span></label><input id="sealedLocation" name="location" maxlength="250" placeholder="Closet shelf · Bin 2"></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Condition of the box, source, or reminder…"></textarea></div></div></details><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><p class="unknown-basis-note" id="sealedUnknownBasisNote" hidden>Value tracking still works, but Mica cannot show money gained until you add what you paid.</p><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
   );
   const form = $("#sealedPositionForm");
   const values = () => Object.fromEntries(new FormData(form).entries());
@@ -3782,8 +3821,7 @@ function openSealedPositionSheet(product) {
       data.quantity,
     );
     if (!breakdown) {
-      $("#sealedPositionError").textContent =
-        "Enter a valid total acquisition cost.";
+      $("#sealedPositionError").textContent = "Enter a valid total paid.";
       return;
     }
     if (data.transactionDate > today) {
@@ -3852,18 +3890,18 @@ function openWatchlistSheet(card, existing = null, defaults = {}) {
       ? card.variants
       : [card.variant || "Unknown"];
   const context = existing
-    ? `<div class="simple-note"><strong>${esc(existing.variant)} · ${esc(watchContextLabel(existing))}</strong><br>The exact context stays fixed so target comparisons remain consistent.</div>`
+    ? `<div class="simple-note"><strong>${esc(existing.variant)} · ${esc(watchContextLabel(existing))}</strong><br>Mica always checks this same card version and wear level or grade so your alert stays accurate.</div>`
     : sealed
-      ? `<input type="hidden" name="cardState" value="sealed"><input type="hidden" name="variant" value="${esc(card.variant || "Sealed product")}"><div class="simple-note"><strong>Exact sealed product · ${esc(languageName(card.language || "en"))}</strong><br>Mica will track this provider product ID without substituting a card or another sealed product.</div>`
+      ? `<input type="hidden" name="cardState" value="sealed"><input type="hidden" name="variant" value="${esc(card.variant || "Unopened product")}"><div class="simple-note"><strong>Unopened product · ${esc(languageName(card.language || "en"))}</strong><br>Mica will track this exact product and will not substitute a card or another unopened product.</div>`
       : `<div class="form-grid">
-      <div class="field full"><label for="watchVariant">Exact variant</label><select id="watchVariant" name="variant" required>${variants.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}</select></div>
-      <div class="field"><label for="watchState">Is the card graded?</label><select id="watchState" name="cardState"><option value="raw">No · raw card</option><option value="graded">Yes · professionally graded</option></select></div>
-      <div class="field raw-watch"><label for="watchCondition">Condition</label><select id="watchCondition" name="rawCondition"><option value="near_mint">Near Mint</option><option value="lightly_played">Lightly Played</option><option value="moderately_played">Moderately Played</option><option value="heavily_played">Heavily Played</option><option value="damaged">Damaged</option></select></div>
+      <div class="field full"><label for="watchVariant">Card version</label><select id="watchVariant" name="variant" required>${variants.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}</select></div>
+      <div class="field"><label for="watchState">Is it sealed in a case by a professional grading company?</label><select id="watchState" name="cardState"><option value="raw">No · ungraded card</option><option value="graded">Yes · professionally graded</option></select></div>
+      <div class="field raw-watch"><label for="watchCondition">How much wear does it have?</label><select id="watchCondition" name="rawCondition"><option value="near_mint">Like new (Near Mint)</option><option value="lightly_played">Light wear (Lightly Played)</option><option value="moderately_played">Noticeable wear (Moderately Played)</option><option value="heavily_played">Heavy wear (Heavily Played)</option><option value="damaged">Damaged</option></select></div>
       <div class="field graded-watch" hidden><label for="watchGrader">Grading company</label><select id="watchGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option>${value}</option>`).join("")}</select></div>
       <div class="field graded-watch" hidden><label for="watchGrade">Grade</label><input id="watchGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="10"></div>
     </div>`;
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${existing ? "Edit watch target" : sealed ? "Watch this product" : "Watch this card"}</h2><p>${esc(card.name)} · ${esc(card.set)}${card.number ? ` ${esc(card.number)}` : ""}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
-    <form id="watchlistForm">${context}<div class="field acquisition-field"><label for="watchTarget">Buy at price <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="watchTarget" name="targetPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${defaults.targetPrice ?? existing?.targetPrice ?? ""}" placeholder="Leave blank to just follow it"></div><small>Mica will flag this exact ${sealed ? "product" : "card"} when its matching market reference is at or below this amount.</small></div><div class="field"><label for="watchNotes">Notes <span class="optional-label">Optional</span></label><textarea id="watchNotes" name="notes" maxlength="2000" placeholder="Why you want it, preferred seller, trade idea…">${esc(existing?.notes || "")}</textarea></div><p class="form-error" id="watchError" role="alert"></p><div class="sheet-actions">${existing ? '<button class="danger-action" id="deleteWatchButton" type="button">Remove</button>' : '<button class="secondary" id="watchCancel" type="button">Cancel</button>'}<button class="primary" type="submit">${existing ? "Save target" : "Add to Watchlist"}</button></div></form>`);
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${existing ? "Edit price alert" : sealed ? "Watch this product" : "Watch this card"}</h2><p>${esc(card.name)} · ${esc(card.set)}${card.number ? ` ${esc(card.number)}` : ""}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
+    <form id="watchlistForm">${context}<div class="field acquisition-field"><label for="watchTarget">Tell me when the price reaches <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="watchTarget" name="targetPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${defaults.targetPrice ?? existing?.targetPrice ?? ""}" placeholder="Leave blank to just follow it"></div><small>Mica will flag this exact ${sealed ? "product" : "card"} when its matching price is at or below this amount.</small></div><div class="field"><label for="watchNotes">Notes <span class="optional-label">Optional</span></label><textarea id="watchNotes" name="notes" maxlength="2000" placeholder="Why you want it, preferred seller, trade idea…">${esc(existing?.notes || "")}</textarea></div><p class="form-error" id="watchError" role="alert"></p><div class="sheet-actions">${existing ? '<button class="danger-action" id="deleteWatchButton" type="button">Remove</button>' : '<button class="secondary" id="watchCancel" type="button">Cancel</button>'}<button class="primary" type="submit">${existing ? "Save alert" : sealed ? "Watch this product" : "Watch this card"}</button></div></form>`);
   const form = $("#watchlistForm");
   const syncState = () => {
     if (existing || sealed) return;
@@ -4027,18 +4065,18 @@ function openPositionSheet(card, options = {}) {
   const initialTotal = prefill.totalAcquisitionCost ?? "";
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to your library</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)} · ${esc(languageName(card.language || "en"))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="positionForm"><div class="form-grid">
-      ${variants.length === 1 ? `<input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant)}"><div class="simple-note full"><strong>${esc(initialVariant)}</strong><br>Exact printing selected from the card match.</div>` : `<div class="field full"><label for="positionVariant">Exact printing</label><select id="positionVariant" name="variant" required>${variants.map((value) => `<option value="${esc(value)}" ${value === initialVariant ? "selected" : ""}>${esc(value)}</option>`).join("")}</select></div>`}
-      <div class="field"><label for="positionState">Is it graded?</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>No · raw card</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Yes · professionally graded</option></select></div>
-      <div class="field raw-position"><label for="positionCondition">Condition</label><select id="positionCondition" name="rawCondition">${options.visionAnalysis && !prefill.rawCondition ? '<option value="" selected>Choose after inspection</option>' : ""}<option value="near_mint" ${prefill.rawCondition === "near_mint" ? "selected" : ""}>Near Mint</option><option value="lightly_played" ${prefill.rawCondition === "lightly_played" ? "selected" : ""}>Lightly Played</option><option value="moderately_played" ${prefill.rawCondition === "moderately_played" ? "selected" : ""}>Moderately Played</option><option value="heavily_played" ${prefill.rawCondition === "heavily_played" ? "selected" : ""}>Heavily Played</option><option value="damaged" ${prefill.rawCondition === "damaged" ? "selected" : ""}>Damaged</option></select></div>
+      ${variants.length === 1 ? `<input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant)}"><div class="simple-note full"><strong>${esc(initialVariant)}</strong><br>This card version was selected from your match.</div>` : `<div class="field full"><label for="positionVariant">Card version</label><select id="positionVariant" name="variant" required>${variants.map((value) => `<option value="${esc(value)}" ${value === initialVariant ? "selected" : ""}>${esc(value)}</option>`).join("")}</select></div>`}
+      <div class="field"><label for="positionState">Is it sealed in a case by a professional grading company?</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>No · ungraded card</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Yes · professionally graded</option></select></div>
+      <div class="field raw-position"><label for="positionCondition">How much wear does it have?</label><select id="positionCondition" name="rawCondition">${options.visionAnalysis && !prefill.rawCondition ? '<option value="" selected>Choose after looking closely</option>' : ""}<option value="near_mint" ${prefill.rawCondition === "near_mint" ? "selected" : ""}>Like new (Near Mint)</option><option value="lightly_played" ${prefill.rawCondition === "lightly_played" ? "selected" : ""}>Light wear (Lightly Played)</option><option value="moderately_played" ${prefill.rawCondition === "moderately_played" ? "selected" : ""}>Noticeable wear (Moderately Played)</option><option value="heavily_played" ${prefill.rawCondition === "heavily_played" ? "selected" : ""}>Heavy wear (Heavily Played)</option><option value="damaged" ${prefill.rawCondition === "damaged" ? "selected" : ""}>Damaged</option></select></div>
       <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === prefill.grader ? "selected" : ""}>${value}</option>`).join("")}</select></div>
       <div class="field graded-position" hidden><label for="positionGrade">Grade</label><input id="positionGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(prefill.grade || "")}" placeholder="10"></div>
-      <div class="field full graded-position" hidden><label for="positionCertification">Certification number <span class="optional-label">Optional</span></label><input id="positionCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(prefill.certificationNumber || "")}"><small>Use only the number visible on this slab. Confirm it on the official grader site after saving.</small></div>
+      <div class="field full graded-position" hidden><label for="positionCertification">Number printed on the grading label <span class="optional-label">Optional</span></label><input id="positionCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(prefill.certificationNumber || "")}"><small>Use the certification number on the graded case. Check it on the grading company’s official website after saving.</small></div>
       ${options.visionAnalysis ? `<div class="vision-prefill-note full"><strong>AI suggestion · confirm before saving</strong><span>${options.visionAnalysis.mode === "grade" ? `Possible professional grade ${esc(options.visionAnalysis.gradeRange || "unclear")} · ` : ""}${esc(conditionLabel(options.visionAnalysis.condition))} · ${esc(confidenceLabel(options.visionAnalysis.confidence))}. This is not an official grade or condition guarantee.</span></div>` : ""}
-      ${options.receiptSource ? `<div class="vision-prefill-note full"><strong>Receipt draft · confirm before saving</strong><span>${esc(options.receiptSource.vendor || "Vendor unclear")}${options.receiptSource.orderNumber ? ` · order ${esc(options.receiptSource.orderNumber)}` : ""}. ${options.receiptSource.needsCostReview ? "Enter the verified all-in USD acquisition cost; Mica left it blank instead of guessing." : "Confirm the suggested all-in USD acquisition cost."}${options.receiptSource.needsDateReview ? " The purchase date also needs review." : ""}</span></div>` : ""}
-      <div class="field full acquisition-field"><label for="positionTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="0.00" required></div><small>One total for everything paid. No tax or fee breakdown.</small><label class="field-choice"><input id="positionCostUnknown" type="checkbox"> I don't have the purchase cost</label></div>
-      <details class="full intake-more"><summary id="positionMoreSummary">Purchase details · ${initialQuantity} card${Number(initialQuantity) === 1 ? "" : "s"} · ${initialDate}</summary><div class="form-grid"><div class="field"><label for="positionQuantity">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(initialQuantity)}" required></div><div class="field"><label for="positionDate">When did you buy it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}" required><label class="field-choice"><input id="positionDateUnknown" type="checkbox"> Date isn't recorded</label></div></div></details>
+      ${options.receiptSource ? `<div class="vision-prefill-note full"><strong>Check the details read from your receipt</strong><span>${esc(options.receiptSource.vendor || "Store unclear")}${options.receiptSource.orderNumber ? ` · order ${esc(options.receiptSource.orderNumber)}` : ""}. ${options.receiptSource.needsCostReview ? "Enter the final total paid in US dollars; Mica left it blank instead of guessing." : "Confirm the suggested total paid in US dollars."}${options.receiptSource.needsDateReview ? " Check the purchase date too." : ""}</span></div>` : ""}
+      <div class="field full acquisition-field"><label for="positionTotalCost">Total paid</label><div class="money-input"><span>$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="0.00" required></div><small>Include the card, tax, shipping, and fees in one total.</small><label class="field-choice"><input id="positionCostUnknown" type="checkbox"> I don't know what I paid</label></div>
+      <details class="full intake-more"><summary id="positionMoreSummary">More purchase details · ${initialQuantity} card${Number(initialQuantity) === 1 ? "" : "s"} · ${initialDate}</summary><div class="form-grid"><div class="field"><label for="positionQuantity">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(initialQuantity)}" required></div><div class="field"><label for="positionDate">When did you buy it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}" required><label class="field-choice"><input id="positionDateUnknown" type="checkbox"> I don't know the date</label></div></div></details>
       <p class="form-error" id="positionError" role="alert"></p>
-    </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>Saved cards remain fully usable, but profit and ROI stay unavailable until you add the missing purchase facts.</p>
+    </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>The card is still saved and valued, but Mica cannot show money gained until you add what you paid.</p>
     <div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`);
   const form = $("#positionForm");
   const syncState = () => {
@@ -4107,7 +4145,7 @@ function openPositionSheet(card, options = {}) {
       formInput.quantity,
     );
     if (!breakdown) {
-      $("#positionError").textContent = "Enter a valid total acquisition cost.";
+      $("#positionError").textContent = "Enter a valid total paid.";
       return;
     }
     const input = {
@@ -4194,10 +4232,10 @@ function openPurchaseLotSheet(item, defaults = {}) {
   const today = localIsoDate();
   const sealed = item.cardState === "sealed";
   const noun = sealed ? "product" : "card";
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add another ${noun}</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add another ${noun}</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="purchaseLotForm"><div class="form-grid">
-      <div class="field full acquisition-field"><label for="lotTotalCost">Total acquisition cost</label><div class="money-input"><span>$</span><input id="lotTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaults.totalAcquisitionCost ?? "")}" placeholder="0.00" required></div><small>Enter everything you paid for this purchase as one total.</small></div>
-      <details class="full intake-more"><summary id="purchaseLotSummary">1 ${noun} · purchased today</summary><div class="form-grid"><div class="field"><label for="lotQuantity">How many ${noun}s?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(defaults.quantity || 1)}" required></div><div class="field"><label for="lotDate">Purchase date</label><input id="lotDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div></div><section class="blended-purchase" aria-labelledby="blendedPurchaseTitle"><div class="blended-purchase-head"><span>Position preview</span><strong id="blendedPurchaseTitle">After this purchase</strong></div><div class="blended-purchase-grid" id="blendedPurchaseGrid" aria-live="polite"></div><small>Professional view: this purchase remains a separate FIFO lot.</small></section></details>
+      <div class="field full acquisition-field"><label for="lotTotalCost">Total paid</label><div class="money-input"><span>$</span><input id="lotTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaults.totalAcquisitionCost ?? "")}" placeholder="0.00" required></div><small>Include the card, tax, shipping, and fees in one total.</small></div>
+      <details class="full intake-more"><summary id="purchaseLotSummary">1 ${noun} · bought today</summary><div class="form-grid"><div class="field"><label for="lotQuantity">How many ${noun}s?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(defaults.quantity || 1)}" required></div><div class="field"><label for="lotDate">When did you buy them?</label><input id="lotDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div></div><section class="blended-purchase advanced-workspace" aria-labelledby="blendedPurchaseTitle"><div class="blended-purchase-head"><span>After this purchase</span><strong id="blendedPurchaseTitle">Updated totals</strong></div><div class="blended-purchase-grid" id="blendedPurchaseGrid" aria-live="polite"></div><small>Mica keeps this purchase separate so future sales use the right purchase amount.</small></section></details>
       <p class="form-error" id="purchaseLotError" role="alert"></p>
     </div><div class="position-total"><span>Total paid</span><strong id="purchaseLotTotal">$0.00</strong></div>
     <div class="sheet-actions"><button class="secondary" type="button" id="purchaseLotCancel">Cancel</button><button class="primary" type="submit">Add to collection</button></div></form>`);
@@ -4227,8 +4265,8 @@ function openPurchaseLotSheet(item, defaults = {}) {
         })
       : null;
     $("#blendedPurchaseGrid").innerHTML = preview
-      ? `<div><span>${sealed ? "Products" : "Cards"} owned</span><strong>${preview.quantity}</strong><small>was ${Number(item.quantity)}</small></div><div><span>Total basis</span><strong>${money(preview.costBasisMinor / 100, currency)}</strong><small>includes this purchase</small></div><div><span>Average cost</span><strong>${money(preview.averageCostMinor / 100, currency)}</strong><small>${preview.averageChangeMinor === 0 ? "unchanged" : `${preview.averageChangeMinor < 0 ? "down" : "up"} ${money(Math.abs(preview.averageChangeMinor) / 100, currency)} per ${noun}`}</small></div><div><span>Gain / loss now</span><strong>${preview.unrealizedGainMinor === null ? "Price unavailable" : `${preview.unrealizedGainMinor >= 0 ? "+" : ""}${money(preview.unrealizedGainMinor / 100, currency)}`}</strong><small>${preview.marketValueMinor === null ? "needs an exact market price" : `${money(preview.marketValueMinor / 100, currency)} current value`}</small></div>`
-      : `<div class="blended-purchase-empty">${item.costBasis === null || item.costBasis === undefined ? "Current cost basis is incomplete, so Mica cannot calculate a blended average yet." : "Enter the purchase quantity and total cost to preview the new position."}</div>`;
+      ? `<div><span>${sealed ? "Products" : "Cards"} owned</span><strong>${preview.quantity}</strong><small>was ${Number(item.quantity)}</small></div><div><span>Total paid</span><strong>${money(preview.costBasisMinor / 100, currency)}</strong><small>includes this purchase</small></div><div><span>Average paid for each</span><strong>${money(preview.averageCostMinor / 100, currency)}</strong><small>${preview.averageChangeMinor === 0 ? "unchanged" : `${preview.averageChangeMinor < 0 ? "down" : "up"} ${money(Math.abs(preview.averageChangeMinor) / 100, currency)} per ${noun}`}</small></div><div><span>Change in value now</span><strong>${preview.unrealizedGainMinor === null ? "Price unavailable" : `${preview.unrealizedGainMinor >= 0 ? "Up " : "Down "}${money(Math.abs(preview.unrealizedGainMinor) / 100, currency)}`}</strong><small>${preview.marketValueMinor === null ? "needs a matching price" : `${money(preview.marketValueMinor / 100, currency)} current value`}</small></div>`
+      : `<div class="blended-purchase-empty">${item.costBasis === null || item.costBasis === undefined ? "What you paid before is incomplete, so Mica cannot calculate an average yet." : "Enter how many and the total paid to preview the updated collection."}</div>`;
   };
   form.addEventListener("input", updateTotal);
   $("#purchaseLotCancel").addEventListener("click", closeSheet);
@@ -4241,8 +4279,7 @@ function openPurchaseLotSheet(item, defaults = {}) {
       formInput.quantity,
     );
     if (!breakdown) {
-      $("#purchaseLotError").textContent =
-        "Enter a valid total acquisition cost.";
+      $("#purchaseLotError").textContent = "Enter a valid total paid.";
       return;
     }
     const input = {
@@ -4287,7 +4324,7 @@ function openCompletePurchaseHistorySheet(item, lot) {
   const needsCost = !lot.costBasisKnown;
   const needsDate = !lot.acquisitionDateKnown;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Complete purchase history</h2><p>${esc(item.name)} · ${lot.quantityAcquired} originally acquired</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="completePurchaseHistoryForm"><div class="form-grid">${needsCost ? `<div class="field full acquisition-field"><label for="missingAcquisitionCost">Total acquisition cost <span class="optional-label">Add if known</span></label><div class="money-input"><span>$</span><input id="missingAcquisitionCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div><small>Enter everything paid for all ${lot.quantityAcquired} in this purchase. Mica will update remaining and already-sold FIFO basis.</small></div>` : ""}${needsDate ? `<div class="field full"><label for="missingAcquisitionDate">Original purchase date <span class="optional-label">Add if known</span></label><input id="missingAcquisitionDate" name="acquiredAt" type="date" max="${today}"><small>The import fallback date is used only for FIFO order until you add the real date.</small></div>` : ""}<p class="form-error" id="completePurchaseHistoryError" role="alert"></p></div><div class="info-copy"><p>Add only facts you know. You can save one field now and return for the other later.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="completePurchaseHistoryCancel">Cancel</button><button class="primary" type="submit">Save known details</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add missing purchase details</h2><p>${esc(item.name)} · ${lot.quantityAcquired} originally bought</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="completePurchaseHistoryForm"><div class="form-grid">${needsCost ? `<div class="field full acquisition-field"><label for="missingAcquisitionCost">Total paid <span class="optional-label">Add if known</span></label><div class="money-input"><span>$</span><input id="missingAcquisitionCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></div><small>Enter everything paid for all ${lot.quantityAcquired} cards in this purchase. Mica will update cards you still own and cards already sold.</small></div>` : ""}${needsDate ? `<div class="field full"><label for="missingAcquisitionDate">When did you buy them? <span class="optional-label">Add if known</span></label><input id="missingAcquisitionDate" name="acquiredAt" type="date" max="${today}"><small>Until you add the real date, Mica uses the import date only to keep purchases in a consistent order.</small></div>` : ""}<p class="form-error" id="completePurchaseHistoryError" role="alert"></p></div><div class="info-copy"><p>Add only details you know. You can save one now and return for the other later.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="completePurchaseHistoryCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`,
   );
   $("#completePurchaseHistoryCancel").addEventListener("click", closeSheet);
   $("#completePurchaseHistoryForm").addEventListener(
@@ -4304,7 +4341,7 @@ function openCompletePurchaseHistorySheet(item, lot) {
       const acquiredAt = needsDate && data.acquiredAt ? data.acquiredAt : null;
       if (totalAcquisitionCost === null && !acquiredAt) {
         $("#completePurchaseHistoryError").textContent =
-          "Add a total acquisition cost or the original purchase date.";
+          "Add the total paid or the original purchase date.";
         return;
       }
       if (
@@ -4312,12 +4349,12 @@ function openCompletePurchaseHistorySheet(item, lot) {
         (!Number.isFinite(totalAcquisitionCost) || totalAcquisitionCost < 0)
       ) {
         $("#completePurchaseHistoryError").textContent =
-          "Enter a valid total acquisition cost.";
+          "Enter a valid total paid.";
         return;
       }
       if (acquiredAt && acquiredAt > today) {
         $("#completePurchaseHistoryError").textContent =
-          "Acquisition dates cannot be later than today.";
+          "Purchase dates cannot be later than today.";
         return;
       }
       const submit = event.currentTarget.querySelector('[type="submit"]');
@@ -4361,7 +4398,7 @@ function openGradingSubmissionSheet(item, submission = null, defaults = {}) {
     ["submitted", "Sent to grader"],
     ["received", "Received by grader"],
     ["grading", "Grading in progress"],
-    ["assembly", "Slab assembly"],
+    ["assembly", "Card case being prepared"],
     ["shipped", "Return shipped"],
   ];
   const currentIndex = Math.max(
@@ -4369,12 +4406,12 @@ function openGradingSubmissionSheet(item, submission = null, defaults = {}) {
     statuses.findIndex(([value]) => value === submission?.status),
   );
   const availableStatuses = statuses.slice(currentIndex);
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${editing ? "Update grading submission" : "Send to grading"}</h2><p>${esc(item.name)} · ${item.quantity} raw card${item.quantity === 1 ? "" : "s"} · private manual tracking</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingSubmissionForm"><div class="form-grid">
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${editing ? "Update cards sent for grading" : "Send cards for grading"}</h2><p>${esc(item.name)} · ${item.quantity} ungraded card${item.quantity === 1 ? "" : "s"} · update the status yourself</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingSubmissionForm"><div class="form-grid">
     ${editing ? `<div class="field"><label for="submissionStatus">Current stage</label><select id="submissionStatus" name="status" required>${availableStatuses.map(([value, label]) => `<option value="${value}" ${value === submission.status ? "selected" : ""}>${label}</option>`).join("")}<option value="cancelled">Cancel submission</option></select></div><div class="field"><label for="submissionStatusDate">Status date</label><input id="submissionStatusDate" name="statusUpdatedAt" type="date" min="${esc(submission.submittedAt)}" max="${today}" value="${today}" required></div>` : `<div class="field"><label for="submissionGrader">Grading company</label><select id="submissionGrader" name="grader" required><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === defaults.grader ? "selected" : ""}>${value}</option>`).join("")}</select></div><div class="field"><label for="submissionSentDate">Date sent</label><input id="submissionSentDate" name="submittedAt" type="date" min="${esc(latestAcquisition)}" max="${today}" value="${esc(defaults.submittedAt || today)}" required></div>`}
     <div class="field"><label for="submissionExpectedDate">Expected return <span class="optional-label">Optional</span></label><input id="submissionExpectedDate" name="expectedReturnDate" type="date" min="${esc(editing ? submission.submittedAt : latestAcquisition || today)}" value="${esc(submission?.expectedReturnDate || defaults.expectedReturnDate || "")}"></div>
     ${editing ? "" : `<div class="field"><label for="submissionEstimatedCost">Estimated all-in cost <span class="optional-label">Planning only</span></label><div class="money-input"><span>$</span><input id="submissionEstimatedCost" name="estimatedTotalCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaults.estimatedTotalCost || "")}" placeholder="0.00"></div></div>`}
-    <div class="field full"><label for="submissionReference">Submission reference <span class="optional-label">Optional</span></label><input id="submissionReference" name="submissionReference" maxlength="120" value="${esc(submission?.submissionReference || "")}" autocomplete="off" placeholder="Order or submission number"></div>
-    <div class="field full"><label for="submissionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="submissionNotes" name="notes" maxlength="10000" placeholder="Service level, middleman, shipping, or status details">${esc(submission?.notes || defaults.notes || "")}</textarea></div>
+    <div class="field full"><label for="submissionReference">Order number <span class="optional-label">Optional</span></label><input id="submissionReference" name="submissionReference" maxlength="120" value="${esc(submission?.submissionReference || "")}" autocomplete="off" placeholder="Order or grading number"></div>
+    <div class="field full"><label for="submissionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="submissionNotes" name="notes" maxlength="10000" placeholder="Shipping, service speed, or anything you want to remember">${esc(submission?.notes || defaults.notes || "")}</textarea></div>
     <p class="form-error" id="gradingSubmissionError" role="alert"></p>
   </div><div class="warning-panel"><strong>${editing ? "Status is manual" : "All current copies in this position are included"}.</strong><p>${editing ? "Mica does not claim a live connection to the grader. Choose only a stage you have verified. Recording the returned grade closes this submission automatically." : "Purchases and sales for this position pause while the cards are away. Estimated cost is not counted as paid or added to profit; enter the actual all-in total when the cards return."}</p></div><div class="sheet-actions"><button class="secondary" type="button" id="gradingSubmissionCancel">Close</button><button class="primary" type="submit">${editing ? "Save status" : "Start tracking"}</button></div></form>`);
   $("#gradingSubmissionCancel").addEventListener("click", closeSheet);
@@ -4485,13 +4522,13 @@ function openSeparateCopiesSheet(item) {
   const noun = item.cardState === "sealed" ? "product" : "card";
   const gradedCertificationNote =
     item.cardState === "graded" && item.certificationNumber
-      ? "The original position keeps its certification number. Add the separated slab's certification number after the split."
-      : "Condition, grade, labels, location, notes, and exact card identity stay attached to both positions.";
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Separate copies</h2><p>${esc(item.name)} · split one position without a sale or repurchase</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="separateCopiesForm"><div class="form-grid">
+      ? "The original group keeps its certification number. Add the other graded card’s number after separating it."
+      : "Wear level, grade, labels, location, notes, and card version stay with both groups.";
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Separate copies</h2><p>${esc(item.name)} · move some copies into their own saved entry</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="separateCopiesForm"><div class="form-grid">
     <div class="field"><label for="separateCopiesQuantity">Copies to separate</label><input id="separateCopiesQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="${maximum}" step="1" value="1" required><small>Up to ${maximum}; at least one ${noun} stays here.</small></div>
-    <div class="field"><label for="separateCopiesOrder">Purchase copies to move</label><select id="separateCopiesOrder" name="lotOrder"><option value="oldest">Oldest first · FIFO</option><option value="newest">Newest first</option></select><small>Choose which purchase lots supply the separated basis.</small></div>
+    <div class="field"><label for="separateCopiesOrder">Which purchases should move?</label><select id="separateCopiesOrder" name="lotOrder"><option value="oldest">Oldest purchases first</option><option value="newest">Newest purchases first</option></select><small>Choose whether the older or newer purchase amounts move with these cards.</small></div>
     <p class="form-error" id="separateCopiesError" role="alert"></p>
-  </div><div class="warning-panel"><strong>Cost basis moves; cash flow does not.</strong><p>Mica transfers the selected remaining purchase lots exactly to a new position. ${esc(activeSubmission ? "The active grading submission and its estimated cost are also divided, so each group can receive a different returned grade." : gradedCertificationNote)}</p></div><div class="sheet-actions"><button class="secondary" type="button" id="separateCopiesCancel">Cancel</button><button class="primary" type="submit">Separate copies</button></div></form>`);
+  </div><div class="warning-panel"><strong>The original purchase amounts move with the cards.</strong><p>No new purchase or sale is created. ${esc(activeSubmission ? "The active grading record and its estimated cost are also divided, so each group can receive a different grade." : gradedCertificationNote)}</p></div><div class="sheet-actions"><button class="secondary" type="button" id="separateCopiesCancel">Cancel</button><button class="primary" type="submit">Separate copies</button></div></form>`);
   $("#separateCopiesCancel").addEventListener("click", closeSheet);
   $("#separateCopiesForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -4507,7 +4544,7 @@ function openSeparateCopiesSheet(item) {
     const submit = event.currentTarget.querySelector('[type="submit"]');
     submit.disabled = true;
     $("#separateCopiesError").textContent =
-      "Transferring FIFO lots and preserving your ledger…";
+      "Moving the original purchase details with these cards…";
     try {
       const newPositionId = await splitCollectionPosition(supabase, {
         collectionItemId: item.uid,
@@ -4520,7 +4557,7 @@ function openSeparateCopiesSheet(item) {
       toast(
         activeSubmission
           ? "Copies separated · record each returned grade separately"
-          : "Copies separated · FIFO basis preserved · no cash flow recorded",
+          : "Copies separated · original purchase details preserved",
       );
     } catch (error) {
       const message = String(error.message || "");
@@ -4529,13 +4566,13 @@ function openSeparateCopiesSheet(item) {
       )
         ? "That quantity is no longer available. Refresh and try again."
         : message.includes("position_cannot_be_split")
-          ? "End the active listing or restore this position before separating copies."
+          ? "End the active sale listing or restore this saved entry before separating copies."
           : message.includes("fifo_lots_incomplete")
-            ? "This position's purchase lots need review before copies can be separated."
+            ? "The purchase details for this saved entry need review before copies can be separated."
             : message.includes("split_requires_complete_acquisition_history")
-              ? "Complete every missing acquisition cost and date before separating copies."
+              ? "Complete every missing purchase amount and date before separating copies."
               : message.includes("grading_submission_quantity_mismatch")
-                ? "The grading submission no longer matches this position. Refresh before retrying."
+                ? "The grading record no longer matches this saved entry. Refresh before retrying."
                 : `Could not separate copies: ${message || "Unknown error"}`;
       submit.disabled = false;
     }
@@ -4561,17 +4598,17 @@ function openGradingResultSheet(item) {
     (item.lots || []).every((lot) => lot.costBasisKnown);
   const batchNote =
     Number(item.quantity) > 1
-      ? "Every copy in this position must have the same grader and grade. If results differ, cancel and use Separate copies first. Leave certification blank unless one number represents the whole position."
-      : "The original purchase stays in place; this adds only the grading cost and returned slab details.";
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Record returned grade</h2><p>${esc(item.name)} · convert this raw position without a fake sale</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingResultForm"><div class="form-grid">
+      ? "Every card in this saved entry must have the same grading company and grade. If the results differ, cancel and use Separate copies first. Leave the certification number blank unless one number represents the whole group."
+      : "The original purchase stays in place. This adds only the grading cost and returned graded-card details.";
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Record the returned grade</h2><p>${esc(item.name)} · update the card without creating a sale</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingResultForm"><div class="form-grid">
     <div class="field"><label for="gradingResultGrader">Grading company</label><select id="gradingResultGrader" name="grader" required>${activeSubmission ? `<option>${esc(activeSubmission.grader)}</option>` : `<option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option>${value}</option>`).join("")}`}</select></div>
     <div class="field"><label for="gradingResultGrade">Returned grade</label><input id="gradingResultGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.1" placeholder="10" required></div>
     <div class="field"><label for="gradingResultDate">Return date</label><input id="gradingResultDate" name="transactionDate" type="date" min="${esc(earliestReturn)}" max="${today}" value="${today}" required></div>
-    <div class="field"><label for="gradingResultCost">Total all-in grading cost</label><div class="money-input"><span>$</span><input id="gradingResultCost" name="totalGradingCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Fees, shipping, insurance, and supplies for these ${item.quantity} card${item.quantity === 1 ? "" : "s"} as one total.</small></div>
-    <div class="field full"><label for="gradingResultCert">Certification number <span class="optional-label">Optional</span></label><input id="gradingResultCert" name="certificationNumber" maxlength="120" autocomplete="off"><small>${item.quantity === 1 ? "Printed on the returned slab." : "For different certification numbers, keep each slab in a separate position."}</small></div>
+    <div class="field"><label for="gradingResultCost">Total grading cost</label><div class="money-input"><span>$</span><input id="gradingResultCost" name="totalGradingCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Include fees, shipping, insurance, and supplies for these ${item.quantity} card${item.quantity === 1 ? "" : "s"} as one total.</small></div>
+    <div class="field full"><label for="gradingResultCert">Certification number <span class="optional-label">Optional</span></label><input id="gradingResultCert" name="certificationNumber" maxlength="120" autocomplete="off"><small>${item.quantity === 1 ? "Printed on the returned graded case." : "If the numbers are different, keep each graded card in a separate saved entry."}</small></div>
     <div class="field full"><label for="gradingResultNotes">Notes <span class="optional-label">Optional</span></label><textarea id="gradingResultNotes" name="notes" maxlength="10000" placeholder="Submission or return details"></textarea></div>
-    <p class="form-error" id="gradingResultError" role="alert">${basisReady ? "" : "Complete the missing acquisition cost before grading so Mica can preserve an honest basis."}</p>
-  </div><div class="warning-panel"><strong>All ${item.quantity} current card${item.quantity === 1 ? "" : "s"} will become graded.</strong><p>${esc(batchNote)} Raw price observations are cleared, and the total grading cost is allocated across the remaining FIFO lots to the cent.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="gradingResultCancel">Cancel</button><button class="primary" type="submit" ${basisReady ? "" : "disabled"}>Save graded result</button></div></form>`);
+    <p class="form-error" id="gradingResultError" role="alert">${basisReady ? "" : "Add the missing amount paid first so Mica can keep an honest purchase history."}</p>
+  </div><div class="warning-panel"><strong>All ${item.quantity} current card${item.quantity === 1 ? "" : "s"} will become professionally graded.</strong><p>${esc(batchNote)} Old ungraded prices are cleared, and the total grading cost is divided across the remaining cards to the cent.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="gradingResultCancel">Cancel</button><button class="primary" type="submit" ${basisReady ? "" : "disabled"}>Save returned grade</button></div></form>`);
   $("#gradingResultCancel").addEventListener("click", closeSheet);
   $("#gradingResultForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -4602,7 +4639,7 @@ function openGradingResultSheet(item) {
     const submit = event.currentTarget.querySelector('[type="submit"]');
     submit.disabled = true;
     $("#gradingResultError").textContent =
-      "Preserving the ledger and updating this position…";
+      "Preserving the purchase history and updating the card…";
     try {
       await recordGradingResult(supabase, {
         ...data,
@@ -4622,13 +4659,13 @@ function openGradingResultSheet(item) {
       $("#gradingResultError").textContent = message.includes(
         "acquisition_cost_required",
       )
-        ? "Complete the missing acquisition cost first."
+        ? "Add the missing amount paid first."
         : message.includes("submission_grader_mismatch")
           ? "Use the same grader recorded on the active submission."
           : message.includes("position_not_raw")
-            ? "This position is already graded."
+            ? "This saved card is already graded."
             : message.includes("position_not_owned")
-              ? "Return this position to owned status before recording grading."
+              ? "Return this card to your main collection before recording grading."
               : message.includes("grading_before_acquisition")
                 ? "The grading date cannot be before a known purchase date."
                 : `Could not record the graded result: ${message || "Unknown error"}`;
@@ -4645,7 +4682,7 @@ function openSaleSheet(item, defaults = {}) {
     item.listingVenue ??
     workflowDefault("sale-marketplace");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Record sale</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)} · ${item.quantity} owned</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saleForm"><div class="form-grid"><div class="field"><label for="saleQuantity">Quantity sold</label><input id="saleQuantity" name="quantity" type="number" min="1" max="${item.quantity}" step="1" value="${esc(defaults.quantity || 1)}" required></div><div class="field"><label for="saleDate">Sale date</label><input id="saleDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div><div class="field"><label for="salePrice">Unit sale price</label><input id="salePrice" name="unitPrice" type="number" min="0" step="0.01" value="${esc(suggestedUnitPrice)}" required>${item.askingPrice != null && defaults.unitPrice == null ? "<small>Filled from this position's listing.</small>" : ""}</div><div class="field"><label for="saleFees">Marketplace fees</label><input id="saleFees" name="marketplaceFees" type="number" min="0" step="0.01" value="${esc(defaults.marketplaceFees ?? "0.00")}"></div><div class="field"><label for="saleShipping">Shipping</label><input id="saleShipping" name="shipping" type="number" min="0" step="0.01" value="${esc(defaults.shipping ?? "0.00")}"></div><div class="field"><label for="saleOther">Other selling costs</label><input id="saleOther" name="otherCosts" type="number" min="0" step="0.01" value="${esc(defaults.otherCosts ?? "0.00")}"></div><div class="field full"><label for="saleMarketplace">Marketplace</label><input id="saleMarketplace" name="marketplace" value="${esc(suggestedMarketplace)}" placeholder="eBay, TCGplayer, card show…"></div><div class="field full"><label for="saleNotes">Notes</label><textarea id="saleNotes" name="notes">${esc(defaults.notes || "")}</textarea></div><p class="form-error" id="saleError" role="alert"></p></div><div class="warning-panel"><strong>FIFO allocation is automatic.</strong><p>The oldest remaining purchase lots will be allocated first and the allocation will remain in transaction history.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="saleCancel">Cancel</button><button class="primary" type="submit">Record sale</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Record a sale</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))} · ${item.quantity} owned</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saleForm"><div class="form-grid"><div class="field"><label for="saleQuantity">How many did you sell?</label><input id="saleQuantity" name="quantity" type="number" min="1" max="${item.quantity}" step="1" value="${esc(defaults.quantity || 1)}" required></div><div class="field"><label for="saleDate">When did you sell them?</label><input id="saleDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div><div class="field"><label for="salePrice">Selling price for each</label><input id="salePrice" name="unitPrice" type="number" min="0" step="0.01" value="${esc(suggestedUnitPrice)}" required>${item.askingPrice != null && defaults.unitPrice == null ? "<small>Filled from this card’s sale listing.</small>" : ""}</div><div class="field"><label for="saleFees">Selling site fees</label><input id="saleFees" name="marketplaceFees" type="number" min="0" step="0.01" value="${esc(defaults.marketplaceFees ?? "0.00")}"></div><div class="field"><label for="saleShipping">Shipping you paid</label><input id="saleShipping" name="shipping" type="number" min="0" step="0.01" value="${esc(defaults.shipping ?? "0.00")}"></div><div class="field"><label for="saleOther">Other selling costs</label><input id="saleOther" name="otherCosts" type="number" min="0" step="0.01" value="${esc(defaults.otherCosts ?? "0.00")}"></div><div class="field full"><label for="saleMarketplace">Where did you sell it?</label><input id="saleMarketplace" name="marketplace" value="${esc(suggestedMarketplace)}" placeholder="eBay, TCGplayer, card show…"></div><div class="field full"><label for="saleNotes">Notes <span class="optional-label">Optional</span></label><textarea id="saleNotes" name="notes">${esc(defaults.notes || "")}</textarea></div><p class="form-error" id="saleError" role="alert"></p></div><div class="simple-note"><strong>Mica uses your oldest recorded purchase first.</strong><br>This keeps the amount you made from the sale consistent and leaves a clear history.</div><div class="sheet-actions"><button class="secondary" type="button" id="saleCancel">Cancel</button><button class="primary" type="submit">Record sale</button></div></form>`,
   );
   $("#saleCancel").addEventListener("click", closeSheet);
   $("#saleForm").addEventListener("submit", async (event) => {
@@ -4681,7 +4718,7 @@ function openSaleSheet(item, defaults = {}) {
       rememberWorkflowDefault("sale-marketplace", data.marketplace);
       closeSheet({ discardHistory: true });
       await reloadPortfolio(item.uid);
-      toast("Sale recorded and oldest purchase lots allocated first");
+      toast("Sale recorded · oldest purchase used first");
     } catch (error) {
       $("#saleError").textContent =
         `Could not record sale: ${error.message || "Unknown error"}`;
@@ -4745,7 +4782,7 @@ async function toggleFavorite(item) {
 
 function openDeleteCopySheet(item) {
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Remove position?</h2><p>${esc(item.name)} · ${esc(item.set)} ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>This removes the position, purchase lots, transactions, and FIFO allocations.</strong><p>This action cannot be undone. Because the old inventory would no longer be auditable, portfolio performance history restarts after removal.</p></div><div class="sheet-actions"><button class="secondary" id="keepCloudPosition" type="button">Keep position</button><button class="danger-action" id="removeCloudPosition" type="button">Remove position</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Remove this saved card?</h2><p>${esc(item.name)} · ${esc(item.set)} ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>This removes the card and all of its purchase, sale, and grading history.</strong><p>This cannot be undone. The collection value chart will restart so removed history is not shown as a real price change.</p></div><div class="sheet-actions"><button class="secondary" id="keepCloudPosition" type="button">Keep card</button><button class="danger-action" id="removeCloudPosition" type="button">Remove card</button></div>`,
   );
   $("#keepCloudPosition").addEventListener("click", closeSheet);
   $("#removeCloudPosition").addEventListener("click", async () => {
@@ -4761,10 +4798,10 @@ function openDeleteCopySheet(item) {
       state.detailCanPop = false;
       routeTo("collection");
       await reloadPortfolio();
-      toast("Position and transaction history removed");
+      toast("Card and its history removed");
     } catch (error) {
       button.disabled = false;
-      toast(`Could not remove position: ${error.message || "Unknown error"}`);
+      toast(`Could not remove this card: ${error.message || "Unknown error"}`);
     }
   });
 }
@@ -4793,10 +4830,10 @@ function openPositionEditSheet(item) {
     ? '<option value="owned" selected>At grader · keep owned</option>'
     : `<option value="owned" ${editableStatus === "owned" ? "selected" : ""}>Keeping it</option><option value="listed" ${editableStatus === "listed" ? "selected" : ""}>Listed for sale</option><option value="archived" ${editableStatus === "archived" ? "selected" : ""}>Archived</option>`;
   const statusHelp = atGrader
-    ? "This position stays owned while it is at the grader. Record its return or cancel the submission before listing or archiving it."
-    : "Choose Listed for sale to open seller details. A recorded sale remains a separate auditable transaction.";
+    ? "This card stays in your collection while it is at the grading company. Record its return or cancel the grading record before listing or archiving it."
+    : "Choose Listed for sale to add selling details. Recording a completed sale is a separate step.";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Edit position details</h2><p>${esc(item.name)} · financial transactions remain auditable</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editStatus">What are you doing with it?</label><select id="editStatus" name="status">${statusOptions}</select><small>${statusHelp}</small></div><div class="listing-edit-fields full" id="listingEditFields"><div class="form-grid"><div class="field"><label for="editAskingPrice">Asking price · each</label><div class="money-input"><span>$</span><input id="editAskingPrice" name="askingPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(suggestedAsk)}" placeholder="0.00"></div>${item.askingPrice == null && suggestedAsk !== "" ? "<small>Suggested from the exact current market reference. Confirm before listing.</small>" : ""}</div><div class="field"><label for="editListedAt">Listed date</label><input id="editListedAt" name="listedAt" type="date" max="${today}" value="${esc(item.listedAt || today)}"></div><div class="field full"><label for="editListingVenue">Where is it listed?</label><input id="editListingVenue" name="listingVenue" maxlength="100" value="${esc(suggestedVenue)}" placeholder="eBay, TCGplayer, card show table…">${!item.listingVenue && suggestedVenue ? "<small>Filled from your last listing; change it for this sale if needed.</small>" : ""}</div></div><p>Mica compares your ask with the exact current market and flags it for another review after 7 days.</p></div>${item.gradingCompany ? `<div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(item.certificationNumber || "")}"><small>Use the number printed on this ${esc(item.gradingCompany)} slab. You can check it on the official grader site after saving.</small></div>` : ""}<div class="field full"><label for="editLocation">Storage location</label><input id="editLocation" name="location" maxlength="250" value="${esc(item.location || "")}" placeholder="Binder 1 · Page 4"></div><div class="field full"><label for="editTags">Labels <span class="optional-label">Optional</span></label><input id="editTags" name="tags" maxlength="500" value="${esc(labels.join(", "))}" placeholder="Trade binder, Grade next, Show case"><small>Separate labels with commas. Favorites is managed from the card page.</small></div><div class="field full"><label for="editNotes">Notes</label><textarea id="editNotes" name="notes" maxlength="10000">${esc(item.notes || "")}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Edit card details</h2><p>${esc(item.name)} · purchases and sales stay unchanged</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editStatus">What are you doing with it?</label><select id="editStatus" name="status">${statusOptions}</select><small>${statusHelp}</small></div><div class="listing-edit-fields full" id="listingEditFields"><div class="form-grid"><div class="field"><label for="editAskingPrice">Your selling price for each</label><div class="money-input"><span>$</span><input id="editAskingPrice" name="askingPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(suggestedAsk)}" placeholder="0.00"></div>${item.askingPrice == null && suggestedAsk !== "" ? "<small>Suggested from today’s matching price. Confirm it before listing.</small>" : ""}</div><div class="field"><label for="editListedAt">When did you list it?</label><input id="editListedAt" name="listedAt" type="date" max="${today}" value="${esc(item.listedAt || today)}"></div><div class="field full"><label for="editListingVenue">Where is it listed?</label><input id="editListingVenue" name="listingVenue" maxlength="100" value="${esc(suggestedVenue)}" placeholder="eBay, TCGplayer, card show table…">${!item.listingVenue && suggestedVenue ? "<small>Filled from your last listing. Change it if needed.</small>" : ""}</div></div><p>Mica compares your selling price with today’s matching price and asks you to check it again after 7 days.</p></div>${item.gradingCompany ? `<div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(item.certificationNumber || "")}"><small>Use the number printed on this ${esc(item.gradingCompany)} graded case. You can check it on the grading company’s official website after saving.</small></div>` : ""}<div class="field full"><label for="editLocation">Where is it stored?</label><input id="editLocation" name="location" maxlength="250" value="${esc(item.location || "")}" placeholder="Binder 1 · Page 4"></div><div class="field full"><label for="editTags">Labels <span class="optional-label">Optional</span></label><input id="editTags" name="tags" maxlength="500" value="${esc(labels.join(", "))}" placeholder="Trade binder, Grade next, Show case"><small>Separate labels with commas. Favorites is managed from the card page.</small></div><div class="field full"><label for="editNotes">Notes <span class="optional-label">Optional</span></label><textarea id="editNotes" name="notes" maxlength="10000">${esc(item.notes || "")}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`,
   );
   const syncListing = () => {
     const listed = $("#editStatus").value === "listed";
@@ -4862,11 +4899,11 @@ function openPositionEditSheet(item) {
       toast(
         listing
           ? "Listing saved and price marked reviewed"
-          : "Position details updated",
+          : "Card details updated",
       );
     } catch (error) {
       $("#editError").textContent =
-        `Could not update position: ${error.message || "Unknown error"}`;
+        `Could not update this card: ${error.message || "Unknown error"}`;
       submit.disabled = false;
     }
   });
@@ -4904,7 +4941,7 @@ function openRemapPositionSheet(item) {
   let requestId = 0;
   let timer;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Correct card or printing</h2><p>Replace catalog identity only · purchases, sales, grade, condition, and quantity stay unchanged</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="remapPositionForm"><div class="form-grid"><label class="search-field full"><span class="sr-only">Search the correct card</span><input id="remapQuery" type="search" value="${esc(`${item.name} ${item.number || ""}`.trim())}" placeholder="Card name, set, or collector number" autocomplete="off"></label><div class="field full"><label for="remapLanguage">Card language</label><select id="remapLanguage">${["en", "ja", "fr", "de", "es", "it", "pt", "zh-tw", "id", "th"].map((code) => `<option value="${code}" ${code === (item.language || "en") ? "selected" : ""}>${esc(languageName(code))}</option>`).join("")}</select></div></div><div class="manual-results" id="remapResults" aria-live="polite"></div><div class="simple-note" id="remapChoice" hidden></div><p class="form-error" id="remapError" role="alert"></p><div class="warning-panel"><strong>Financial ledger history is preserved.</strong><p>Only the catalog match changes. Old price observations are cleared, and portfolio performance restarts so the corrected identity is not shown as a market gain or loss.</p></div><div class="sheet-actions"><button class="secondary" id="remapCancel" type="button">Cancel</button><button class="primary" id="remapSave" type="submit" disabled>Use selected match</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Choose a different card version</h2><p>Only the matched card changes. Purchases, sales, grade, wear, and number owned stay the same.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="remapPositionForm"><div class="form-grid"><label class="search-field full"><span class="sr-only">Search for the correct card</span><input id="remapQuery" type="search" value="${esc(`${item.name} ${item.number || ""}`.trim())}" placeholder="Card name and bottom number" autocomplete="off"></label><div class="field full"><label for="remapLanguage">Language on the card</label><select id="remapLanguage">${["en", "ja", "fr", "de", "es", "it", "pt", "zh-tw", "id", "th"].map((code) => `<option value="${code}" ${code === (item.language || "en") ? "selected" : ""}>${esc(languageName(code))}</option>`).join("")}</select></div></div><div class="manual-results" id="remapResults" aria-live="polite"></div><div class="simple-note" id="remapChoice" hidden></div><p class="form-error" id="remapError" role="alert"></p><div class="warning-panel"><strong>Your purchase and sale history stays with the card.</strong><p>Only the matched card version changes. Old prices are cleared, and the collection value chart restarts so the correction is not shown as a real price change.</p></div><div class="sheet-actions"><button class="secondary" id="remapCancel" type="button">Cancel</button><button class="primary" id="remapSave" type="submit" disabled>Use selected card</button></div></form>`,
   );
   const renderResults = (cards) => {
     selected = null;
@@ -4917,14 +4954,14 @@ function openRemapPositionSheet(item) {
               `<button class="catalog-result" type="button" data-remap-result="${index}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.rarity || "Rarity unavailable")}</small>${matchReason(card)}</span><b>Select</b></button>`,
           )
           .join("")
-      : '<div class="unavailable-panel">No exact catalog matches found. Try fewer details or verify the language.</div>';
+      : '<div class="unavailable-panel">No matching cards were found. Try fewer words or check the language.</div>';
     $$("[data-remap-result]", $("#remapResults")).forEach((button) =>
       button.addEventListener("click", () => {
         selected = cards[Number(button.dataset.remapResult)];
         const variants = catalogVariants(selected);
         $("#remapChoice").hidden = false;
         $("#remapChoice").innerHTML =
-          `<strong>Selected: ${esc(selected.name)} · ${esc(selected.set)} ${esc(selected.number)}</strong><br><label for="remapVariant">Exact printing</label><select id="remapVariant">${variants.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}</select>`;
+          `<strong>Selected: ${esc(selected.name)} · ${esc(selected.set)} ${esc(selected.number)}</strong><br><label for="remapVariant">Card version</label><select id="remapVariant">${variants.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}</select>`;
         $("#remapSave").disabled = false;
         $$("[data-remap-result]", $("#remapResults")).forEach((row) =>
           row.setAttribute("aria-pressed", String(row === button)),
@@ -4942,7 +4979,7 @@ function openRemapPositionSheet(item) {
     }
     $("#remapResults").setAttribute("aria-busy", "true");
     $("#remapResults").innerHTML =
-      '<div class="searching-cards"><i></i><span>Finding exact printings…</span></div>';
+      '<div class="searching-cards"><i></i><span>Finding matching cards…</span></div>';
     try {
       const result = await searchCatalog(query, $("#remapLanguage").value, 12);
       if (current !== requestId) return;
@@ -4950,7 +4987,7 @@ function openRemapPositionSheet(item) {
     } catch {
       if (current === requestId)
         $("#remapResults").innerHTML =
-          '<div class="unavailable-panel">Catalog search is temporarily unavailable. Your position is unchanged.</div>';
+          '<div class="unavailable-panel">Card search is temporarily unavailable. Your saved card is unchanged.</div>';
     } finally {
       if (current === requestId)
         $("#remapResults").setAttribute("aria-busy", "false");
@@ -4967,7 +5004,7 @@ function openRemapPositionSheet(item) {
     if (!selected || !$("#remapVariant")) return;
     const submit = $("#remapSave");
     submit.disabled = true;
-    $("#remapError").textContent = "Updating the exact match…";
+    $("#remapError").textContent = "Updating the card match…";
     const variant = $("#remapVariant").value;
     try {
       await remapCollectionPosition(supabase, {
@@ -4980,7 +5017,7 @@ function openRemapPositionSheet(item) {
       state.portfolioHistoryStatus = "idle";
       closeSheet({ discardHistory: true });
       await reloadPortfolio(item.uid);
-      toast("Catalog match corrected · pricing history restarted");
+      toast("Card match corrected · price history restarted");
     } catch (error) {
       submit.disabled = false;
       $("#remapError").textContent =
@@ -5088,11 +5125,11 @@ function openFilterSheet() {
     ).values(),
   ].sort((a, b) => a.localeCompare(b));
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Choose which cards you want to see.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
-    <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All items</option><option value="favorites">Favorites only</option><option value="graded">Graded only</option><option value="unpriced">Needs pricing review</option><option value="for-sale">For sale</option><option value="watchlist">Watchlist</option><option value="sets">Set progress</option></select></div>
+    <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All items</option><option value="favorites">Favorites only</option><option value="graded">Professionally graded only</option><option value="unpriced">Missing a matching price</option><option value="for-sale">For sale</option><option value="watchlist">Cards I’m watching</option><option value="sets">Set progress</option></select></div>
     <div class="field"><label for="sheetSet">Set</label><select id="sheetSet"><option value="">Every set</option>${sets.map((set) => `<option value="${esc(set)}">${esc(set)}</option>`).join("")}</select></div>
-    <div class="field"><label for="sheetCondition">Condition</label><select id="sheetCondition"><option value="">Every condition</option><option>Raw</option><option>Graded</option><option>Sealed</option>${["Near Mint", "Lightly Played", "Moderately Played", "Heavily Played", "Damaged"].map((value) => `<option>${value}</option>`).join("")}</select></div>
+    <div class="field"><label for="sheetCondition">Card type or wear</label><select id="sheetCondition"><option value="">Every type and condition</option><option value="Raw">Ungraded cards</option><option value="Graded">Professionally graded cards</option><option value="Sealed">Unopened products</option><option value="Near Mint">Like new</option><option value="Lightly Played">Light wear</option><option value="Moderately Played">Noticeable wear</option><option value="Heavily Played">Heavy wear</option><option value="Damaged">Damaged</option></select></div>
     <div class="field"><label for="sheetLabel">Label</label><select id="sheetLabel"><option value="">Every label</option>${labels.map((label) => `<option value="${esc(label)}">${esc(label)}</option>`).join("")}</select></div>
-    <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Value, high to low</option><option value="name">Name, A to Z</option></select></div>
+    <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Most valuable first</option><option value="name">Name, A to Z</option></select></div>
     <div class="sheet-actions"><button class="secondary" id="resetSheet">Reset</button><button class="primary" id="applySheet">Apply filters</button></div>`);
   $("#sheetView").value = state.ledgerView;
   $("#sheetSet").value = state.setFilter;
@@ -5517,7 +5554,7 @@ function openReceiptCamera() {
 
 function openMethodSheet() {
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">How your value is calculated</h2><p>Simple and transparent.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p><strong>Collection value</strong> is each card's matching market price multiplied by how many you own.</p><p><strong>Known gain/loss</strong> uses only copies that have both a matching market price and a recorded purchase cost. A blank cost is unknown, never treated as free.</p><p>Raw and graded cards are kept separate. We also match the printing and condition whenever the source supports it.</p><p>Cards without a reliable matching price stay in your library but are not counted in the total.</p></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">How your collection value works</h2><p>Simple and transparent.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p><strong>Estimated collection value</strong> is each card’s matching price multiplied by how many you own.</p><p><strong>Change in value</strong> is shown only when Mica knows both today’s matching price and what you paid. A missing purchase amount is never treated as $0.</p><p>Ungraded cards, professionally graded cards, and unopened products stay separate. Mica also matches the card version and wear level whenever the price source supports it.</p><p>Cards without a reliable matching price stay in your library but are left out of the total.</p></div>`,
   );
 }
 
@@ -5558,21 +5595,25 @@ function visionLanguage(value) {
 
 function confidenceLabel(value) {
   const number = Number(value) || 0;
-  if (number >= 0.85) return "High confidence";
-  if (number >= 0.6) return "Medium confidence";
-  return "Low confidence";
+  if (number >= 0.85) return "Clear result";
+  if (number >= 0.6) return "Check this result";
+  return "Unclear result";
 }
 
 function conditionLabel(value) {
+  const key = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "_");
   return (
     {
-      near_mint: "Near Mint",
-      lightly_played: "Lightly Played",
-      moderately_played: "Moderately Played",
-      heavily_played: "Heavily Played",
+      near_mint: "Like new",
+      lightly_played: "Light wear",
+      moderately_played: "Noticeable wear",
+      heavily_played: "Heavy wear",
       damaged: "Damaged",
       unknown: "Needs in-person review",
-    }[value] || "Needs in-person review"
+    }[key] || "Needs in-person review"
   );
 }
 
@@ -5873,14 +5914,14 @@ function renderVisionResult(payload, mode, preparedImages) {
       : `${condition.estimatedGradeLow}–${condition.estimatedGradeHigh}`;
   const qualityMarkup = issues.length
     ? `<div class="vision-quality ${analysis.quality.usable ? "warning" : "blocking"}"><strong>${analysis.quality.usable ? "Photo limitations" : "Retake recommended"}</strong>${issues.map((issue) => `<span>${esc(issue.message)}</span>`).join("")}</div>`
-    : '<div class="vision-quality ready"><strong>Images are usable</strong><span>Still confirm the physical card and exact printing.</span></div>';
+    : '<div class="vision-quality ready"><strong>Photos are clear enough</strong><span>Compare the result with the card in your hand before saving.</span></div>';
   const conditionMarkup =
     mode === "grade"
-      ? `<section class="vision-grade" aria-labelledby="visionGradeTitle"><div><span>Estimated grade range</span><strong id="visionGradeTitle">${esc(gradeRange)}</strong><small>${esc(confidenceLabel(condition.confidence))} · not an official grade</small></div><div><span>Raw condition suggestion</span><strong>${esc(conditionLabel(condition.rawCondition))}</strong><small>Confirm in person before saving</small></div></section><div class="vision-subscore-grid">${(condition.subscores || []).map((item) => `<div><span>${esc(item.category)}</span><strong>${item.scoreLow == null ? "Review" : `${esc(item.scoreLow)}–${esc(item.scoreHigh)}`}</strong><small>${esc(item.summary)}</small></div>`).join("")}</div>${condition.defects?.length ? `<div class="vision-defects"><strong>Visible concerns</strong>${condition.defects.map((defect) => `<span><b>${esc(defect.side)} · ${esc(defect.area)}</b>${esc(defect.evidence)}</span>`).join("")}</div>` : ""}<p class="vision-disclaimer">AI cannot rule out dents, indentations, scratches, print lines, or other defects hidden by lighting, sleeves, focus, or angle. This is a planning estimate, not a promise of a professional grade.</p>`
-      : `<div class="vision-identity-summary"><div><span>Visible identity</span><strong>${esc(identity.name || "Card name unclear")}</strong><small>${esc([identity.setName, identity.collectorNumber, identity.language].filter(Boolean).join(" · ") || "Printed details need review")}</small></div><div><span>Detected state</span><strong>${identity.cardState === "graded" ? `${esc(identity.grader || "Grader unclear")} ${esc(identity.grade ?? "")}` : "Raw card"}</strong><small>${esc(confidenceLabel(identity.confidence))}</small></div></div>`;
+      ? `<section class="vision-grade" aria-labelledby="visionGradeTitle"><div><span>Grade it may receive</span><strong id="visionGradeTitle">${esc(gradeRange)}</strong><small>${esc(confidenceLabel(condition.confidence))} · estimate only</small></div><div><span>Visible wear</span><strong>${esc(conditionLabel(condition.rawCondition))}</strong><small>Check the card in person before saving</small></div></section><div class="vision-subscore-grid advanced-workspace">${(condition.subscores || []).map((item) => `<div><span>${esc(item.category)}</span><strong>${item.scoreLow == null ? "Check" : `${esc(item.scoreLow)}–${esc(item.scoreHigh)}`}</strong><small>${esc(item.summary)}</small></div>`).join("")}</div>${condition.defects?.length ? `<div class="vision-defects"><strong>Things to check closely</strong>${condition.defects.map((defect) => `<span><b>${esc(defect.side)} · ${esc(defect.area)}</b>${esc(defect.evidence)}</span>`).join("")}</div>` : ""}<p class="vision-disclaimer">A photo can hide dents, scratches, print lines, and other damage. Use this as a helpful estimate—not a promise of the grade a company will give.</p>`
+      : `<div class="vision-identity-summary"><div><span>Card found in the photo</span><strong>${esc(identity.name || "Card name unclear")}</strong><small>${esc([identity.setName, identity.collectorNumber, identity.language].filter(Boolean).join(" · ") || "Printed details need review")}</small></div><div><span>Card type</span><strong>${identity.cardState === "graded" ? `${esc(identity.grader || "Grading company unclear")} grade ${esc(identity.grade ?? "")}` : "Ungraded card"}</strong><small>${esc(confidenceLabel(identity.confidence))}</small></div></div>`;
 
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">AI analysis ready</h2><p>${esc(payload.model)} · photos were not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="vision-result-head"><img src="${preparedImages[0].previewDataUrl || preparedImages[0].dataUrl}" alt="Analyzed card front"><div><span>Suggested catalog search</span><strong>${esc(analysis.searchQuery || "Printed identity unclear")}</strong><small>Choose the exact printing below. Mica will not add a card automatically.</small></div></div>${qualityMarkup}${conditionMarkup}<div class="manual-results" id="visionCatalogResults" aria-live="polite"><div class="searching-cards"><i></i><span>Checking exact catalog printings…</span></div></div><div class="sheet-actions"><button class="secondary" id="visionRetake" type="button">Retake</button><button class="secondary" id="visionManualSearch" type="button">Search differently</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Scan complete</h2><p>Your photos were not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="vision-result-head"><img src="${preparedImages[0].previewDataUrl || preparedImages[0].dataUrl}" alt="Analyzed card front"><div><span>Words and number found</span><strong>${esc(analysis.searchQuery || "Printed details are unclear")}</strong><small>Choose the card that matches your photo. Nothing is added until you confirm.</small></div></div>${qualityMarkup}${conditionMarkup}<div class="manual-results" id="visionCatalogResults" aria-live="polite"><div class="searching-cards"><i></i><span>Finding matching cards…</span></div></div><div class="sheet-actions"><button class="secondary" id="visionRetake" type="button">Take another photo</button><button class="secondary" id="visionManualSearch" type="button">Search myself</button></div>`,
   );
   $("#bottomSheet").dataset.lockClose = "false";
   $("#visionRetake").addEventListener("click", () =>
@@ -5910,19 +5951,19 @@ function renderVisionResult(payload, mode, preparedImages) {
     const recommendedId = resolution?.recommendedId || null;
     const guidance =
       resolution?.status === "exact"
-        ? "<strong>Best printed match found</strong><span>Name and collector number point to one result. Confirm the artwork, set, language, and finish.</span>"
+        ? "<strong>One card looks like the best match</strong><span>The name and bottom number point to this result. Make sure the picture looks the same.</span>"
         : resolution?.ambiguity?.includes("collector_number_not_unique")
-          ? "<strong>The number is not unique</strong><span>Compare the name and artwork. Collector numbers repeat across Pokémon sets.</span>"
-          : "<strong>Confirm the exact card</strong><span>Compare the image, set, number, language, and foil before continuing.</span>";
+          ? "<strong>More than one card uses this number</strong><span>Compare the card name and picture to choose the right one.</span>"
+          : "<strong>Choose the card that matches</strong><span>Compare the picture, name, bottom number, language, and shiny finish.</span>";
     const comparableCandidates = cards
       .filter((card) => card.image || card.thumb)
       .slice(0, 4);
     const comparisonAction =
       resolution?.status !== "exact" && comparableCandidates.length >= 2
-        ? '<div class="vision-compare-action"><span id="visionCompareStatus">Still unsure? Mica can compare the visible artwork against the top candidates.</span><button id="visionCompareCandidates" type="button">AI compare top matches</button><small>Optional · uses one additional AI analysis · still requires confirmation</small></div>'
+        ? '<div class="vision-compare-action"><span id="visionCompareStatus">Still unsure? Mica can compare your photo with the closest results.</span><button id="visionCompareCandidates" type="button">Compare with AI</button><small>Optional · uses one more AI scan · you still choose the final card</small></div>'
         : "";
     node.innerHTML = cards.length
-      ? `<div class="vision-match-instruction">${guidance}${comparisonAction}</div>${cards.map((card) => `<button class="catalog-result${card.id === recommendedId ? " recommended" : ""}" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Printing unknown")}</small>${matchReason(card)}</span><b>${card.id === recommendedId ? "Best match" : "Use match"}</b></button>`).join("")}`
+      ? `<div class="vision-match-instruction">${guidance}${comparisonAction}</div>${cards.map((card) => `<button class="catalog-result${card.id === recommendedId ? " recommended" : ""}" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Version unknown")}</small>${matchReason(card)}</span><b>${card.id === recommendedId ? "Best match" : "Choose this"}</b></button>`).join("")}`
       : '<div class="unavailable-panel">No reliable catalog match was found. Retake the card closer or search the printed details manually.</div>';
     $("#visionCompareCandidates")?.addEventListener("click", async (event) => {
       const button = event.currentTarget;
@@ -5956,10 +5997,10 @@ function renderVisionResult(payload, mode, preparedImages) {
             candidateButton.classList.toggle("recommended", selected);
             const label = candidateButton.querySelector("b");
             if (label)
-              label.textContent = selected ? "AI visual match" : "Use match";
+              label.textContent = selected ? "Best photo match" : "Choose this";
           });
           if (status)
-            status.textContent = `Visual comparison favors one candidate (${confidenceLabel(visual.confidence)}). ${visual.reason} Confirm it yourself before continuing.`;
+            status.textContent = `One card looks closest (${confidenceLabel(visual.confidence)}). ${visual.reason} Check it yourself before continuing.`;
         } else if (status) {
           status.textContent = `${visual.reason || "The photo does not reliably separate these candidates."} Compare them manually or retake the card closer.`;
         }
@@ -6004,7 +6045,7 @@ function renderVisionResult(payload, mode, preparedImages) {
 async function analyzeCardImages(mode, preparedImages) {
   $("#bottomSheet").dataset.lockClose = "true";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Analyzing card evidence</h2><p>Reading printed identity and visible physical details</p></div></div><div class="vision-processing" role="status" aria-live="polite"><i></i><strong>${mode === "grade" ? "Comparing the front and back…" : "Reading the card or slab…"}</strong><span>The images are sent once and are not written to Mica storage.</span></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Checking your card</h2><p>Reading the name, bottom number, and visible wear</p></div></div><div class="vision-processing" role="status" aria-live="polite"><i></i><strong>${mode === "grade" ? "Comparing the front and back…" : "Reading the card or graded case…"}</strong><span>The photos are sent once for this scan and are not saved in your collection.</span></div>`,
   );
   try {
     const payload = await requestVisionAnalysis(mode, preparedImages);
@@ -6030,7 +6071,7 @@ async function showProcessing(file, initialBackFile = null) {
     `<img src="${previewUrl}" alt="Selected card photograph">`;
   $("#qualityChip").innerHTML = "<span></span> Preparing photo";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Analyze this card</h2><p>Identify it, or add the back for a raw grade estimate.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica prepares a smaller copy on this device, sends it once to OpenAI through Vercel, then asks you to confirm every result.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Preparing a private upload…</div><div class="vision-choice-grid"><button id="visionIdentify" type="button" disabled><strong>Identify & add</strong><span>Read the card or slab and find exact catalog matches.</span></button><button id="visionBackCamera" type="button"><strong>Estimate raw grade</strong><span>Open the live camera and capture the card back.</span></button></div><div class="vision-back-preview" id="visionBackPreview" hidden></div><div class="sheet-actions"><button class="secondary" id="photoAssistSearch" type="button">Search manually</button><button class="primary" id="visionGrade" type="button" disabled>Analyze front + back</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">What would you like to do?</h2><p>Find the card, or take a back photo to estimate its grade.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica makes a smaller copy on this device, sends it once for analysis, and asks you to confirm the result.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Checking photo quality…</div><div class="vision-choice-grid"><button id="visionIdentify" type="button" disabled><strong>Find this card</strong><span>Read the name and bottom number, then show matching cards.</span></button><button id="visionBackCamera" type="button"><strong>Estimate its grade</strong><span>Open the camera and take a photo of the card’s back.</span></button></div><div class="vision-back-preview" id="visionBackPreview" hidden></div><div class="sheet-actions"><button class="secondary" id="photoAssistSearch" type="button">Search myself</button><button class="primary" id="visionGrade" type="button" disabled>Check front and back</button></div>`,
   );
   $("#bottomSheet").dataset.sensitive = "true";
   $("#bottomSheet").dataset.visionOperation = operationId;
@@ -6170,7 +6211,7 @@ function renderReceiptAnalysis(payload, matched = new Map()) {
   const incompatibleCurrency = currency !== "USD";
   const needsCostReview = uncertainTotal || incompatibleCurrency;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Receipt intake draft</h2><p>${esc(receipt.vendor || "Vendor unclear")} · ${esc(receipt.purchaseDate || "Date unclear")} · image not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><section class="receipt-summary"><div><span>Order total</span><strong>${receiptMoney(receipt.totalAmount, currency)}</strong></div><div><span>Recognized card lines</span><strong>${receipt.lineItems.length}</strong></div><div><span>Still unallocated</span><strong>${receipt.unallocatedAmount == null ? "Unknown" : receiptMoney(receipt.unallocatedAmount, currency)}</strong></div></section>${incompatibleCurrency ? `<div class="vision-quality warning"><strong>${currency ? `${esc(currency)} purchase needs review` : "Purchase currency is unclear"}</strong><span>Mica records acquisition cost in USD and will not relabel or auto-convert this receipt. Enter the verified all-in USD cost yourself before saving.</span></div>` : ""}${uncertainTotal ? `<div class="vision-quality warning"><strong>Confirm all-in cost per card</strong><span>${receiptMoney(receipt.unallocatedAmount, currency)} of tax, shipping, fees, discounts, or other order value was not assigned to a card. Mica will not invent an allocation.</span></div>` : ""}<div class="receipt-lines">${receipt.lineItems.length ? receipt.lineItems.map((line, index) => `<article><div><strong>${esc(line.description)}</strong><span>${line.quantity} item${line.quantity === 1 ? "" : "s"} · ${line.lineTotal == null ? "line price unclear" : receiptMoney(line.lineTotal, currency)} · ${esc(confidenceLabel(line.confidence))}</span></div><button type="button" data-receipt-line="${index}" ${matched.has(index) ? "disabled" : ""}>${matched.has(index) ? "Matched ✓" : "Find exact card"}</button></article>`).join("") : '<div class="unavailable-panel">No Pokémon card line items were readable. Retake the receipt closer or use an order screenshot.</div>'}</div><p class="vision-disclaimer">Receipt text can establish purchase evidence but cannot prove card condition or an exact variant. Confirm every catalog match and the total acquisition cost before saving.</p><div class="sheet-actions"><button class="secondary" id="receiptRetake" type="button">Choose another</button><button class="primary" id="receiptReviewQueue" type="button" ${matched.size ? "" : "disabled"}>Review ${matched.size} queued</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Check this purchase</h2><p>${esc(receipt.vendor || "Store unclear")} · ${esc(receipt.purchaseDate || "Date unclear")} · image not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><section class="receipt-summary"><div><span>Total on the receipt</span><strong>${receiptMoney(receipt.totalAmount, currency)}</strong></div><div><span>Card lines found</span><strong>${receipt.lineItems.length}</strong></div><div><span>Amount not tied to a card</span><strong>${receipt.unallocatedAmount == null ? "Unknown" : receiptMoney(receipt.unallocatedAmount, currency)}</strong></div></section>${incompatibleCurrency ? `<div class="vision-quality warning"><strong>${currency ? `${esc(currency)} purchase needs review` : "Purchase currency is unclear"}</strong><span>Mica saves what you paid in US dollars and will not guess the exchange rate. Enter the final US-dollar amount yourself before saving.</span></div>` : ""}${uncertainTotal ? `<div class="vision-quality warning"><strong>Check the total paid for each card</strong><span>${receiptMoney(receipt.unallocatedAmount, currency)} from tax, shipping, fees, discounts, or another part of the order has not been tied to a card. Mica will not guess how to divide it.</span></div>` : ""}<div class="receipt-lines">${receipt.lineItems.length ? receipt.lineItems.map((line, index) => `<article><div><strong>${esc(line.description)}</strong><span>${line.quantity} item${line.quantity === 1 ? "" : "s"} · ${line.lineTotal == null ? "price unclear" : receiptMoney(line.lineTotal, currency)} · ${esc(confidenceLabel(line.confidence))}</span></div><button type="button" data-receipt-line="${index}" ${matched.has(index) ? "disabled" : ""}>${matched.has(index) ? "Matched ✓" : "Find this card"}</button></article>`).join("") : '<div class="unavailable-panel">No Pokémon card lines were readable. Take a closer photo or use a clear order screenshot.</div>'}</div><p class="vision-disclaimer">A receipt can show what you bought and paid, but it cannot show the card’s wear or exact version. Confirm the matching card and total paid before saving.</p><div class="sheet-actions"><button class="secondary" id="receiptRetake" type="button">Choose another</button><button class="primary" id="receiptReviewQueue" type="button" ${matched.size ? "" : "disabled"}>Review ${matched.size} card${matched.size === 1 ? "" : "s"}</button></div>`,
   );
   $("#bottomSheet").dataset.lockClose = "false";
   $("#receiptRetake").addEventListener("click", () =>
@@ -6185,7 +6226,7 @@ function renderReceiptAnalysis(payload, matched = new Map()) {
       const index = Number(button.dataset.receiptLine);
       const line = receipt.lineItems[index];
       openSheet(
-        `<div class="sheet-heading"><div><h2 id="sheetTitle">Match receipt line</h2><p>${esc(line.description)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="manual-results" id="receiptMatchResults"><div class="searching-cards"><i></i><span>Finding exact printings…</span></div></div><div class="sheet-actions"><button class="secondary" id="receiptMatchBack" type="button">Back to receipt</button><button class="secondary" id="receiptMatchSearch" type="button">Search manually</button></div>`,
+        `<div class="sheet-heading"><div><h2 id="sheetTitle">Find the card on this line</h2><p>${esc(line.description)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="manual-results" id="receiptMatchResults"><div class="searching-cards"><i></i><span>Finding matching cards…</span></div></div><div class="sheet-actions"><button class="secondary" id="receiptMatchBack" type="button">Back to receipt</button><button class="secondary" id="receiptMatchSearch" type="button">Search myself</button></div>`,
       );
       $("#receiptMatchBack").addEventListener("click", () =>
         renderReceiptAnalysis(payload, matched),
@@ -6202,10 +6243,10 @@ function renderReceiptAnalysis(payload, matched = new Map()) {
         ? cards
             .map(
               (card) =>
-                `<button class="catalog-result" type="button" data-receipt-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(card.variant || "Printing unknown")}</small>${matchReason(card)}</span><b>Queue</b></button>`,
+                `<button class="catalog-result" type="button" data-receipt-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(card.variant || "Version unknown")}</small>${matchReason(card)}</span><b>Choose this</b></button>`,
             )
             .join("")
-        : '<div class="unavailable-panel">No exact catalog match found. Search the printed card details manually.</div>';
+        : '<div class="unavailable-panel">No matching card was found. Search the printed name and bottom number yourself.</div>';
       $$("[data-receipt-card]", $("#receiptMatchResults")).forEach(
         (cardButton) =>
           cardButton.addEventListener("click", () => {
@@ -6254,7 +6295,7 @@ async function showReceiptProcessing(file) {
     }
     $("#bottomSheet").dataset.lockClose = "true";
     openSheet(
-      `<div class="sheet-heading"><div><h2 id="sheetTitle">Reading receipt</h2><p>Extracting purchase facts and Pokémon card lines</p></div></div><div class="vision-processing" role="status"><i></i><strong>Building a review draft…</strong><span>Mica will not allocate unclear order costs or add cards without confirmation.</span></div>`,
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Reading the receipt</h2><p>Finding the purchase date, total, and card names</p></div></div><div class="vision-processing" role="status"><i></i><strong>Preparing the cards for your review…</strong><span>Mica will not guess unclear costs or add cards without your confirmation.</span></div>`,
     );
     const payload = await requestVisionAnalysis("receipt", [prepared]);
     renderReceiptAnalysis(payload);
@@ -6315,13 +6356,13 @@ async function searchCatalog(query, language, limit = 12) {
 
 function matchReason(item) {
   if (!item.match?.reasons?.length) return "";
-  return `<small class="match-reason"><strong>${esc(item.match.confidence || "Possible match")}</strong> · ${esc(item.match.reasons.slice(0, 3).join(" · "))}</small>`;
+  return `<small class="match-reason"><strong>Why this may be the right card</strong> · ${esc(item.match.reasons.slice(0, 3).join(" · "))}</small>`;
 }
 
 function ownedSearchStatus(item) {
   const owned = ownedCardSummary(item, state.items);
   if (!owned.quantity) return "";
-  return `<small class="owned-search-status"><strong>In your library</strong> · ${owned.quantity} card${owned.quantity === 1 ? "" : "s"}${owned.positions > 1 ? ` across ${owned.positions} conditions or grades` : ""}</small>`;
+  return `<small class="owned-search-status"><strong>In your library</strong> · ${owned.quantity} card${owned.quantity === 1 ? "" : "s"}${owned.positions > 1 ? ` with ${owned.positions} different wear levels or grades` : ""}</small>`;
 }
 
 function setFilterMarkup(results, selected = "") {
@@ -6334,7 +6375,7 @@ function setFilterMarkup(results, selected = "") {
 
 function openManualSearch() {
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Search catalog</h2><p>Use a name, set, number, rarity, finish, or any combination.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="catalogQuery" type="search" placeholder="Charizard Base Set 4/102" aria-label="Search catalog by card details"></label><div class="field"><label for="catalogLanguage">Language</label><select id="catalogLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div></div><div class="manual-results" id="manualResults" aria-live="polite"><div class="unavailable-panel">Type at least two characters to search.</div></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find a card</h2><p>Type the card name and the number printed at the bottom, such as 4/102.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="catalogQuery" type="search" placeholder="Charizard 4/102" aria-label="Search by card name and bottom number"></label><div class="field"><label for="catalogLanguage">Language on the card</label><select id="catalogLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div></div><div class="manual-results" id="manualResults" aria-live="polite"><div class="unavailable-panel">Type at least two characters to search.</div></div>`,
   );
   const input = $("#catalogQuery");
   const language = $("#catalogLanguage");
@@ -6380,7 +6421,7 @@ function openManualSearch() {
     }
     $("#manualResults").setAttribute("aria-busy", "true");
     $("#manualResults").innerHTML =
-      '<div class="unavailable-panel">Searching exact printings…</div>';
+      '<div class="unavailable-panel">Finding matching cards…</div>';
     try {
       const result = await searchCatalog(q, language.value, 12);
       if (current !== requestId) return;
@@ -6408,7 +6449,7 @@ function openManualSearch() {
 function openInfo(kind) {
   if (kind === "privacy") {
     openSheet(
-      `<div class="sheet-heading"><div><h2 id="sheetTitle">Privacy & account deletion</h2><p>Your portfolio belongs to you.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p>Collection records, transaction history, purchase lots, watchlist entries, labels, and account details are private to your signed-in account.</p><p>Download a backup before deleting if you want to keep a personal copy. Deleting the account permanently removes the account and its linked portfolio data.</p></div><div class="sheet-actions"><button class="secondary" id="privacyBackup" type="button">Download backup</button><button class="danger-action" id="startAccountDeletion" type="button">Delete account…</button></div>`,
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Privacy & account deletion</h2><p>Your collection belongs to you.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy"><p>Your cards, purchases, sales, watched cards, labels, and account details are private to your signed-in account.</p><p>Download a backup first if you want to keep a copy. Deleting your account permanently removes the account and its collection data.</p></div><div class="sheet-actions"><button class="secondary" id="privacyBackup" type="button">Download backup</button><button class="danger-action" id="startAccountDeletion" type="button">Delete account…</button></div>`,
     );
     $("#privacyBackup").addEventListener("click", downloadAccountBackup);
     $("#startAccountDeletion").addEventListener(
@@ -6419,11 +6460,11 @@ function openInfo(kind) {
   }
   const content = {
     sources:
-      "Live quotes are requested through server-side provider adapters. PkmnPrices is preferred, with JustTCG and public TCGdex pricing used only as configured fallbacks. Every quote preserves provider IDs, condition, printing, currency, timestamps, attribution, and quality metadata. Provider keys are never sent to the browser.",
+      "Mica checks connected card-price services without showing them your private collection. Each price stays attached to the exact card version, wear level or professional grade, currency, date, and source. A price for a different card is never used as a substitute.",
     retention:
-      "Mica prepares a smaller copy on your device and sends it once for analysis. The application does not write the photo or AI result to collection storage, and nothing is added to your portfolio until you confirm it.",
+      "Mica makes a smaller copy of your photo on your device and sends it once for analysis. The photo and AI result are not saved with your collection, and no card is added until you confirm it.",
     privacy:
-      "Collection records are private. Production uses Supabase Auth, ownership-based Row Level Security, private storage, data export, and an account-deletion workflow. Never place service-role credentials in the client.",
+      "Your collection is private to your signed-in account. You can download your data or permanently delete the account from Settings.",
   }[kind];
   openSheet(
     `<div class="sheet-heading"><div><h2 id="sheetTitle">${kind === "sources" ? "Data sources" : kind === "retention" ? "Scan retention" : "Privacy & deletion"}</h2></div><button class="sheet-close" aria-label="Close">×</button></div><p class="info-copy">${esc(content)}</p>`,
@@ -6448,22 +6489,22 @@ async function refreshCapabilityStatus() {
     setStatus(
       "pricingConnectionState",
       capabilities.pricing?.status === "connected"
-        ? `Configured · ${String(capabilities.pricing.plan || "free").toUpperCase()} · live check required`
-        : "Public pricing only",
+        ? `${String(capabilities.pricing.plan || "free").toUpperCase()} plan connected`
+        : "Basic public prices only",
       capabilities.pricing?.status === "connected" ? "active" : "limited",
     );
     setStatus(
       "visionConnectionState",
       capabilities.vision?.status === "connected"
-        ? "Connected"
+        ? "AI scans ready"
         : capabilities.vision?.status === "vercel_managed"
-          ? "Gateway check on first scan"
-          : "Connect AI Gateway",
+          ? "Checked when you scan"
+          : "AI connection needed",
       capabilities.vision?.status === "connected" ? "active" : "limited",
     );
-    setStatus("pushConnectionState", "Developer mode", "limited");
+    setStatus("pushConnectionState", "Ready after app-store setup", "limited");
     $("#connectionStatusNote").textContent =
-      "Unavailable features explain the required connection at the point of use; no placeholder is presented as live data.";
+      "A tool that still needs a connection will explain what is missing when you open it.";
   } catch {
     [
       "catalogConnectionState",
@@ -6700,7 +6741,7 @@ async function openInstallExperience() {
     ? "<ol><li>Open Mica in Safari.</li><li>Tap the Share button.</li><li>Choose Add to Home Screen, then confirm.</li></ol>"
     : "<ol><li>Open your browser menu.</li><li>Choose Install Mica, Install app, or Add to Home Screen when available.</li><li>Confirm the browser prompt.</li></ol>";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Install Mica</h2><p>Keep your portfolio one tap away.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy">${steps}<p>Once installed, the app shell can open offline. Current prices and cloud changes still require an internet connection.</p></div><div class="sheet-actions"><button class="primary" id="installStepsDone" type="button">Got it</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Install Mica</h2><p>Keep your collection one tap away.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="info-copy">${steps}<p>Once installed, Mica can open without an internet connection. Current prices and saved changes still need internet access.</p></div><div class="sheet-actions"><button class="primary" id="installStepsDone" type="button">Got it</button></div>`,
   );
   $("#installStepsDone").addEventListener("click", closeSheet);
 }
@@ -6708,7 +6749,7 @@ async function openInstallExperience() {
 function openAccountDeletionSheet() {
   const email = state.session?.user?.email || "";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Permanently delete account?</h2><p>This cannot be undone.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>Your account and linked portfolio data will be permanently removed.</strong><p>Type your account email to confirm. You can cancel without changing anything.</p></div><form id="deleteAccountForm"><div class="field"><label for="deleteAccountEmail">Type ${esc(email)}</label><input id="deleteAccountEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" required></div><p class="form-error" id="deleteAccountError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="cancelAccountDeletion" type="button">Keep my account</button><button class="danger-action" id="confirmAccountDeletion" type="submit" disabled>Delete permanently</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Permanently delete account?</h2><p>This cannot be undone.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="warning-panel"><strong>Your account and saved collection will be permanently removed.</strong><p>Type your account email to confirm. You can cancel without changing anything.</p></div><form id="deleteAccountForm"><div class="field"><label for="deleteAccountEmail">Type ${esc(email)}</label><input id="deleteAccountEmail" type="email" autocomplete="off" autocapitalize="none" spellcheck="false" required></div><p class="form-error" id="deleteAccountError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="cancelAccountDeletion" type="button">Keep my account</button><button class="danger-action" id="confirmAccountDeletion" type="submit" disabled>Delete permanently</button></div></form>`,
   );
   const input = $("#deleteAccountEmail");
   const confirm = $("#confirmAccountDeletion");
@@ -6724,7 +6765,7 @@ function openAccountDeletionSheet() {
     $("#cancelAccountDeletion").disabled = true;
     $(".sheet-close").disabled = true;
     $("#deleteAccountError").textContent =
-      "Deleting your account and private portfolio…";
+      "Deleting your account and saved collection…";
     try {
       const response = await fetch("/api/account", {
         method: "DELETE",
@@ -6811,8 +6852,8 @@ function openInsuranceReport() {
     .sort((a, b) => (itemValue(b) ?? -1) - (itemValue(a) ?? -1))
     .map((item) => {
       const context = item.gradingCompany
-        ? `${item.gradingCompany} ${item.grade}`
-        : item.condition || "Raw condition not recorded";
+        ? `${item.gradingCompany} grade ${item.grade}`
+        : conditionLabel(item.condition || "Near Mint");
       const basis =
         item.costBasis === null || item.costBasis === undefined
           ? null
@@ -6821,11 +6862,11 @@ function openInsuranceReport() {
         item.price === null || item.price === undefined
           ? null
           : Number(item.price) * Number(item.quantity || 0);
-      return `<article class="insurance-row"><img src="${esc(item.thumb || item.image || "./icons/icon.svg")}" alt="${esc(item.name)} catalog reference"><div class="insurance-card-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Printing unknown")}</span><small>${esc(context)} · ${Number(item.quantity) || 0} owned</small>${item.certificationNumber ? `<small>Certification ${esc(item.certificationNumber)}</small>` : ""}${item.location ? `<small>Stored at ${esc(item.location)}</small>` : ""}${item.notes ? `<p>${esc(item.notes)}</p>` : ""}</div><div class="insurance-values"><span>Acquisition<strong>${basis === null ? "Not recorded" : money(basis, item.currency)}</strong></span><span>Current reference<strong>${value === null ? "Unavailable" : money(value, item.currency)}</strong></span></div></article>`;
+      return `<article class="insurance-row"><img src="${esc(item.thumb || item.image || "./icons/icon.svg")}" alt="${esc(item.name)} reference image"><div class="insurance-card-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Version unknown")}</span><small>${esc(context)} · ${Number(item.quantity) || 0} owned</small>${item.certificationNumber ? `<small>Certification number ${esc(item.certificationNumber)}</small>` : ""}${item.location ? `<small>Stored at ${esc(item.location)}</small>` : ""}${item.notes ? `<p>${esc(item.notes)}</p>` : ""}</div><div class="insurance-values"><span>What you paid<strong>${basis === null ? "Not recorded" : money(basis, item.currency)}</strong></span><span>Estimated value today<strong>${value === null ? "Unavailable" : money(value, item.currency)}</strong></span></div></article>`;
     })
     .join("");
   openSheet(
-    `<div class="insurance-report"><div class="sheet-heading"><div><h2 id="sheetTitle">Insurance inventory report</h2><p>Private account record · ${date}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="insurance-owner"><span>Prepared for</span><strong>${esc(state.session?.user?.email || "Mica account holder")}</strong><small>${documentation.cards} card${documentation.cards === 1 ? "" : "s"} across ${documentation.positions} position${documentation.positions === 1 ? "" : "s"}</small></div><div class="insurance-summary"><div><span>Current reference value</span><strong>${money(totals.value)}</strong><small>${totals.unpriced ? `${totals.unpriced} card${totals.unpriced === 1 ? "" : "s"} excluded without an exact price` : "Every card has a matching reference"}</small></div><div><span>Recorded acquisition basis</span><strong>${totals.costKnown ? money(totals.cost) : "Unavailable"}</strong><small>${totals.unknownCost ? `${totals.unknownCost} card${totals.unknownCost === 1 ? "" : "s"} missing cost` : "Cost recorded for every card"}</small></div></div><div class="insurance-documentation"><strong>Documentation check</strong><span>${documentation.missingLocation} position${documentation.missingLocation === 1 ? "" : "s"} missing storage · ${documentation.missingCertification} graded position${documentation.missingCertification === 1 ? "" : "s"} missing certification · ${documentation.missingPrice} missing current price</span></div><div class="insurance-list">${rows || '<div class="find-empty"><strong>No positions to report</strong><span>Add a card to your library before creating an insurance inventory.</span></div>'}</div><p class="insurance-disclaimer">Catalog images help identify printings but are not proof of ownership, authenticity, condition, or possession. Market references are estimates, not appraisals. Add your own photographs, receipts, and professional valuations to an insurer submission when required.</p><div class="sheet-actions insurance-actions"><button class="secondary" id="insuranceClose" type="button">Close</button><button class="primary" id="printInsuranceReport" type="button" ${state.items.length ? "" : "disabled"}>Print / Save PDF</button></div></div>`,
+    `<div class="insurance-report"><div class="sheet-heading"><div><h2 id="sheetTitle">Insurance collection report</h2><p>Private account record · ${date}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="insurance-owner"><span>Prepared for</span><strong>${esc(state.session?.user?.email || "Mica account holder")}</strong><small>${documentation.cards} card${documentation.cards === 1 ? "" : "s"} in ${documentation.positions} saved entr${documentation.positions === 1 ? "y" : "ies"}</small></div><div class="insurance-summary"><div><span>Estimated value today</span><strong>${money(totals.value)}</strong><small>${totals.unpriced ? `${totals.unpriced} card${totals.unpriced === 1 ? "" : "s"} left out because no matching price was found` : "Every card has a matching price"}</small></div><div><span>Total amount recorded as paid</span><strong>${totals.costKnown ? money(totals.cost) : "Unavailable"}</strong><small>${totals.unknownCost ? `${totals.unknownCost} card${totals.unknownCost === 1 ? "" : "s"} missing the amount paid` : "Amount paid recorded for every card"}</small></div></div><div class="insurance-documentation"><strong>Details to complete</strong><span>${documentation.missingLocation} saved entr${documentation.missingLocation === 1 ? "y" : "ies"} missing a storage location · ${documentation.missingCertification} graded entr${documentation.missingCertification === 1 ? "y" : "ies"} missing a certification number · ${documentation.missingPrice} missing a current price</span></div><div class="insurance-list">${rows || '<div class="find-empty"><strong>No cards to report</strong><span>Add a card to your library before creating an insurance report.</span></div>'}</div><p class="insurance-disclaimer">Card images help identify the card but do not prove ownership, authenticity, condition, or possession. Prices are estimates, not official appraisals. Add your own photos, receipts, and professional valuations if your insurer asks for them.</p><div class="sheet-actions insurance-actions"><button class="secondary" id="insuranceClose" type="button">Close</button><button class="primary" id="printInsuranceReport" type="button" ${state.items.length ? "" : "disabled"}>Print / Save PDF</button></div></div>`,
   );
   $("#insuranceClose").addEventListener("click", closeSheet);
   $("#printInsuranceReport").addEventListener("click", () => window.print());
@@ -6834,7 +6875,7 @@ function openInsuranceReport() {
 function openSharePortfolioSheet() {
   if (!requireAccountData()) return;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Share a portfolio snapshot</h2><p>Preview exactly what leaves Mica.</p></div><button class="sheet-close" aria-label="Close">×</button></div><label class="share-performance"><input id="sharePerformance" type="checkbox"> Include recorded cost basis and known gain/loss</label><pre class="share-preview" id="sharePreview"></pre><div class="simple-note"><strong>Private by default.</strong><br>Notes, storage locations, certification numbers, purchase dates, account details, and transaction history are never included.</div><div class="sheet-actions"><button class="secondary" id="copyPortfolioSnapshot" type="button">Copy summary</button>${navigator.share ? '<button class="primary" id="nativeSharePortfolio" type="button">Share…</button>' : ""}</div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Share a collection summary</h2><p>Preview exactly what will be shared.</p></div><button class="sheet-close" aria-label="Close">×</button></div><label class="share-performance"><input id="sharePerformance" type="checkbox"> Include what I paid and the known change in value</label><pre class="share-preview" id="sharePreview"></pre><div class="simple-note"><strong>Private by default.</strong><br>Notes, storage locations, certification numbers, purchase dates, account details, and buying or selling history are never included.</div><div class="sheet-actions"><button class="secondary" id="copyPortfolioSnapshot" type="button">Copy summary</button>${navigator.share ? '<button class="primary" id="nativeSharePortfolio" type="button">Share…</button>' : ""}</div>`,
   );
   const text = () =>
     portfolioSnapshot(state.items, {
@@ -6846,7 +6887,7 @@ function openSharePortfolioSheet() {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text());
-      toast("Portfolio summary copied");
+      toast("Collection summary copied");
     } catch {
       toast("Copy is unavailable in this browser");
     }
@@ -6861,7 +6902,7 @@ function openSharePortfolioSheet() {
         title: "My Mica Pokémon collection",
         text: text(),
       });
-      toast("Portfolio snapshot shared");
+      toast("Collection summary shared");
     } catch (error) {
       if (error?.name !== "AbortError")
         toast("Sharing is unavailable right now");
@@ -6898,10 +6939,10 @@ function handleCsv(file) {
     ).length;
     const unknownCopy =
       unknownCostRows || unknownDateRows
-        ? `<div class="simple-note"><strong>Mica will not invent missing history.</strong><br>${unknownCostRows ? `${unknownCostRows.toLocaleString()} row${unknownCostRows === 1 ? " has" : "s have"} no acquisition cost and will be excluded from profit and ROI. ` : ""}${unknownDateRows ? `${unknownDateRows.toLocaleString()} row${unknownDateRows === 1 ? " has" : "s have"} no purchase date; the date below controls FIFO order but remains labeled “not recorded.”` : ""}</div>`
+        ? `<div class="simple-note"><strong>Mica will not guess missing purchase details.</strong><br>${unknownCostRows ? `${unknownCostRows.toLocaleString()} row${unknownCostRows === 1 ? " has" : "s have"} no amount paid, so Mica cannot show money gained for those cards. ` : ""}${unknownDateRows ? `${unknownDateRows.toLocaleString()} row${unknownDateRows === 1 ? " has" : "s have"} no purchase date; the date below only keeps purchases in a consistent order and will still be shown as “not recorded.”` : ""}</div>`
         : "";
     openSheet(
-      `<div class="sheet-heading"><div><h2 id="sheetTitle">Import ${records.length.toLocaleString()} card record${records.length === 1 ? "" : "s"}?</h2><p>${esc(source)} format detected · private cloud portfolio</p></div><button class="sheet-close" aria-label="Close">×</button></div>${errorCopy}${unknownCopy}<div class="info-copy"><p>Mica preserves exact card state, grade, variant, known purchase history, certification, labels, location, and notes. Existing positions are never overwritten. Re-importing the same rows with the same fallback date safely reuses positions already saved.</p></div><div class="field"><label for="importFallbackDate">FIFO order date for rows missing purchase dates</label><input id="importFallbackDate" type="date" max="${today}" value="${today}" required><small>This keeps inventory order deterministic. Mica still displays the original acquisition date as not recorded.</small></div><section class="import-progress" id="importProgress" aria-labelledby="importProgressTitle" hidden><div><strong id="importProgressTitle">Preparing import…</strong><span id="importProgressCount">0 of ${records.length.toLocaleString()}</span></div><progress id="importProgressBar" max="${records.length}" value="0">0%</progress><small id="importProgressHelp">You can pause after the current secure saves finish.</small></section><p class="form-error" id="importStatus" role="status" aria-live="polite"></p><div class="sheet-actions import-actions"><button class="secondary" id="cancelCsvImport" type="button">Cancel</button><button class="secondary" id="pauseCsvImport" type="button" hidden>Pause</button><button class="primary" id="addCsvImport" type="button">Add to my account</button></div>`,
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Import ${records.length.toLocaleString()} card record${records.length === 1 ? "" : "s"}?</h2><p>${esc(source)} spreadsheet found · private collection</p></div><button class="sheet-close" aria-label="Close">×</button></div>${errorCopy}${unknownCopy}<div class="info-copy"><p>Mica keeps each card’s type, professional grade, version, known purchase history, certification number, labels, location, and notes. Cards already in your account are not overwritten. Importing the same rows again will reuse the copies already saved when it can do so safely.</p></div><div class="field"><label for="importFallbackDate">Temporary date for rows missing a purchase date</label><input id="importFallbackDate" type="date" max="${today}" value="${today}" required><small>This only keeps purchases in a consistent order. Mica will still show the real purchase date as not recorded.</small></div><section class="import-progress" id="importProgress" aria-labelledby="importProgressTitle" hidden><div><strong id="importProgressTitle">Preparing import…</strong><span id="importProgressCount">0 of ${records.length.toLocaleString()}</span></div><progress id="importProgressBar" max="${records.length}" value="0">0%</progress><small id="importProgressHelp">You can pause after the current secure saves finish.</small></section><p class="form-error" id="importStatus" role="status" aria-live="polite"></p><div class="sheet-actions import-actions"><button class="secondary" id="cancelCsvImport" type="button">Cancel</button><button class="secondary" id="pauseCsvImport" type="button" hidden>Pause</button><button class="primary" id="addCsvImport" type="button">Add to my account</button></div>`,
     );
     const prepare = (record, index) => {
       const cardState =
@@ -6935,7 +6976,7 @@ function handleCsv(file) {
         (!Number.isFinite(Number(total)) || Number(total) < 0)
       )
         return {
-          error: `Row ${index + 2}: purchase price or total acquisition cost is invalid`,
+          error: `Row ${index + 2}: purchase price or total paid is invalid`,
         };
       if (
         !/^\d{4}-\d{2}-\d{2}$/.test(transactionDate) ||
@@ -7179,13 +7220,13 @@ function handleCsv(file) {
         ? `${done.toLocaleString()} saved · paused with ${remaining.toLocaleString()} remaining.`
         : issues.length
           ? `${done.toLocaleString()} saved · ${issues.length.toLocaleString()} issue${issues.length === 1 ? "" : "s"}. ${issues.slice(0, 3).join(" · ")}`
-          : `${done.toLocaleString()} position${done === 1 ? "" : "s"} saved. Safe to close.`;
+          : `${done.toLocaleString()} saved entr${done === 1 ? "y" : "ies"}. Safe to close.`;
       toast(
         remaining
           ? `Import paused · ${done.toLocaleString()} saved`
           : issues.length
             ? `${done.toLocaleString()} saved · ${issues.length.toLocaleString()} need review`
-            : `${done.toLocaleString()} positions saved to your account`,
+            : `${done.toLocaleString()} saved entr${done === 1 ? "y" : "ies"} added to your account`,
       );
     };
     $("#cancelCsvImport").addEventListener("click", closeSheet);
@@ -7695,13 +7736,13 @@ function renderBusinessReview() {
   );
   if (!state.items.length && !state.watchlist.length) {
     $("#businessReview").innerHTML =
-      '<div class="action-center-empty"><span>Start here</span><strong>Add your first exact item</strong><small>Search a card or sealed product, then enter one total acquisition cost. Mica will build the action queue from your real data.</small><button id="actionCenterAdd" type="button">Find an item →</button></div>';
+      '<div class="action-center-empty"><span>Start here</span><strong>Add your first card</strong><small>Search for a card or unopened product, then enter the total paid. Mica will build a simple checklist from your collection.</small><button id="actionCenterAdd" type="button">Find a card →</button></div>';
     $("#actionCenterAdd").addEventListener("click", () => routeTo("scan"));
     return;
   }
   if (!actions.length) {
     $("#businessReview").innerHTML =
-      '<div class="action-center-clear"><span>Today</span><strong>You’re caught up</strong><small>No reached buy targets, missing prices, below-cost cards, or older inventory need review.</small><b>✓</b></div>';
+      '<div class="action-center-clear"><span>Today</span><strong>You’re caught up</strong><small>No watched prices have been reached, and no cards need a price or purchase review.</small><b>✓</b></div>';
     return;
   }
   $("#businessReview").innerHTML =
@@ -7781,10 +7822,10 @@ async function explainPortfolioPriorities() {
   result.classList.remove("hidden");
   result.setAttribute("aria-busy", "true");
   result.innerHTML =
-    '<div class="portfolio-brief-loading"><i></i><span>Explaining Mica’s verified queue without sending card names, costs, notes, or photos…</span></div>';
+    '<div class="portfolio-brief-loading"><i></i><span>Explaining your checklist without sending card names, prices, notes, or photos…</span></div>';
   try {
     const brief = await requestPortfolioBrief(actions);
-    result.innerHTML = `<div class="portfolio-brief-head"><span>AI explanation · verified signals only</span><h3>${esc(brief.headline)}</h3><p>${esc(brief.summary)}</p></div><div class="portfolio-brief-priorities">${brief.priorities
+    result.innerHTML = `<div class="portfolio-brief-head"><span>AI explanation · based only on this checklist</span><h3>${esc(brief.headline)}</h3><p>${esc(brief.summary)}</p></div><div class="portfolio-brief-priorities">${brief.priorities
       .map((priority, index) => {
         const action = actions.find(
           (candidate) => candidate.key === priority.actionKey,
@@ -7814,15 +7855,15 @@ function openBusinessReviewQueue(key, items) {
   const config = {
     pricing: {
       title: "Missing prices",
-      copy: "Positions missing an exact current reference",
+      copy: "Saved cards that do not have a matching price today",
     },
     "below-cost": {
-      title: "Below cost",
-      copy: "Positions whose current reference is below remaining basis",
+      title: "Worth less than you paid",
+      copy: "Cards whose current value is below the amount you paid",
     },
     older: {
-      title: "Older inventory",
-      copy: "Positions owned for at least 180 days",
+      title: "Owned for a long time",
+      copy: "Cards you have owned for at least 180 days",
     },
     targets: {
       title: "Reached buy targets",
@@ -7842,8 +7883,8 @@ function openBusinessReviewQueue(key, items) {
         metric = "Needs price";
         detail = esc(
           item.gradingCompany
-            ? `${item.gradingCompany} ${item.grade}`
-            : item.condition,
+            ? `${item.gradingCompany} grade ${item.grade}`
+            : conditionLabel(item.condition),
         );
       } else if (key === "listings") {
         metric =
@@ -7858,17 +7899,17 @@ function openBusinessReviewQueue(key, items) {
         const value = Number(item.price || 0) * Number(item.quantity || 0);
         const gap = value - Number(item.costBasis || 0);
         metric = `${gap >= 0 ? "+" : ""}${money(gap, item.currency)}`;
-        detail = `${money(value, item.currency)} value · ${money(item.costBasis, item.currency)} basis`;
+        detail = `${money(value, item.currency)} value · ${money(item.costBasis, item.currency)} paid`;
       } else if (key === "older") {
         const days = holdingDays(item.purchaseDate);
         metric = days === null ? "Date missing" : `${days} days`;
-        detail = `First purchased ${esc(item.purchaseDate || "date not recorded")}`;
+        detail = `First bought ${esc(item.purchaseDate || "date not recorded")}`;
       } else {
         metric =
           item.currentPrice === null
             ? "Price missing"
             : money(item.currentPrice, item.currency);
-        detail = `Target ${money(item.targetPrice, item.currency)} · ${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)}`;
+        detail = `Your target ${money(item.targetPrice, item.currency)} · ${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))}`;
       }
       return `<button class="review-queue-row" type="button" data-review-index="${index}"><img src="${esc(item.thumb || "./icons/icon.svg")}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number)}</small><em>${detail}</em></span><b>${metric}<small>Review →</small></b></button>`;
     })
@@ -7931,19 +7972,19 @@ function renderBusinessSummary() {
   $("#businessExport").disabled = !summary.transactionCount;
   if (!summary.transactionCount) {
     $("#businessReportMetrics").innerHTML =
-      '<div class="data-boundary"><strong>No transactions in this period</strong><p>Record purchases and sales to see cash flow and realized profit here.</p></div>';
+      '<div class="data-boundary"><strong>No buying or selling in this time period</strong><p>Record purchases and sales to see money in, money out, and money gained here.</p></div>';
     $("#businessReportNote").textContent =
-      "Business reporting uses only transactions you record. Market-value changes are kept separate.";
+      "This report uses only purchases and sales you record. Changes in card prices are shown separately.";
     return;
   }
   const cashClass = summary.cashFlowMinor >= 0 ? "positive" : "negative";
   const profitClass =
     summary.realizedProfitMinor >= 0 ? "positive" : "negative";
   $("#businessReportMetrics").innerHTML =
-    `<div><span>Net sales</span><strong>${money(summary.netSalesMinor / 100, summary.currency)}</strong><small>${summary.unitsSold} card${summary.unitsSold === 1 ? "" : "s"} sold</small></div><div><span>Acquisition spend</span><strong>${money(summary.acquisitionSpendMinor / 100, summary.currency)}</strong><small>${summary.unitsPurchased} card${summary.unitsPurchased === 1 ? "" : "s"} purchased</small></div><div class="${cashClass}"><span>Cash flow</span><strong>${summary.cashFlowMinor >= 0 ? "+" : ""}${money(summary.cashFlowMinor / 100, summary.currency)}</strong><small>Net sales minus acquisitions</small></div><div class="${profitClass}"><span>${summary.realizedCoverage === summary.saleCount ? "Realized profit" : "Known realized profit"}</span><strong>${summary.realizedProfitMinor >= 0 ? "+" : ""}${money(summary.realizedProfitMinor / 100, summary.currency)}</strong><small>FIFO basis on ${summary.realizedCoverage} of ${summary.saleCount} sales</small></div><div><span>Selling costs</span><strong>${money(summary.sellingCostsMinor / 100, summary.currency)}</strong><small>Gross sale price minus net</small></div><div><span>Activity</span><strong>${summary.transactionCount}</strong><small>${summary.purchaseCount} purchase${summary.purchaseCount === 1 ? "" : "s"} · ${summary.saleCount} sale${summary.saleCount === 1 ? "" : "s"}</small></div>`;
+    `<div><span>Money received from sales</span><strong>${money(summary.netSalesMinor / 100, summary.currency)}</strong><small>${summary.unitsSold} card${summary.unitsSold === 1 ? "" : "s"} sold · after selling costs</small></div><div><span>Money spent buying cards</span><strong>${money(summary.acquisitionSpendMinor / 100, summary.currency)}</strong><small>${summary.unitsPurchased} card${summary.unitsPurchased === 1 ? "" : "s"} bought</small></div><div class="${cashClass}"><span>Money in minus money out</span><strong>${summary.cashFlowMinor >= 0 ? "+" : ""}${money(summary.cashFlowMinor / 100, summary.currency)}</strong><small>Sales received minus purchases paid</small></div><div class="${profitClass}"><span>${summary.realizedCoverage === summary.saleCount ? "Money gained from sold cards" : "Known money gained from sold cards"}</span><strong>${summary.realizedProfitMinor >= 0 ? "+" : ""}${money(summary.realizedProfitMinor / 100, summary.currency)}</strong><small>Uses what you paid for ${summary.realizedCoverage} of ${summary.saleCount} sales</small></div><div><span>Selling costs</span><strong>${money(summary.sellingCostsMinor / 100, summary.currency)}</strong><small>Total sale prices minus the money you received</small></div><div><span>Recorded activity</span><strong>${summary.transactionCount}</strong><small>${summary.purchaseCount} purchase${summary.purchaseCount === 1 ? "" : "s"} · ${summary.saleCount} sale${summary.saleCount === 1 ? "" : "s"}</small></div>`;
   $("#businessReportNote").textContent = summary.skippedCurrencyCount
     ? `${summary.skippedCurrencyCount} transaction${summary.skippedCurrencyCount === 1 ? " was" : "s were"} excluded to avoid mixing currencies. USD is shown separately.`
-    : "USD transactions only. Market value and unrealized gains are not counted as cash or realized profit.";
+    : "Only US-dollar purchases and sales are shown. A card’s price change is not counted as money received until you sell it.";
 }
 
 function liquidationInputs() {
@@ -7974,10 +8015,10 @@ function renderLiquidationPlanner() {
   }
   if (!plan.rows.length) {
     output.innerHTML =
-      '<div class="data-boundary"><strong>No priced USD inventory yet</strong><p>Add an item and load an exact market reference to plan a take-home amount.</p></div>';
+      '<div class="data-boundary"><strong>No cards with US-dollar prices yet</strong><p>Add a card and load its matching price to estimate how much money you could keep after selling.</p></div>';
     note.textContent = plan.unpricedUnits
       ? `${plan.unpricedUnits} unpriced card${plan.unpricedUnits === 1 ? " is" : "s are"} excluded, not valued at zero.`
-      : "Market references are estimates, not guaranteed sale prices.";
+      : "Shown prices are estimates, not guaranteed sale prices.";
     return;
   }
   const profitClass =
@@ -7986,7 +8027,7 @@ function renderLiquidationPlanner() {
       : plan.profitMinor >= 0
         ? "positive"
         : "negative";
-  output.innerHTML = `<div><span>Shown reference value</span><strong>${money(plan.referenceValueMinor / 100, plan.currency)}</strong><small>${plan.pricedUnits} priced item${plan.pricedUnits === 1 ? "" : "s"}</small></div><div><span>Expected gross sales</span><strong>${money(plan.expectedGrossMinor / 100, plan.currency)}</strong><small>At ${Number(liquidationInputs().referencePercent).toFixed(1)}% of reference</small></div><div><span>Fees & other costs</span><strong>−${money((plan.marketplaceFeesMinor + plan.totalSellingCostsMinor) / 100, plan.currency)}</strong><small>${money(plan.marketplaceFeesMinor / 100, plan.currency)} percentage fee · ${money(plan.totalSellingCostsMinor / 100, plan.currency)} other</small></div><div class="take-home"><span>Estimated take-home</span><strong>${money(plan.netProceedsMinor / 100, plan.currency)}</strong><small>Gross minus the assumptions above</small></div><div class="${profitClass}"><span>${plan.profitMinor === null ? "Profit unavailable" : "Estimated profit"}</span><strong>${plan.profitMinor === null ? "Basis incomplete" : `${plan.profitMinor >= 0 ? "+" : ""}${money(plan.profitMinor / 100, plan.currency)}`}</strong><small>${plan.profitMinor === null ? `${plan.unknownBasisUnits} priced item${plan.unknownBasisUnits === 1 ? " is" : "s are"} missing acquisition cost` : plan.roiPercent === null ? "No return percentage on zero basis" : `${plan.roiPercent >= 0 ? "+" : ""}${plan.roiPercent.toFixed(1)}% on remaining basis`}</small></div><div><span>Break-even sale level</span><strong>${plan.breakEvenReferencePercent === null ? "—" : `${plan.breakEvenReferencePercent.toFixed(1)}%`}</strong><small>Of shown reference after fees and costs</small></div>`;
+  output.innerHTML = `<div><span>Current value of included cards</span><strong>${money(plan.referenceValueMinor / 100, plan.currency)}</strong><small>${plan.pricedUnits} priced item${plan.pricedUnits === 1 ? "" : "s"}</small></div><div><span>Expected total sale prices</span><strong>${money(plan.expectedGrossMinor / 100, plan.currency)}</strong><small>Using ${Number(liquidationInputs().referencePercent).toFixed(1)}% of today’s prices</small></div><div><span>Fees and other costs</span><strong>−${money((plan.marketplaceFeesMinor + plan.totalSellingCostsMinor) / 100, plan.currency)}</strong><small>${money(plan.marketplaceFeesMinor / 100, plan.currency)} selling-site fee · ${money(plan.totalSellingCostsMinor / 100, plan.currency)} other</small></div><div class="take-home"><span>Estimated money you keep</span><strong>${money(plan.netProceedsMinor / 100, plan.currency)}</strong><small>Sale prices minus the costs above</small></div><div class="${profitClass}"><span>${plan.profitMinor === null ? "Money gained unavailable" : "Estimated money gained"}</span><strong>${plan.profitMinor === null ? "Add what you paid" : `${plan.profitMinor >= 0 ? "+" : ""}${money(plan.profitMinor / 100, plan.currency)}`}</strong><small>${plan.profitMinor === null ? `${plan.unknownBasisUnits} priced item${plan.unknownBasisUnits === 1 ? " is" : "s are"} missing the amount paid` : "Compared with what you paid for the cards sold"}</small></div><div><span>Lowest sale level that avoids losing money</span><strong>${plan.breakEvenReferencePercent === null ? "—" : `${plan.breakEvenReferencePercent.toFixed(1)}%`}</strong><small>Of today’s shown prices after fees and costs</small></div>`;
   const omissions = [];
   if (plan.unpricedUnits)
     omissions.push(
@@ -7998,11 +8039,11 @@ function renderLiquidationPlanner() {
     );
   if (plan.unknownBasisUnits)
     omissions.push(
-      `${plan.unknownBasisUnits} item${plan.unknownBasisUnits === 1 ? "" : "s"} missing cost basis`,
+      `${plan.unknownBasisUnits} item${plan.unknownBasisUnits === 1 ? "" : "s"} missing the amount paid`,
     );
   note.textContent = omissions.length
     ? `${omissions.join(" · ")}. Missing values are never treated as zero.`
-    : "Every included item has a matching USD reference and recorded cost basis. This is still a planning estimate, not a guaranteed offer.";
+    : "Every included item has a matching US-dollar price and a recorded amount paid. This is still an estimate, not a guaranteed sale.";
 }
 
 function downloadLiquidationScenario() {
@@ -8017,11 +8058,11 @@ function downloadLiquidationScenario() {
       "Number",
       "Condition or grade",
       "Quantity",
-      "Reference each",
+      "Price shown for each",
       "Expected sale each",
-      "Expected gross",
+      "Expected total sale amount",
       "Estimated percentage fee",
-      "Cost basis",
+      "Amount originally paid",
     ],
   ];
   plan.rows.forEach((row) =>
@@ -8041,13 +8082,13 @@ function downloadLiquidationScenario() {
   rows.push(
     [],
     [
-      `Scenario: ${liquidationInputs().referencePercent}% of reference`,
+      `Scenario: ${liquidationInputs().referencePercent}% of the shown price`,
       `Fee: ${liquidationInputs().feePercent}%`,
       `Other selling costs: ${dollars(plan.totalSellingCostsMinor)}`,
       `Estimated take-home: ${dollars(plan.netProceedsMinor)}`,
       plan.profitMinor === null
-        ? "Estimated profit: unavailable — basis incomplete"
-        : `Estimated profit: ${dollars(plan.profitMinor)}`,
+        ? "Estimated money gained: unavailable — amount paid is missing"
+        : `Estimated money gained: ${dollars(plan.profitMinor)}`,
     ],
   );
   downloadTextFile(
@@ -8080,9 +8121,9 @@ function renderInventoryHealth() {
   const health = inventoryHealth(state.items, { currency: "USD" });
   if (!health.totalQuantity) {
     $("#inventoryHealth").innerHTML =
-      '<div class="data-boundary"><strong>No inventory to analyze yet</strong><p>Add a purchase and Mica will show concentration and the age of remaining capital.</p></div>';
+      '<div class="data-boundary"><strong>No cards to review yet</strong><p>Add a purchase and Mica will show whether too much of your money is tied up in a few cards and how long you have owned them.</p></div>';
     $("#inventoryHealthNote").textContent =
-      "Uses remaining FIFO lots when they are available.";
+      "Cards are counted from your oldest recorded purchase first.";
     return;
   }
   const basisScale = health.totalCostBasis > 0 && !health.unknownBasisQuantity;
@@ -8096,16 +8137,16 @@ function renderInventoryHealth() {
     .map((bucket) => {
       const scale = basisScale ? bucket.costBasis : bucket.quantity;
       const width = scaleTotal ? Math.max(2, (scale / scaleTotal) * 100) : 0;
-      return `<div class="inventory-age-row ${bucket.key === "181+" ? "aged" : ""}"><div><strong>${esc(bucket.label)}</strong><span>${bucket.quantity} card${bucket.quantity === 1 ? "" : "s"} · ${basisScale ? `${money(bucket.costBasis, health.currency)} basis` : "basis unavailable"}</span></div><div class="inventory-age-track" aria-label="${esc(bucket.label)} ${width.toFixed(1)} percent of ${basisScale ? "remaining cost basis" : "inventory"}"><i style="width:${width}%"></i></div></div>`;
+      return `<div class="inventory-age-row ${bucket.key === "181+" ? "aged" : ""}"><div><strong>${esc(bucket.label)}</strong><span>${bucket.quantity} card${bucket.quantity === 1 ? "" : "s"} · ${basisScale ? `${money(bucket.costBasis, health.currency)} originally paid` : "purchase amount unavailable"}</span></div><div class="inventory-age-track" aria-label="${esc(bucket.label)} ${width.toFixed(1)} percent of ${basisScale ? "money originally paid" : "cards owned"}"><i style="width:${width}%"></i></div></div>`;
     })
     .join("");
   $("#inventoryHealth").innerHTML =
-    `<div class="inventory-health-metrics"><div><span>Largest position</span><strong>${top ? `${top.sharePercent.toFixed(1)}%` : "—"}</strong><small>${top ? esc(top.name) : "Needs pricing"}</small></div><div><span>Top 3 concentration</span><strong>${health.topThreeSharePercent === null ? "—" : `${health.topThreeSharePercent.toFixed(1)}%`}</strong><small>Share of priced value</small></div><div><span>Pricing coverage</span><strong>${coverage.toFixed(0)}%</strong><small>${health.pricedQuantity} of ${health.totalQuantity} cards</small></div></div><div class="inventory-aging"><div class="inventory-aging-title"><strong>Age of remaining inventory</strong><span>${basisScale ? "By FIFO cost basis" : "By card count"}</span></div>${bucketRows}</div>`;
+    `<div class="inventory-health-metrics"><div><span>Card with the most value</span><strong>${top ? `${top.sharePercent.toFixed(1)}%` : "—"}</strong><small>${top ? esc(top.name) : "Needs a price"}</small></div><div><span>Value held in your top 3 cards</span><strong>${health.topThreeSharePercent === null ? "—" : `${health.topThreeSharePercent.toFixed(1)}%`}</strong><small>Of cards with matching prices</small></div><div><span>Cards with matching prices</span><strong>${coverage.toFixed(0)}%</strong><small>${health.pricedQuantity} of ${health.totalQuantity} cards</small></div></div><div class="inventory-aging"><div class="inventory-aging-title"><strong>How long you have owned these cards</strong><span>${basisScale ? "Grouped by what you paid" : "Grouped by card count"}</span></div>${bucketRows}</div>`;
   $("#inventoryHealthNote").textContent = health.unknownBasisQuantity
-    ? `${health.unknownBasisQuantity} card${health.unknownBasisQuantity === 1 ? " has" : "s have"} unknown acquisition cost, so aging is shown by card count and profit stays unavailable.`
+    ? `${health.unknownBasisQuantity} card${health.unknownBasisQuantity === 1 ? " is" : "s are"} missing the amount paid, so this view uses card count and cannot show money gained.`
     : health.skippedCurrencyPositions
-      ? `${health.skippedCurrencyPositions} non-USD position${health.skippedCurrencyPositions === 1 ? " was" : "s were"} kept separate. Aging uses remaining purchase lots, not the original full purchase.`
-      : "Aging uses remaining FIFO purchase lots. Concentration uses priced positions only; missing prices are not treated as zero.";
+      ? `${health.skippedCurrencyPositions} saved card entr${health.skippedCurrencyPositions === 1 ? "y was" : "ies were"} bought in another currency and kept separate.`
+      : "Uses your oldest recorded purchases first. Cards without a matching price are left out instead of being counted as $0.";
 }
 
 function renderInsights() {
@@ -8134,17 +8175,17 @@ function renderInsights() {
         .slice(0, 5)
         .map(
           ({ item, value, gain }) =>
-            `<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.gradingCompany ? `${item.gradingCompany} ${item.grade}` : item.condition)} · ${item.quantity} owned</span></div><b>${value === null ? "Unavailable" : `${money(value)}${gain === null ? "" : ` · ${gain >= 0 ? "+" : ""}${money(gain)}`}`}</b></div>`,
+            `<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))} · ${item.quantity} owned</span></div><b>${value === null ? "Unavailable" : `${money(value)}${gain === null ? "" : ` · ${gain >= 0 ? "up " : "down "}${money(Math.abs(gain))}`}`}</b></div>`,
         )
         .join("")
-    : '<div class="data-boundary"><strong>No positions yet</strong><p>Add an exact card and purchase lot to start portfolio analysis.</p></div>';
+    : '<div class="data-boundary"><strong>No cards yet</strong><p>Add a card and what you paid to start seeing collection insights.</p></div>';
   renderInventoryHealth();
   const rawCount = state.items
     .filter((item) => item.cardState !== "sealed" && !item.gradingCompany)
     .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   $("#batchGradingCount").textContent = rawCount
-    ? `${rawCount} raw card${rawCount === 1 ? "" : "s"} available`
-    : "Add a raw card to begin";
+    ? `${rawCount} ungraded card${rawCount === 1 ? "" : "s"} available`
+    : "Add an ungraded card to begin";
   const recent = state.items
     .flatMap((item) =>
       (item.transactions || []).map((transaction) => ({ item, transaction })),
@@ -8156,7 +8197,7 @@ function renderInsights() {
         .map(({ item, transaction }) => {
           const label =
             transaction.type === "purchase"
-              ? "Purchased"
+              ? "Bought"
               : transaction.type === "sale"
                 ? "Sold"
                 : transaction.type === "grading_submission"
@@ -8172,13 +8213,13 @@ function renderInsights() {
                 ? "cost not recorded"
                 : `${money(transaction.totalCost, transaction.currency)} total`
               : transaction.type === "sale"
-                ? `${money(transaction.netProceeds, transaction.currency)} net`
+                ? `${money(transaction.netProceeds, transaction.currency)} received after selling costs`
                 : transaction.type === "grading_return"
-                  ? `${transaction.gradingCompany} ${transaction.grade} · ${money(transaction.gradingFees, transaction.currency)} added basis`
+                  ? `${transaction.gradingCompany} grade ${transaction.grade} · ${money(transaction.gradingFees, transaction.currency)} added to what you paid`
                   : transaction.type === "grading_submission"
                     ? `${transaction.gradingCompany || transaction.marketplace} · manual tracking`
                     : transaction.type === "position_split"
-                      ? "FIFO basis transferred · no cash flow"
+                      ? "Original purchase amount moved with the cards · no money moved"
                       : `${transaction.quantity} recorded`;
           return `<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(label)} ${esc(item.name)}</strong><span>${esc(transaction.date || "Date not recorded")} · ${esc(detail)}</span></div><b>×${transaction.quantity}</b></div>`;
         })
@@ -8202,21 +8243,20 @@ function renderInsights() {
       0,
     );
     const change = current - prior;
-    const percent = prior > 0 ? (change / prior) * 100 : null;
     if (movements.length) {
       $(".insight-feature").innerHTML =
-        `<div class="insight-kicker">30-day price change</div><strong>${comparable.length ? `${change >= 0 ? "+" : ""}${money(change)}` : `${movements.length} matching price series`}</strong><span>${percent === null ? "Matching price history" : `${percent >= 0 ? "+" : ""}${percent.toFixed(1)}% across ${comparable.length} card${comparable.length === 1 ? "" : "s"}`} · current quantities</span><div class="unavailable-panel">Uses the same printing, condition or grade, currency, and price source. This is price movement, not profit from a sale.</div>`;
+        `<div class="insight-kicker">Price changes over 30 days</div><strong>${comparable.length ? `${change >= 0 ? "Up " : "Down "}${money(Math.abs(change))}` : `${movements.length} cards with matching past prices`}</strong><span>${comparable.length} card${comparable.length === 1 ? "" : "s"} compared using the number you own now</span><div class="unavailable-panel">Only the same card version, wear level or professional grade, currency, and price source are compared. A higher price is not money earned until a card is sold.</div>`;
     } else {
       $(".insight-feature").innerHTML =
-        `<div class="insight-kicker">${state.pricingStatus === "partial" ? "Partial" : "Live"} pricing status</div><strong>${priced} of ${state.items.length} positions priced</strong><span>Exact-product matches only · ${state.items.length - priced} need review</span><div class="unavailable-panel">${isShowcaseAccount() ? "The Dashboard contains clearly labeled sample history. This page waits for verified observations so showcase movement is never presented as market evidence." : state.movementStatus === "loading" ? "Loading exact historical observations…" : state.movementStatus === "plan_required" ? "Historical observations are ready for PkmnPrices Pro. Current prices remain available on the connected plan." : state.movementStatus === "error" ? "Historical pricing could not be refreshed. Current portfolio values are unchanged." : "Price trends appear after at least 30 days of matching history exist."}</div>`;
+        `<div class="insight-kicker">${state.pricingStatus === "partial" ? "Some prices found" : "Prices connected"}</div><strong>${priced} of ${state.items.length} saved cards have prices</strong><span>${state.items.length - priced} need a matching price</span><div class="unavailable-panel">${isShowcaseAccount() ? "The Dashboard has clearly labeled demo history. This page waits for real prices so demo movement is never mistaken for market evidence." : state.movementStatus === "loading" ? "Checking past prices for the same cards…" : state.movementStatus === "plan_required" ? "Past prices are ready after PkmnPrices Pro is connected. Today’s prices still work." : state.movementStatus === "error" ? "Past prices could not be refreshed. Today’s collection value is unchanged." : "Price changes appear after Mica has matching prices from at least 30 days apart."}</div>`;
     }
     $("#moversList").innerHTML = movements.length
       ? movements
           .slice(0, 6)
           .map(({ item, movement }) => {
             const context = item.gradingCompany
-              ? `${item.gradingCompany} ${item.grade}`
-              : item.condition;
+              ? `${item.gradingCompany} grade ${item.grade}`
+              : conditionLabel(item.condition);
             const provider =
               movement.provider === "ebay"
                 ? "eBay sold"
@@ -8225,12 +8265,13 @@ function renderInsights() {
                   : movement.provider === "cardmarket"
                     ? "Cardmarket"
                     : movement.provider;
-            return `<button type="button" class="mover mover-button" data-mover-id="${esc(item.uid)}"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(context)} · ${esc(provider)} · ${money(movement.fromAmount, movement.currency)} to ${money(movement.toAmount, movement.currency)}</span></div><b class="${movement.changePercent < 0 ? "negative" : ""}">${movement.changePercent >= 0 ? "+" : ""}${movement.changePercent.toFixed(1)}%</b></button>`;
+            const dollarChange = movement.toAmount - movement.fromAmount;
+            return `<button type="button" class="mover mover-button" data-mover-id="${esc(item.uid)}"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(context)} · ${esc(provider)} · ${money(movement.fromAmount, movement.currency)} to ${money(movement.toAmount, movement.currency)}</span></div><b class="${dollarChange < 0 ? "negative" : ""}">${dollarChange >= 0 ? "Up " : "Down "}${money(Math.abs(dollarChange), movement.currency)}</b></button>`;
           })
           .join("")
       : isShowcaseAccount()
-        ? '<div class="data-boundary"><strong>Sample movement is on the Dashboard</strong><p>This Market page waits for verified exact-printing history. The separation keeps sample movement from being mistaken for evidence.</p></div>'
-        : '<div class="data-boundary"><strong>Price history is still building</strong><p>A 30-day comparison needs an older price for the exact same printing and condition or grade. Mica will not mix unlike cards.</p></div>';
+        ? '<div class="data-boundary"><strong>Demo price changes are on the Dashboard</strong><p>This page waits for real prices from the same card version so demo movement is never mistaken for evidence.</p></div>'
+        : '<div class="data-boundary"><strong>Price history is still building</strong><p>A 30-day comparison needs an older price for the same card version and wear level or grade. Mica will not mix different cards.</p></div>';
     $$("[data-mover-id]").forEach((button) =>
       button.addEventListener("click", () =>
         openCardDetail(
@@ -8242,20 +8283,20 @@ function renderInsights() {
     return;
   }
   $(".insight-feature").innerHTML =
-    `<div class="insight-kicker">Price history</div><strong>Tracking begins with live observations</strong><span>Demo values are excluded from performance trends.</span><div class="unavailable-panel">Connect matching historical pricing to see real movement. Mica never turns sample values into a market trend.</div>`;
+    `<div class="insight-kicker">Past prices</div><strong>Tracking starts when live prices connect</strong><span>Demo prices are never used to claim a real price change.</span><div class="unavailable-panel">Connect matching past prices to see real changes. Mica never turns demo prices into a market trend.</div>`;
   $("#moversList").innerHTML =
-    '<div class="data-boundary"><strong>No verified movement yet</strong><p>Price changes appear after Mica has comparable observations for the exact same printing, condition or grade, currency, and source.</p></div>';
+    '<div class="data-boundary"><strong>No verified price changes yet</strong><p>Changes appear after Mica has past prices for the same card version, wear level or grade, currency, and source.</p></div>';
 }
 
 function tradeItemMarkup(item, side) {
   const max = item.maxQuantity ? ` max="${item.maxQuantity}"` : "";
   const status =
     item.pricingStatus === "live"
-      ? `${state.preferences.tradeValuePercent}% trade estimate · ${esc(item.context)}`
+      ? `Suggested trade value · ${esc(item.context)}`
       : item.pricingStatus === "loading"
         ? "Checking matching market price…"
         : `Price needs review · ${esc(item.context)}`;
-  return `<article class="trade-item" data-trade-item="${esc(item.tradeId)}" data-trade-item-side="${side}"><img src="${esc(item.thumb || "./icons/icon.svg")}" data-fallback="./icons/icon.svg" alt=""><div class="trade-item-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Printing unknown")}</span><small>${status}</small></div><div class="trade-item-value"><strong>${String(item.valuePerCard).trim() ? money(Number(item.valuePerCard)) : "—"}</strong><label>Qty<input data-trade-quantity type="number" inputmode="numeric" min="1"${max} step="1" value="${item.quantity}"></label><details><summary>Adjust</summary><label>Value each<div class="money-input"><span>$</span><input data-trade-value type="number" inputmode="decimal" min="0" step="0.01" value="${esc(item.valuePerCard)}" placeholder="0.00"></div></label></details></div><button class="trade-remove" data-trade-remove type="button" aria-label="Remove ${esc(item.name)} from trade">×</button></article>`;
+  return `<article class="trade-item" data-trade-item="${esc(item.tradeId)}" data-trade-item-side="${side}"><img src="${esc(item.thumb || "./icons/icon.svg")}" data-fallback="./icons/icon.svg" alt=""><div class="trade-item-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Version unknown")}</span><small>${status}</small></div><div class="trade-item-value"><strong>${String(item.valuePerCard).trim() ? money(Number(item.valuePerCard)) : "—"}</strong><label>How many?<input data-trade-quantity type="number" inputmode="numeric" min="1"${max} step="1" value="${item.quantity}"></label><details><summary>Change value</summary><label>Value for each card<div class="money-input"><span>$</span><input data-trade-value type="number" inputmode="decimal" min="0" step="0.01" value="${esc(item.valuePerCard)}" placeholder="0.00"></div></label></details></div><button class="trade-remove" data-trade-remove type="button" aria-label="Remove ${esc(item.name)} from trade">×</button></article>`;
 }
 
 function updateTradeSummary() {
@@ -8282,7 +8323,7 @@ function updateTradeSummary() {
   if (!state.trade.give.length || !state.trade.receive.length) {
     verdict.className = "trade-verdict neutral";
     verdict.innerHTML =
-      '<span>Build both sides</span><strong>Add at least one card to each side.</strong><small id="tradeBalanceHelp">Use matching market references or type the value both people agreed on.</small>';
+      '<span>Add both sides</span><strong>Add at least one card to each side.</strong><small id="tradeBalanceHelp">Use the matching prices or type the value both people agreed on.</small>';
     return;
   }
   const copy =
@@ -8308,7 +8349,7 @@ function updateTradeSummary() {
       ? "The agreed values are exactly even."
       : `${money(analysis.cashToBalanceMinor / 100)} in cash to ${analysis.cashGoesTo === "them" ? "them" : "you"} would make the totals even.`;
   verdict.className = `trade-verdict ${copy.tone}`;
-  verdict.innerHTML = `<span>${copy.label}</span><strong>${copy.headline}</strong><small id="tradeBalanceHelp">${balance} Difference: ${analysis.differencePercent >= 0 ? "+" : ""}${analysis.differencePercent.toFixed(1)}%.</small>`;
+  verdict.innerHTML = `<span>${copy.label}</span><strong>${copy.headline}</strong><small id="tradeBalanceHelp">${balance}</small>`;
 }
 
 function bindTradeItemRows() {
@@ -8362,7 +8403,7 @@ function renderTradeSearchResults() {
     ? results
         .map(
           (item) =>
-            `<button class="quick-card-result" type="button" data-trade-card="${esc(item.id)}"><img src="${esc(item.thumb || item.image || "")}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number)}</small><em>${esc(item.variant || "Printing unknown")} · ${esc(languageName(item.language || "en"))}</em>${ownedSearchStatus(item)}</span><b>Add</b></button>`,
+            `<button class="quick-card-result" type="button" data-trade-card="${esc(item.id)}"><img src="${esc(item.thumb || item.image || "")}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number)}</small><em>${esc(item.variant || "Version unknown")} · ${esc(languageName(item.language || "en"))}</em>${ownedSearchStatus(item)}</span><b>Add</b></button>`,
         )
         .join("")
     : '<div class="find-empty"><strong>No matching cards</strong><span>Try the card name with its set or collector number.</span></div>';
@@ -8422,7 +8463,7 @@ function addTradeCard(card, side = state.trade.addingTo, owned = false) {
   if (!card) return;
   const context = card.gradingCompany
     ? `${card.gradingCompany} ${card.grade}`
-    : `Raw · ${card.condition || "Near Mint"}`;
+    : `Ungraded · ${conditionLabel(card.condition || "Near Mint")}`;
   const tradeItem = {
     tradeId: crypto.randomUUID(),
     cardId: card.id,
@@ -8471,11 +8512,11 @@ function openTradeCardPicker(side) {
       if (query.length < 2) {
         state.trade.searchResults = [];
         $("#tradeSearchResults").innerHTML =
-          '<div class="find-empty"><strong>Search the catalog</strong><span>Pick the exact printing. Mica fills the matching trade estimate.</span></div>';
+          '<div class="find-empty"><strong>Find a card</strong><span>Choose the card that matches the picture and bottom number. Mica fills in a suggested trade value.</span></div>';
         return;
       }
       $("#tradeSearchResults").innerHTML =
-        '<div class="searching-cards"><i></i><span>Finding exact printings…</span></div>';
+        '<div class="searching-cards"><i></i><span>Finding matching cards…</span></div>';
       try {
         const result = await searchCatalog(query, "en", 8);
         if (current !== requestId) return;
@@ -8608,17 +8649,17 @@ function openBatchIntakeSheet() {
   const today = localIsoDate();
   const entries = [...state.intakeQueue];
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add raw cards together</h2><p>Use one condition and purchase date while each exact printing stays separate.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="batchIntakeForm"><div class="form-grid batch-shared-fields"><div class="field"><label for="batchCondition">Condition for every card</label><select id="batchCondition"><option value="near_mint">Near Mint</option><option value="lightly_played">Lightly Played</option><option value="moderately_played">Moderately Played</option><option value="heavily_played">Heavily Played</option><option value="damaged">Damaged</option></select></div><div class="field"><label for="batchDate">Purchase date</label><input id="batchDate" type="date" max="${today}" value="${today}" required></div></div><div class="batch-intake-list">${entries
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add ungraded cards together</h2><p>Use one wear level and purchase date. Mica keeps each card version separate.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="batchIntakeForm"><div class="form-grid batch-shared-fields"><div class="field"><label for="batchCondition">Wear level for every card</label><select id="batchCondition"><option value="near_mint">Like new (Near Mint)</option><option value="lightly_played">Light wear (Lightly Played)</option><option value="moderately_played">Noticeable wear (Moderately Played)</option><option value="heavily_played">Heavy wear (Heavily Played)</option><option value="damaged">Damaged</option></select></div><div class="field"><label for="batchDate">Purchase date</label><input id="batchDate" type="date" max="${today}" value="${today}" required></div></div><div class="batch-intake-list">${entries
       .map((entry, index) => {
         const variants =
           Array.isArray(entry.card.variants) && entry.card.variants.length
             ? entry.card.variants
             : [entry.card.variant || "Unknown"];
-        return `<article class="batch-intake-row" data-batch-index="${index}"><img src="${esc(entry.card.thumb || entry.card.image || "./icons/icon.svg")}" alt=""><div class="batch-intake-identity"><strong>${esc(entry.card.name)}</strong><span>${esc(entry.card.set)} · ${esc(entry.card.number)} · ${esc(languageName(entry.card.language || "en"))}</span><label>Exact variant<select data-batch-variant>${variants.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}</select></label></div><div class="batch-intake-values"><label>Quantity<input data-batch-quantity type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></label><label>Total acquisition cost<div class="money-input"><span>$</span><input data-batch-cost type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div></label></div></article>`;
+        return `<article class="batch-intake-row" data-batch-index="${index}"><img src="${esc(entry.card.thumb || entry.card.image || "./icons/icon.svg")}" alt=""><div class="batch-intake-identity"><strong>${esc(entry.card.name)}</strong><span>${esc(entry.card.set)} · ${esc(entry.card.number)} · ${esc(languageName(entry.card.language || "en"))}</span><label>Card version<select data-batch-variant>${variants.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}</select></label></div><div class="batch-intake-values"><label>How many?<input data-batch-quantity type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></label><label>Total paid for these cards<div class="money-input"><span>$</span><input data-batch-cost type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div></label></div></article>`;
       })
       .join(
         "",
-      )}</div><p class="form-error" id="batchIntakeStatus" role="status">Nothing is saved until every row is valid.</p><div class="sheet-actions"><button class="secondary" id="batchIntakeBack" type="button">Back to queue</button><button class="primary" type="submit">Add ${entries.length} raw card${entries.length === 1 ? "" : "s"}</button></div></form>`,
+      )}</div><p class="form-error" id="batchIntakeStatus" role="status">Nothing is saved until every row is ready.</p><div class="sheet-actions"><button class="secondary" id="batchIntakeBack" type="button">Back to cards</button><button class="primary" type="submit">Add ${entries.length} ungraded card${entries.length === 1 ? "" : "s"}</button></div></form>`,
   );
   $("#batchIntakeBack").addEventListener("click", () => {
     closeSheet({ discardHistory: true });
@@ -8693,7 +8734,7 @@ function openBatchIntakeSheet() {
     } else {
       routeTo("collection");
       toast(
-        `${saved.size} raw card${saved.size === 1 ? "" : "s"} added to your library`,
+        `${saved.size} ungraded card${saved.size === 1 ? "" : "s"} added to your library`,
       );
     }
   });
@@ -8708,7 +8749,7 @@ function openIntakeQueueSheet() {
     (entry) => entry.prefill || entry.source,
   );
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Cards ready to add</h2><p>Review condition and one total acquisition cost for each exact printing.</p></div><button class="sheet-close" aria-label="Close">×</button></div>${hasReceiptDrafts ? '<div class="vision-quality warning"><strong>Receipt details are suggestions</strong><span>Open each card to confirm its condition and all-in acquisition cost. Unallocated order costs stay blank instead of being guessed.</span></div>' : '<div class="intake-batch-choice"><div><strong>Adding raw cards with the same condition?</strong><span>Review exact variants, quantities, and total costs together.</span></div><button id="batchRawIntake" type="button">Add as raw cards</button></div>'}<div class="intake-list">${state.intakeQueue.map((entry) => `<div class="intake-row"><img src="${esc(entry.card.thumb || entry.card.image || "./icons/icon.svg")}" alt=""><div><strong>${esc(entry.card.name)}</strong><span>${esc(entry.card.set)} · ${esc(entry.card.number)}<br>${esc(entry.card.variant || "Printing unknown")} · ${esc(languageName(entry.card.language || "en"))}${entry.source?.vendor ? `<br>Receipt: ${esc(entry.source.vendor)}${entry.prefill?.totalAcquisitionCost ? ` · ${money(Number(entry.prefill.totalAcquisitionCost))}` : " · cost needs review"}` : ""}</span></div><div class="intake-row-actions"><button type="button" data-intake-prepare="${esc(entry.queueEntryId)}">Review</button><button class="remove" type="button" data-intake-remove="${esc(entry.queueEntryId)}">Remove</button></div></div>`).join("")}</div><p class="legal-copy">Mica never merges search results or silently accepts an AI suggestion. Confirm exact printing, condition or grade, and purchase facts before saving.</p><div class="sheet-actions"><button class="secondary" id="clearIntakeQueue" type="button">Clear all</button><button class="primary" id="intakeDone" type="button">Back to search</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Cards ready to add</h2><p>Check the card version, visible wear or professional grade, and total paid for each card.</p></div><button class="sheet-close" aria-label="Close">×</button></div>${hasReceiptDrafts ? '<div class="vision-quality warning"><strong>Check the details read from your receipt</strong><span>Open each card to confirm its wear and total paid. Any amount Mica could not tie to a card stays blank instead of being guessed.</span></div>' : '<div class="intake-batch-choice"><div><strong>Adding ungraded cards with the same wear?</strong><span>Review the card versions, number of cards, and total paid together.</span></div><button id="batchRawIntake" type="button">Add as ungraded cards</button></div>'}<div class="intake-list">${state.intakeQueue.map((entry) => `<div class="intake-row"><img src="${esc(entry.card.thumb || entry.card.image || "./icons/icon.svg")}" alt=""><div><strong>${esc(entry.card.name)}</strong><span>${esc(entry.card.set)} · ${esc(entry.card.number)}<br>${esc(entry.card.variant || "Version unknown")} · ${esc(languageName(entry.card.language || "en"))}${entry.source?.vendor ? `<br>Receipt: ${esc(entry.source.vendor)}${entry.prefill?.totalAcquisitionCost ? ` · ${money(Number(entry.prefill.totalAcquisitionCost))}` : " · total paid needs review"}` : ""}</span></div><div class="intake-row-actions"><button type="button" data-intake-prepare="${esc(entry.queueEntryId)}">Review</button><button class="remove" type="button" data-intake-remove="${esc(entry.queueEntryId)}">Remove</button></div></div>`).join("")}</div><p class="legal-copy">Mica never combines search results or accepts an AI suggestion without asking. Confirm the card version, visible wear or professional grade, and purchase details before saving.</p><div class="sheet-actions"><button class="secondary" id="clearIntakeQueue" type="button">Clear all</button><button class="primary" id="intakeDone" type="button">Back to search</button></div>`,
   );
   $("#batchRawIntake")?.addEventListener("click", () => {
     closeSheet({ discardHistory: true });
@@ -8779,7 +8820,7 @@ function bindQuickCardSearch() {
               : owned.quantity
                 ? "Add another"
                 : "Add";
-            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Printing unknown")}</em>${ownedSearchStatus(item)}${matchReason(item)}</span><b>${owned.quantity ? "Owned" : "View"}</b></button><button class="queue-card-button${queued ? " queued" : ""}" type="button" data-queue-card="${esc(item.id)}" aria-label="${queued ? "Already added" : owned.quantity ? "Add another" : "Add"} exact ${esc(item.name)} printing" ${queued ? "disabled" : ""}>${addLabel}</button></div>`;
+            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Version unknown")}</em>${ownedSearchStatus(item)}${matchReason(item)}</span><b>${owned.quantity ? "Owned" : "View"}</b></button><button class="queue-card-button${queued ? " queued" : ""}" type="button" data-queue-card="${esc(item.id)}" aria-label="${queued ? "Already added" : owned.quantity ? "Add another" : "Add"} ${esc(item.name)} card" ${queued ? "disabled" : ""}>${addLabel}</button></div>`;
           })
           .join("")}`
       : '<div class="find-empty"><strong>No matching cards</strong><span>Try fewer details, verify the language, or search the collector number by itself.</span></div>';
@@ -8810,12 +8851,12 @@ function bindQuickCardSearch() {
     const current = ++requestId;
     if (q.length < 2) {
       resultsNode.innerHTML =
-        '<div class="find-empty"><strong>Find the exact printing</strong><span>Results show the set and card number so you can pick the right one.</span></div>';
+        '<div class="find-empty"><strong>Find the right card</strong><span>Results show the picture, set, and bottom number so you can choose the matching version.</span></div>';
       return;
     }
     resultsNode.setAttribute("aria-busy", "true");
     resultsNode.innerHTML =
-      '<div class="searching-cards"><i></i><span>Finding exact printings…</span></div>';
+      '<div class="searching-cards"><i></i><span>Finding matching cards…</span></div>';
     try {
       const result = await searchCatalog(q, language.value, 12);
       if (current !== requestId) return;
@@ -9054,7 +9095,10 @@ function bindEvents() {
   );
   $$("[data-workspace-mode]").forEach((button) =>
     button.addEventListener("click", () =>
-      applyWorkspaceMode(button.dataset.workspaceMode, { announce: true }),
+      applyWorkspaceMode(button.dataset.workspaceMode, {
+        announce: true,
+        userSelected: true,
+      }),
     ),
   );
   $$("[data-ui-theme-option]").forEach((button) =>
@@ -9068,7 +9112,7 @@ function bindEvents() {
     }),
   );
   $("#workspaceExpand")?.addEventListener("click", () =>
-    applyWorkspaceMode("growth", { announce: true }),
+    applyWorkspaceMode("growth", { announce: true, userSelected: true }),
   );
   $("#csvInput").addEventListener("change", (event) => {
     const file = event.target.files[0];
@@ -9102,7 +9146,7 @@ function bindEvents() {
   $("#moreButton").addEventListener("click", () => {
     if (!requireAccountData()) return;
     openSheet(
-      `<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep portable copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Complete account backup<small>Cards, transaction history, purchase lots, and watchlist</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection CSV<small>Importable copy of current positions</small></span><b>›</b></button></div>`,
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Complete account backup<small>Cards, purchases, sales, and watched cards</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection spreadsheet<small>A copy you can import again later</small></span><b>›</b></button></div>`,
     );
   });
   document.addEventListener("click", (event) => {
@@ -9185,7 +9229,7 @@ function openAuthLegal(kind) {
   if (kind === "privacy") {
     title.textContent = "Privacy notice";
     content.innerHTML =
-      "<p>Mica stores account, collection, purchase, sale, watchlist, and portfolio information so the app can provide its private collector tools.</p><p>Collection records are scoped to the signed-in account. Card photos sent for AI-assisted analysis are processed for that request and are not intentionally kept by Mica’s vision endpoint.</p><p>Market references may be requested from connected pricing providers. Do not add sensitive payment information to notes.</p><p>Before a public launch, the owner must add the final legal entity, support contact, retention period, and jurisdiction-specific disclosures.</p>";
+      "<p>Mica stores your account, collection, purchases, sales, watched cards, and value history so its private collection tools can work.</p><p>Your collection belongs only to your signed-in account. Card photos sent for AI help are used for that one request and are not intentionally saved by Mica’s scan service.</p><p>Mica may ask connected price services for matching card prices. Do not put payment-card details or other sensitive information in notes.</p><p>Before public launch, the owner must add the final legal entity, support contact, data-retention period, and location-specific legal notices.</p>";
   } else {
     title.textContent = "Mica terms";
     content.innerHTML =
@@ -9226,7 +9270,7 @@ function bindAuthUI() {
     else
       authMessage(
         result.session
-          ? "Account created. Loading your portfolio…"
+          ? "Account created. Loading your collection…"
           : "Check your email to confirm your account, then sign in.",
       );
   });
@@ -9313,7 +9357,7 @@ async function openAdminDiagnostics() {
       diagnostics.mappings
         .map(
           (mapping) =>
-            `<div class="transaction-row"><div><strong>${esc(mapping.provider)} · ${esc(mapping.match_status)}</strong><span>Confidence: ${esc(mapping.match_confidence ?? "Unknown")} · Updated: ${esc(mapping.updated_at || "Unknown")}</span></div></div>`,
+            `<div class="transaction-row"><div><strong>${esc(mapping.provider)} · ${esc(mapping.match_status)}</strong><span>Match quality: ${esc(mapping.match_confidence ?? "Unknown")} · Updated: ${esc(mapping.updated_at || "Unknown")}</span></div></div>`,
         )
         .join("") || "<p>No ambiguous or missing mappings.</p>";
     const anomalyRows =
@@ -9383,7 +9427,7 @@ function ensureProfileAccount() {
   if ($(".avatar")) $(".avatar").textContent = initials;
   if ($(".profile-avatar")) $(".profile-avatar").textContent = initials;
   const heading = $("#profileTitle");
-  if (heading) heading.textContent = "Your portfolio account";
+  if (heading) heading.textContent = "Your collection account";
   const profile = $(".profile-card");
   const strong = profile?.querySelector("strong");
   const span = profile?.querySelector("span");
@@ -9492,8 +9536,11 @@ function openOnboarding() {
         collectorGoal: data.get("goal"),
         experienceLevel: data.get("experience"),
       };
+      applyWorkspaceMode(recommendedWorkspace(state.preferences), {
+        userSelected: true,
+      });
       dialog.querySelector(".onboarding-card").innerHTML =
-        `<p class="eyebrow">Your 60-second tour</p><h1 id="onboardingTitle">Mica does the busywork</h1><ol class="onboarding-tour"><li><b>1</b><span><strong>Add a card</strong><small>Snap a photo or search the exact printing.</small></span></li><li><b>2</b><span><strong>Confirm only what matters</strong><small>Raw or graded, quantity, and total amount paid.</small></span></li><li><b>3</b><span><strong>Use the decision tools</strong><small>Pricing, trade checks, grading estimates, and sale planning stay together.</small></span></li></ol><button class="primary" id="finishOnboarding" type="button">Start using Mica</button>`;
+        `<p class="eyebrow">Your 60-second tour</p><h1 id="onboardingTitle">Mica does the busywork</h1><ol class="onboarding-tour"><li><b>1</b><span><strong>Add a card</strong><small>Take a photo or search by name and the number printed at the bottom.</small></span></li><li><b>2</b><span><strong>Confirm only what matters</strong><small>Professionally graded or not, quantity, and the total amount you paid.</small></span></li><li><b>3</b><span><strong>Use simple next steps</strong><small>Mica explains prices, trades, grading, and selling in plain language.</small></span></li></ol><button class="primary" id="finishOnboarding" type="button">Start using Mica</button>`;
       $("#finishOnboarding").addEventListener("click", async () => {
         const finish = $("#finishOnboarding");
         finish.disabled = true;
@@ -9541,6 +9588,7 @@ async function retryAccountLoad() {
     state.portfolioHistory = history.data;
     state.profile = profile;
     state.preferences = profile.preferences;
+    applyProfileDetailDefault();
     state.portfolioHistoryStatus = history.error ? "error" : "ready";
     state.storageStatus = "cloud";
     state.accountLoadError = "";
@@ -9548,14 +9596,14 @@ async function retryAccountLoad() {
     renderCollection();
     renderInsights();
     renderTrade();
-    toast("Your cloud portfolio is available again");
+    toast("Your saved collection is available again");
     await Promise.all([refreshLivePricing(), refreshWatchlistPricing()]);
   } catch (error) {
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = [];
     state.watchlist = [];
     state.storageStatus = "error";
-    state.accountLoadError = error.message || "Cloud portfolio unavailable";
+    state.accountLoadError = error.message || "Saved collection unavailable";
     state.accountLoading = false;
     renderCollection();
     renderInsights();
@@ -9663,6 +9711,7 @@ async function applySession(session) {
     state.portfolioHistory = history.data;
     state.profile = profile;
     state.preferences = profile.preferences;
+    applyProfileDetailDefault();
     state.portfolioHistoryStatus = history.error ? "error" : "ready";
     state.storageStatus = "cloud";
     state.accountLoading = false;
@@ -9680,7 +9729,7 @@ async function applySession(session) {
     state.watchlist = [];
     state.storageStatus = "error";
     state.accountLoading = false;
-    state.accountLoadError = error.message || "Cloud portfolio unavailable";
+    state.accountLoadError = error.message || "Saved collection unavailable";
     renderCollection();
     renderInsights();
     renderTrade();

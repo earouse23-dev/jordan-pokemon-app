@@ -2151,7 +2151,7 @@ h1 {
 }
 .workspace-lens button {
   flex: 0 0 auto;
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 11px;
   border: 1px solid var(--pine);
   border-radius: 4px;
@@ -2165,6 +2165,15 @@ body[data-workspace="guided"] .workspace-lens {
 }
 body[data-workspace="guided"] .advanced-workspace {
   display: none !important;
+}
+body[data-workspace="guided"] .view-tabs > .view-tab span {
+  display: none;
+}
+body[data-workspace="guided"] .row-move {
+  display: none;
+}
+body[data-workspace="guided"] .portfolio-history-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 body[data-workspace="pro"] .ledger-row {
   min-height: 72px;
@@ -7006,6 +7015,9 @@ body[data-motion="full"] .set-progress-track i {
   border-radius: 10px;
   background: var(--paper);
   box-shadow: 0 18px 48px rgba(4, 10, 15, 0.18);
+}
+.collection-more:not([open]) > div {
+  display: none;
 }
 .collection-more .view-tab {
   width: 100%;

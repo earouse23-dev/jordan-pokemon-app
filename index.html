@@ -21,8 +21,8 @@
       sizes="180x180"
       href="icons/apple-touch-icon.png"
     />
-    <link rel="stylesheet" href="styles.css?v=83" />
-    <link rel="stylesheet" href="themes.css?v=74" />
+    <link rel="stylesheet" href="styles.css?v=84" />
+    <link rel="stylesheet" href="themes.css?v=75" />
     <title>Mica — Pokémon Card Library</title>
   </head>
   <body>
@@ -38,10 +38,10 @@
           <span class="wordmark-gem" aria-hidden="true"><i></i></span
           ><span>Mica</span>
         </div>
-        <p class="eyebrow">Private collector portfolio</p>
+        <p class="eyebrow">Your private card collection</p>
         <h1 id="authTitle">Sign in to your collection</h1>
         <p>
-          Your cards, purchases, sales, and portfolio history stay private and
+          Your cards, purchases, sales, and value history stay private and
           follow you across devices.
         </p>
         <form id="passwordAuthForm" class="auth-form">
@@ -216,7 +216,7 @@
             <span aria-hidden="true"
               ><svg viewBox="0 0 24 24">
                 <path d="M4 19V9M10 19V5M16 19v-7M21 19H3" /></svg></span
-            ><b>Market</b>
+            ><b>Prices</b>
           </button>
           <button
             class="sidebar-item"
@@ -277,7 +277,7 @@
         >
           <div class="collection-heading">
             <div>
-              <p class="eyebrow">Portfolio command center</p>
+              <p class="eyebrow">Your collection</p>
               <h1 id="collectionTitle">Welcome back</h1>
               <p class="collection-subtitle">
                 Here’s your collection overview.
@@ -302,10 +302,10 @@
             </div>
           </div>
 
-          <section class="dashboard-kpis" aria-label="Portfolio summary">
+          <section class="dashboard-kpis" aria-label="Collection summary">
             <article class="dashboard-kpi primary">
               <div class="portfolio-topline">
-                <span>Total collection value</span
+                <span>Estimated collection value</span
                 ><span class="status-label" aria-live="polite"
                   ><i></i> Checking prices</span
                 >
@@ -314,15 +314,16 @@
               ><small class="portfolio-change" id="portfolioChange"></small>
             </article>
             <article class="dashboard-kpi">
-              <span>Total cards</span><strong id="ownedCount">0</strong
-              ><small id="freshCoverage">0 live prices</small>
+              <span>Items you own</span><strong id="ownedCount">0</strong
+              ><small id="freshCoverage">0 current prices</small>
             </article>
-            <article class="dashboard-kpi">
-              <span>Graded cards</span><strong id="gradedOwnedCount">0</strong
+            <article class="dashboard-kpi advanced-workspace">
+              <span>Professionally graded</span
+              ><strong id="gradedOwnedCount">0</strong
               ><small id="gradedShare">0% of collection</small>
             </article>
-            <article class="dashboard-kpi">
-              <span>Sealed products</span
+            <article class="dashboard-kpi advanced-workspace">
+              <span>Unopened products</span
               ><strong id="sealedOwnedCount">0</strong
               ><small id="sealedShare">0% of collection</small>
             </article>
@@ -331,49 +332,51 @@
             <section
               class="portfolio-history-panel"
               id="portfolioHistory"
-              aria-label="Portfolio performance history"
+              aria-label="Collection value history"
               aria-live="polite"
             >
               <div class="portfolio-history-empty">
-                <strong>Portfolio performance</strong
+                <strong>Collection value over time</strong
                 ><span
-                  >Mica is building your exact-compatible performance
-                  history.</span
+                  >This chart appears after Mica records prices for the same
+                  cards on more than one day.</span
                 >
               </div>
             </section>
             <section
-              class="portfolio-detail-panel"
-              aria-label="Portfolio performance details"
+              class="portfolio-detail-panel advanced-workspace"
+              aria-label="More collection value details"
             >
               <div class="panel-heading">
                 <div>
-                  <span>Portfolio snapshot</span
-                  ><strong>Performance &amp; coverage</strong>
+                  <span>More money details</span
+                  ><strong>What changed and why</strong>
                 </div>
               </div>
               <div class="portfolio-detail-grid">
                 <div>
-                  <span>You paid</span><strong id="costBasis">$0.00</strong>
+                  <span>What you paid</span
+                  ><strong id="costBasis">$0.00</strong>
                 </div>
                 <div>
-                  <span id="gainLabel">Gain / loss</span
+                  <span id="gainLabel">Change in value</span
                   ><strong id="unrealized">—</strong>
                 </div>
                 <div>
-                  <span>Return on cost</span
+                  <span>Change since purchase</span
                   ><strong id="portfolioReturn">—</strong>
                 </div>
                 <div>
-                  <span>Realized gain/loss</span
+                  <span>Profit from cards already sold</span
                   ><strong id="realizedGain">—</strong>
                 </div>
                 <div>
-                  <span>Raw / graded / sealed</span
+                  <span>Ungraded / graded / unopened</span
                   ><strong id="allocationSummary">—</strong>
                 </div>
                 <div>
-                  <span>Valuation method</span><strong>Exact matches</strong>
+                  <span>How prices are matched</span
+                  ><strong>Same card version only</strong>
                 </div>
               </div>
               <p class="valuation-note" id="valuationNote">
@@ -399,7 +402,7 @@
               data-ledger-view="all"
               data-condition-filter="Raw"
             >
-              Raw <span id="rawCount">0</span>
+              Ungraded <span id="rawCount">0</span>
             </button>
             <button
               class="view-tab"
@@ -417,15 +420,7 @@
               data-ledger-view="all"
               data-condition-filter="Sealed"
             >
-              Sealed <span id="sealedCount">0</span>
-            </button>
-            <button
-              class="view-tab"
-              type="button"
-              aria-pressed="false"
-              data-ledger-view="favorites"
-            >
-              Favorites <span id="favoritesCount">0</span>
+              Unopened <span id="sealedCount">0</span>
             </button>
             <button
               class="view-tab"
@@ -433,11 +428,19 @@
               aria-pressed="false"
               data-ledger-view="watchlist"
             >
-              Watchlist <span id="watchlistCount">0</span>
+              Watching <span id="watchlistCount">0</span>
             </button>
             <details class="collection-more">
-              <summary>More views</summary>
+              <summary>More</summary>
               <div>
+                <button
+                  class="view-tab"
+                  type="button"
+                  aria-pressed="false"
+                  data-ledger-view="favorites"
+                >
+                  Favorites <span id="favoritesCount">0</span>
+                </button>
                 <button
                   class="view-tab"
                   type="button"
@@ -474,7 +477,7 @@
               <input
                 id="collectionSearch"
                 type="search"
-                placeholder="Search item, grade, cert, or storage"
+                placeholder="Search name, card number, grade, or location"
                 autocomplete="off"
               />
             </label>
@@ -502,7 +505,7 @@
               >
                 Select</button
               ><button id="sortButton" type="button">
-                Value, high to low
+                Most valuable first
                 <svg viewBox="0 0 16 16" aria-hidden="true">
                   <path d="m4 6 4 4 4-4" />
                 </svg>
@@ -532,29 +535,25 @@
               <li>
                 <b>1</b
                 ><span
-                  ><strong>Find the exact item</strong
-                  ><small
-                    >Search a card printing or sealed product.</small
-                  ></span
+                  ><strong>Find the right item</strong
+                  ><small>Search a card or unopened product.</small></span
                 >
               </li>
               <li>
                 <b>2</b
                 ><span
-                  ><strong>Add only what applies</strong
+                  ><strong>Answer a few simple questions</strong
                   ><small
-                    >Cards ask raw or graded. Sealed products skip grading
-                    fields.</small
+                    >Tell Mica whether the card is professionally graded.</small
                   ></span
                 >
               </li>
               <li>
                 <b>3</b
                 ><span
-                  ><strong>Enter one total cost</strong
+                  ><strong>Enter the total you paid</strong
                   ><small
-                    >Use the full amount you paid. Mica handles the
-                    basis.</small
+                    >Use one amount including tax, shipping, and fees.</small
                   ></span
                 >
               </li>
@@ -577,8 +576,8 @@
             <p class="eyebrow">One quick search</p>
             <h1 id="scanTitle">Add to your collection</h1>
             <p>
-              Search for the exact card, or use a photo and let Mica narrow it
-              down for you.
+              Search by name and the number printed at the bottom of the card,
+              or take a photo and let Mica narrow it down.
             </p>
           </div>
           <section
@@ -588,7 +587,7 @@
           >
             <div>
               <span>Cards to add</span
-              ><strong id="intakeQueueCount">0 exact cards queued</strong>
+              ><strong id="intakeQueueCount">0 cards ready to review</strong>
             </div>
             <button id="reviewIntakeQueue" type="button">
               Review &amp; add
@@ -598,7 +597,7 @@
             <section class="add-search-panel" aria-labelledby="addSearchTitle">
               <div class="add-panel-heading">
                 <span>Fastest for most cards</span>
-                <h2 id="addSearchTitle">Search the catalog</h2>
+                <h2 id="addSearchTitle">Search for a card</h2>
               </div>
               <label class="find-search"
                 ><svg viewBox="0 0 24 24" aria-hidden="true">
@@ -609,7 +608,7 @@
                   type="search"
                   placeholder="Try Mew ex 151/165"
                   autocomplete="off"
-                  aria-label="Search cards by name, set, collector number, rarity, or finish"
+                  aria-label="Search by card name, set, or the card number printed at the bottom"
               /></label>
               <div class="search-options">
                 <label for="quickSearchLanguage">Language</label
@@ -650,9 +649,10 @@
                 aria-live="polite"
               >
                 <div class="find-empty compact">
-                  <strong>Type a name, set, or card number</strong
+                  <strong>Type the name or card number</strong
                   ><span
-                    >Mica shows exact printings so you can choose once.</span
+                    >The set and bottom number help Mica find the right
+                    version.</span
                   >
                 </div>
               </div>
@@ -707,8 +707,11 @@
                 type="button"
               >
                 <span
-                  ><strong>Add sealed products</strong
-                  ><small>ETBs, boxes, tins, and bundles</small></span
+                  ><strong>Add unopened products</strong
+                  ><small
+                    >Elite Trainer Boxes, booster boxes, tins, and
+                    bundles</small
+                  ></span
                 ><b>→</b>
               </button>
               <p class="simple-privacy">
@@ -728,8 +731,8 @@
             <p class="eyebrow">Add to collection</p>
             <h1 id="legacyScanTitle">Scan a card</h1>
             <p>
-              We’ll read visible details, compare catalog records, then ask you
-              to confirm the exact printing.
+              We’ll read the name and card number, compare matching cards, then
+              ask you to confirm the right version.
             </p>
           </div>
           <div class="capture-stage" id="captureStage">
@@ -742,7 +745,7 @@
                 <path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4z" />
                 <circle cx="12" cy="13" r="3.2" />
               </svg>
-              <strong>Position one card inside the frame</strong>
+              <strong>Place one card inside the frame</strong>
               <span>Use a plain background and avoid glare</span>
             </div>
             <div class="quality-chip" id="qualityChip">
@@ -789,9 +792,10 @@
             type="button"
           >
             <span
-              ><strong>Search the catalog manually</strong
+              ><strong>Search for the card yourself</strong
               ><small
-                >Best for partial cards, slabs, or unsupported languages</small
+                >Best for partial photos, graded card cases, or other
+                languages</small
               ></span
             >
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -807,17 +811,17 @@
         >
           <div class="screen-heading">
             <p class="eyebrow">Your collection</p>
-            <h1 id="insightsTitle">Market</h1>
+            <h1 id="insightsTitle">Prices &amp; next steps</h1>
             <p id="insightsIntro">
-              See what needs attention, how your inventory is performing, and
-              where prices come from.
+              See important price changes and the clearest thing to review next.
             </p>
           </div>
           <div class="insight-feature">
-            <div class="insight-kicker">Pricing status</div>
-            <strong>Connecting to provider…</strong>
+            <div class="insight-kicker">Prices</div>
+            <strong>Checking matching prices…</strong>
             <span
-              >Current quotes remain separate from historical movement.</span
+              >Mica only compares the same card version and wear level or
+              professional grade.</span
             >
           </div>
           <section
@@ -826,16 +830,16 @@
           >
             <div class="action-center-heading">
               <div>
-                <span>Automatic priorities</span>
-                <h2 id="actionCenterTitle">Today’s review queue</h2>
+                <span>Your next steps</span>
+                <h2 id="actionCenterTitle">What should I check today?</h2>
                 <p>
-                  Mica calculates the queue from your exact saved data. AI can
-                  explain those signals, but it cannot change your collection or
-                  invent a market fact.
+                  Mica finds cards with missing prices, reached buy targets, or
+                  details that need checking. AI can explain the list but cannot
+                  change your collection.
                 </p>
               </div>
               <button id="portfolioBriefButton" type="button" disabled>
-                Explain my priorities
+                Explain this list
               </button>
             </div>
             <div
@@ -849,17 +853,17 @@
               aria-live="polite"
             ></div>
           </section>
-          <h2 class="section-heading">What changed</h2>
+          <h2 class="section-heading">Price changes</h2>
           <div id="moversList" class="movers-list"></div>
-          <h2 class="section-heading">Your most valuable cards</h2>
+          <h2 class="section-heading">Your highest-value cards</h2>
           <div id="positionRankings" class="movers-list"></div>
           <section
-            class="liquidation-planner"
+            class="liquidation-planner advanced-workspace"
             aria-labelledby="liquidationTitle"
           >
             <div class="liquidation-head">
               <div>
-                <span>Exit scenario</span>
+                <span>Selling estimate</span>
                 <h2 id="liquidationTitle">What could I actually take home?</h2>
                 <p>
                   See a quick-sale estimate using your saved defaults. Nothing
@@ -867,12 +871,14 @@
                 </p>
               </div>
               <button id="liquidationExport" type="button" disabled>
-                Download scenario CSV
+                Download estimate
               </button>
             </div>
             <div class="liquidation-controls">
               <label
-                >Expected sale price<small>Percent of shown reference</small>
+                >How much you expect to get<small
+                  >Compared with the matching price shown above</small
+                >
                 <span class="suffix-input">
                   <input
                     id="liquidationReferencePercent"
@@ -886,7 +892,7 @@
                 </span></label
               >
               <label
-                >Selling fee<small>Use your venue's current rate</small>
+                >Selling fee<small>Use the current fee where you sell</small>
                 <span class="suffix-input">
                   <input
                     id="liquidationFeePercent"
@@ -921,14 +927,25 @@
             ></div>
             <p id="liquidationNote" class="liquidation-note">
               Uses your saved direct-sale defaults. Change them here for this
-              scenario or in Settings for future estimates.
+              estimate or in Settings for future estimates.
             </p>
           </section>
-          <details class="seller-tools-disclosure">
+          <section class="workspace-lens" aria-label="More tools are available">
+            <div>
+              <span>Keeping this page simple</span>
+              <strong>Selling and grading math is hidden</strong>
+              <small
+                >Turn on More tools whenever you want profit reports, grading
+                plans, and selling estimates.</small
+              >
+            </div>
+            <button id="workspaceExpand" type="button">Show more tools</button>
+          </section>
+          <details class="seller-tools-disclosure advanced-workspace">
             <summary>
               <span>Seller &amp; grading tools</span
               ><small
-                >Inventory health, grading batches, sales, and cash flow</small
+                >Collection age, grading plans, sales, and money reports</small
               >
             </summary>
             <section
@@ -936,7 +953,7 @@
               aria-labelledby="inventoryHealthTitle"
             >
               <div class="inventory-health-head">
-                <span>Inventory health</span>
+                <span>Collection check</span>
                 <h2 id="inventoryHealthTitle">Where your money is tied up</h2>
                 <p>
                   See which cards hold most of your collection value and which
@@ -951,18 +968,20 @@
               aria-labelledby="batchGradingLaunchTitle"
             >
               <div>
-                <span>Submission builder</span>
+                <span>Grade several cards</span>
                 <h2 id="batchGradingLaunchTitle">
                   Plan multiple cards together
                 </h2>
                 <p>
-                  Share shipping and insurance across a batch, then compare
-                  expected graded value with selling raw.
+                  Share shipping and insurance across several cards, then
+                  compare grading them with selling them ungraded.
                 </p>
-                <small id="batchGradingCount">Add a raw card to begin</small>
+                <small id="batchGradingCount"
+                  >Add an ungraded card to begin</small
+                >
               </div>
               <button id="batchGradingButton" type="button">
-                Plan a grading batch
+                Compare grading costs
               </button>
             </section>
             <section
@@ -972,7 +991,7 @@
               <div class="business-report-head">
                 <div>
                   <span>Business performance</span>
-                  <h2 id="businessReportTitle">Sales &amp; cash flow</h2>
+                  <h2 id="businessReportTitle">Sales &amp; money in or out</h2>
                   <p id="businessReportPeriod">Last 90 days</p>
                 </div>
                 <div class="business-report-actions">
@@ -1000,8 +1019,8 @@
               <div class="data-boundary">
                 <strong>Recorded activity only</strong>
                 <p>
-                  Purchases, sales, and grading events come from your ledger.
-                  Active marketplace listings never count as completed sales.
+                  Only purchases, completed sales, and grading updates appear
+                  here. Cards listed for sale do not count as sold.
                 </p>
               </div>
             </div>
@@ -1014,7 +1033,7 @@
           aria-labelledby="tradeTitle"
         >
           <div class="screen-heading">
-            <p class="eyebrow">Deal confidence</p>
+            <p class="eyebrow">Trade check</p>
             <h1 id="tradeTitle">Trade check</h1>
             <p>
               Add the cards and cash on each side. Mica uses matching market
@@ -1102,9 +1121,9 @@
             </section>
           </div>
           <p class="legal-copy">
-            Trade Check is a planning tool, not an appraisal. Condition, grade,
-            authenticity, venue, fees, and personal preference can change a fair
-            deal.
+            Trade Check is an estimate, not a professional valuation. Card wear,
+            professional grade, authenticity, fees, and personal preference can
+            change a fair deal.
           </p>
         </section>
 
@@ -1112,7 +1131,7 @@
           <div class="screen-heading">
             <p class="eyebrow">Account &amp; preferences</p>
             <h1 id="profileTitle">Your Mica account</h1>
-            <p>Your portfolio follows you across signed-in devices.</p>
+            <p>Your collection follows you across signed-in devices.</p>
           </div>
           <div class="profile-card">
             <div class="profile-avatar">ME</div>
@@ -1149,8 +1168,8 @@
                 <span class="theme-preview analytics-preview" aria-hidden="true"
                   ><i></i><i></i><i></i><i></i></span
                 ><span
-                  ><strong>Analytics focused</strong
-                  ><small>Dark, compact, and data forward</small></span
+                  ><strong>Dark dashboard</strong
+                  ><small>Dark, compact, and shows more at once</small></span
                 ><b>Dark</b>
               </button>
             </div>
@@ -1159,11 +1178,60 @@
               exactly the same.
             </p>
           </div>
-          <div class="settings-group workflow-defaults">
-            <h2>Trading &amp; selling defaults</h2>
+          <div class="settings-group detail-settings">
+            <h2>How much detail do you want?</h2>
+            <p>
+              Start simple. You can reveal seller math later without changing
+              any saved cards.
+            </p>
+            <div
+              class="detail-options"
+              role="group"
+              aria-label="Choose how much information Mica shows"
+            >
+              <button
+                type="button"
+                data-workspace-mode="guided"
+                aria-pressed="false"
+              >
+                <span
+                  ><strong>Simple</strong
+                  ><small
+                    >Everyday collection tasks with plain explanations</small
+                  ></span
+                ><b>Recommended</b>
+              </button>
+              <button
+                type="button"
+                data-workspace-mode="growth"
+                aria-pressed="false"
+              >
+                <span
+                  ><strong>More tools</strong
+                  ><small>Add selling, grading, and money reports</small></span
+                ><b>Optional</b>
+              </button>
+              <button
+                type="button"
+                data-workspace-mode="pro"
+                aria-pressed="false"
+              >
+                <span
+                  ><strong>Everything</strong
+                  ><small
+                    >A denser screen for full-time card businesses</small
+                  ></span
+                ><b>Advanced</b>
+              </button>
+            </div>
+            <p id="workspaceModeHelp"></p>
+          </div>
+          <div class="settings-group workflow-defaults advanced-workspace">
+            <h2>Default trade and selling estimates</h2>
             <p>These estimates save time and remain editable in every deal.</p>
             <label
-              >Trade value<small>Common card-show starting point</small
+              >Trade estimate<small
+                >Starting percentage of the matching market price</small
               ><span class="suffix-input"
                 ><input
                   id="defaultTradePercent"
@@ -1176,7 +1244,8 @@
               ></label
             >
             <label
-              >Quick-sale value<small>Expected direct-sale take-home</small
+              >Quick-sale estimate<small
+                >Starting percentage for a faster direct sale</small
               ><span class="suffix-input"
                 ><input
                   id="defaultQuickSalePercent"
@@ -1207,24 +1276,25 @@
             </button>
             <p id="workflowDefaultsStatus" role="status" aria-live="polite"></p>
           </div>
-          <div class="settings-group connection-settings">
-            <h2>Feature connections</h2>
+          <div class="settings-group connection-settings advanced-workspace">
+            <h2>Connected services</h2>
             <p>
-              Every workflow is built. These statuses show what the current
-              deployment can actually run.
+              These statuses show which automatic features are ready to use.
             </p>
             <div class="connection-row">
               <span
-                ><strong>Card catalog</strong
-                ><small>Exact card search and printing selection</small></span
+                ><strong>Card database</strong
+                ><small
+                  >Finds the right card version by name and number</small
+                ></span
               ><b id="catalogConnectionState">Checking…</b>
             </div>
             <div class="connection-row">
               <span
                 ><strong>Expanded prices</strong
                 ><small
-                  >Graded ladders, history, offers, sealed, and sold
-                  links</small
+                  >Graded prices, price history, listings, unopened products,
+                  and sold links</small
                 ></span
               ><b id="pricingConnectionState">Checking…</b>
             </div>
@@ -1232,7 +1302,8 @@
               <span
                 ><strong>AI photo analysis</strong
                 ><small
-                  >Card matching, receipt reading, and raw grade estimate</small
+                  >Card matching, receipt reading, and grade estimates for
+                  ungraded cards</small
                 ></span
               ><b id="visionConnectionState">Checking…</b>
             </div>
@@ -1257,37 +1328,35 @@
             <h2>Collection</h2>
             <button type="button" id="sharePortfolioButton">
               <span
-                >Share a portfolio snapshot<small
-                  >Privacy-safe summary with an exact preview</small
+                >Share a collection summary<small
+                  >Preview exactly what will be shared</small
                 ></span
               ><b>›</b>
             </button>
             <button type="button" id="importButton">
               <span
-                >Import a collection CSV<small
-                  >Up to 5,000 positions · progress, pause, and safe
-                  retry</small
+                >Import a collection spreadsheet<small
+                  >Add up to 5,000 saved entries from a CSV file</small
                 ></span
               ><b>›</b>
             </button>
             <button type="button" id="exportButton">
               <span
-                >Complete account backup<small
-                  >Cards, transactions, purchase lots, and watchlist ·
-                  JSON</small
+                >Download a complete backup<small
+                  >Cards, purchases, sales, and watched items</small
                 ></span
               ><b>›</b>
             </button>
             <button type="button" id="exportCsvButton">
               <span
-                >Download collection CSV<small
-                  >Importable copy of your current positions</small
+                >Download collection spreadsheet<small
+                  >A CSV copy of every saved entry</small
                 ></span
               ><b>›</b>
             </button>
             <button type="button" id="insuranceReportButton">
               <span
-                >Insurance inventory report<small
+                >Insurance collection report<small
                   >Print or save a private record with values and
                   locations</small
                 ></span
@@ -1308,13 +1377,14 @@
             <button type="button" id="currencyButton">
               <span
                 >Display currency<small
-                  >Source currencies remain visible</small
+                  >Mica still shows the currency used by each price
+                  source</small
                 ></span
               ><strong>USD</strong>
             </button>
             <button type="button" id="motionButton">
               <span
-                >Motion<small id="motionHelp"
+                >Animations<small id="motionHelp"
                   >Follow your device preference · select to change</small
                 ></span
               ><strong id="motionState">Auto</strong>
@@ -1380,7 +1450,7 @@
         <button class="nav-item" type="button" data-route="insights">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M4 18V9M10 18V5M16 18v-7M21 18H3" /></svg
-          ><span>Market</span>
+          ><span>Prices</span>
         </button>
         <button class="nav-item" type="button" data-route="trade">
           <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1421,6 +1491,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=96"></script>
+    <script type="module" src="app.js?v=97"></script>
   </body>
 </html>
