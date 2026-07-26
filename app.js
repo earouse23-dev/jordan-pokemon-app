@@ -600,7 +600,7 @@ function renderGradedPriceLadder(item) {
     ? `<div class="grade-ladder">${rows.map((row) => `<div class="grade-ladder-row${ownedGrade === `${row.grader}:${row.grade}` ? " current" : ""}"><div><strong>${esc(row.grader)} ${esc(row.grade)}</strong><span>${esc(row.priceType)} · ${esc(row.provider)}${row.observedAt ? ` · ${esc(String(row.observedAt).slice(0, 10))}` : ""}</span></div><b>${money(row.amount, row.currency)}</b></div>`).join("")}</div>`
     : showcaseAmount !== null
       ? `<div class="grade-ladder"><div class="grade-ladder-row current"><div><strong>${esc(String(item.gradingCompany).toUpperCase())} ${esc(item.grade)}</strong><span>Showcase sample · not a live quote</span></div><b>${money(showcaseAmount, item.currency || "USD")}</b></div></div><div class="pro-data-empty"><strong>Full graded ladder is ready</strong><p>PkmnPrices Pro will replace this labeled sample and populate compatible grades without changing this screen.</p></div>`
-    : `<div class="pro-data-empty"><strong>Ready for graded pricing</strong><p>When PkmnPrices returns matching graded quotes, PSA, BGS, and CGC grades will appear here automatically. Mica will never substitute a different printing or invent a grade value.</p></div>`;
+      : `<div class="pro-data-empty"><strong>Ready for graded pricing</strong><p>When PkmnPrices returns matching graded quotes, PSA, BGS, and CGC grades will appear here automatically. Mica will never substitute a different printing or invent a grade value.</p></div>`;
   return `<section class="detail-section"><div class="detail-section-head"><h2>Graded value ladder</h2><span>${rows.length ? `${rows.length} exact grade reference${rows.length === 1 ? "" : "s"}` : showcaseAmount !== null ? "Showcase sample · Pro-ready" : "PkmnPrices-ready"}</span></div>${content}</section>`;
 }
 
@@ -3379,9 +3379,7 @@ function renderDetail() {
         ? "preview"
         : "loading");
   const showcaseFallback = usesShowcaseFallback(item, providerPricingStatus);
-  const pricingStatus = showcaseFallback
-    ? "showcase"
-    : providerPricingStatus;
+  const pricingStatus = showcaseFallback ? "showcase" : providerPricingStatus;
   const livePrice = ["live", "stale"].includes(pricingStatus)
     ? (tcgQuote?.amount ?? null)
     : null;
@@ -3402,9 +3400,9 @@ function renderDetail() {
         ? "Stale market reference"
         : pricingStatus === "showcase"
           ? "Showcase value"
-        : previewPrice != null
-          ? "Demo estimate"
-          : "Current market";
+          : previewPrice != null
+            ? "Demo estimate"
+            : "Current market";
   const statusCopy =
     pricingStatus === "live"
       ? `Updated ${esc(friendlyObservedAt(item.pricingUpdatedAt))}`
@@ -3412,23 +3410,23 @@ function renderDetail() {
         ? `Last observed ${esc(friendlyObservedAt(item.pricingUpdatedAt))} · refresh needed`
         : pricingStatus === "showcase"
           ? "Labeled sample · replaced automatically after PkmnPrices Pro connects"
-        : pricingStatus === "preview"
-          ? "Demo data · not a live quote"
-          : pricingStatus === "error"
-            ? "Live refresh failed · demo value shown"
-            : pricingStatus === "rate_limited"
-              ? "Provider rate limit reached · retry shortly"
-              : pricingStatus === "unavailable"
-                ? "No exact-printing quote available"
-                : "Checking this exact printing";
+          : pricingStatus === "preview"
+            ? "Demo data · not a live quote"
+            : pricingStatus === "error"
+              ? "Live refresh failed · demo value shown"
+              : pricingStatus === "rate_limited"
+                ? "Provider rate limit reached · retry shortly"
+                : pricingStatus === "unavailable"
+                  ? "No exact-printing quote available"
+                  : "Checking this exact printing";
   const sourceRows = ["live", "stale"].includes(pricingStatus)
     ? `${renderQuoteRow(tcgQuote, sealed ? "TCGplayer sealed market" : tcgQuote?.provider === "justtcg" ? "JustTCG market" : "TCGplayer market")}${renderQuoteRow(cardmarketQuote, sealed ? "Cardmarket sealed market" : "Cardmarket")}`
     : pricingStatus === "showcase"
       ? `<div class="price-source"><div><strong>Showcase valuation</strong><span>${esc(item.variant || "Printing unknown")} · ${esc(item.currency || "USD")}</span><span>Demonstration data for the showcase account only.</span></div><div class="source-value"><b>${money(previewPrice, item.currency || "USD")}</b><small>Sample · not live market data</small></div></div>`
-    : pricingStatus === "preview" ||
-        (pricingStatus === "error" && previewPrice != null)
-      ? `<div class="price-source"><div><strong>Demo estimate</strong><span>${esc(item.variant || "Printing unknown")} · USD</span><span>${pricingStatus === "error" ? "The live provider could not be reached." : "Live refresh has not completed."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo data · not live</small></div></div>`
-      : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? (item.gradingCompany ? "A matching graded market price is not connected yet. Mica did not substitute the raw card or another grade." : "No matching market price is available for this printing, finish, and condition yet. Mica did not substitute another card.") : pricingStatus === "rate_limited" ? "The pricing source asked Mica to slow down. No value is being guessed." : pricingStatus === "error" ? "The pricing source could not be reached. No value is being guessed." : "Loading the latest matching market price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
+      : pricingStatus === "preview" ||
+          (pricingStatus === "error" && previewPrice != null)
+        ? `<div class="price-source"><div><strong>Demo estimate</strong><span>${esc(item.variant || "Printing unknown")} · USD</span><span>${pricingStatus === "error" ? "The live provider could not be reached." : "Live refresh has not completed."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo data · not live</small></div></div>`
+        : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? (item.gradingCompany ? "A matching graded market price is not connected yet. Mica did not substitute the raw card or another grade." : "No matching market price is available for this printing, finish, and condition yet. Mica did not substitute another card.") : pricingStatus === "rate_limited" ? "The pricing source asked Mica to slow down. No value is being guessed." : pricingStatus === "error" ? "The pricing source could not be reached. No value is being guessed." : "Loading the latest matching market price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
   const backLabel =
     {
       collection: "My library",
@@ -5654,7 +5652,9 @@ function sampledImageQuality(context, width, height) {
   }
   const sharpness = edgeSamples ? edgeTotal / edgeSamples : 0;
   if (average < 24)
-    blockers.push("The photo is too dark to read. Add indirect light and retake.");
+    blockers.push(
+      "The photo is too dark to read. Add indirect light and retake.",
+    );
   if (average > 245)
     blockers.push(
       "The photo is too overexposed to read. Turn off flash and retake.",
@@ -5721,21 +5721,8 @@ async function identityEvidenceDataUrl(source) {
   context.fillText("NAME + SET", 748, 38);
   context.fillText("COLLECTOR NUMBER", 748, 550);
 
-  const full = containedRect(
-    source.width,
-    source.height,
-    28,
-    58,
-    670,
-    938,
-  );
-  context.drawImage(
-    source,
-    full.x,
-    full.y,
-    full.width,
-    full.height,
-  );
+  const full = containedRect(source.width, source.height, 28, 58, 670, 938);
+  context.drawImage(source, full.x, full.y, full.width, full.height);
 
   const card = centeredCardBounds(source.width, source.height);
   context.drawImage(
@@ -5965,8 +5952,7 @@ function renderVisionResult(payload, mode, preparedImages) {
         if (reliable) {
           $$("[data-vision-card]", node).forEach((candidateButton) => {
             const selected =
-              candidateButton.dataset.visionCard ===
-              visual.selectedCandidateId;
+              candidateButton.dataset.visionCard === visual.selectedCandidateId;
             candidateButton.classList.toggle("recommended", selected);
             const label = candidateButton.querySelector("b");
             if (label)
@@ -6078,7 +6064,7 @@ async function showProcessing(file, initialBackFile = null) {
       ? `<strong>Retake before AI review</strong>${front.blockers.map((blocker) => `<span>${esc(blocker)}</span>`).join("")}<span>This check prevents spending an AI scan on unreadable evidence.</span>`
       : front.warnings.length
         ? `<strong>Improve accuracy if possible</strong>${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join("")}`
-      : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · original is not uploaded</span>`;
+        : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · original is not uploaded</span>`;
     $("#visionIdentify").disabled = !frontReady;
   } catch (error) {
     if (!$("#visionLocalCheck")) return;
@@ -7744,17 +7730,19 @@ function businessReviewItems(
 }
 
 function advisorExperienceLevel() {
-  return {
-    beginner: "beginner",
-    familiar: "seller",
-    professional: "pro",
-  }[state.preferences.experienceLevel] || "beginner";
+  return (
+    {
+      beginner: "beginner",
+      familiar: "seller",
+      professional: "pro",
+    }[state.preferences.experienceLevel] || "beginner"
+  );
 }
 
 async function requestPortfolioBrief(actions) {
   if (!state.session?.access_token)
     throw new Error("Sign in again before requesting an AI explanation.");
-  const response = await fetch("/api/advisor", {
+  const response = await fetch("/api/vision", {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -7762,6 +7750,7 @@ async function requestPortfolioBrief(actions) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
+      mode: "advisor",
       experienceLevel: advisorExperienceLevel(),
       workspace: workspaceMode,
       portfolio: {
@@ -7803,7 +7792,9 @@ async function explainPortfolioPriorities() {
         if (!action) return "";
         return `<article><span>${index === 0 ? "Start here" : `Then ${index + 1}`}</span><strong>${esc(action.title === "Price gaps" ? "Missing prices" : action.title)}</strong><p>${esc(priority.why)}</p><small>${esc(priority.nextStep)}</small><button type="button" data-advisor-review="${esc(priority.actionKey)}">Open ${action.items.length} item${action.items.length === 1 ? "" : "s"} →</button></article>`;
       })
-      .join("")}</div>${brief.caveats.length ? `<p class="portfolio-brief-caveats">${brief.caveats.map((caveat) => esc(caveat)).join(" · ")}</p>` : ""}<p class="portfolio-brief-privacy">No card names, prices, photos, notes, certification numbers, or purchase details were sent. This explanation cannot edit your account.</p>`;
+      .join(
+        "",
+      )}</div>${brief.caveats.length ? `<p class="portfolio-brief-caveats">${brief.caveats.map((caveat) => esc(caveat)).join(" · ")}</p>` : ""}<p class="portfolio-brief-privacy">No card names, prices, photos, notes, certification numbers, or purchase details were sent. This explanation cannot edit your account.</p>`;
     $$("[data-advisor-review]", result).forEach((reviewButton) =>
       reviewButton.addEventListener("click", () => {
         const key = reviewButton.dataset.advisorReview;
@@ -9272,10 +9263,12 @@ function bindAuthUI() {
       Boolean(error),
     );
   });
-  $$('[data-auth-legal]').forEach((button) =>
-    button.addEventListener("click", () => openAuthLegal(button.dataset.authLegal)),
+  $$("[data-auth-legal]").forEach((button) =>
+    button.addEventListener("click", () =>
+      openAuthLegal(button.dataset.authLegal),
+    ),
   );
-  $$('[data-close-auth-dialog]').forEach((button) =>
+  $$("[data-close-auth-dialog]").forEach((button) =>
     button.addEventListener("click", () => $("#authLegalDialog").close()),
   );
   $("#authLegalDialog").addEventListener("click", (event) => {

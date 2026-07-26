@@ -16,6 +16,12 @@ import {
   searchInternalCatalog,
   summarizeCatalogResolution,
 } from "../lib/catalog-db.js";
+import {
+  buildGatewayAdvisorRequest,
+  extractAdvisorOutput,
+  normalizeAdvisorOutput,
+  parseAdvisorRequest,
+} from "../lib/advisor.js";
 
 function send(response, status, body, headers = {}) {
   response.setHeader("Cache-Control", "no-store");
@@ -38,6 +44,7 @@ function requestError(error) {
 
 export default async function handler(request, response) {
   const startedAt = Date.now();
+  const advisorMode = request.body?.mode === "advisor";
   if (request.method !== "POST") {
     response.setHeader("Allow", "POST");
     return send(response, 405, { error: "Method not allowed" });
@@ -81,23 +88,31 @@ export default async function handler(request, response) {
   }
   if (!gatewayToken)
     return send(response, 503, {
-      error: "AI analysis is ready but the Vercel AI Gateway is not connected.",
-      code: "vision_not_configured",
+      error: advisorMode
+        ? "AI portfolio briefs are ready but the Vercel AI Gateway is not connected."
+        : "AI analysis is ready but the Vercel AI Gateway is not connected.",
+      code: advisorMode ? "advisor_not_configured" : "vision_not_configured",
     });
 
   let input;
   try {
-    input = parseVisionRequest(request.body);
+    input = advisorMode
+      ? { ...parseAdvisorRequest(request.body), mode: "advisor" }
+      : parseVisionRequest(request.body);
   } catch (error) {
     return send(response, 400, {
-      error: requestError(error) || "Invalid analysis request.",
+      error: advisorMode
+        ? "The portfolio brief request is invalid."
+        : requestError(error) || "Invalid analysis request.",
     });
   }
 
   const { data: usage, error: usageError } = await database.rpc(
-    "claim_vision_usage",
+    advisorMode ? "claim_advisor_usage" : "claim_vision_usage",
     {
-      p_maximum: config.visionMaxPerHour,
+      p_maximum: advisorMode
+        ? config.advisorMaxPerHour
+        : config.visionMaxPerHour,
       p_window_seconds: 3600,
     },
   );
@@ -110,12 +125,16 @@ export default async function handler(request, response) {
     return send(
       response,
       429,
-      { error: "AI analysis limit reached. Try again later." },
+      {
+        error: advisorMode
+          ? "AI portfolio brief limit reached. Try again later."
+          : "AI analysis limit reached. Try again later.",
+      },
       { "Retry-After": String(Math.max(1, Number(usage?.retryAfter) || 3600)) },
     );
 
   const safetyIdentifier = createHash("sha256")
-    .update(`mica:${identity.user.id}`)
+    .update(`${advisorMode ? "mica-advisor" : "mica"}:${identity.user.id}`)
     .digest("hex");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
@@ -127,11 +146,17 @@ export default async function handler(request, response) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(
-        buildGatewayVisionRequest({
-          ...input,
-          model: config.visionModel,
-          safetyIdentifier,
-        }),
+        advisorMode
+          ? buildGatewayAdvisorRequest({
+              input,
+              model: config.advisorModel,
+              safetyIdentifier,
+            })
+          : buildGatewayVisionRequest({
+              ...input,
+              model: config.visionModel,
+              safetyIdentifier,
+            }),
       ),
       signal: controller.signal,
     });
@@ -149,11 +174,48 @@ export default async function handler(request, response) {
       return send(response, status, {
         error:
           upstream.status === 429
-            ? "AI analysis is busy. Try again shortly."
+            ? advisorMode
+              ? "AI guidance is busy. Try again shortly."
+              : "AI analysis is busy. Try again shortly."
             : billingRequired
-              ? "AI analysis is waiting for the project owner to finish billing verification."
-              : "The AI analysis service could not process this image.",
-        ...(billingRequired ? { code: "vision_billing_required" } : {}),
+              ? advisorMode
+                ? "AI guidance is waiting for the project owner to finish billing verification."
+                : "AI analysis is waiting for the project owner to finish billing verification."
+              : advisorMode
+                ? "The AI guidance service could not prepare this brief."
+                : "The AI analysis service could not process this image.",
+        ...(billingRequired
+          ? {
+              code: advisorMode
+                ? "advisor_billing_required"
+                : "vision_billing_required",
+            }
+          : {}),
+      });
+    }
+    if (advisorMode) {
+      const brief = normalizeAdvisorOutput(
+        extractAdvisorOutput(payload),
+        input,
+      );
+      return send(response, 200, {
+        brief,
+        provider: "openai",
+        model: config.advisorModel.replace(/^openai\//, ""),
+        processedAt: new Date().toISOString(),
+        privacy: {
+          portfolioDetailsSent: false,
+          resultPersisted: false,
+        },
+        metrics: {
+          latencyMs: Date.now() - startedAt,
+          inputTokens: Number.isFinite(Number(payload?.usage?.input_tokens))
+            ? Number(payload.usage.input_tokens)
+            : null,
+          outputTokens: Number.isFinite(Number(payload?.usage?.output_tokens))
+            ? Number(payload.usage.output_tokens)
+            : null,
+        },
       });
     }
     const analysis = normalizeVisionOutput(
@@ -246,8 +308,12 @@ export default async function handler(request, response) {
     return send(response, error?.name === "AbortError" ? 504 : 502, {
       error:
         error?.name === "AbortError"
-          ? "AI analysis took too long. Try a smaller, clearer image."
-          : "The AI analysis result could not be verified.",
+          ? advisorMode
+            ? "AI guidance took too long. Try again."
+            : "AI analysis took too long. Try a smaller, clearer image."
+          : advisorMode
+            ? "The AI guidance result could not be verified."
+            : "The AI analysis result could not be verified.",
     });
   } finally {
     clearTimeout(timeout);

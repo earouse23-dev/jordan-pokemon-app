@@ -5,7 +5,6 @@ const files = [
   "styles.css",
   "themes.css",
   "app.js",
-  "api/advisor.js",
   "api/card-image.js",
   "api/cards.js",
   "api/catalog.js",

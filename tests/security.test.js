@@ -153,10 +153,7 @@ const visionLibrary = await readFile(
   new URL("../lib/vision.js", import.meta.url),
   "utf8",
 );
-const advisorEndpoint = await readFile(
-  new URL("../api/advisor.js", import.meta.url),
-  "utf8",
-);
+const advisorEndpoint = visionEndpoint;
 const advisorLibrary = await readFile(
   new URL("../lib/advisor.js", import.meta.url),
   "utf8",
@@ -1137,7 +1134,10 @@ test("AI image intake authenticates owners, avoids persistence, and requires con
     /config\.aiGatewayApiKey \|\| config\.vercelOidcToken/,
   );
   assert.match(visionEndpoint, /"Cache-Control", "no-store"/);
-  assert.match(visionEndpoint, /\.rpc\(\s*"claim_vision_usage"[\s\S]+fetch\(/);
+  assert.match(
+    visionEndpoint,
+    /\.rpc\(\s*advisorMode\s*\?\s*"claim_advisor_usage"\s*:\s*"claim_vision_usage"[\s\S]+fetch\(/,
+  );
   assert.match(
     visionEndpoint,
     /normalizeVisionOutput[\s\S]+searchTcgdexCards[\s\S]+catalogResolution/,
