@@ -16,6 +16,9 @@ submitting Mica to an app store or opening public registration.
 - [ ] Keep Vercel AI Gateway on the included credit during private development.
 - [ ] Before public launch, add an AI budget alert and verify the production model,
       usage cap, fallback behavior, and image-retention policy.
+- [ ] Verify the aggregate-only portfolio brief against beginner, seller, and
+      professional accounts; confirm no private card or transaction fields
+      appear in Gateway logs.
 
 ## Authentication and account security
 

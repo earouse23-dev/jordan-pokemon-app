@@ -2,6 +2,7 @@
 -- Apply in a dedicated Supabase project. All user-owned tables use auth.uid()-based RLS.
 create extension if not exists pgcrypto;
 create extension if not exists pg_net with schema extensions;
+create extension if not exists pg_trgm with schema extensions;
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -21,16 +22,23 @@ create index if not exists usage_events_user_idx on public.usage_events(user_id)
 
 create table if not exists public.card_sets (
   id uuid primary key default gen_random_uuid(), name text not null, canonical_key text, series text, release_date date,
-  language text not null default 'en'
+  language text not null default 'en', official_count integer check(official_count is null or official_count > 0),
+  total_count integer check(total_count is null or total_count > 0)
 );
 create unique index if not exists card_sets_canonical_key_unique on public.card_sets(language,canonical_key);
+create index if not exists card_sets_identity_count_idx on public.card_sets(language,official_count,id);
 create table if not exists public.cards (
   id uuid primary key default gen_random_uuid(), set_id uuid not null references public.card_sets(id) on delete cascade,
   name text not null, collector_number text not null, rarity text, artist text, language text not null default 'en',
+  name_key text generated always as (lower(btrim(name))) stored,
+  collector_key text generated always as (upper(regexp_replace(collector_number,'[^A-Za-z0-9]','','g'))) stored,
   search_document tsvector generated always as (to_tsvector('simple', coalesce(name,'') || ' ' || coalesce(collector_number,''))) stored,
   unique(set_id, collector_number, language)
 );
 create index if not exists cards_search_idx on public.cards using gin(search_document);
+create index if not exists cards_identity_number_idx on public.cards(language,collector_key,set_id);
+create index if not exists cards_identity_name_idx on public.cards(language,name_key);
+create index if not exists cards_name_trgm_idx on public.cards using gin(name extensions.gin_trgm_ops);
 create table if not exists public.card_variants (
   id uuid primary key default gen_random_uuid(), card_id uuid not null references public.cards(id) on delete cascade,
   finish text not null, edition text not null default '', language text not null default 'en', unique(card_id, finish, edition, language)
@@ -78,11 +86,11 @@ on conflict(language) do nothing;
 
 create or replace function public.dispatch_catalog_sync()
 returns bigint language plpgsql security definer set search_path = '' as $$
-declare project_url text; service_role_jwt text; target_language text; target_page integer; target_page_size integer; request_id bigint;
+declare project_url text; dispatch_token text; target_language text; target_page integer; target_page_size integer; request_id bigint;
 begin
   select decrypted_secret into project_url from vault.decrypted_secrets where name='catalog_sync_project_url' limit 1;
-  select decrypted_secret into service_role_jwt from vault.decrypted_secrets where name='catalog_sync_service_role_jwt' limit 1;
-  if nullif(project_url,'') is null or nullif(service_role_jwt,'') is null then return null; end if;
+  select decrypted_secret into dispatch_token from vault.decrypted_secrets where name='catalog_sync_dispatch_token' limit 1;
+  if nullif(project_url,'') is null or nullif(dispatch_token,'') is null then return null; end if;
   update public.catalog_sync_targets set next_page=1,status='pending',completed_at=null,cycle_started_at=now(),next_attempt_at=now(),updated_at=now()
     where status='completed' and completed_at <= now()-refresh_interval;
   with candidate as (
@@ -95,7 +103,7 @@ begin
     returning target.language,target.next_page,target.page_size into target_language,target_page,target_page_size;
   if target_language is null then return null; end if;
   request_id := net.http_post(url=>rtrim(project_url,'/')||'/functions/v1/sync-catalog',
-    headers=>jsonb_build_object('Content-Type','application/json','Authorization','Bearer '||service_role_jwt),
+    headers=>jsonb_build_object('Content-Type','application/json','X-Catalog-Sync-Token',dispatch_token),
     body=>jsonb_build_object('language',target_language,'page',target_page,'pageSize',target_page_size),timeout_milliseconds=>5000);
   update public.catalog_sync_targets set last_request_id=request_id,updated_at=now() where language=target_language;
   return request_id;

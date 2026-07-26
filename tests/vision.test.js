@@ -86,6 +86,102 @@ test("raw grading sends two high-detail images without provider persistence", ()
   );
 });
 
+test("identity mode requests only printed identity and a bounded output", () => {
+  const request = buildGatewayVisionRequest({
+    mode: "identify",
+    images: [tinyJpeg],
+    model: "openai/gpt-5-mini",
+    safetyIdentifier: "owner-hash",
+  });
+  assert.equal(request.max_output_tokens, 1800);
+  assert.equal(request.text.format.name, "mica_identity_analysis");
+  assert.deepEqual(Object.keys(request.text.format.schema.properties).sort(), [
+    "identity",
+    "quality",
+    "requiresConfirmation",
+  ]);
+  assert.doesNotMatch(
+    JSON.stringify(request.text.format.schema),
+    /rawCondition|estimatedGrade|subscores|defects/,
+  );
+  assert.match(
+    request.input[0].content[0].text,
+    /preserve both sides such as 76\/73/i,
+  );
+  assert.match(
+    request.input[1].content
+      .filter((part) => part.type === "input_text")
+      .map((part) => part.text)
+      .join(" "),
+    /device-prepared evidence sheet/i,
+  );
+});
+
+test("optional visual comparison is allowlisted, bounded, and may abstain", () => {
+  const candidates = [
+    {
+      id: "tcgdex:en:base1-4",
+      name: "Charizard",
+      set: "Base Set",
+      number: "4/102",
+      rarity: "Rare Holo",
+      variant: "holofoil",
+      image: "https://assets.tcgdex.net/en/base/base1/4/high.png",
+    },
+    {
+      id: "tcgdex:en:base4-4",
+      name: "Charizard",
+      set: "Base Set 2",
+      number: "4/130",
+      rarity: "Rare Holo",
+      variant: "holofoil",
+      image: "https://images.pokemontcg.io/base4/4_hires.png",
+    },
+  ];
+  const parsed = parseVisionRequest({
+    mode: "match",
+    images: [tinyJpeg],
+    candidates,
+  });
+  assert.equal(parsed.candidates.length, 2);
+  assert.throws(
+    () =>
+      parseVisionRequest({
+        mode: "match",
+        images: [tinyJpeg],
+        candidates: [
+          candidates[0],
+          { ...candidates[1], image: "https://example.com/card.png" },
+        ],
+      }),
+    /invalid_candidates/,
+  );
+  const request = buildGatewayVisionRequest({
+    ...parsed,
+    model: "openai/gpt-5-mini",
+    safetyIdentifier: "owner-hash",
+  });
+  assert.equal(request.max_output_tokens, 1200);
+  assert.equal(request.text.format.name, "mica_candidate_match");
+  assert.equal(
+    request.input[1].content.filter((part) => part.type === "input_image")
+      .length,
+    3,
+  );
+  const abstained = normalizeVisionOutput(
+    "match",
+    {
+      selectedCandidateId: "not-an-allowed-id",
+      confidence: 0.9,
+      reason: "The number is hidden.",
+      distinguishingEvidence: [],
+    },
+    parsed.candidates,
+  );
+  assert.equal(abstained.selectedCandidateId, null);
+  assert.equal(abstained.requiresConfirmation, true);
+});
+
 test("vision output is conservative, bounded, and always requires confirmation", () => {
   const result = normalizeVisionOutput("grade", {
     quality: { usable: true, confidence: 5, issues: [] },
@@ -118,6 +214,33 @@ test("vision output is conservative, bounded, and always requires confirmation",
   assert.equal(result.condition.estimatedGradeLow, 7);
   assert.equal(result.condition.estimatedGradeHigh, 9);
   assert.equal(result.quality.confidence, 0);
+  assert.equal(result.requiresConfirmation, true);
+});
+
+test("identity normalization derives a search without condition analysis", () => {
+  const result = normalizeVisionOutput("identify", {
+    quality: { usable: true, confidence: 0.9, issues: [] },
+    identity: {
+      isPokemonCard: true,
+      name: "Mew ex",
+      setName: "151",
+      collectorNumber: "151/165",
+      language: "English",
+      rarity: "Double Rare",
+      printingHints: ["holo"],
+      cardState: "raw",
+      grader: null,
+      grade: null,
+      certificationNumber: null,
+      confidence: 0.92,
+    },
+    condition: {
+      rawCondition: "near_mint",
+      estimatedGradeLow: 10,
+    },
+  });
+  assert.equal(result.searchQuery, "Mew ex 151 151/165");
+  assert.equal("condition" in result, false);
   assert.equal(result.requiresConfirmation, true);
 });
 

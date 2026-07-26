@@ -12,7 +12,11 @@ const CARDMARKET_FIELDS = new Set([
 
 type Card = {
   id: string; localId: string | number; name: string; rarity?: string; illustrator?: string;
-  image?: string; set: { id: string; name: string }; variants?: Record<string, boolean>;
+  image?: string; set: {
+    id: string;
+    name: string;
+    cardCount?: { official?: number | null; total?: number | null };
+  }; variants?: Record<string, boolean>;
   pricing?: Record<string, Record<string, unknown>>;
 };
 
@@ -25,12 +29,19 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
-function decodeRole(request: Request) {
-  try {
-    const token = request.headers.get('Authorization')?.replace(/^Bearer\s+/i, '') || '';
-    const encoded = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(encoded)).role || null;
-  } catch { return null; }
+async function sha256(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function constantTimeEqual(left: string, right: string) {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  }
+  return difference === 0;
 }
 
 function positive(value: unknown) {
@@ -125,12 +136,26 @@ function assertResult(error: { message: string } | null, context: string) {
 
 Deno.serve(async request => {
   if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
-  if (decodeRole(request) !== 'service_role') return json({ error: 'Service-role authorization required' }, 403);
 
   const url = Deno.env.get('SUPABASE_URL');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !serviceKey) return json({ error: 'Supabase runtime configuration is unavailable' }, 503);
   const supabase = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const dispatchToken = request.headers.get('X-Catalog-Sync-Token') || '';
+  if (!/^[a-f0-9]{64}$/.test(dispatchToken)) return json({ error: 'Catalog scheduler authorization required' }, 401);
+  const { data: credential, error: credentialError } = await supabase
+    .from('scheduler_credentials')
+    .select('secret_hash')
+    .eq('name', 'catalog_sync')
+    .maybeSingle();
+  const suppliedHash = await sha256(dispatchToken);
+  if (
+    credentialError ||
+    !credential?.secret_hash ||
+    !constantTimeEqual(suppliedHash, String(credential.secret_hash))
+  ) {
+    return json({ error: 'Catalog scheduler authorization required' }, 401);
+  }
 
   const input = await request.json().catch(() => ({}));
   const language = String(input.language || 'en').toLowerCase();
@@ -153,7 +178,11 @@ Deno.serve(async request => {
     for (const card of cards) allQuotes.set(card.id, quotesFor(card));
 
     const setRows = [...new Map(cards.map(card => [card.set.id, {
-      name: card.set.name, canonical_key: `tcgdex:${language}:${card.set.id}`, language,
+      name: card.set.name,
+      canonical_key: `tcgdex:${language}:${card.set.id}`,
+      language,
+      official_count: Number(card.set.cardCount?.official) || null,
+      total_count: Number(card.set.cardCount?.total) || null,
     }])).values()];
     const { data: sets, error: setError } = await supabase.from('card_sets').upsert(setRows, {
       onConflict: 'language,canonical_key', ignoreDuplicates: false,
@@ -161,9 +190,14 @@ Deno.serve(async request => {
     assertResult(setError, 'upsert sets');
     const setIdByExternal = new Map((sets || []).map(set => [String(set.canonical_key).split(':').at(-1), set.id]));
 
-    const setExternalRows = cards.map(card => ({
-      set_id: setIdByExternal.get(card.set.id), provider: 'tcgdex', external_id: `${language}:${card.set.id}`,
-    })).filter(row => row.set_id);
+    const setExternalRows = [...new Map(cards.map(card => [
+      `${language}:${card.set.id}`,
+      {
+        set_id: setIdByExternal.get(card.set.id),
+        provider: 'tcgdex',
+        external_id: `${language}:${card.set.id}`,
+      },
+    ])).values()].filter(row => row.set_id);
     const { error: setExternalError } = await supabase.from('set_external_ids').upsert(setExternalRows, { onConflict: 'provider,external_id' });
     assertResult(setExternalError, 'upsert set IDs');
 
@@ -258,12 +292,15 @@ Deno.serve(async request => {
     }).eq('language', language).eq('next_page', page);
     return json({ runId: run.id, language, page, processed: cards.length, quoteSnapshots: snapshots.length, nextPage, hasMore: nextPage !== null });
   } catch (error) {
+    const diagnostic = error instanceof Error
+      ? error.message.replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 240)
+      : 'Unknown catalog synchronization failure';
     await supabase.from('catalog_sync_runs').update({ status: 'failed', finished_at: new Date().toISOString() }).eq('id', run.id);
     await supabase.from('catalog_sync_targets').update({
       status: 'pending', claimed_at: null, next_attempt_at: new Date(Date.now() + 5 * 60_000).toISOString(),
-      last_error: 'catalog sync failed', updated_at: new Date().toISOString(),
+      last_error: diagnostic, updated_at: new Date().toISOString(),
     }).eq('language', language).eq('next_page', page);
-    console.error('[sync-catalog]', error instanceof Error ? error.message : 'Unknown error');
+    console.error('[sync-catalog]', diagnostic);
     return json({ error: 'Catalog sync failed', runId: run.id }, 502);
   }
 });

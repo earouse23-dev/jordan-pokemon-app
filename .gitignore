@@ -9,3 +9,5 @@ Thumbs.db
 *.log
 benchmarks/private/
 vision-evaluation*.json
+playwright-report/
+test-results/

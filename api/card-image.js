@@ -1,7 +1,5 @@
-const ALLOWED_IMAGE_HOSTS = new Set([
-  "assets.tcgdex.net",
-  "images.pokemontcg.io",
-]);
+import { normalizeCardImageSource } from "../lib/image-source.js";
+
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/avif",
   "image/jpeg",
@@ -11,23 +9,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
 const MAX_IMAGE_BYTES = 5_000_000;
 
 export function normalizeImageSource(value) {
-  if (typeof value !== "string" || value.length > 1_000) return null;
-  try {
-    const url = new URL(value);
-    if (
-      url.protocol !== "https:" ||
-      url.username ||
-      url.password ||
-      url.port ||
-      !ALLOWED_IMAGE_HOSTS.has(url.hostname)
-    )
-      return null;
-    if (!/^\/[A-Za-z0-9._~!$&'()*+,;=:@%/-]+$/.test(url.pathname)) return null;
-    url.hash = "";
-    return url;
-  } catch {
-    return null;
-  }
+  return normalizeCardImageSource(value);
 }
 
 export function cardImageProxyPath(value) {

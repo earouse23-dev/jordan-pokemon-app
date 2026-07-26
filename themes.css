@@ -67,13 +67,13 @@ body[data-ui-theme] .header-context strong {
 body[data-ui-theme] .header-context span {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
 }
 body[data-ui-theme] .header-actions {
   gap: 9px;
 }
 body[data-ui-theme] .theme-quick-switch {
-  min-height: 38px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -82,7 +82,7 @@ body[data-ui-theme] .theme-quick-switch {
   border-radius: 8px;
   background: var(--paper);
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 body[data-ui-theme] .theme-quick-switch i {
@@ -116,7 +116,7 @@ body[data-ui-theme] h1 {
 }
 body[data-ui-theme] .eyebrow {
   color: var(--pine-2);
-  font-size: 9px;
+  font-size: 12px;
   letter-spacing: 0.12em;
 }
 body[data-ui-theme] .quick-add {
@@ -135,11 +135,11 @@ body[data-ui-theme] .view-tabs {
   border: 0;
 }
 body[data-ui-theme] .view-tab {
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid transparent;
   border-radius: 7px;
-  font-size: 10px;
+  font-size: 12px;
 }
 body[data-ui-theme] .view-tab.active {
   border-color: var(--line);
@@ -270,7 +270,7 @@ body[data-ui-theme] .auth-card {
 .appearance-settings > p {
   margin: 9px 0 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .theme-options {
@@ -301,17 +301,17 @@ body[data-ui-theme] .auth-card {
   display: block;
 }
 .theme-options > button > span:nth-child(2) strong {
-  font-size: 11px;
+  font-size: 12px;
 }
 .theme-options > button > span:nth-child(2) small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.4;
 }
 .theme-options > button > b {
   color: var(--pine-2);
-  font-size: 8px;
+  font-size: 12px;
   text-transform: uppercase;
 }
 .theme-preview {
@@ -821,7 +821,7 @@ body[data-ui-theme="analytics"] .toast {
     padding: 0 13px;
     border-radius: 7px;
     color: #667085;
-    font-size: 10px;
+    font-size: 12px;
     text-align: left;
   }
   body[data-ui-theme] .nav-item > svg {
@@ -895,6 +895,10 @@ body[data-ui-theme="analytics"] .toast {
   }
   body[data-ui-theme] .view-tabs {
     margin-top: 12px;
+    margin-right: 0;
+    margin-left: 0;
+    padding-right: 0;
+    padding-left: 0;
   }
   body[data-ui-theme] .card-ledger {
     display: grid;
@@ -942,7 +946,7 @@ body[data-ui-theme="analytics"] .toast {
   body[data-ui-theme] .sync-state {
     max-width: 92px;
     padding-inline: 5px;
-    font-size: 8px;
+    font-size: 12px;
   }
   body[data-ui-theme] .avatar {
     width: 38px;
@@ -969,7 +973,7 @@ body[data-ui-theme="analytics"] .toast {
   border-radius: 7px;
   background: var(--paper);
   color: var(--ink);
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 750;
 }
 .header-add-action,
@@ -982,7 +986,7 @@ body[data-ui-theme] .quick-add {
 .collection-subtitle {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 .dashboard-kpis {
   display: grid;
@@ -1005,7 +1009,7 @@ body[data-ui-theme] .quick-add {
 .dashboard-kpi > span,
 .dashboard-kpi .portfolio-topline {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 650;
 }
 .dashboard-kpi > strong {
@@ -1022,7 +1026,7 @@ body[data-ui-theme] .quick-add {
 }
 .dashboard-kpi small {
   color: var(--pine-2);
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 700;
 }
 .dashboard-kpi .status-label {
@@ -1038,6 +1042,17 @@ body[data-ui-theme] .quick-add {
   min-height: 250px;
   margin: 0;
   box-shadow: none;
+}
+.dashboard-analytics-grid
+  .portfolio-history-panel:has(.portfolio-history-empty) {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  text-align: center;
+}
+.dashboard-analytics-grid .portfolio-history-empty {
+  max-width: 540px;
+  padding: 20px;
 }
 .portfolio-detail-panel {
   min-width: 0;
@@ -1058,11 +1073,11 @@ body[data-ui-theme] .quick-add {
 }
 .panel-heading span {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 12px;
 }
 .panel-heading strong {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: 12px;
 }
 body[data-ui-theme] .portfolio-detail-panel .portfolio-detail-grid {
   margin: 0;
@@ -1102,7 +1117,7 @@ body[data-sidebar-target="dashboard"] .ledger-meta {
   margin-top: 2px;
   padding: 12px 1px 8px;
   color: var(--ink);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 body[data-sidebar-target="portfolio"] .view-tabs,
@@ -1185,7 +1200,7 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     padding-inline: 14px;
   }
   body[data-ui-theme] .wordmark {
-    min-height: 40px;
+    min-height: 44px;
     font-size: 16px;
   }
   body[data-ui-theme] .wordmark-gem {
@@ -1199,13 +1214,13 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     display: none;
   }
   body[data-ui-theme] .theme-quick-switch {
-    width: 38px;
-    height: 38px;
-    min-height: 38px;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
   }
   body[data-ui-theme] .avatar {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
   }
   body[data-ui-theme] .view {
     padding: 20px 14px calc(90px + var(--safe-bottom));
@@ -1229,7 +1244,7 @@ body[data-ui-theme="analytics"] .price-chart polyline {
   body[data-ui-theme] .collection-actions .quick-add {
     min-height: 38px;
     padding-inline: 11px;
-    font-size: 9px;
+    font-size: 12px;
   }
   .dashboard-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1237,6 +1252,11 @@ body[data-ui-theme="analytics"] .price-chart polyline {
   .dashboard-kpi {
     min-height: 88px;
     padding: 11px;
+  }
+  .dashboard-kpi .portfolio-topline {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
   }
   .dashboard-kpi > strong,
   .dashboard-kpi .portfolio-value {
@@ -1250,6 +1270,10 @@ body[data-ui-theme="analytics"] .price-chart polyline {
   }
   body[data-ui-theme] .view-tabs {
     margin-top: 12px;
+    margin-right: 0;
+    margin-left: 0;
+    padding-right: 0;
+    padding-left: 0;
   }
   body[data-ui-theme] .card-ledger {
     display: grid;
@@ -1286,10 +1310,10 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     padding: 0;
   }
   body[data-ui-theme] .ledger-row .card-name {
-    font-size: 10px;
+    font-size: 12px;
   }
   body[data-ui-theme] .ledger-row .card-set {
-    font-size: 8px;
+    font-size: 12px;
   }
   body[data-ui-theme] .ledger-row .card-tags {
     margin-top: 5px;
@@ -1333,7 +1357,7 @@ body[data-ui-theme="analytics"] .price-chart polyline {
   }
   body[data-ui-theme] .nav-item {
     min-height: 50px;
-    font-size: 8px;
+    font-size: 12px;
   }
   body[data-ui-theme="analytics"] .nav-item.active {
     background: #21183a;
@@ -1390,7 +1414,7 @@ body[data-ui-theme="analytics"] .price-chart polyline {
   .sidebar-brand > span:last-child small {
     margin-top: 5px;
     color: #ac86ef;
-    font-size: 7px;
+    font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
@@ -1453,7 +1477,7 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     font: 700 15px/1 var(--font-sans);
   }
   .sidebar-item > b {
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 650;
   }
   .sidebar-item:hover {
@@ -1497,7 +1521,7 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     border-radius: 50%;
     background: #2b1e43;
     color: #dac8ff;
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 800;
   }
   .sidebar-account strong,
@@ -1508,12 +1532,12 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     white-space: nowrap;
   }
   .sidebar-account strong {
-    font-size: 9px;
+    font-size: 12px;
   }
   .sidebar-account small {
     margin-top: 3px;
     color: #a786eb;
-    font-size: 7px;
+    font-size: 12px;
   }
   body[data-ui-theme="clean"] .desktop-sidebar {
     border-color: #dbe2ec;
@@ -1637,10 +1661,10 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     padding: 0;
   }
   body[data-ui-theme] .ledger-row .card-name {
-    font-size: 10px;
+    font-size: 12px;
   }
   body[data-ui-theme] .ledger-row .card-set {
-    font-size: 8px;
+    font-size: 12px;
   }
   body[data-ui-theme] .ledger-row .card-tags {
     margin-top: 6px;
@@ -1723,15 +1747,11 @@ body[data-ui-theme="analytics"] .price-chart polyline {
   border-radius: 7px;
   background: var(--paper);
   color: var(--pine-2);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
 }
 body[data-sidebar-target="dashboard"] #dashboardViewAll {
   display: inline-flex;
-}
-body[data-ui-theme] .view small {
-  font-size: 10px;
-  line-height: 1.45;
 }
 body[data-ui-theme] .header-context span,
 body[data-ui-theme] .eyebrow,
@@ -1745,7 +1765,7 @@ body[data-ui-theme] .row-unit,
 body[data-ui-theme] .row-move,
 body[data-ui-theme] .micro-tag,
 body[data-ui-theme] .nav-item {
-  font-size: 10px;
+  font-size: 12px;
 }
 body[data-ui-theme] .ledger-row .card-name {
   font-size: 12px;
@@ -1755,7 +1775,7 @@ body[data-ui-theme] .find-action small,
 body[data-ui-theme] .settings-group small,
 body[data-ui-theme] .appearance-settings > p,
 body[data-ui-theme] .theme-options > button > span:nth-child(2) small {
-  font-size: 10px;
+  font-size: 12px;
 }
 
 @media (min-width: 1024px) {
@@ -1763,23 +1783,23 @@ body[data-ui-theme] .theme-options > button > span:nth-child(2) small {
     min-height: 42px;
   }
   .sidebar-item > b {
-    font-size: 11px;
+    font-size: 12px;
   }
   .sidebar-brand > span:last-child small,
   .sidebar-account small {
-    font-size: 9px;
+    font-size: 12px;
   }
   .sidebar-account strong {
-    font-size: 11px;
+    font-size: 12px;
   }
 }
 
 @media (max-width: 759px) {
   body[data-ui-theme] .nav-item {
-    font-size: 10px;
+    font-size: 12px;
   }
   body[data-ui-theme] .ledger-row .card-name {
-    font-size: 11px;
+    font-size: 12px;
   }
 }
 
@@ -1788,7 +1808,7 @@ body[data-ui-theme] .theme-options > button > span:nth-child(2) small {
    working product. */
 body[data-ui-theme] .view label,
 body[data-ui-theme] .view button {
-  font-size: 11px;
+  font-size: 12px;
 }
 body[data-ui-theme] .view input,
 body[data-ui-theme] .view select,
@@ -1796,7 +1816,7 @@ body[data-ui-theme] .view textarea {
   font-size: 12px;
 }
 body[data-ui-theme] .view small {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -1832,7 +1852,7 @@ body[data-ui-theme] .sale-row span,
 body[data-ui-theme] .mover span,
 body[data-ui-theme] .data-boundary p,
 body[data-ui-theme] .legal-copy {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 body[data-ui-theme] .wordmark-gem {

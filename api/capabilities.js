@@ -39,6 +39,14 @@ export default function handler(request, response) {
             ? "vercel_managed"
             : "setup_required",
       },
+      advisor: {
+        status: config.aiGatewayApiKey
+          ? "connected"
+          : process.env.VERCEL
+            ? "vercel_managed"
+            : "setup_required",
+        privacy: "aggregate_signals_only",
+      },
       push: { status: "development_only" },
     });
   } catch {

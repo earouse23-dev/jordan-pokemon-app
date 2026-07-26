@@ -5295,12 +5295,35 @@ async function openDeviceCamera({
         stableFrames = 0;
         return;
       }
-      motionContext.drawImage(video, 0, 0, 40, 56);
+      const sourceRatio = video.videoWidth / video.videoHeight;
+      const guideRatio = 40 / 56;
+      const sourceWidth =
+        sourceRatio > guideRatio
+          ? video.videoHeight * guideRatio
+          : video.videoWidth;
+      const sourceHeight =
+        sourceRatio > guideRatio
+          ? video.videoHeight
+          : video.videoWidth / guideRatio;
+      motionContext.drawImage(
+        video,
+        (video.videoWidth - sourceWidth) / 2,
+        (video.videoHeight - sourceHeight) / 2,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        40,
+        56,
+      );
       const pixels = motionContext.getImageData(0, 0, 40, 56).data;
       const sample = new Uint8Array(40 * 56);
       let lightTotal = 0;
       let lightSquaredTotal = 0;
       let differenceTotal = 0;
+      let sharpnessTotal = 0;
+      let sharpnessSamples = 0;
+      let glarePixels = 0;
       for (let index = 0, pixel = 0; index < pixels.length; index += 4) {
         const light = Math.round(
           pixels[index] * 0.299 +
@@ -5310,12 +5333,23 @@ async function openDeviceCamera({
         sample[pixel] = light;
         lightTotal += light;
         lightSquaredTotal += light * light;
+        if (light > 250) glarePixels += 1;
+        if (pixel % 40 && pixel >= 40) {
+          sharpnessTotal +=
+            Math.abs(light - sample[pixel - 1]) +
+            Math.abs(light - sample[pixel - 40]);
+          sharpnessSamples += 2;
+        }
         if (previousFrame)
           differenceTotal += Math.abs(light - previousFrame[pixel]);
         pixel += 1;
       }
       const brightness = lightTotal / sample.length;
       const contrast = lightSquaredTotal / sample.length - brightness ** 2;
+      const sharpness = sharpnessSamples
+        ? sharpnessTotal / sharpnessSamples
+        : 0;
+      const glareRatio = glarePixels / sample.length;
       const movement = previousFrame
         ? differenceTotal / sample.length
         : Number.POSITIVE_INFINITY;
@@ -5331,6 +5365,16 @@ async function openDeviceCamera({
       if (contrast < 120) {
         stableFrames = 0;
         status.textContent = "Move the card into the frame";
+        return;
+      }
+      if (glareRatio > 0.14) {
+        stableFrames = 0;
+        status.textContent = "Tilt the card slightly to remove glare";
+        return;
+      }
+      if (sharpness < 5.5) {
+        stableFrames = 0;
+        status.textContent = "Tap the card to focus, then hold steady";
         return;
       }
       stableFrames = movement < 7 ? stableFrames + 1 : 0;
@@ -5577,11 +5621,11 @@ async function decodeVisionImage(file) {
 
 function sampledImageQuality(context, width, height) {
   const sample = document.createElement("canvas");
-  sample.width = 64;
-  sample.height = 64;
+  sample.width = 96;
+  sample.height = 96;
   const sampleContext = sample.getContext("2d", { willReadFrequently: true });
-  sampleContext.drawImage(context.canvas, 0, 0, width, height, 0, 0, 64, 64);
-  const pixels = sampleContext.getImageData(0, 0, 64, 64).data;
+  sampleContext.drawImage(context.canvas, 0, 0, width, height, 0, 0, 96, 96);
+  const pixels = sampleContext.getImageData(0, 0, 96, 96).data;
   const luminance = [];
   for (let index = 0; index < pixels.length; index += 4)
     luminance.push(
@@ -5596,6 +5640,29 @@ function sampledImageQuality(context, width, height) {
       luminance.length,
   );
   const warnings = [];
+  const blockers = [];
+  let edgeTotal = 0;
+  let edgeSamples = 0;
+  for (let y = 1; y < 96; y += 1) {
+    for (let x = 1; x < 96; x += 1) {
+      const index = y * 96 + x;
+      edgeTotal +=
+        Math.abs(luminance[index] - luminance[index - 1]) +
+        Math.abs(luminance[index] - luminance[index - 96]);
+      edgeSamples += 2;
+    }
+  }
+  const sharpness = edgeSamples ? edgeTotal / edgeSamples : 0;
+  if (average < 24)
+    blockers.push("The photo is too dark to read. Add indirect light and retake.");
+  if (average > 245)
+    blockers.push(
+      "The photo is too overexposed to read. Turn off flash and retake.",
+    );
+  if (sharpness < 3.2)
+    blockers.push(
+      "The photo is too soft to read reliably. Hold steady, tap to focus, and retake.",
+    );
   if (average < 40)
     warnings.push(
       "The image looks dark; brighter indirect light will improve the estimate.",
@@ -5608,7 +5675,100 @@ function sampledImageQuality(context, width, height) {
     warnings.push(
       "The image has low contrast; use a plain background and steadier focus.",
     );
-  return warnings;
+  if (sharpness < 7 && sharpness >= 3.2)
+    warnings.push(
+      "Fine print may be soft; hold the card closer and tap to focus for a better match.",
+    );
+  return { warnings, blockers, metrics: { average, deviation, sharpness } };
+}
+
+function containedRect(sourceWidth, sourceHeight, x, y, width, height) {
+  const scale = Math.min(width / sourceWidth, height / sourceHeight);
+  const drawWidth = sourceWidth * scale;
+  const drawHeight = sourceHeight * scale;
+  return {
+    x: x + (width - drawWidth) / 2,
+    y: y + (height - drawHeight) / 2,
+    width: drawWidth,
+    height: drawHeight,
+  };
+}
+
+function centeredCardBounds(width, height) {
+  const ratio = 63 / 88;
+  const maximumWidth = width * 0.92;
+  const maximumHeight = height * 0.92;
+  const cardHeight = Math.min(maximumHeight, maximumWidth / ratio);
+  const cardWidth = cardHeight * ratio;
+  return {
+    x: (width - cardWidth) / 2,
+    y: (height - cardHeight) / 2,
+    width: cardWidth,
+    height: cardHeight,
+  };
+}
+
+async function identityEvidenceDataUrl(source) {
+  const evidence = document.createElement("canvas");
+  evidence.width = 1536;
+  evidence.height = 1024;
+  const context = evidence.getContext("2d", { alpha: false });
+  context.fillStyle = "#0b1018";
+  context.fillRect(0, 0, evidence.width, evidence.height);
+  context.fillStyle = "#f6f8fc";
+  context.font = "600 24px system-ui, sans-serif";
+  context.fillText("FULL CARD", 34, 38);
+  context.fillText("NAME + SET", 748, 38);
+  context.fillText("COLLECTOR NUMBER", 748, 550);
+
+  const full = containedRect(
+    source.width,
+    source.height,
+    28,
+    58,
+    670,
+    938,
+  );
+  context.drawImage(
+    source,
+    full.x,
+    full.y,
+    full.width,
+    full.height,
+  );
+
+  const card = centeredCardBounds(source.width, source.height);
+  context.drawImage(
+    source,
+    card.x,
+    card.y,
+    card.width,
+    card.height * 0.25,
+    734,
+    58,
+    774,
+    410,
+  );
+  context.drawImage(
+    source,
+    card.x,
+    card.y + card.height * 0.7,
+    card.width,
+    card.height * 0.3,
+    734,
+    570,
+    774,
+    410,
+  );
+
+  let quality = 0.88;
+  let blob = await canvasBlob(evidence, quality);
+  while (blob.size > 1_250_000 && quality > 0.64) {
+    quality -= 0.06;
+    blob = await canvasBlob(evidence, quality);
+  }
+  if (blob.size > 1_350_000) return null;
+  return readBlobAsDataUrl(blob);
 }
 
 async function prepareVisionImage(file) {
@@ -5634,7 +5794,8 @@ async function prepareVisionImage(file) {
   context.fillRect(0, 0, width, height);
   context.drawImage(decoded, 0, 0, width, height);
   decoded.close?.();
-  const warnings = sampledImageQuality(context, width, height);
+  const qualityCheck = sampledImageQuality(context, width, height);
+  const identityDataUrl = await identityEvidenceDataUrl(canvas);
   let quality = 0.9;
   let blob = await canvasBlob(canvas, quality);
   while (blob.size > 1_250_000 && quality > 0.66) {
@@ -5647,11 +5808,14 @@ async function prepareVisionImage(file) {
     width,
     height,
     bytes: blob.size,
-    warnings,
+    warnings: qualityCheck.warnings,
+    blockers: qualityCheck.blockers,
+    qualityMetrics: qualityCheck.metrics,
+    identityDataUrl,
   };
 }
 
-async function requestVisionAnalysis(mode, preparedImages) {
+async function requestVisionAnalysis(mode, preparedImages, candidates = []) {
   if (!state.session?.access_token)
     throw new Error("Sign in again before using AI analysis.");
   const response = await fetch("/api/vision", {
@@ -5664,6 +5828,7 @@ async function requestVisionAnalysis(mode, preparedImages) {
     body: JSON.stringify({
       mode,
       images: preparedImages.map((image) => image.dataUrl),
+      ...(mode === "match" ? { candidates } : {}),
     }),
   });
   const payload = await response.json().catch(() => ({}));
@@ -5728,7 +5893,7 @@ function renderVisionResult(payload, mode, preparedImages) {
       : `<div class="vision-identity-summary"><div><span>Visible identity</span><strong>${esc(identity.name || "Card name unclear")}</strong><small>${esc([identity.setName, identity.collectorNumber, identity.language].filter(Boolean).join(" · ") || "Printed details need review")}</small></div><div><span>Detected state</span><strong>${identity.cardState === "graded" ? `${esc(identity.grader || "Grader unclear")} ${esc(identity.grade ?? "")}` : "Raw card"}</strong><small>${esc(confidenceLabel(identity.confidence))}</small></div></div>`;
 
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">AI analysis ready</h2><p>${esc(payload.model)} · photos were not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="vision-result-head"><img src="${preparedImages[0].dataUrl}" alt="Analyzed card front"><div><span>Suggested catalog search</span><strong>${esc(analysis.searchQuery || "Printed identity unclear")}</strong><small>Choose the exact printing below. Mica will not add a card automatically.</small></div></div>${qualityMarkup}${conditionMarkup}<div class="manual-results" id="visionCatalogResults" aria-live="polite"><div class="searching-cards"><i></i><span>Checking exact catalog printings…</span></div></div><div class="sheet-actions"><button class="secondary" id="visionRetake" type="button">Retake</button><button class="secondary" id="visionManualSearch" type="button">Search differently</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">AI analysis ready</h2><p>${esc(payload.model)} · photos were not saved</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="vision-result-head"><img src="${preparedImages[0].previewDataUrl || preparedImages[0].dataUrl}" alt="Analyzed card front"><div><span>Suggested catalog search</span><strong>${esc(analysis.searchQuery || "Printed identity unclear")}</strong><small>Choose the exact printing below. Mica will not add a card automatically.</small></div></div>${qualityMarkup}${conditionMarkup}<div class="manual-results" id="visionCatalogResults" aria-live="polite"><div class="searching-cards"><i></i><span>Checking exact catalog printings…</span></div></div><div class="sheet-actions"><button class="secondary" id="visionRetake" type="button">Retake</button><button class="secondary" id="visionManualSearch" type="button">Search differently</button></div>`,
   );
   $("#bottomSheet").dataset.lockClose = "false";
   $("#visionRetake").addEventListener("click", () =>
@@ -5738,22 +5903,89 @@ function renderVisionResult(payload, mode, preparedImages) {
     openVisionSearchFallback(analysis.searchQuery, identity.language),
   );
   const renderCandidates = async () => {
-    let cards = [];
-    try {
-      if (analysis.searchQuery?.length >= 2) {
-        const result = await searchCatalog(
-          analysis.searchQuery,
-          visionLanguage(identity.language),
-          12,
-        );
-        cards = result.items;
-      }
-    } catch {}
+    let cards = (payload.catalogResolution?.cards || []).map(catalogItem);
+    const resolution = payload.catalogResolution?.resolution || null;
+    if (cards.length) rememberCatalogItems(cards);
+    if (!cards.length) {
+      try {
+        if (analysis.searchQuery?.length >= 2) {
+          const result = await searchCatalog(
+            analysis.searchQuery,
+            visionLanguage(identity.language),
+            12,
+          );
+          cards = result.items;
+        }
+      } catch {}
+    }
     const node = $("#visionCatalogResults");
     if (!node) return;
+    const recommendedId = resolution?.recommendedId || null;
+    const guidance =
+      resolution?.status === "exact"
+        ? "<strong>Best printed match found</strong><span>Name and collector number point to one result. Confirm the artwork, set, language, and finish.</span>"
+        : resolution?.ambiguity?.includes("collector_number_not_unique")
+          ? "<strong>The number is not unique</strong><span>Compare the name and artwork. Collector numbers repeat across Pokémon sets.</span>"
+          : "<strong>Confirm the exact card</strong><span>Compare the image, set, number, language, and foil before continuing.</span>";
+    const comparableCandidates = cards
+      .filter((card) => card.image || card.thumb)
+      .slice(0, 4);
+    const comparisonAction =
+      resolution?.status !== "exact" && comparableCandidates.length >= 2
+        ? '<div class="vision-compare-action"><span id="visionCompareStatus">Still unsure? Mica can compare the visible artwork against the top candidates.</span><button id="visionCompareCandidates" type="button">AI compare top matches</button><small>Optional · uses one additional AI analysis · still requires confirmation</small></div>'
+        : "";
     node.innerHTML = cards.length
-      ? `<div class="vision-match-instruction"><strong>Confirm the exact card</strong><span>Compare the image, set, number, language, and foil before continuing.</span></div>${cards.map((card) => `<button class="catalog-result" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Printing unknown")}</small>${matchReason(card)}</span><b>Use match</b></button>`).join("")}`
+      ? `<div class="vision-match-instruction">${guidance}${comparisonAction}</div>${cards.map((card) => `<button class="catalog-result${card.id === recommendedId ? " recommended" : ""}" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Printing unknown")}</small>${matchReason(card)}</span><b>${card.id === recommendedId ? "Best match" : "Use match"}</b></button>`).join("")}`
       : '<div class="unavailable-panel">No reliable catalog match was found. Retake the card closer or search the printed details manually.</div>';
+    $("#visionCompareCandidates")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const status = $("#visionCompareStatus");
+      button.disabled = true;
+      button.textContent = "Comparing visible details…";
+      if (status)
+        status.textContent =
+          "Checking artwork and printed evidence without changing your library.";
+      try {
+        const comparison = await requestVisionAnalysis(
+          "match",
+          [preparedImages[0]],
+          comparableCandidates.map((card) => ({
+            id: card.id,
+            name: card.name,
+            set: card.set,
+            number: card.number,
+            rarity: card.rarity,
+            variant: card.variant,
+            image: card.image || card.thumb,
+          })),
+        );
+        const visual = comparison.analysis || {};
+        const reliable =
+          visual.selectedCandidateId && Number(visual.confidence) >= 0.72;
+        if (reliable) {
+          $$("[data-vision-card]", node).forEach((candidateButton) => {
+            const selected =
+              candidateButton.dataset.visionCard ===
+              visual.selectedCandidateId;
+            candidateButton.classList.toggle("recommended", selected);
+            const label = candidateButton.querySelector("b");
+            if (label)
+              label.textContent = selected ? "AI visual match" : "Use match";
+          });
+          if (status)
+            status.textContent = `Visual comparison favors one candidate (${confidenceLabel(visual.confidence)}). ${visual.reason} Confirm it yourself before continuing.`;
+        } else if (status) {
+          status.textContent = `${visual.reason || "The photo does not reliably separate these candidates."} Compare them manually or retake the card closer.`;
+        }
+        button.remove();
+      } catch (error) {
+        if (status)
+          status.textContent =
+            error.message || "Visual comparison is temporarily unavailable.";
+        button.disabled = false;
+        button.textContent = "Try visual comparison again";
+      }
+    });
     $$("[data-vision-card]", node).forEach((button) =>
       button.addEventListener("click", () => {
         const card = catalog.find(
@@ -5827,6 +6059,8 @@ async function showProcessing(file, initialBackFile = null) {
   });
   let front;
   let back;
+  let frontReady = false;
+  let backReady = false;
   try {
     front = await prepareVisionImage(file);
     if (
@@ -5836,11 +6070,16 @@ async function showProcessing(file, initialBackFile = null) {
       return;
     $("#capturePreview").innerHTML =
       `<img src="${front.dataUrl}" alt="Selected card photograph">`;
-    $("#qualityChip").innerHTML = "<span></span> Ready for AI review";
-    $("#visionLocalCheck").innerHTML = front.warnings.length
-      ? `<strong>Improve accuracy if possible</strong>${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join("")}`
+    frontReady = !front.blockers.length;
+    $("#qualityChip").innerHTML = frontReady
+      ? "<span></span> Ready for AI review"
+      : "<span></span> Retake needed";
+    $("#visionLocalCheck").innerHTML = front.blockers.length
+      ? `<strong>Retake before AI review</strong>${front.blockers.map((blocker) => `<span>${esc(blocker)}</span>`).join("")}<span>This check prevents spending an AI scan on unreadable evidence.</span>`
+      : front.warnings.length
+        ? `<strong>Improve accuracy if possible</strong>${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join("")}`
       : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · original is not uploaded</span>`;
-    $("#visionIdentify").disabled = false;
+    $("#visionIdentify").disabled = !frontReady;
   } catch (error) {
     if (!$("#visionLocalCheck")) return;
     $("#visionLocalCheck").innerHTML =
@@ -5848,7 +6087,16 @@ async function showProcessing(file, initialBackFile = null) {
   }
   $("#visionIdentify")?.addEventListener(
     "click",
-    () => front && void analyzeCardImages("identify", [front]),
+    () =>
+      frontReady &&
+      front &&
+      void analyzeCardImages("identify", [
+        {
+          ...front,
+          previewDataUrl: front.dataUrl,
+          dataUrl: front.identityDataUrl || front.dataUrl,
+        },
+      ]),
   );
   $("#photoAssistSearch")?.addEventListener("click", () =>
     openVisionSearchFallback(),
@@ -5866,8 +6114,9 @@ async function showProcessing(file, initialBackFile = null) {
       )
         return;
       $("#visionBackPreview").innerHTML =
-        `<img src="${back.dataUrl}" alt="Selected card back"><div><strong>Back photo ready</strong><span>${back.warnings.length ? esc(back.warnings.join(" ")) : "Local quality check passed."}</span></div>`;
-      $("#visionGrade").disabled = false;
+        `<img src="${back.dataUrl}" alt="Selected card back"><div><strong>${back.blockers.length ? "Retake the back photo" : "Back photo ready"}</strong><span>${back.blockers.length ? esc(back.blockers.join(" ")) : back.warnings.length ? esc(back.warnings.join(" ")) : "Local quality check passed."}</span></div>`;
+      backReady = !back.blockers.length;
+      $("#visionGrade").disabled = !(frontReady && backReady);
     } catch {
       if ($("#visionBackPreview"))
         $("#visionBackPreview").innerHTML =
@@ -5883,6 +6132,8 @@ async function showProcessing(file, initialBackFile = null) {
   if (initialBackFile) {
     await prepareBackPhoto(initialBackFile);
     if (
+      frontReady &&
+      backReady &&
       front &&
       back &&
       $("#bottomSheet").dataset.visionOperation === operationId
@@ -5892,7 +6143,9 @@ async function showProcessing(file, initialBackFile = null) {
     }
   }
   $("#visionGrade")?.addEventListener("click", () =>
-    front && back ? void analyzeCardImages("grade", [front, back]) : null,
+    frontReady && backReady && front && back
+      ? void analyzeCardImages("grade", [front, back])
+      : null,
   );
 }
 
@@ -6004,6 +6257,15 @@ async function showReceiptProcessing(file) {
       $("#bottomSheet").dataset.visionOperation !== operationId
     )
       return;
+    if (prepared.blockers.length) {
+      openSheet(
+        `<div class="sheet-heading"><div><h2 id="sheetTitle">Retake this receipt</h2><p>No AI credit was used</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="vision-quality blocking"><strong>The document is not readable enough yet</strong>${prepared.blockers.map((blocker) => `<span>${esc(blocker)}</span>`).join("")}</div><div class="sheet-actions"><button class="primary" id="receiptQualityClose" type="button">Choose another photo</button></div>`,
+      );
+      $("#receiptQualityClose").addEventListener("click", () =>
+        closeSheet({ force: true }),
+      );
+      return;
+    }
     $("#bottomSheet").dataset.lockClose = "true";
     openSheet(
       `<div class="sheet-heading"><div><h2 id="sheetTitle">Reading receipt</h2><p>Extracting purchase facts and Pokémon card lines</p></div></div><div class="vision-processing" role="status"><i></i><strong>Building a review draft…</strong><span>Mica will not allocate unclear order costs or add cards without confirmation.</span></div>`,
@@ -7433,6 +7695,14 @@ function renderBusinessReview() {
   if (!$("#businessReview")) return;
   const review = portfolioReview(state.items, state.watchlist);
   const actions = portfolioActions(state.items, state.watchlist);
+  const briefButton = $("#portfolioBriefButton");
+  const briefResult = $("#portfolioBriefResult");
+  briefButton.disabled = !actions.length;
+  briefButton.textContent = actions.length
+    ? "Explain my priorities"
+    : "Nothing needs explanation";
+  briefResult.classList.add("hidden");
+  briefResult.replaceChildren();
   const signalCount = actions.reduce(
     (sum, action) => sum + action.items.length,
     0,
@@ -7453,18 +7723,100 @@ function renderBusinessReview() {
   $$("[data-business-review]").forEach((button) =>
     button.addEventListener("click", () => {
       const key = button.dataset.businessReview;
-      const items =
-        key === "listings"
-          ? listingReviewItems(state.items)
-          : {
-              pricing: review.needsPricing,
-              "below-cost": review.belowCost,
-              older: review.olderInventory,
-              targets: review.reachedTargets,
-            }[key] || [];
+      const items = businessReviewItems(key, review);
       openBusinessReviewQueue(key, items);
     }),
   );
+}
+
+function businessReviewItems(
+  key,
+  review = portfolioReview(state.items, state.watchlist),
+) {
+  return key === "listings"
+    ? listingReviewItems(state.items)
+    : {
+        pricing: review.needsPricing,
+        "below-cost": review.belowCost,
+        older: review.olderInventory,
+        targets: review.reachedTargets,
+      }[key] || [];
+}
+
+function advisorExperienceLevel() {
+  return {
+    beginner: "beginner",
+    familiar: "seller",
+    professional: "pro",
+  }[state.preferences.experienceLevel] || "beginner";
+}
+
+async function requestPortfolioBrief(actions) {
+  if (!state.session?.access_token)
+    throw new Error("Sign in again before requesting an AI explanation.");
+  const response = await fetch("/api/advisor", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${state.session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      experienceLevel: advisorExperienceLevel(),
+      workspace: workspaceMode,
+      portfolio: {
+        positionCount: state.items.length,
+        watchlistCount: state.watchlist.length,
+      },
+      signals: actions.map((action) => ({
+        key: action.key,
+        itemCount: action.items.length,
+      })),
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok)
+    throw new Error(
+      payload.error || "AI priorities are temporarily unavailable.",
+    );
+  return payload.brief;
+}
+
+async function explainPortfolioPriorities() {
+  const actions = portfolioActions(state.items, state.watchlist);
+  if (!actions.length) return;
+  const button = $("#portfolioBriefButton");
+  const result = $("#portfolioBriefResult");
+  button.disabled = true;
+  button.textContent = "Preparing explanation…";
+  result.classList.remove("hidden");
+  result.setAttribute("aria-busy", "true");
+  result.innerHTML =
+    '<div class="portfolio-brief-loading"><i></i><span>Explaining Mica’s verified queue without sending card names, costs, notes, or photos…</span></div>';
+  try {
+    const brief = await requestPortfolioBrief(actions);
+    result.innerHTML = `<div class="portfolio-brief-head"><span>AI explanation · verified signals only</span><h3>${esc(brief.headline)}</h3><p>${esc(brief.summary)}</p></div><div class="portfolio-brief-priorities">${brief.priorities
+      .map((priority, index) => {
+        const action = actions.find(
+          (candidate) => candidate.key === priority.actionKey,
+        );
+        if (!action) return "";
+        return `<article><span>${index === 0 ? "Start here" : `Then ${index + 1}`}</span><strong>${esc(action.title === "Price gaps" ? "Missing prices" : action.title)}</strong><p>${esc(priority.why)}</p><small>${esc(priority.nextStep)}</small><button type="button" data-advisor-review="${esc(priority.actionKey)}">Open ${action.items.length} item${action.items.length === 1 ? "" : "s"} →</button></article>`;
+      })
+      .join("")}</div>${brief.caveats.length ? `<p class="portfolio-brief-caveats">${brief.caveats.map((caveat) => esc(caveat)).join(" · ")}</p>` : ""}<p class="portfolio-brief-privacy">No card names, prices, photos, notes, certification numbers, or purchase details were sent. This explanation cannot edit your account.</p>`;
+    $$("[data-advisor-review]", result).forEach((reviewButton) =>
+      reviewButton.addEventListener("click", () => {
+        const key = reviewButton.dataset.advisorReview;
+        openBusinessReviewQueue(key, businessReviewItems(key));
+      }),
+    );
+  } catch (error) {
+    result.innerHTML = `<div class="portfolio-brief-error"><strong>The automatic checklist still works.</strong><span>${esc(error.message || "AI explanation is unavailable.")}</span><small>If setup is required, connect Vercel AI Gateway; no further app build is needed.</small></div>`;
+  } finally {
+    result.removeAttribute("aria-busy");
+    button.disabled = false;
+    button.textContent = "Refresh explanation";
+  }
 }
 
 function openBusinessReviewQueue(key, items) {
@@ -8217,7 +8569,7 @@ function syncTabs() {
       tab.dataset.ledgerView === state.ledgerView &&
       (tab.dataset.conditionFilter || "") === state.conditionFilter;
     tab.classList.toggle("active", active);
-    tab.setAttribute("aria-selected", String(active));
+    tab.setAttribute("aria-pressed", String(active));
   });
 }
 function toast(message) {
@@ -8689,6 +9041,10 @@ function bindEvents() {
   $("#sharePortfolioButton").addEventListener("click", openSharePortfolioSheet);
   $("#insuranceReportButton").addEventListener("click", openInsuranceReport);
   $("#batchGradingButton").addEventListener("click", openBatchGradingPlanner);
+  $("#portfolioBriefButton").addEventListener(
+    "click",
+    explainPortfolioPriorities,
+  );
   $("#businessRange").addEventListener("change", (event) => {
     state.businessRange = event.target.value;
     renderBusinessSummary();

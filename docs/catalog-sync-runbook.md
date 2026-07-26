@@ -19,26 +19,17 @@ When these fail, inspect the returned `parsedQuery` and normalized `match.reason
 
 ## Security boundary
 
-The deployed `sync-catalog` Edge Function requires a valid Supabase service-role JWT at the gateway and verifies the JWT role again in the function. Never put that token in source control, browser code, logs, screenshots, or a public scheduler. An unauthenticated production request must return `401`.
+The deployed `sync-catalog` Edge Function is not a public user endpoint. The database scheduler authenticates with a random, single-purpose 256-bit token that is generated inside Postgres, stored encrypted in Supabase Vault, and compared in the function only through its SHA-256 digest. The credential cannot authorize any other Supabase action. Never copy it into source control, browser code, logs, screenshots, or a public scheduler. An unauthenticated production request must return `401`.
 
 ## Activate the scheduler
 
-The live project already contains `catalog_sync_project_url`, ten language targets, and an active dispatcher cron. To activate it:
-
-1. Open the Supabase project dashboard.
-2. Go to **Project Settings → API Keys → Legacy API Keys**.
-3. Reveal and copy the `service_role` key—not the `anon` or publishable key. It is a long JWT beginning with `eyJ`.
-4. Open **SQL Editor → New query**, replace only the placeholder below, and run it. Do not paste the JWT into chat or source control.
-
-```sql
-select vault.create_secret('<service-role-jwt>', 'catalog_sync_service_role_jwt', 'Catalog scheduler service role');
-```
+The versioned activation migration creates the scheduler token entirely inside the database, stores only its digest in the default-deny `scheduler_credentials` table, and replaces the dispatcher header. No dashboard copy/paste or reusable service-role key is required. The live project already contains `catalog_sync_project_url`, ten language targets, and the active dispatcher cron.
 
 The next minute tick automatically begins the import. `dispatch_catalog_sync()` claims up to three different language pages per minute, and the Edge Function advances each cursor only after a successful committed page. English refreshes after 12 hours; the other supported languages refresh after 24 hours. Those intervals reflect the upstream market cadence rather than claiming unavailable minute-level source data.
 
-For a controlled manual invocation, POST JSON to `/functions/v1/sync-catalog` with `Authorization: Bearer <service-role-jwt>` and `{ "language": "en", "page": 1, "pageSize": 40 }`. The same idempotent upserts and observation key protect retries.
+For a controlled manual invocation, call `select public.dispatch_catalog_sync();` from a trusted database administration session. Do not reveal or reuse the Vault token in a shell command. The same idempotent upserts and observation key protect retries.
 
-The scheduler follows [Supabase's documented `pg_cron` + `pg_net` pattern](https://supabase.com/docs/guides/functions/schedule-functions). It remains safely dormant when the JWT secret is missing, and stale claims become retryable after ten minutes.
+The scheduler follows [Supabase's documented `pg_cron` + `pg_net` pattern](https://supabase.com/docs/guides/functions/schedule-functions). It remains safely dormant when either scheduler secret is missing, and stale claims become retryable after ten minutes. `verify_jwt = false` is intentional only for this function: the gateway does not understand the single-purpose token, so the function performs its own fail-closed digest comparison before parsing input or starting a run.
 
 ## Verification queries
 

@@ -56,15 +56,24 @@
             />
           </div>
           <div class="field">
-            <label for="authPassword">Password</label
-            ><div class="password-input"><input
+            <label for="authPassword">Password</label>
+            <div class="password-input">
+              <input
                 id="authPassword"
                 name="password"
                 type="password"
                 autocomplete="current-password"
                 minlength="8"
                 required
-              /><button id="toggleAuthPassword" type="button" aria-pressed="false" aria-label="Show password">Show</button></div>
+              /><button
+                id="toggleAuthPassword"
+                type="button"
+                aria-pressed="false"
+                aria-label="Show password"
+              >
+                Show
+              </button>
+            </div>
           </div>
           <button class="auth-text-action" type="button" id="forgotPassword">
             Forgot password?
@@ -79,7 +88,8 @@
         <p class="auth-legal-copy">
           By creating an account, you agree to Mica’s
           <button type="button" data-auth-legal="terms">Terms</button> and
-          <button type="button" data-auth-legal="privacy">Privacy notice</button>.
+          <button type="button" data-auth-legal="privacy">Privacy notice</button
+          >.
         </p>
         <div class="auth-divider"><span>or</span></div>
         <form id="magicLinkForm" class="auth-form auth-magic">
@@ -103,18 +113,56 @@
         ></p>
       </div>
     </section>
-    <dialog class="auth-dialog" id="authLegalDialog" aria-labelledby="authLegalTitle">
+    <dialog
+      class="auth-dialog"
+      id="authLegalDialog"
+      aria-labelledby="authLegalTitle"
+    >
       <article>
-        <div class="auth-dialog-head"><h2 id="authLegalTitle">Mica terms</h2><button type="button" data-close-auth-dialog aria-label="Close">×</button></div>
+        <div class="auth-dialog-head">
+          <h2 id="authLegalTitle">Mica terms</h2>
+          <button type="button" data-close-auth-dialog aria-label="Close">
+            ×
+          </button>
+        </div>
         <div id="authLegalContent"></div>
-        <button class="primary" type="button" data-close-auth-dialog>Done</button>
+        <button class="primary" type="button" data-close-auth-dialog>
+          Done
+        </button>
       </article>
     </dialog>
-    <dialog class="auth-dialog" id="passwordResetDialog" aria-labelledby="passwordResetTitle">
+    <dialog
+      class="auth-dialog"
+      id="passwordResetDialog"
+      aria-labelledby="passwordResetTitle"
+    >
       <form method="dialog" id="passwordResetForm">
-        <div class="auth-dialog-head"><div><h2 id="passwordResetTitle">Choose a new password</h2><p>Your recovery link is verified. Use at least 8 characters.</p></div><button type="button" data-close-reset-dialog aria-label="Close">×</button></div>
-        <div class="field"><label for="newAccountPassword">New password</label><input id="newAccountPassword" name="password" type="password" autocomplete="new-password" minlength="8" required></div>
-        <p class="auth-message" id="passwordResetMessage" role="status" aria-live="polite"></p>
+        <div class="auth-dialog-head">
+          <div>
+            <h2 id="passwordResetTitle">Choose a new password</h2>
+            <p>Your recovery link is verified. Use at least 8 characters.</p>
+          </div>
+          <button type="button" data-close-reset-dialog aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div class="field">
+          <label for="newAccountPassword">New password</label
+          ><input
+            id="newAccountPassword"
+            name="password"
+            type="password"
+            autocomplete="new-password"
+            minlength="8"
+            required
+          />
+        </div>
+        <p
+          class="auth-message"
+          id="passwordResetMessage"
+          role="status"
+          aria-live="polite"
+        ></p>
         <button class="primary" type="submit">Update password</button>
       </form>
     </dialog>
@@ -181,19 +229,6 @@
                   d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"
                 /></svg></span
             ><b>Trade Check</b>
-          </button>
-          <button
-            class="sidebar-item"
-            type="button"
-            data-sidebar-target="settings"
-          >
-            <span aria-hidden="true"
-              ><svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="3" />
-                <path
-                  d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"
-                /></svg></span
-            ><b>Settings</b>
           </button>
         </nav>
         <button
@@ -348,12 +383,11 @@
             </section>
           </div>
 
-          <div class="view-tabs" role="tablist" aria-label="Collection view">
+          <div class="view-tabs" role="group" aria-label="Collection view">
             <button
               class="view-tab active"
               type="button"
-              role="tab"
-              aria-selected="true"
+              aria-pressed="true"
               data-ledger-view="all"
             >
               All cards <span id="allCount">0</span>
@@ -361,8 +395,7 @@
             <button
               class="view-tab"
               type="button"
-              role="tab"
-              aria-selected="false"
+              aria-pressed="false"
               data-ledger-view="all"
               data-condition-filter="Raw"
             >
@@ -371,8 +404,7 @@
             <button
               class="view-tab"
               type="button"
-              role="tab"
-              aria-selected="false"
+              aria-pressed="false"
               data-ledger-view="all"
               data-condition-filter="Graded"
             >
@@ -381,8 +413,7 @@
             <button
               class="view-tab"
               type="button"
-              role="tab"
-              aria-selected="false"
+              aria-pressed="false"
               data-ledger-view="all"
               data-condition-filter="Sealed"
             >
@@ -391,8 +422,7 @@
             <button
               class="view-tab"
               type="button"
-              role="tab"
-              aria-selected="false"
+              aria-pressed="false"
               data-ledger-view="favorites"
             >
               Favorites <span id="favoritesCount">0</span>
@@ -400,8 +430,7 @@
             <button
               class="view-tab"
               type="button"
-              role="tab"
-              aria-selected="false"
+              aria-pressed="false"
               data-ledger-view="watchlist"
             >
               Watchlist <span id="watchlistCount">0</span>
@@ -412,8 +441,7 @@
                 <button
                   class="view-tab"
                   type="button"
-                  role="tab"
-                  aria-selected="false"
+                  aria-pressed="false"
                   data-ledger-view="for-sale"
                 >
                   For sale <span id="forSaleCount">0</span>
@@ -421,8 +449,7 @@
                 <button
                   class="view-tab"
                   type="button"
-                  role="tab"
-                  aria-selected="false"
+                  aria-pressed="false"
                   data-ledger-view="sets"
                 >
                   Set progress <span id="setCount">0</span>
@@ -793,6 +820,35 @@
               >Current quotes remain separate from historical movement.</span
             >
           </div>
+          <section
+            class="action-center-section"
+            aria-labelledby="actionCenterTitle"
+          >
+            <div class="action-center-heading">
+              <div>
+                <span>Automatic priorities</span>
+                <h2 id="actionCenterTitle">Today’s review queue</h2>
+                <p>
+                  Mica calculates the queue from your exact saved data. AI can
+                  explain those signals, but it cannot change your collection or
+                  invent a market fact.
+                </p>
+              </div>
+              <button id="portfolioBriefButton" type="button" disabled>
+                Explain my priorities
+              </button>
+            </div>
+            <div
+              class="business-review"
+              id="businessReview"
+              aria-live="polite"
+            ></div>
+            <div
+              class="portfolio-brief-result hidden"
+              id="portfolioBriefResult"
+              aria-live="polite"
+            ></div>
+          </section>
           <h2 class="section-heading">What changed</h2>
           <div id="moversList" class="movers-list"></div>
           <h2 class="section-heading">Your most valuable cards</h2>
@@ -1153,12 +1209,49 @@
           </div>
           <div class="settings-group connection-settings">
             <h2>Feature connections</h2>
-            <p>Every workflow is built. These statuses show what the current deployment can actually run.</p>
-            <div class="connection-row"><span><strong>Card catalog</strong><small>Exact card search and printing selection</small></span><b id="catalogConnectionState">Checking…</b></div>
-            <div class="connection-row"><span><strong>Expanded prices</strong><small>Graded ladders, history, offers, sealed, and sold links</small></span><b id="pricingConnectionState">Checking…</b></div>
-            <div class="connection-row"><span><strong>AI photo analysis</strong><small>Card matching, receipt reading, and raw grade estimate</small></span><b id="visionConnectionState">Checking…</b></div>
-            <div class="connection-row"><span><strong>Push alerts</strong><small>Buy-target notifications when Mica is closed</small></span><b id="pushConnectionState">Developer mode</b></div>
-            <p class="connection-note" id="connectionStatusNote" role="status" aria-live="polite">Checking this deployment without exposing keys…</p>
+            <p>
+              Every workflow is built. These statuses show what the current
+              deployment can actually run.
+            </p>
+            <div class="connection-row">
+              <span
+                ><strong>Card catalog</strong
+                ><small>Exact card search and printing selection</small></span
+              ><b id="catalogConnectionState">Checking…</b>
+            </div>
+            <div class="connection-row">
+              <span
+                ><strong>Expanded prices</strong
+                ><small
+                  >Graded ladders, history, offers, sealed, and sold
+                  links</small
+                ></span
+              ><b id="pricingConnectionState">Checking…</b>
+            </div>
+            <div class="connection-row">
+              <span
+                ><strong>AI photo analysis</strong
+                ><small
+                  >Card matching, receipt reading, and raw grade estimate</small
+                ></span
+              ><b id="visionConnectionState">Checking…</b>
+            </div>
+            <div class="connection-row">
+              <span
+                ><strong>Push alerts</strong
+                ><small
+                  >Buy-target notifications when Mica is closed</small
+                ></span
+              ><b id="pushConnectionState">Developer mode</b>
+            </div>
+            <p
+              class="connection-note"
+              id="connectionStatusNote"
+              role="status"
+              aria-live="polite"
+            >
+              Checking this deployment without exposing keys…
+            </p>
           </div>
           <div class="settings-group">
             <h2>Collection</h2>
@@ -1207,7 +1300,8 @@
             <button type="button" id="installAppButton">
               <span
                 >Install Mica on this device<small id="installAppHelp"
-                  >Open the app shell from your home screen; private data still needs a connection</small
+                  >Open the app shell from your home screen; private data still
+                  needs a connection</small
                 ></span
               ><strong id="installAppState">Check</strong>
             </button>
@@ -1271,11 +1365,7 @@
             <path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5" /></svg
           ><span>Home</span>
         </button>
-        <button
-          class="nav-item"
-          type="button"
-          data-sidebar-target="collection"
-        >
+        <button class="nav-item" type="button" data-sidebar-target="collection">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <rect x="5" y="3" width="14" height="18" rx="2" />
             <path d="M8 7h8M8 11h8M8 15h5" /></svg

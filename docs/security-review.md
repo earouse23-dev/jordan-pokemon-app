@@ -1,6 +1,6 @@
 # Security review
 
-Implemented: no embedded credentials; environment files ignored except the secret-free template; HTML escaping for user/provider text; client MIME/12MB gate; formula-safe CSV; local photos are object URLs and not persisted; service-role boundary documented; ownership-scoped RLS using `TO authenticated`, `USING`, and `WITH CHECK`; ownership-consistent composite foreign keys; separate canonical and owned data; baseline Vercel response headers.
+Implemented: no embedded credentials; environment files ignored except the secret-free template; HTML escaping for user/provider text; client MIME/12MB gate; formula-safe CSV; local photos are object URLs and not persisted; catalog scheduling uses a Vault-held single-purpose token rather than a reusable service-role credential; ownership-scoped RLS using `TO authenticated`, `USING`, and `WITH CHECK`; ownership-consistent composite foreign keys; separate canonical and owned data; baseline Vercel response headers.
 
 Production gates: server-side magic-byte/decoded-image/decompression validation, signed private uploads, quotas/rate limits, CSRF strategy, secure headers/CSP, cross-user RLS tests, storage policies, session revocation on deletion, audit logging without secrets/PII, SSRF prohibition on user URLs, import idempotency, virus scanning decision, database advisors, secret rotation, and dependency scanning once dependencies exist.
 
@@ -9,12 +9,18 @@ Supabase change review: current platform guidance separates grants from RLS, so 
 Advisor result on 2026-07-25: no missing-RLS or user-data ownership warning was
 reported. Seven informational notices identify server-only operational tables
 with RLS and no client policies; this is intentional default-deny behavior.
-The advisor also reports `claim_vision_usage` because authenticated users can
-execute that `SECURITY DEFINER` function. This is an intentional, narrow RPC: it
-derives the owner only from `auth.uid()`, bounds both arguments, uses an empty
-search path, touches only the caller's usage rows, and is required to make the
-count-and-claim atomic without granting clients permission to delete their own
-rate-limit records. Keep this exception under review.
+The advisor also reports `claim_vision_usage` and `claim_advisor_usage` because
+authenticated users can execute those `SECURITY DEFINER` functions. These are
+intentional, narrow RPCs: each derives the owner only from `auth.uid()`, bounds
+both arguments, uses an empty search path, touches only the caller's usage rows,
+and makes count-and-claim atomic without granting clients permission to delete
+their own rate-limit records. Vision and portfolio explanations have separate
+budgets.
+
+Portfolio AI receives only server-allowlisted signal keys and aggregate counts.
+The endpoint does not read or write collection tables, sets `store: false`,
+hashes the authenticated user ID for the Gateway safety identifier, restricts
+structured output to existing action keys, and does not persist the result.
 
 Leaked-password protection remains disabled because it is a paid Supabase Auth
 feature for this project. Enable it immediately after the owner upgrades the

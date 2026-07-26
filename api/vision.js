@@ -8,6 +8,14 @@ import {
   normalizeVisionOutput,
   parseVisionRequest,
 } from "../lib/vision.js";
+import {
+  parseCatalogQuery,
+  searchTcgdexCards,
+} from "../lib/providers/tcgdex.js";
+import {
+  searchInternalCatalog,
+  summarizeCatalogResolution,
+} from "../lib/catalog-db.js";
 
 function send(response, status, body, headers = {}) {
   response.setHeader("Cache-Control", "no-store");
@@ -22,6 +30,7 @@ function requestError(error) {
     invalid_mode: "Choose a supported AI analysis.",
     invalid_image_count: "Add every required image before analyzing.",
     invalid_image_type: "Use a JPEG, PNG, or WebP image.",
+    invalid_candidates: "Choose two to four verified catalog candidates.",
     image_too_large:
       "The prepared image is too large. Retake it closer to the card.",
   }[error?.message];
@@ -150,7 +159,64 @@ export default async function handler(request, response) {
     const analysis = normalizeVisionOutput(
       input.mode,
       extractGatewayOutput(payload),
+      input.candidates,
     );
+    let catalogResolution = null;
+    if (
+      ["identify", "grade"].includes(input.mode) &&
+      analysis.quality?.usable &&
+      analysis.searchQuery?.length >= 2
+    ) {
+      try {
+        const language = [
+          "en",
+          "fr",
+          "es",
+          "de",
+          "it",
+          "pt",
+          "ja",
+          "zh-tw",
+          "id",
+          "th",
+        ].includes(String(analysis.identity?.language || "").toLowerCase())
+          ? String(analysis.identity.language).toLowerCase()
+          : "en";
+        const internal = await searchInternalCatalog(
+          database,
+          analysis.searchQuery,
+          language,
+          12,
+        );
+        if (internal.cards.length) {
+          catalogResolution = {
+            ...internal,
+            language,
+            retrievedAt: new Date().toISOString(),
+          };
+        } else {
+          const cards = await searchTcgdexCards(
+            analysis.searchQuery,
+            language,
+            12,
+            controller.signal,
+          );
+          const parsedQuery = parseCatalogQuery(analysis.searchQuery);
+          catalogResolution = {
+            cards,
+            parsedQuery,
+            resolution: summarizeCatalogResolution(cards, parsedQuery),
+            source: "tcgdex_fallback",
+            language,
+            retrievedAt: new Date().toISOString(),
+          };
+        }
+      } catch (error) {
+        console.warn("[api/vision] catalog resolution unavailable", {
+          name: error?.name || "Error",
+        });
+      }
+    }
     const inputTokens = Number(payload?.usage?.input_tokens);
     const outputTokens = Number(payload?.usage?.output_tokens);
     const metrics = {
@@ -165,6 +231,7 @@ export default async function handler(request, response) {
     });
     return send(response, 200, {
       analysis,
+      catalogResolution,
       mode: input.mode,
       provider: "openai",
       model: config.visionModel.replace(/^openai\//, ""),

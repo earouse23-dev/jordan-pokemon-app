@@ -153,11 +153,41 @@ const visionLibrary = await readFile(
   new URL("../lib/vision.js", import.meta.url),
   "utf8",
 );
+const advisorEndpoint = await readFile(
+  new URL("../api/advisor.js", import.meta.url),
+  "utf8",
+);
+const advisorLibrary = await readFile(
+  new URL("../lib/advisor.js", import.meta.url),
+  "utf8",
+);
+const advisorRateLimitMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260726050000_rate_limit_ai_advisor.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const visionRateLimitMigration = await readFile(
   new URL(
     "../supabase/migrations/20260721180000_rate_limit_ai_vision.sql",
     import.meta.url,
   ),
+  "utf8",
+);
+const catalogSyncFunction = await readFile(
+  new URL("../supabase/functions/sync-catalog/index.ts", import.meta.url),
+  "utf8",
+);
+const catalogSchedulerMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260726041519_activate_catalog_scheduler_token.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const supabaseFunctionConfig = await readFile(
+  new URL("../supabase/config.toml", import.meta.url),
   "utf8",
 );
 const manifest = JSON.parse(
@@ -221,6 +251,12 @@ test("motion preferences support device defaults and explicit reduction", () => 
     styles,
     /body\[data-motion="full"\] \.view[\s\S]+animation-duration:\s*0?\.22s\s*!important/,
   );
+});
+
+test("working interfaces keep readable text at a twelve-pixel minimum", () => {
+  const combinedCss = `${styles}\n${themes}`;
+  assert.doesNotMatch(combinedCss, /font-size:\s*(?:7|8|9|10|11)px\b/);
+  assert.doesNotMatch(combinedCss, /font:\s*[^;]*\b(?:7|8|9|10|11)px\b/);
 });
 
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
@@ -318,7 +354,7 @@ test("streamlined collection, intake, and trade surfaces keep primary actions vi
 
 test("consolidated workspace navigation remains responsive and routes to real workflows", () => {
   assert.match(appShell, /class="desktop-sidebar"/);
-  assert.equal([...appShell.matchAll(/class="sidebar-item/g)].length, 6);
+  assert.equal([...appShell.matchAll(/class="sidebar-item/g)].length, 5);
   assert.doesNotMatch(appShell, /data-sidebar-target="business"/);
   const bottomNavigation =
     appShell.match(/<nav class="bottom-nav"[\s\S]*?<\/nav>/)?.[0] || "";
@@ -1102,6 +1138,10 @@ test("AI image intake authenticates owners, avoids persistence, and requires con
   );
   assert.match(visionEndpoint, /"Cache-Control", "no-store"/);
   assert.match(visionEndpoint, /\.rpc\(\s*"claim_vision_usage"[\s\S]+fetch\(/);
+  assert.match(
+    visionEndpoint,
+    /normalizeVisionOutput[\s\S]+searchTcgdexCards[\s\S]+catalogResolution/,
+  );
   assert.doesNotMatch(visionEndpoint, /\.insert\(|storage\.from|\.upload\(/);
   assert.match(visionLibrary, /store:\s*false/);
   assert.match(visionLibrary, /requiresConfirmation:\s*true/);
@@ -1114,6 +1154,27 @@ test("AI image intake authenticates owners, avoids persistence, and requires con
   );
   assert.match(appSource, /dataset\.sensitive[\s\S]+replaceChildren\(\)/);
   assert.match(appSource, /dataset\.visionOperation !== operationId/);
+  assert.match(
+    appSource,
+    /payload\.catalogResolution\?\.cards[\s\S]+rememberCatalogItems/,
+  );
+  assert.match(
+    appSource,
+    /identityEvidenceDataUrl[\s\S]+NAME \+ SET[\s\S]+COLLECTOR NUMBER/,
+  );
+  assert.match(
+    appSource,
+    /prepared\.blockers\.length[\s\S]+No AI credit was used/,
+  );
+  assert.match(appSource, /glareRatio > 0\.14[\s\S]+sharpness < 5\.5/);
+  assert.match(
+    appSource,
+    /AI compare top matches[\s\S]+selectedCandidateId[\s\S]+confidence\) >= 0\.72/,
+  );
+  assert.match(
+    visionLibrary,
+    /Compare the collector's source evidence only[\s\S]+return null instead of guessing/,
+  );
 });
 
 test("AI usage limit is durable, atomic, and bound to the authenticated owner", () => {
@@ -1137,5 +1198,86 @@ test("AI usage limit is durable, atomic, and bound to the authenticated owner", 
   assert.doesNotMatch(
     visionRateLimitMigration,
     /storage_path|model_output|prompt_version/i,
+  );
+});
+
+test("AI portfolio brief uses aggregate signals and cannot mutate account data", () => {
+  assert.match(
+    advisorEndpoint,
+    /auth\.getUser\(token\)[\s\S]+claim_advisor_usage[\s\S]+ai-gateway\.vercel\.sh\/v1\/responses/,
+  );
+  assert.match(advisorEndpoint, /createHash\("sha256"\)/);
+  assert.match(advisorEndpoint, /await getVercelOidcToken\(\)/);
+  assert.match(advisorEndpoint, /"Cache-Control", "no-store"/);
+  assert.doesNotMatch(
+    advisorEndpoint,
+    /database\.from|storage\.from|\.upload\(|auth\.admin/,
+  );
+  assert.match(advisorLibrary, /store:\s*false/);
+  assert.match(
+    advisorLibrary,
+    /Do not infer or mention card names, dollar values, market direction/,
+  );
+  assert.match(advisorLibrary, /requiresConfirmation:\s*true/);
+  assert.match(
+    appSource,
+    /signals:\s*actions\.map[\s\S]+key:\s*action\.key[\s\S]+itemCount:\s*action\.items\.length/,
+  );
+  assert.doesNotMatch(
+    appSource.match(/async function requestPortfolioBrief[\s\S]+?\n}/)?.[0] ||
+      "",
+    /name:|costBasis|certification|notes|price:/,
+  );
+  assert.match(
+    advisorRateLimitMigration,
+    /security definer[\s\S]+owner_id uuid := \(select auth\.uid\(\)\)/i,
+  );
+  assert.match(advisorRateLimitMigration, /pg_advisory_xact_lock/);
+  assert.match(
+    advisorRateLimitMigration,
+    /values\(owner_id,'portfolio_advisor',1\)/i,
+  );
+  assert.match(
+    advisorRateLimitMigration,
+    /revoke all on function public\.claim_advisor_usage\(integer,integer\) from public,anon/i,
+  );
+  assert.match(
+    advisorRateLimitMigration,
+    /grant execute on function public\.claim_advisor_usage\(integer,integer\) to authenticated/i,
+  );
+});
+
+test("catalog scheduling uses a fail-closed single-purpose credential", () => {
+  assert.match(
+    catalogSchedulerMigration,
+    /gen_random_bytes\(32\)[\s\S]+catalog_sync_dispatch_token/,
+  );
+  assert.match(
+    catalogSchedulerMigration,
+    /scheduler_credentials[\s\S]+digest\(raw_token,\s*'sha256'\)/,
+  );
+  assert.match(
+    catalogSchedulerMigration,
+    /'X-Catalog-Sync-Token',\s*dispatch_token/,
+  );
+  assert.doesNotMatch(
+    catalogSchedulerMigration,
+    /catalog_sync_service_role_jwt|Authorization['"],\s*['"]Bearer/,
+  );
+  assert.match(
+    catalogSyncFunction,
+    /X-Catalog-Sync-Token[\s\S]+\^\[a-f0-9\]\{64\}\$/,
+  );
+  assert.match(
+    catalogSyncFunction,
+    /sha256\(dispatchToken\)[\s\S]+constantTimeEqual/,
+  );
+  assert.match(
+    catalogSyncFunction,
+    /new Map\(cards\.map\(card => \[card\.set\.id/,
+  );
+  assert.match(
+    supabaseFunctionConfig,
+    /\[functions\.sync-catalog\][\s\S]+verify_jwt\s*=\s*false/,
   );
 });
