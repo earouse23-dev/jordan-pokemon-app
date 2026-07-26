@@ -817,7 +817,7 @@ h1 {
   border-color: #e2c6b4;
 }
 .price-cell {
-  min-width: 72px;
+  min-width: 150px;
   align-self: stretch;
   padding: 4px 0 3px;
   display: flex;
@@ -2167,9 +2167,6 @@ body[data-workspace="guided"] .advanced-workspace {
   display: none !important;
 }
 body[data-workspace="guided"] .view-tabs > .view-tab span {
-  display: none;
-}
-body[data-workspace="guided"] .row-move {
   display: none;
 }
 body[data-workspace="guided"] .portfolio-history-metrics {

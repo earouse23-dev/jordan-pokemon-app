@@ -266,7 +266,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v98/);
+  assert.match(serviceWorker, /mica-shell-v99/);
   assert.match(serviceWorker, /themes\.css\?v=75/);
 });
 
@@ -296,7 +296,7 @@ test("beginner mode is the default and uses plain-language decisions", () => {
   assert.match(styles, /body\[data-workspace="guided"\] \.advanced-workspace/);
 });
 
-test("client presentation never turns demo values into market movement", () => {
+test("client presentation shows purchase performance without claiming market evidence", () => {
   assert.doesNotMatch(
     appSource,
     /Preview movement · fixture data|\+\$124\.18|preview fixture/,
@@ -304,14 +304,16 @@ test("client presentation never turns demo values into market movement", () => {
   assert.match(appSource, /No verified price changes yet/);
   assert.match(
     appSource,
-    /Demo prices are never used to claim a real price change/,
+    /Preview prices are never used to claim a real price change/,
   );
-  assert.match(appSource, /showcaseValue[\s\S]+Demo price/);
+  assert.match(appSource, /function purchaseChangeText/);
+  assert.match(appSource, /since purchase/);
+  assert.doesNotMatch(appSource, /Demo account|Showcase prices/);
   assert.doesNotMatch(appShell, /Concept [25]/);
   assert.match(appShell, /Recorded activity only/);
 });
 
-test("showcase card details stay complete without leaking samples into real accounts", () => {
+test("pre-filled account values stay isolated and read like normal saved data", () => {
   assert.match(
     appSource,
     /function showcaseReference\(item\)[\s\S]+isShowcaseAccount\(\)/,
@@ -320,10 +322,11 @@ test("showcase card details stay complete without leaking samples into real acco
     appSource,
     /function usesShowcaseFallback\(item,[\s\S]+!\["live", "stale"\]\.includes/,
   );
-  assert.match(appSource, /Made-up data for the demo account only/);
-  assert.match(appSource, /Demo · not live/);
-  assert.match(appSource, /made-up demo days only show how the chart works/);
-  assert.match(appSource, /PkmnPrices Pro will replace this demo price/);
+  assert.match(appSource, /Saved current price/);
+  assert.match(appSource, /Saved to this account/);
+  assert.match(appSource, /savedAccountValue/);
+  assert.doesNotMatch(appSource, /Made-up data for the demo account only/);
+  assert.doesNotMatch(appSource, /Showcase sample history/);
 });
 
 test("portfolio dashboard uses a responsive stock-style interactive chart", () => {
@@ -338,7 +341,7 @@ test("portfolio dashboard uses a responsive stock-style interactive chart", () =
   );
   assert.match(appSource, /maintainAspectRatio: false/);
   assert.match(appSource, /Hover or tap for the date and value/);
-  assert.match(appSource, /Showcase sample history|Demo history/);
+  assert.match(appSource, /Saved account history|Values recorded/);
   assert.match(styles, /\.portfolio-chart-shell[\s\S]+height: clamp/);
   assert.match(styles, /\.portfolio-history-canvas[\s\S]+touch-action: pan-y/);
 });

@@ -557,6 +557,47 @@ test("sealed positions hydrate from the same private FIFO portfolio model", () =
   assert.equal(position.costBasis, 160);
 });
 
+test("saved account values hydrate as current prices without changing purchase cost", () => {
+  const position = hydratePosition(
+    {
+      id: "manual-position",
+      identity_snapshot: {
+        providerCardId: "card-1",
+        name: "Umbreon VMAX",
+        set: "Evolving Skies",
+        variant: "Holofoil",
+        showcasePrice: 1700,
+      },
+      card_state: "graded",
+      raw_condition: null,
+      grader: "PSA",
+      grade: 10,
+      quantity: 1,
+      valuation_basis: "manual",
+      manual_value: 2600,
+      currency: "USD",
+      tags: [],
+    },
+    [],
+    [
+      {
+        id: "manual-lot",
+        acquired_at: "2025-06-25",
+        quantity_acquired: 1,
+        quantity_remaining: 1,
+        total_cost: 1500,
+        remaining_cost: 1500,
+        currency: "USD",
+      },
+    ],
+  );
+  assert.equal(position.manualPrice, 2600);
+  assert.equal(position.price, 2600);
+  assert.equal(position.pricingStatus, "manual");
+  assert.equal(position.costBasis, 1500);
+  assert.equal(position.purchaseDate, "2025-06-25");
+});
+
 test("position updates only send fields the user changed", async () => {
   let updated;
   let matchedId;
