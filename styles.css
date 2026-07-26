@@ -80,7 +80,10 @@ svg {
   position: fixed;
   z-index: 1000;
   left: 12px;
-  top: -60px;
+  top: -72px;
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
   padding: 10px 14px;
   background: var(--ink);
   color: white;
@@ -4861,7 +4864,7 @@ body:not(.authenticated) .app-shell {
   color: var(--pine-2);
 }
 .auth-form .auth-text-action {
-  min-height: 36px;
+  min-height: 44px;
   justify-self: end;
   margin: 2px -8px 0 0;
   padding: 0 8px;
@@ -7264,6 +7267,13 @@ body[data-motion="full"] .set-progress-track i {
 }
 
 @media (max-width: 560px) {
+  .auth-legal-copy button {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    margin-block: -12px;
+    padding-inline: 2px;
+  }
   .collection-more > div {
     position: fixed;
     top: auto;
