@@ -41,11 +41,13 @@ import {
   inventoryHealth,
   liquidationPlan,
   listingReadiness,
+  listingReviewItems,
   marketAdjustedPortfolioHistory,
   portfolioActions,
   portfolioReview,
   positionPerformance,
   purchaseEntryPoints,
+  rebasePortfolioSnapshots,
   salePlan,
   targetAlertChanges,
   tradeAnalysis,
@@ -2383,8 +2385,13 @@ async function mountPortfolioHistoryChart({
 function renderPortfolioHistory() {
   const root = $("#portfolioHistory");
   if (!root) return;
+  const showcase = isShowcaseAccount();
+  const showcaseTotal = showcase ? calculateTotals(state.items).value : null;
+  const snapshots = showcase
+    ? rebasePortfolioSnapshots(state.portfolioHistory, showcaseTotal)
+    : state.portfolioHistory;
   const history = marketAdjustedPortfolioHistory(
-    state.portfolioHistory,
+    snapshots,
     portfolioTransactions(),
     "USD",
   );
@@ -2395,7 +2402,6 @@ function renderPortfolioHistory() {
     return;
   }
   const baseline = history.points[0];
-  const showcase = isShowcaseAccount();
   if (history.points.length === 1) {
     destroyPortfolioHistoryChart();
     root.innerHTML = `<div class="portfolio-history-head"><div><strong>Performance tracking started</strong><span>${esc(baseline.date)} · exact-compatible prices only</span></div></div><div class="portfolio-history-metrics"><div><span>Baseline value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Fresh prices</span><strong>${baseline.freshItems} of ${baseline.pricedItems}</strong></div><div><span>Unpriced</span><strong>${baseline.unpricedItems}</strong></div></div><p class="portfolio-history-note"><strong>Why there is no line yet:</strong> a second real daily valuation is required. Purchases will be treated as money added, not market growth.</p>`;
@@ -6194,7 +6200,7 @@ async function refreshCapabilityStatus() {
     setStatus(
       "pricingConnectionState",
       capabilities.pricing?.status === "connected"
-        ? `Connected · ${String(capabilities.pricing.plan || "free").toUpperCase()}`
+        ? `Configured · ${String(capabilities.pricing.plan || "free").toUpperCase()} · live check required`
         : "Public pricing only",
       capabilities.pricing?.status === "connected" ? "active" : "limited",
     );
@@ -7448,12 +7454,14 @@ function renderBusinessReview() {
     button.addEventListener("click", () => {
       const key = button.dataset.businessReview;
       const items =
-        {
-          pricing: review.needsPricing,
-          "below-cost": review.belowCost,
-          older: review.olderInventory,
-          targets: review.reachedTargets,
-        }[key] || [];
+        key === "listings"
+          ? listingReviewItems(state.items)
+          : {
+              pricing: review.needsPricing,
+              "below-cost": review.belowCost,
+              older: review.olderInventory,
+              targets: review.reachedTargets,
+            }[key] || [];
       openBusinessReviewQueue(key, items);
     }),
   );
@@ -7477,6 +7485,10 @@ function openBusinessReviewQueue(key, items) {
       title: "Reached buy targets",
       copy: "Watchlist prices at or below your target",
     },
+    listings: {
+      title: "Active listings to repair",
+      copy: "Missing details, stale reviews, or asks far from current market",
+    },
   }[key];
   if (!config || !items.length) return;
   const rows = items
@@ -7489,6 +7501,15 @@ function openBusinessReviewQueue(key, items) {
           item.gradingCompany
             ? `${item.gradingCompany} ${item.grade}`
             : item.condition,
+        );
+      } else if (key === "listings") {
+        metric =
+          item.askingPrice === null || item.askingPrice === undefined
+            ? "Ask missing"
+            : money(item.askingPrice, item.currency);
+        detail = esc(
+          (item.listingReviewReasons || []).join(" · ") ||
+            "Listing needs review",
         );
       } else if (key === "below-cost") {
         const value = Number(item.price || 0) * Number(item.quantity || 0);
@@ -7517,6 +7538,7 @@ function openBusinessReviewQueue(key, items) {
       const item = items[Number(button.dataset.reviewIndex)];
       closeSheet({ discardHistory: true });
       if (key === "targets") openWatchlistDetail(item);
+      else if (key === "listings") openPositionEditSheet(item);
       else openCardDetail(item, true);
     }),
   );
@@ -8483,20 +8505,57 @@ function bindQuickCardSearch() {
   );
 }
 
+function approvedImageProxyPath(value) {
+  try {
+    const source = new URL(value, location.href);
+    if (
+      source.protocol !== "https:" ||
+      !["assets.tcgdex.net", "images.pokemontcg.io"].includes(source.hostname)
+    )
+      return null;
+    return `/api/card-image?url=${encodeURIComponent(source.href)}`;
+  } catch {
+    return null;
+  }
+}
+
+function imageAttempts(image) {
+  try {
+    const values = JSON.parse(image.dataset.imageAttempts || "[]");
+    return new Set(Array.isArray(values) ? values : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function nextImageSource(image) {
+  const attempted = imageAttempts(image);
+  const current = new URL(image.currentSrc || image.src, location.href).href;
+  attempted.add(current);
+  const fallback = image.dataset.fallback || "";
+  const candidates = [
+    approvedImageProxyPath(current),
+    approvedImageProxyPath(fallback),
+    fallback,
+    "./icons/icon.svg",
+  ].filter(Boolean);
+  const next = candidates.find((candidate) => {
+    const absolute = new URL(candidate, location.href).href;
+    return !attempted.has(absolute);
+  });
+  image.dataset.imageAttempts = JSON.stringify([...attempted]);
+  if (!next) return false;
+  image.src = next;
+  return true;
+}
+
 function bindEvents() {
   document.addEventListener(
     "error",
     (event) => {
       const image = event.target;
       if (!(image instanceof HTMLImageElement)) return;
-      const fallback = image.dataset.fallback || "./icons/icon.svg";
-      if (image.dataset.fallbackAttempted === "true") {
-        if (!image.src.endsWith("/icons/icon.svg"))
-          image.src = "./icons/icon.svg";
-        return;
-      }
-      image.dataset.fallbackAttempted = "true";
-      image.src = fallback;
+      nextImageSource(image);
     },
     true,
   );

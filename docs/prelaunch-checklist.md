@@ -6,6 +6,8 @@ submitting Mica to an app store or opening public registration.
 ## Provider activation
 
 - [ ] Upgrade PkmnPrices to Pro.
+- [ ] Replace the PkmnPrices key currently rejected by the live API, then run
+      `npm run verify:pkmnprices`.
 - [ ] Set `PKMNPRICES_PLAN=pro` in Vercel Production, Preview, and Development.
 - [ ] Verify raw, graded, sealed, history, offers, and sold-listing responses with
       real cards before removing developer-mode explanations.

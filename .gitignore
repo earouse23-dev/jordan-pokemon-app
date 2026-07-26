@@ -7,3 +7,5 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+benchmarks/private/
+vision-evaluation*.json

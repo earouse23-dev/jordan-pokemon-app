@@ -26,6 +26,7 @@ import {
   salePlan,
   buyOfferPlan,
   listingReadiness,
+  listingReviewItems,
   holdingDays,
   inventoryHealth,
   insuranceDocumentation,
@@ -33,6 +34,7 @@ import {
   portfolioReview,
   portfolioActions,
   purchaseEntryPoints,
+  rebasePortfolioSnapshots,
   businessSummary,
   liquidationPlan,
   marketAdjustedPortfolioHistory,
@@ -171,6 +173,24 @@ test("portfolio history separates market movement from purchases and sales", () 
   assert.equal(history.latest.marketChangeMinor, 20000);
   assert.ok(history.latest.returnPercent > 15);
   assert.ok(history.latest.returnPercent < 16);
+});
+
+test("showcase history can reconcile its latest value without changing its shape", () => {
+  const original = [
+    { date: "2026-07-01", total: 6000, currency: "USD" },
+    { date: "2026-06-01", total: 5000, currency: "USD" },
+  ];
+  const rebased = rebasePortfolioSnapshots(original, 6906.150000000001);
+
+  assert.equal(rebased[0].total, 6906.15);
+  assert.equal(rebased[1].total, 5755.13);
+  assert.equal(original[0].total, 6000);
+});
+
+test("portfolio snapshot rebasing leaves unusable input untouched", () => {
+  const rows = [{ date: "2026-07-01", total: 0, currency: "USD" }];
+  assert.equal(rebasePortfolioSnapshots(rows, 100), rows);
+  assert.equal(rebasePortfolioSnapshots(rows, null), rows);
 });
 
 test("position splits preserve portfolio history without creating cash flow", () => {
@@ -1631,6 +1651,37 @@ test("seller readiness finds incomplete and price-drifted active listings", () =
   );
 });
 
+test("listing review explains every repair needed without flagging healthy listings", () => {
+  const review = listingReviewItems(
+    [
+      {
+        id: "healthy",
+        status: "listed",
+        askingPrice: 100,
+        price: 105,
+        listingVenue: "eBay",
+        priceReviewedAt: "2026-07-20",
+      },
+      {
+        id: "repair",
+        status: "listed",
+        askingPrice: null,
+        price: 50,
+        listingVenue: "",
+        priceReviewedAt: "",
+      },
+    ],
+    "2026-07-20",
+  );
+  assert.equal(review.length, 1);
+  assert.equal(review[0].id, "repair");
+  assert.deepEqual(review[0].listingReviewReasons, [
+    "asking price missing",
+    "venue missing",
+    "price review older than 7 days",
+  ]);
+});
+
 test("business summary reports dated cash flow and FIFO-covered profit without mixing currencies", () => {
   assert.deepEqual(
     businessSummary(
@@ -1772,7 +1823,7 @@ test("portfolio actions put time-sensitive and data-quality work first", () => {
   );
   assert.deepEqual(
     actions.map((action) => action.priority),
-    [1, 2, 3, 4],
+    [1, 3, 4, 5],
   );
   assert.equal(portfolioActions([], [], "2026-07-17").length, 0);
 });

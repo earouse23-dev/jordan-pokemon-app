@@ -28,6 +28,7 @@ function requestError(error) {
 }
 
 export default async function handler(request, response) {
+  const startedAt = Date.now();
   if (request.method !== "POST") {
     response.setHeader("Allow", "POST");
     return send(response, 405, { error: "Method not allowed" });
@@ -150,6 +151,18 @@ export default async function handler(request, response) {
       input.mode,
       extractGatewayOutput(payload),
     );
+    const inputTokens = Number(payload?.usage?.input_tokens);
+    const outputTokens = Number(payload?.usage?.output_tokens);
+    const metrics = {
+      latencyMs: Date.now() - startedAt,
+      inputTokens: Number.isFinite(inputTokens) ? inputTokens : null,
+      outputTokens: Number.isFinite(outputTokens) ? outputTokens : null,
+    };
+    console.info("[api/vision] analysis completed", {
+      mode: input.mode,
+      model: config.visionModel,
+      ...metrics,
+    });
     return send(response, 200, {
       analysis,
       mode: input.mode,
@@ -157,6 +170,7 @@ export default async function handler(request, response) {
       model: config.visionModel.replace(/^openai\//, ""),
       processedAt: new Date().toISOString(),
       privacy: { imagePersisted: false, resultPersisted: false },
+      metrics,
     });
   } catch (error) {
     console.error("[api/vision] analysis errored", {

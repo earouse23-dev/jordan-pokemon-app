@@ -70,3 +70,19 @@ Run the standard project checks, including `tests/vision.test.js`. A live smoke 
 Build a consented benchmark whose labels are independently verified. Stratify it by language, era, layout similarity, set/collector number visibility, first edition/unlimited, normal/reverse/holo/stamped variants, raw/slab state, grader, grade, sleeve/top-loader use, glare, crop, and camera quality. For condition, compare estimates to expert inspection and eventual grader results where available. Track exact-print top-1/top-3 accuracy, abstention quality, false-confidence rate, grade-range coverage, defect recall, latency, and cost per completed intake.
 
 Until that benchmark exists, describe the feature as AI-assisted intake and a conservative grade estimate—not automatic grading or guaranteed identification.
+
+The benchmark gate is implemented in `scripts/evaluate-vision.mjs`. Keep consented
+images and its JSON manifest under `benchmarks/private/` (ignored by Git), then
+run:
+
+```text
+MICA_EVAL_BASE_URL=https://your-deployment.example \
+MICA_EVAL_ACCESS_TOKEN=short-lived-test-user-token \
+npm run evaluate:vision -- benchmarks/private/manifest.json --live
+```
+
+The private report scores top-1/top-3 exact catalog matches, false confidence,
+abstention, confirmed-grade range coverage, correction rate, p95 latency, and
+token use. The default gate requires at least 30 independently labeled identity
+cases and 30 grading cases. A missing or undersized benchmark returns
+`not_ready`; unit tests cannot substitute for real labeled photos.

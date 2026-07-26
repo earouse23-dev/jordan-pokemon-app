@@ -8,11 +8,29 @@ export default function handler(request, response) {
   }
   try {
     const config = serverEnvironment();
+    const pricingConnected = Boolean(config.pkmnpricesApiKey);
+    const expandedPricing =
+      pricingConnected && ["pro", "business"].includes(config.pkmnpricesPlan);
     return response.status(200).json({
       catalog: { status: "active", provider: "TCGdex" },
       pricing: {
-        status: config.pkmnpricesApiKey ? "connected" : "public_fallback",
-        plan: config.pkmnpricesApiKey ? config.pkmnpricesPlan : "free",
+        status: pricingConnected ? "connected" : "public_fallback",
+        plan: pricingConnected ? config.pkmnpricesPlan : "free",
+        verification: pricingConnected
+          ? "configured_live_requests_verify_entitlements"
+          : "public_only",
+        features: {
+          currentUsd: pricingConnected ? "configured" : "public_fallback",
+          graded: expandedPricing ? "configured" : "upgrade_required",
+          history: expandedPricing ? "configured" : "upgrade_required",
+          cardmarket: expandedPricing ? "configured" : "upgrade_required",
+          marketplaceOffers: expandedPricing
+            ? "configured"
+            : "upgrade_required",
+          ebaySold: expandedPricing ? "configured" : "upgrade_required",
+          sealed: expandedPricing ? "configured" : "upgrade_required",
+          japanese: expandedPricing ? "configured" : "upgrade_required",
+        },
       },
       vision: {
         status: config.aiGatewayApiKey

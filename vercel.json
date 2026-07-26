@@ -1,10 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
   "outputDirectory": "dist",
   "cleanUrls": true,
   "functions": {
     "api/capabilities.js": { "maxDuration": 10 },
+    "api/card-image.js": { "maxDuration": 10 },
+    "api/health.js": { "maxDuration": 10 },
     "api/cards.js": { "maxDuration": 10 },
     "api/catalog.js": { "maxDuration": 10 },
     "api/sales.js": { "maxDuration": 10 },

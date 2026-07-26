@@ -233,7 +233,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v90/);
+  assert.match(serviceWorker, /mica-shell-v96/);
   assert.match(serviceWorker, /themes\.css\?v=74/);
 });
 
@@ -370,6 +370,10 @@ test("public capability status is explicit and never exposes provider secrets", 
     if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;
     else process.env.PKMNPRICES_API_KEY = originalKey;
   }
+});
+
+test("configured provider keys are not presented as live before a real request", () => {
+  assert.match(appSource, /Configured.*live check required/);
 });
 
 test("card, grading, and receipt scans use the live device camera", () => {

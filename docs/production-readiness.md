@@ -9,9 +9,12 @@
 - [ ] Brand/trademark approval and legal terms review.
 - [ ] Auth templates/providers, private Storage policies, and cross-user RLS tests with real test identities.
 - [ ] Authorized service-role JWT in Vault, completed catalog backfill, PkmnPrices Pro-or-higher sold entitlement, server-side key configuration, and health/circuit alerting.
-- [ ] OCR/vision evaluation dataset and measured top-1/top-3/no-match/correction/cost results.
-- [ ] Production import/export jobs, idempotent outbox, account deletion, retention cleanup.
-- [ ] Analytics/monitoring configuration, alert routing, incident runbook, backups and restore drill.
+- [x] Private OCR/vision benchmark runner and fail-closed quality gate.
+- [ ] Consented evaluation dataset and measured top-1/top-3/no-match/correction/cost results.
+- [x] Owner-scoped import/export, idempotent mutation paths, and account deletion.
+- [ ] Retention cleanup schedule.
+- [x] Sanitized health endpoint, CI release gate, rollback and incident runbook.
+- [ ] External uptime monitor, alert routing, managed backups, and restore drill.
 - [ ] Physical-device camera, offline/reconnect, screen-reader, zoom, performance, and E2E verification.
 - [ ] Privacy policy, terms, provider attribution, support contacts, launch domain, and store/PWA assets.
 

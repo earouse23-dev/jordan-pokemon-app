@@ -8,6 +8,7 @@ import {
   parseVisionRequest,
   visionLimits,
 } from "../lib/vision.js";
+import { evaluateVisionBenchmark } from "../lib/vision-evaluation.js";
 
 const tinyJpeg = `data:image/jpeg;base64,${Buffer.from("image bytes").toString("base64")}`;
 
@@ -188,4 +189,59 @@ test("vision endpoint rejects unauthenticated requests before any AI call", asyn
   assert.equal(response.result.statusCode, 401);
   assert.equal(response.result.body.error, "Authentication required");
   assert.equal(response.result.headers["Cache-Control"], "no-store");
+});
+
+test("vision benchmark measures exact matching, conservative grade coverage, and latency", () => {
+  const evaluation = evaluateVisionBenchmark(
+    [
+      {
+        mode: "identify",
+        expectedCatalogId: "sv3pt5-151",
+        candidateIds: ["sv3pt5-151", "other"],
+        latencyMs: 4000,
+        estimatedCostUsd: 0.002,
+        corrected: false,
+        analysis: {
+          quality: { usable: true },
+          identity: { confidence: 0.95 },
+        },
+      },
+      {
+        mode: "grade",
+        expectedGrade: 8,
+        latencyMs: 6000,
+        estimatedCostUsd: 0.004,
+        corrected: false,
+        analysis: {
+          quality: { usable: true },
+          condition: { estimatedGradeLow: 7, estimatedGradeHigh: 9 },
+        },
+      },
+      {
+        mode: "identify",
+        expectedAbstain: true,
+        latencyMs: 3000,
+        corrected: false,
+        analysis: {
+          quality: { usable: false },
+          identity: { confidence: 0.2 },
+        },
+      },
+    ],
+    { minimumIdentifyCases: 1, minimumGradeCases: 1 },
+  );
+  assert.equal(evaluation.metrics.topOneAccuracy, 1);
+  assert.equal(evaluation.metrics.topThreeAccuracy, 1);
+  assert.equal(evaluation.metrics.gradeRangeCoverage, 1);
+  assert.equal(evaluation.metrics.abstentionAccuracy, 1);
+  assert.equal(evaluation.metrics.p95LatencyMs, 6000);
+  assert.equal(evaluation.metrics.totalEstimatedCostUsd, 0.006);
+  assert.equal(evaluation.status, "pass");
+});
+
+test("vision benchmark fails closed when sample evidence is missing", () => {
+  const evaluation = evaluateVisionBenchmark([]);
+  assert.equal(evaluation.status, "not_ready");
+  assert.equal(evaluation.checks.identifySample, false);
+  assert.equal(evaluation.metrics.topOneAccuracy, null);
 });

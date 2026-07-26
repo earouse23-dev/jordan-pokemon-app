@@ -1,6 +1,6 @@
 # API provider setup runbook
 
-Checked on 2026-07-15. Do not paste provider secrets into source control, screenshots,
+Checked on 2026-07-25. Do not paste provider secrets into source control, screenshots,
 client-side code, or issue comments. Keys belong only in local `.env` files, Vercel
 environment variables, or Supabase Vault/secrets where applicable.
 
@@ -109,14 +109,25 @@ Current app status:
   current pricing. Sealed positions use the same private FIFO portfolio ledger.
 - If PkmnPrices cannot match a card, the app falls back to free TCGdex aggregate
   pricing instead of guessing.
-- A sanitized live check on 2026-07-15 matched Base Set Charizard to PkmnPrices
-  card `16909` and returned five current-price rows.
-- The same key received `403` for price history and eBay sold evidence. The app
-  exposes those as separate `plan_required` states; it does not turn an empty
-  response into a flat chart or claim that no sales exist.
+- A sanitized check on 2026-07-15 matched Base Set Charizard and confirmed the
+  Free-plan behavior. On 2026-07-25, PkmnPrices rejected the API key currently
+  stored in Vercel with `401`. Regenerate or replace that key before upgrading
+  and rerun the readiness command; key presence alone is not a connection test.
+- When a valid lower-tier key returns `403` for history, marketplace, sealed, or
+  sold evidence, the app exposes separate `plan_required` states. It does not
+  turn an empty response into a flat chart or claim that no sales exist.
 - Successful PkmnPrices matches return the provider card ID to the client record
   so later current-price and sales requests can use an exact ID instead of fuzzy
   name matching. The secret key is never included in normalized output.
+- Run `npm run verify:pkmnprices` after an upgrade. It spends a small number of
+  provider credits to verify the real entitlements instead of trusting the plan
+  label. It checks current USD/EUR card data, history, eBay sold listings,
+  TCGplayer/Cardmarket asks, sealed search/detail, credit headers, and the public
+  health endpoint without printing the API key or provider payloads.
+- PkmnPrices' current marketing page and detailed API documentation do not fully
+  agree about Free-tier restrictions. Mica therefore treats endpoint success or
+  a real `403` as authoritative and does not unlock a feature from marketing
+  copy alone.
 
 ## Scrydex
 
