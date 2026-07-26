@@ -47,7 +47,6 @@ import {
   portfolioReview,
   positionPerformance,
   purchaseEntryPoints,
-  rebasePortfolioSnapshots,
   salePlan,
   targetAlertChanges,
   tradeAnalysis,
@@ -81,6 +80,7 @@ import {
   recordPurchaseLot,
   recordSale,
   remapCollectionPosition,
+  setPurchaseMarketReference,
   sendMagicLink,
   sendPasswordReset,
   saveProfile,
@@ -99,6 +99,8 @@ let chartInstance = null;
 let chartMountVersion = 0;
 let portfolioChartInstance = null;
 let portfolioChartMountVersion = 0;
+let purchaseMarketBackfillInFlight = false;
+const purchaseMarketReferenceAttempts = new Set();
 let deferredInstallPrompt = null;
 let activeCameraStream = null;
 let activeCameraTimer = null;
@@ -300,10 +302,20 @@ const accountRequestIsCurrent = (ownerId, loadVersion) =>
   Boolean(ownerId) &&
   state.session?.user?.id === ownerId &&
   sessionLoadVersion === loadVersion;
-const isShowcaseAccount = () =>
-  state.session?.user?.app_metadata?.account_type === "showcase";
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+
+function integratePricingIntoCollection() {
+  const collection = $("#view-collection");
+  const marketTools = $("#view-insights");
+  if (!collection || !marketTools || marketTools.parentElement === collection)
+    return;
+  marketTools.classList.remove("view");
+  marketTools.classList.add("collection-market-tools", "advanced-workspace");
+  marketTools.hidden = false;
+  marketTools.removeAttribute("aria-hidden");
+  collection.append(marketTools);
+}
 const esc = (value) =>
   String(value ?? "").replace(
     /[&<>"']/g,
@@ -499,8 +511,7 @@ function priceStatusText(item) {
     return `Updated ${friendlyObservedAt(item.pricingUpdatedAt)}`;
   if (item.pricingStatus === "stale")
     return `Stale · observed ${friendlyObservedAt(item.pricingUpdatedAt)}`;
-  if (item.pricingStatus === "manual") return "Saved current price";
-  return "Demo estimate";
+  return "Matching market price unavailable";
 }
 
 function applyWorkspaceMode(
@@ -598,31 +609,7 @@ function renderQuoteRow(quote, label) {
   return `<div class="price-source"><div>${source}<span>${esc(quote.finish)} · ${esc(quote.condition ? conditionLabel(quote.condition) : "Wear not specified")} · ${esc(quote.currency)}</span><span>Price dated ${esc(friendlyObservedAt(quote.observedAt))} · checked ${esc(friendlyObservedAt(quote.retrievedAt))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
 }
 
-function showcaseReference(item) {
-  const amount = Number(item?.manualPrice ?? item?.demoPrice ?? item?.price);
-  return isShowcaseAccount() && Number.isFinite(amount) && amount > 0
-    ? amount
-    : null;
-}
-
-function usesShowcaseFallback(item, pricingStatus = item?.pricingStatus) {
-  return (
-    showcaseReference(item) !== null &&
-    (pricingStatus === "manual" ||
-      !["live", "stale"].includes(String(pricingStatus || "")))
-  );
-}
-
 function renderPriceEvidence(item, context) {
-  if (usesShowcaseFallback(item)) {
-    const contextLabel =
-      item.cardState === "sealed"
-        ? "Unopened product"
-        : context.gradingCompany
-          ? `${String(context.gradingCompany).toUpperCase()} ${context.grade}`
-          : `Ungraded · ${conditionLabel(context.condition || "Near Mint")}`;
-    return `<section class="price-confidence preview" aria-label="How reliable this price is"><div class="price-confidence-head"><div><span>How reliable is this price?</span><strong>Saved current price</strong></div><b>Account value</b></div><p>This is the current price saved for this exact card and grade. Connected market prices will replace it automatically when available.</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>Saved to this account</span><span>Matching price connection ready</span></div></section>`;
-  }
   const report = priceEvidence(
     item.quotes,
     item.variant,
@@ -654,19 +641,13 @@ function renderPriceEvidence(item, context) {
 function renderGradedPriceLadder(item) {
   if (item.cardState === "sealed") return "";
   const rows = gradedPriceLadder(item.quotes, item.variant, "USD");
-  const showcaseAmount =
-    item.gradingCompany && !rows.length && usesShowcaseFallback(item)
-      ? showcaseReference(item)
-      : null;
   const ownedGrade = item.gradingCompany
     ? `${String(item.gradingCompany).toUpperCase()}:${item.grade}`
     : "";
   const content = rows.length
     ? `<div class="grade-ladder">${rows.map((row) => `<div class="grade-ladder-row${ownedGrade === `${row.grader}:${row.grade}` ? " current" : ""}"><div><strong>${esc(row.grader)} ${esc(row.grade)}</strong><span>${esc(row.priceType)} · ${esc(row.provider)}${row.observedAt ? ` · ${esc(String(row.observedAt).slice(0, 10))}` : ""}</span></div><b>${money(row.amount, row.currency)}</b></div>`).join("")}</div>`
-    : showcaseAmount !== null
-      ? `<div class="grade-ladder"><div class="grade-ladder-row current"><div><strong>${esc(String(item.gradingCompany).toUpperCase())} ${esc(item.grade)}</strong><span>Current saved price</span></div><b>${money(showcaseAmount, item.currency || "USD")}</b></div></div><div class="pro-data-empty"><strong>More professional grades are ready to connect</strong><p>PkmnPrices Pro will fill in matching prices for other grades automatically.</p></div>`
-      : `<div class="pro-data-empty"><strong>Ready for professionally graded prices</strong><p>When PkmnPrices Pro is connected, matching PSA, BGS, and CGC prices will appear here. Mica will not use a different card version or grade.</p></div>`;
-  return `<section class="detail-section advanced-workspace"><div class="detail-section-head"><h2>Prices by professional grade</h2><span>${rows.length ? `${rows.length} matching grade price${rows.length === 1 ? "" : "s"}` : showcaseAmount !== null ? "Current grade saved" : "PkmnPrices-ready"}</span></div>${content}</section>`;
+    : `<div class="pro-data-empty"><strong>Ready for professionally graded prices</strong><p>When PkmnPrices Pro is connected, matching PSA, BGS, and CGC prices will appear here. Mica will not use an ungraded price or another grade.</p></div>`;
+  return `<section class="detail-section advanced-workspace"><div class="detail-section-head"><h2>Prices by professional grade</h2><span>${rows.length ? `${rows.length} matching grade price${rows.length === 1 ? "" : "s"}` : "PkmnPrices-ready"}</span></div>${content}</section>`;
 }
 
 function renderCardMetadata(item) {
@@ -745,7 +726,7 @@ function renderMarketplaceOffers(item) {
 
 function historySeriesForItem(item) {
   const finish = finishForVariant(item.variant);
-  let exact = (item.priceHistory || []).filter((point) => {
+  const exact = (item.priceHistory || []).filter((point) => {
     if (point.finish !== finish) return false;
     if (point.currency && point.currency !== (item.currency || "USD"))
       return false;
@@ -760,32 +741,6 @@ function historySeriesForItem(item) {
       (!point.condition || point.condition === item.condition)
     );
   });
-  const showcaseAmount = showcaseReference(item);
-  if (exact.length < 2 && showcaseAmount !== null) {
-    const today = new Date();
-    const multipliers = [0.74, 0.79, 0.77, 0.84, 0.88, 0.86, 0.94, 1];
-    exact = multipliers.map((multiplier, index) => {
-      const observed = new Date(
-        Date.UTC(
-          today.getUTCFullYear(),
-          today.getUTCMonth() - (multipliers.length - index - 1),
-          15,
-        ),
-      );
-      return {
-        provider: "Saved price history",
-        providerVariantId: `saved:${item.uid || item.id}`,
-        amount: Number((showcaseAmount * multiplier).toFixed(2)),
-        currency: item.currency || "USD",
-        finish,
-        condition: item.gradingCompany ? null : item.condition,
-        gradingCompany: item.gradingCompany || null,
-        grade: item.gradingCompany ? String(item.grade) : null,
-        recordedAt: observed.toISOString(),
-        quality: { savedAccountValue: true },
-      };
-    });
-  }
   const reference = selectReferenceQuote(
     item.quotes || [],
     item.variant,
@@ -877,6 +832,165 @@ function historyForItem(item) {
   );
 }
 
+function purchaseMarketReference(item, lot) {
+  if (!lot?.acquiredAt || lot.marketUnitPriceAtPurchase != null) return null;
+  const purchaseTime = new Date(`${lot.acquiredAt}T00:00:00Z`).getTime();
+  if (!Number.isFinite(purchaseTime)) return null;
+  const candidates = historySeriesForItem(item)
+    .flatMap((series) =>
+      series.points.map((point) => ({
+        ...point,
+        seriesProvider: series.provider,
+      })),
+    )
+    .map((point) => ({
+      point,
+      difference: Math.abs(new Date(point.recordedAt).getTime() - purchaseTime),
+    }))
+    .filter(
+      ({ point, difference }) =>
+        Number.isFinite(difference) &&
+        difference <= 3 * 86_400_000 &&
+        Number.isFinite(Number(point.amount)) &&
+        Number(point.amount) > 0 &&
+        point.currency === (item.currency || "USD"),
+    )
+    .sort(
+      (left, right) =>
+        left.difference - right.difference ||
+        new Date(right.point.recordedAt) - new Date(left.point.recordedAt),
+    );
+  const match = candidates[0]?.point;
+  if (!match) return null;
+  const aggregator = String(match.quality?.aggregator || "").trim();
+  const provider = String(
+    match.provider || match.seriesProvider || "Market provider",
+  ).trim();
+  return {
+    marketUnitPrice: Number(match.amount),
+    currency: match.currency || item.currency || "USD",
+    provider:
+      aggregator && aggregator.toLowerCase() !== provider.toLowerCase()
+        ? `${provider} via ${aggregator}`
+        : provider,
+    observedAt: match.recordedAt,
+  };
+}
+
+function withPurchaseMarketReference(item, lotId, reference) {
+  const matchedLot = (item.lots || []).find((lot) => lot.id === lotId);
+  const lots = (item.lots || []).map((lot) =>
+    lot.id === lotId
+      ? {
+          ...lot,
+          marketUnitPriceAtPurchase: reference.marketUnitPrice,
+          marketPriceCurrency: reference.currency,
+          marketPriceProvider: reference.provider,
+          marketPriceObservedAt: reference.observedAt,
+        }
+      : lot,
+  );
+  const activeLots = lots.filter((lot) => Number(lot.quantityRemaining) > 0);
+  const complete =
+    activeLots.length > 0 &&
+    activeLots.every(
+      (lot) =>
+        lot.marketUnitPriceAtPurchase != null &&
+        lot.marketPriceCurrency === (item.currency || "USD"),
+    );
+  const quantity = activeLots.reduce(
+    (sum, lot) => sum + Number(lot.quantityRemaining),
+    0,
+  );
+  const marketPriceAtPurchase =
+    complete && quantity
+      ? activeLots.reduce(
+          (sum, lot) =>
+            sum +
+            Number(lot.marketUnitPriceAtPurchase) *
+              Number(lot.quantityRemaining),
+          0,
+        ) / quantity
+      : null;
+  const providers = [
+    ...new Set(
+      activeLots.map((lot) => lot.marketPriceProvider).filter(Boolean),
+    ),
+  ];
+  return {
+    ...item,
+    lots,
+    transactions: (item.transactions || []).map((transaction) =>
+      transaction.id === matchedLot?.purchaseTransactionId
+        ? {
+            ...transaction,
+            marketUnitPriceAtPurchase: reference.marketUnitPrice,
+            marketPriceProvider: reference.provider,
+            marketPriceObservedAt: reference.observedAt,
+          }
+        : transaction,
+    ),
+    marketPriceAtPurchase,
+    marketPriceAtPurchaseProvider:
+      providers.length === 1
+        ? providers[0]
+        : providers.length > 1
+          ? "Multiple providers"
+          : "",
+  };
+}
+
+async function backfillPurchaseMarketReferences() {
+  if (purchaseMarketBackfillInFlight || !state.session?.user?.id) return;
+  const tasks = state.items.flatMap((item) =>
+    (item.lots || [])
+      .filter(
+        (lot) =>
+          lot.acquisitionDateKnown &&
+          lot.marketUnitPriceAtPurchase == null &&
+          !purchaseMarketReferenceAttempts.has(lot.id),
+      )
+      .map((lot) => ({
+        item,
+        lot,
+        reference: purchaseMarketReference(item, lot),
+      }))
+      .filter((task) => task.reference),
+  );
+  if (!tasks.length) return;
+  purchaseMarketBackfillInFlight = true;
+  try {
+    const results = await Promise.allSettled(
+      tasks.map(async ({ item, lot, reference }) => {
+        purchaseMarketReferenceAttempts.add(lot.id);
+        await setPurchaseMarketReference(supabase, {
+          purchaseLotId: lot.id,
+          ...reference,
+        });
+        return { itemId: item.uid, lotId: lot.id, reference };
+      }),
+    );
+    for (const result of results) {
+      if (result.status !== "fulfilled") continue;
+      const { itemId, lotId, reference } = result.value;
+      state.items = state.items.map((item) =>
+        item.uid === itemId
+          ? withPurchaseMarketReference(item, lotId, reference)
+          : item,
+      );
+      if (state.detailCard?.uid === itemId)
+        state.detailCard =
+          state.items.find((item) => item.uid === itemId) || state.detailCard;
+    }
+    if (results.some((result) => result.status === "fulfilled")) {
+      renderCollection();
+      if (state.route === "detail") renderDetail();
+    }
+  } finally {
+    purchaseMarketBackfillInFlight = false;
+  }
+}
+
 function renderHistory(item) {
   const history = historyForItem(item);
   if (item.historyStatus === "plan_required" && history.length < 2)
@@ -910,15 +1024,11 @@ function renderEntryPoints(item, currentPrice = item.price) {
       ? null
       : Number(currentPrice);
   const noun = item.cardState === "sealed" ? "product" : "card";
-  return `<section class="entry-points" aria-label="Your purchases"><div class="entry-points-head"><div><span>Your purchases</span><strong>${entries.length} recorded</strong></div><div><span>Current price</span><strong>${current === null ? "Unavailable" : `${money(current, currency)} each`}</strong></div></div><div class="entry-point-list">${entries.map((entry) => `<div class="entry-point-row"><div><strong>${esc(entry.date || "Date not recorded")}</strong><span>${entry.quantity} ${noun}${entry.quantity === 1 ? "" : "s"} · ${money(entry.totalCostMinor / 100, currency)} total</span></div><div><span>You paid per ${noun}</span><strong>${money(entry.unitCostMinor / 100, currency)}</strong></div><div><span>Profit or loss per ${noun}</span><strong>${entry.changeMinor === null ? "Unavailable" : `${entry.changeMinor >= 0 ? "Up " : "Down "}${money(Math.abs(entry.changeMinor) / 100, currency)}`}</strong><small>${entry.returnPercent === null ? "" : `${entry.returnPercent >= 0 ? "+" : ""}${entry.returnPercent.toFixed(1)}%`}</small></div></div>`).join("")}</div></section>`;
+  return `<section class="entry-points" aria-label="Your purchases"><div class="entry-points-head"><div><span>Your purchases</span><strong>${entries.length} recorded</strong></div><div><span>Current market price</span><strong>${current === null ? "Unavailable" : `${money(current, currency)} each`}</strong></div></div><div class="entry-point-list">${entries.map((entry) => `<div class="entry-point-row"><div><strong>${esc(entry.date || "Date not recorded")}</strong><span>${entry.quantity} ${noun}${entry.quantity === 1 ? "" : "s"} · ${money(entry.totalCostMinor / 100, currency)} total</span></div><div><span>Market when bought</span><strong>${entry.marketAtPurchaseMinor === null ? "Waiting for history" : money(entry.marketAtPurchaseMinor / 100, currency)}</strong><small>${esc(entry.marketPriceProvider || "")}</small></div><div><span>You paid per ${noun}</span><strong>${money(entry.unitCostMinor / 100, currency)}</strong></div><div><span>Profit or loss per ${noun}</span><strong>${entry.changeMinor === null ? "Unavailable" : `${entry.changeMinor >= 0 ? "Up " : "Down "}${money(Math.abs(entry.changeMinor) / 100, currency)}`}</strong><small>${entry.returnPercent === null ? "" : `${entry.returnPercent >= 0 ? "+" : ""}${entry.returnPercent.toFixed(1)}%`}</small></div></div>`).join("")}</div></section>`;
 }
 
 function renderInteractiveHistory(item, currentPrice = item.price) {
   const history = historyForItem(item);
-  const savedAccountHistory = history.some(
-    (point) =>
-      point.quality?.savedAccountValue || point.quality?.accountExample,
-  );
   const entryPoints = renderEntryPoints(item, currentPrice);
   if (item.historyStatus === "plan_required" && history.length < 2)
     return `${entryPoints}<div class="unavailable-panel"><strong>Price history needs PkmnPrices Pro.</strong><br>Today’s matching price and your recorded purchases still work.</div>`;
@@ -943,7 +1053,7 @@ function renderInteractiveHistory(item, currentPrice = item.price) {
   const context = item.gradingCompany
     ? `${item.gradingCompany} grade ${item.grade}`
     : conditionLabel(item.condition);
-  return `${entryPoints}<div class="history-summary"><div><span>${savedAccountHistory ? "Typical saved price" : "Typical recorded price"}</span><strong>${money(average, last.currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Days with prices</span><strong>${history.length}</strong></div>${saleCount ? `<div><span>Reported sales</span><strong>${saleCount}</strong></div>` : ""}</div>
+  return `${entryPoints}<div class="history-summary"><div><span>Typical recorded price</span><strong>${money(average, last.currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Days with prices</span><strong>${history.length}</strong></div>${saleCount ? `<div><span>Reported sales</span><strong>${saleCount}</strong></div>` : ""}</div>
     <div class="history-controls" role="group" aria-label="Price history range">${[
       ["1m", "1 month"],
       ["3m", "3 months"],
@@ -956,7 +1066,7 @@ function renderInteractiveHistory(item, currentPrice = item.price) {
           `<button type="button" data-chart-range="${value}" aria-pressed="${String(state.chartRange === value)}">${label}</button>`,
       )
       .join("")}</div>
-    <p class="chart-context">${savedAccountHistory ? "Saved price line" : "Matching price line"}: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. ${savedAccountHistory ? "These are the prices recorded for this account; a connected price source can update them automatically." : "Each price source stays separate so unlike prices are never mixed."}</p>
+    <p class="chart-context">Matching price line: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. Each price source stays separate so unlike prices are never mixed.</p>
     <div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} prices over time with the dates you bought this card"></canvas></div>`;
 }
 
@@ -1552,6 +1662,11 @@ async function loadOffers(item, force = false) {
 }
 
 function routeTo(route, options = {}) {
+  const requestedRoute = route;
+  if (route === "insights") {
+    route = "collection";
+    options.sidebarTarget = options.sidebarTarget || "collection";
+  }
   const changed = state.route !== route;
   state.route = route;
   if (options.sidebarTarget) state.sidebarTarget = options.sidebarTarget;
@@ -1595,6 +1710,10 @@ function routeTo(route, options = {}) {
   window.scrollTo({ top: 0, behavior: "auto" });
   if (changed && options.focus !== false)
     requestAnimationFrame(() => $("#main").focus({ preventScroll: true }));
+  if (requestedRoute === "insights")
+    requestAnimationFrame(() =>
+      $("#view-insights")?.scrollIntoView({ block: "start" }),
+    );
   const url =
     route === "collection"
       ? `${location.pathname}${location.search}`
@@ -2305,7 +2424,6 @@ async function mountPortfolioHistoryChart({
   values,
   currency,
   marketMode,
-  showcase,
 }) {
   const version = ++portfolioChartMountVersion;
   portfolioChartInstance?.destroy();
@@ -2410,9 +2528,6 @@ async function mountPortfolioHistoryChart({
                 `Selected range: ${delta >= 0 ? "+" : ""}${money(delta, currency)}`,
               ];
             },
-            afterBody() {
-              return showcase ? ["Saved account history"] : [];
-            },
           },
         },
       },
@@ -2455,13 +2570,8 @@ async function mountPortfolioHistoryChart({
 function renderPortfolioHistory() {
   const root = $("#portfolioHistory");
   if (!root) return;
-  const showcase = isShowcaseAccount();
-  const showcaseTotal = showcase ? calculateTotals(state.items).value : null;
-  const snapshots = showcase
-    ? rebasePortfolioSnapshots(state.portfolioHistory, showcaseTotal)
-    : state.portfolioHistory;
   const history = marketAdjustedPortfolioHistory(
-    snapshots,
+    state.portfolioHistory,
     portfolioTransactions(),
     "USD",
   );
@@ -2520,14 +2630,12 @@ function renderPortfolioHistory() {
   const historyMetrics = marketMode
     ? `<div><span>Price change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "Up " : "Down "}${money(Math.abs(rangeChange), history.currency)}</strong></div><div><span>Percent change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div><div><span>Money you added or removed</span><strong>${rangeCashFlow >= 0 ? "+" : ""}${money(rangeCashFlow, history.currency)}</strong></div>`
     : `<div><span>Value now</span><strong>${money(rangeLatest.totalMinor / 100, history.currency)}</strong></div><div><span>Change during this time</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "Up " : "Down "}${money(Math.abs(rangeChange), history.currency)}</strong></div>${workspaceMode === "guided" ? "" : `<div><span>Percent change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div>`}`;
-  const historyNote = showcase
-    ? '<p class="portfolio-history-note"><strong>Buying more cards is not profit.</strong> This account’s recorded purchases and sales are separated from changes in card value.</p>'
-    : !marketSeriesAvailable
+  const historyNote = !marketSeriesAvailable
       ? '<p class="portfolio-history-note"><strong>Price-only change is not ready yet.</strong> Mica needs more complete prices and purchase history. Your total value is still shown.</p>'
       : marketMode && !marketAvailable
         ? '<p class="portfolio-history-note"><strong>Price-only percentage is hidden.</strong> At least one day has a missing price or purchase amount, so Mica will not guess.</p>'
         : `<p class="portfolio-history-note"><strong>${marketMode ? "Buying more cards is not profit." : "This line includes cards you bought or sold."}</strong> ${marketMode ? "Mica removes recorded buying, selling, and grading money to show price change only." : "Choose Price change in More tools to remove money added or taken out."}</p>`;
-  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Collection value</strong><span>${history.points.length} day${history.points.length === 1 ? "" : "s"} with saved values · ${shortPortfolioDate(plotted[0].date, true)}–${shortPortfolioDate(plotted.at(-1).date, true)}</span></div><div class="portfolio-history-toggle advanced-workspace" role="group" aria-label="Choose what the value chart shows"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}" ${marketSeriesAvailable ? "" : "disabled"}>Price change</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${historyMetrics}</div><div class="portfolio-chart-toolbar"><span class="portfolio-chart-status"><i aria-hidden="true"></i>${showcase ? "Values recorded" : marketAvailable ? "Prices checked" : "Some prices are missing"}</span><div class="portfolio-chart-ranges" role="group" aria-label="Time shown on chart">${rangeButtons}</div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Interactive ${marketMode ? "price change" : "collection value"} chart from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${plotted.map((point, index) => `${shortPortfolioDate(point.date, true)}: ${money(values[index], history.currency)}`).join("; ")}</p><div class="portfolio-chart-foot"><span>Hover or tap for the date and value</span><span>${plotted.length} day${plotted.length === 1 ? "" : "s"} shown</span></div>${historyNote}`;
+  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Collection value</strong><span>${history.points.length} day${history.points.length === 1 ? "" : "s"} with saved values · ${shortPortfolioDate(plotted[0].date, true)}–${shortPortfolioDate(plotted.at(-1).date, true)}</span></div><div class="portfolio-history-toggle advanced-workspace" role="group" aria-label="Choose what the value chart shows"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}" ${marketSeriesAvailable ? "" : "disabled"}>Price change</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${historyMetrics}</div><div class="portfolio-chart-toolbar"><span class="portfolio-chart-status"><i aria-hidden="true"></i>${marketAvailable ? "Prices checked" : "Some prices are missing"}</span><div class="portfolio-chart-ranges" role="group" aria-label="Time shown on chart">${rangeButtons}</div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Interactive ${marketMode ? "price change" : "collection value"} chart from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${plotted.map((point, index) => `${shortPortfolioDate(point.date, true)}: ${money(values[index], history.currency)}`).join("; ")}</p><div class="portfolio-chart-foot"><span>Hover or tap for the date and value</span><span>${plotted.length} day${plotted.length === 1 ? "" : "s"} shown</span></div>${historyNote}`;
   $$("[data-portfolio-history-mode]", root).forEach((button) =>
     button.addEventListener("click", () => {
       state.portfolioHistoryMode = button.dataset.portfolioHistoryMode;
@@ -2547,7 +2655,6 @@ function renderPortfolioHistory() {
         values,
         currency: history.currency,
         marketMode,
-        showcase,
       }),
   );
 }
@@ -2555,7 +2662,6 @@ function renderPortfolioHistory() {
 async function capturePortfolioValuation() {
   if (
     !state.session ||
-    isShowcaseAccount() ||
     !state.items.length ||
     !["live", "partial"].includes(state.pricingStatus)
   )
@@ -2716,9 +2822,8 @@ function renderCollection() {
   $("#allocationSummary").textContent =
     `${rawCount} / ${gradedCount} / ${sealedCount}`;
   const hasProviderPricing = ["live", "partial"].includes(state.pricingStatus);
-  const showcase = isShowcaseAccount();
   $("#freshCoverage").textContent =
-    `${totals.priced.toLocaleString()} of ${totals.quantity.toLocaleString()} ${showcase ? "current prices" : hasProviderPricing ? "prices found" : "saved prices"}`;
+    `${totals.priced.toLocaleString()} of ${totals.quantity.toLocaleString()} ${hasProviderPricing ? "prices found" : "prices available"}`;
   const partial = totals.unpriced
     ? ` · ${totals.unpriced} unpriced item${totals.unpriced === 1 ? "" : "s"} excluded`
     : "";
@@ -2732,9 +2837,7 @@ function renderCollection() {
       : `Add what you paid to see profit${partial}${costCoverage}`;
   $("#valuationNote").firstChild.textContent =
     totals.gainCoverage === totals.quantity
-      ? showcase
-        ? "Based on each saved current price and what was paid. "
-        : "Based on matching market prices and what was paid. "
+      ? "Based on matching market prices and what was paid. "
       : `Change in value uses ${totals.gainCoverage} of ${totals.quantity} cards that have both a current price and the amount paid. `;
   $("#allCount").textContent = totals.quantity.toLocaleString();
   $("#rawCount").textContent = rawCount.toLocaleString();
@@ -2754,24 +2857,23 @@ function renderCollection() {
   $("#watchlistCount").textContent = state.watchlist.length;
   $("#setCount").textContent = collectionSetGroups().length;
   const pricedCount = state.items.filter((item) => item.price != null).length;
-  const pricingLabel = showcase
-    ? `${pricedCount} of ${state.items.length} current prices`
-    : state.pricingStatus === "loading"
+  const pricingLabel =
+    state.pricingStatus === "loading"
       ? "Updating live prices…"
       : state.pricingStatus === "live"
         ? `${pricedCount} of ${state.items.length} live prices`
         : state.pricingStatus === "partial"
           ? `${pricedCount} live · ${state.items.length - pricedCount} awaiting matching prices`
           : state.pricingStatus === "error"
-            ? "Live source unavailable · demo values shown"
-            : `${pricedCount} of ${state.items.length} demo values`;
+            ? "Live pricing is temporarily unavailable"
+            : "Waiting for live prices";
   $(".status-label").innerHTML = `<i></i> ${pricingLabel}`;
   const syncLabels = {
     loading: "Prices updating",
     live: "Prices current",
     partial: "Some prices missing",
     error: "Pricing unavailable",
-    demo: "Saved values",
+    demo: "Pricing unavailable",
   };
   const syncLabel =
     state.storageStatus === "error"
@@ -2937,7 +3039,8 @@ function renderCollection() {
       ${state.bulkMode ? "" : `<button class="ledger-open-overlay" type="button" data-open-position="${esc(item.uid)}" aria-label="Open ${esc(item.name)} details"></button>`}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity) || 0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span>${item.location ? `<span class="card-location" title="Storage location">${esc(item.location)}</span>` : ""}<div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-total-label">Current value</span><span class="row-unit">${purchasePerformance ? `Paid ${money(purchasePerformance.paid, item.currency)} total` : item.price == null ? (item.gradingCompany ? "graded price not connected" : "matching price unavailable") : `${money(item.price, item.currency)} for each card`}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>${state.bulkMode ? "" : `<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">Add copy</button>`}
+      <div class="position-price-grid" aria-label="Purchase and market prices"><span><small>Market when bought</small><strong>${item.marketPriceAtPurchase == null ? "—" : money(item.marketPriceAtPurchase, item.currency)}</strong></span><span><small>You paid</small><strong>${item.cost == null ? "—" : money(item.cost, item.currency)}</strong></span><span><small>Market now</small><strong>${item.price == null ? "—" : money(item.price, item.currency)}</strong></span></div>
+      <div class="price-cell"><span class="row-value">${total == null ? "—" : money(total)}</span><span class="row-total-label">Position value</span><span class="row-unit">${purchasePerformance ? `${money(purchasePerformance.paid, item.currency)} invested` : item.price == null ? (item.gradingCompany ? "graded price not connected" : "matching price unavailable") : "Amount paid not recorded"}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>${state.bulkMode ? "" : `<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">Add copy</button>`}
     </article>`;
     })
     .join("");
@@ -3372,14 +3475,14 @@ function renderOwnedDetailLegacy() {
   const sourceRows =
     item.price == null
       ? `<div class="unavailable-panel"><strong>${item.gradingCompany ? "A matching graded price is not connected yet." : "A matching price is not available for this printing yet."}</strong><br>Your card stays in the collection and is excluded from estimated totals. Mica will not substitute a raw, different-grade, or different-printing value.</div>`
-      : item.pricingStatus === "live"
+      : ["live", "stale"].includes(item.pricingStatus)
         ? `${renderQuoteRow(tcgQuote, tcgQuote?.provider === "justtcg" ? "JustTCG price" : "TCGplayer price")}${renderQuoteRow(cardmarketQuote, "Cardmarket price")}`
-        : `<div class="price-source"><div><strong>Demo price</strong><span>${esc(item.variant)} · USD</span><span>The live price check has not finished.</span></div><div class="source-value"><b>${money(item.price)}</b><small>Demo only · not live</small></div></div>`;
+        : `<div class="unavailable-panel">A matching provider price is not available. Mica is not guessing a value.</div>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>Collection</button>
     <div class="detail-identity"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(item.rarity)}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)} · ${esc(item.number)}</p><div class="detail-meta"><div><span>Printing</span><strong>${esc(item.variant)}</strong></div><div><span>Language</span><strong>English</strong></div><div><span>Released</span><strong>${esc(item.release)}</strong></div><div><span>Artist</span><strong>${esc(item.artist)}</strong></div></div></div></div>
     <div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${total == null ? "Price unavailable" : money(total)}</strong></div><button id="editCopyButton" type="button">Edit details</button></div>
-    <section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>${item.price == null ? "No matching price" : item.pricingStatus === "live" ? "Live price" : "Demo only · not live"}</span></div>${sourceRows}<p class="legal-copy">Prices are estimates, not guaranteed sale amounts. Wear and where you sell can change what someone will pay.</p></section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>${item.price == null ? "No matching price" : item.pricingStatus === "live" ? "Live price" : "Older provider price"}</span></div>${sourceRows}<p class="legal-copy">Prices are estimates, not guaranteed sale amounts. Wear and where you sell can change what someone will pay.</p></section>
     <section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} grade ${esc(item.grade)}` : esc(conditionLabel(item.condition))}</strong><span>Bought ${esc(item.purchaseDate || "date not recorded")} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="unavailable-panel">${esc(item.notes)}</div>` : ""}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>Recorded matching prices</span></div>${renderInteractiveHistory(item)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent completed sales</h2><span>${item.salesStatus === "live" ? "Completed sale links" : "Needs a connected price source"}</span></div>${renderSales(item)}</section>`;
@@ -3392,7 +3495,7 @@ function renderOwnedDetailLegacy() {
 
 function positionTransactionRow(transaction, unitNoun) {
   if (transaction.type === "purchase")
-    return `<div class="transaction-row"><div><strong>Bought ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · total paid${transaction.marketplace ? ` · ${esc(transaction.marketplace)}` : ""}</span></div><b>${transaction.totalCost == null ? "Not recorded" : money(transaction.totalCost, transaction.currency)}</b></div>`;
+    return `<div class="transaction-row"><div><strong>Bought ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} ${unitNoun}${transaction.quantity === 1 ? "" : "s"} · ${transaction.marketUnitPriceAtPurchase == null ? "purchase-date market price pending" : `market was ${money(transaction.marketUnitPriceAtPurchase, transaction.currency)} each`}${transaction.marketplace ? ` · ${esc(transaction.marketplace)}` : ""}</span></div><b>${transaction.totalCost == null ? "Paid amount not recorded" : `${money(transaction.totalCost, transaction.currency)} paid`}</b></div>`;
   if (transaction.type === "sale")
     return `<div class="transaction-row"><div><strong>Sold ${esc(transaction.date || "date not recorded")}</strong><span>${transaction.quantity} at ${money(transaction.unitPrice, transaction.currency)}${transaction.marketplace ? ` · ${esc(transaction.marketplace)}` : ""}</span></div><b>${money(transaction.netProceeds, transaction.currency)}</b></div>`;
   if (transaction.type === "grading_submission")
@@ -3461,60 +3564,36 @@ function renderDetail() {
       : item.price != null
         ? "preview"
         : "loading");
-  const showcaseFallback = usesShowcaseFallback(item, providerPricingStatus);
-  const pricingStatus = showcaseFallback ? "saved" : providerPricingStatus;
+  const pricingStatus = providerPricingStatus;
   const livePrice = ["live", "stale"].includes(pricingStatus)
     ? (tcgQuote?.amount ?? null)
     : null;
-  const previewPrice =
-    pricingStatus === "saved"
-      ? showcaseReference(item)
-      : ["preview", "error"].includes(pricingStatus)
-        ? (item.demoPrice ?? item.price ?? null)
-        : null;
-  const displayPrice = livePrice ?? previewPrice;
-  const savedAccountHistory = historyForItem(item).some(
-    (point) =>
-      point.quality?.savedAccountValue || point.quality?.accountExample,
-  );
+  const displayPrice = livePrice;
   const marketLabel =
     pricingStatus === "live"
       ? "Matching price today"
       : pricingStatus === "stale"
         ? "Older matching price"
-        : pricingStatus === "saved"
-          ? "Current price"
-          : previewPrice != null
-            ? "Demo price"
-            : "Matching price today";
+        : "Matching price today";
   const statusCopy =
     pricingStatus === "live"
       ? `Updated ${esc(friendlyObservedAt(item.pricingUpdatedAt))}`
       : pricingStatus === "stale"
         ? `Last price from ${esc(friendlyObservedAt(item.pricingUpdatedAt))} · needs refresh`
-        : pricingStatus === "saved"
-          ? "Saved to this account · matching price connection ready"
-          : pricingStatus === "preview"
-            ? "Demo only · not a live price"
-            : pricingStatus === "error"
-              ? "Could not check a live price · demo shown"
-              : pricingStatus === "rate_limited"
-                ? "Price source is busy · try again shortly"
-                : pricingStatus === "unavailable"
-                  ? "No price found for this card version"
-                  : "Checking this card version";
+        : pricingStatus === "error"
+          ? "Could not check a live price"
+          : pricingStatus === "rate_limited"
+            ? "Price source is busy · try again shortly"
+            : pricingStatus === "unavailable"
+              ? "No price found for this card version"
+              : "Checking this card version";
   const sourceRows = ["live", "stale"].includes(pricingStatus)
     ? `${renderQuoteRow(tcgQuote, sealed ? "TCGplayer sealed market" : tcgQuote?.provider === "justtcg" ? "JustTCG market" : "TCGplayer market")}${renderQuoteRow(cardmarketQuote, sealed ? "Cardmarket sealed market" : "Cardmarket")}`
-    : pricingStatus === "saved"
-      ? `<div class="price-source"><div><strong>Saved current price</strong><span>${esc(item.variant || "Card version unknown")} · ${esc(item.currency || "USD")}</span><span>Recorded for this account and this exact card.</span></div><div class="source-value"><b>${money(previewPrice, item.currency || "USD")}</b><small>Account value</small></div></div>`
-      : pricingStatus === "preview" ||
-          (pricingStatus === "error" && previewPrice != null)
-        ? `<div class="price-source"><div><strong>Demo price</strong><span>${esc(item.variant || "Card version unknown")} · USD</span><span>${pricingStatus === "error" ? "The live price source could not be reached." : "The live price check is not finished."}</span></div><div class="source-value"><b>${money(previewPrice)}</b><small>Demo · not live</small></div></div>`
-        : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? (item.gradingCompany ? "A price for this exact grading company and grade is not connected yet. Mica did not use an ungraded price or another grade." : "No price is available for this card version and wear level yet. Mica did not use a different card.") : pricingStatus === "rate_limited" ? "The price source is busy. Mica is not guessing a value." : pricingStatus === "error" ? "The price source could not be reached. Mica is not guessing a value." : "Loading the latest matching price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
+    : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? (item.gradingCompany ? "A price for this exact grading company and grade is not connected yet. Mica did not use an ungraded price or another grade." : "No price is available for this card version and wear level yet. Mica did not use a different card.") : pricingStatus === "rate_limited" ? "The price source is busy. Mica is not guessing a value." : pricingStatus === "error" ? "The price source could not be reached. Mica is not guessing a value." : "Loading the latest matching price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
   const backLabel =
     {
       collection: "My library",
-      insights: "Prices",
+      insights: "Collection",
       trade: "Trade check",
       profile: "Profile",
     }[state.detailReturnRoute] || "Find cards";
@@ -3558,7 +3637,7 @@ function renderDetail() {
       (lot) => !lot.costBasisKnown || !lot.acquisitionDateKnown,
     ) || null;
   const positionSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Current price for each</span><strong>${displayPrice === null ? "Unavailable" : money(displayPrice, item.currency)}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Profit or loss</span><strong>${performance.unrealizedGainMinor === null ? "Needs the amount you paid" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${money(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Price source</span><strong>${esc(showcaseFallback ? "Saved current price" : tcgQuote?.provider || "Unavailable")}</strong></div></div>${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Market price when bought</span><strong>${item.marketPriceAtPurchase == null ? "Waiting for matching history" : `${money(item.marketPriceAtPurchase, item.currency)} each`}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Current market price</span><strong>${displayPrice === null ? "Unavailable" : `${money(displayPrice, item.currency)} each`}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Profit or loss</span><strong>${performance.unrealizedGainMinor === null ? "Needs the amount you paid and a current market price" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${money(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Current price source</span><strong>${esc(tcgQuote?.provider || "Unavailable")}</strong></div><div><span>Purchase-date source</span><strong>${esc(item.marketPriceAtPurchaseProvider || "Waiting for provider history")}</strong></div></div>${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
     : "";
   const favorite =
     owned &&
@@ -3604,7 +3683,7 @@ function renderDetail() {
     ${listingSection}
     ${gradingSubmissionSection}
     <section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${savedAccountHistory ? "Saved prices" : "Recorded prices"}</span></div>${renderInteractiveHistory(item, displayPrice)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>Provider-recorded prices</span></div>${renderInteractiveHistory(item, displayPrice)}</section>
     <details class="detail-tool-group advanced-workspace"><summary><span><strong>Buying &amp; selling calculator</strong><small>Plan an offer${owned ? " or estimate what you keep after selling" : " or set a target price"}</small></span><b>Open</b></summary><div class="detail-tool-content">${renderBuyPlanner(item, displayPrice)}${owned ? renderSalePlanner(item, displayPrice) : ""}</div></details>
     ${sealed ? "" : `<details class="detail-tool-group advanced-workspace"><summary><span><strong>Professional grading calculator</strong><small>Compare grading cost with possible graded prices</small></span><b>Open</b></summary><div class="detail-tool-content">${renderGradedPriceLadder(item)}${renderGradingEstimator(item)}</div></details>`}
     <details class="detail-tool-group advanced-workspace"><summary><span><strong>More price proof</strong><small>Cards currently for sale and completed-sale links</small></span><b>Open</b></summary><div class="detail-tool-content">${renderMarketplaceOffers(item)}${sealed ? '<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>Not available for unopened products</span></div><div class="unavailable-panel">PkmnPrices has a current unopened-product price, but its sold links only support individual cards. Mica does not use unrelated sales.</div></section>' : `<section class="detail-section"><div class="detail-section-head"><h2>Recent completed sales</h2><span>${item.salesStatus === "live" ? "Completed listings" : "Verified links when available"}</span></div>${renderSales(item)}</section>`}</div></details>
@@ -7426,13 +7505,6 @@ async function refreshLivePricing() {
     const applyPricing = (item) => {
       const sealed = item.cardState === "sealed";
       const card = sealed ? sealedProducts.get(item.id) : cards.get(item.id);
-      const fallbackPrice =
-        item.manualPrice ?? item.demoPrice ?? item.price ?? null;
-      const preferSavedPrice =
-        isShowcaseAccount() &&
-        item.manualPrice !== null &&
-        item.manualPrice !== undefined &&
-        Number.isFinite(Number(item.manualPrice));
       const processed = sealed
         ? sealedProcessed.has(item.id)
         : processedIds.has(item.id);
@@ -7440,27 +7512,17 @@ async function refreshLivePricing() {
         return rateLimited
           ? {
               ...item,
-              demoPrice: item.demoPrice,
-              price: preferSavedPrice ? item.manualPrice : item.price,
-              pricingStatus: preferSavedPrice
-                ? "manual"
-                : item.price == null
-                  ? "rate_limited"
-                  : item.pricingStatus,
+              pricingStatus:
+                item.price == null ? "rate_limited" : item.pricingStatus,
             }
           : item;
       if (!card)
         return {
           ...item,
-          demoPrice: item.demoPrice,
-          price: fallbackPrice,
+          price: null,
           move: null,
           quotes: [],
-          pricingStatus: preferSavedPrice
-            ? "manual"
-            : fallbackPrice == null
-              ? "unavailable"
-              : "preview",
+          pricingStatus: "unavailable",
           pricingUpdatedAt: null,
         };
       const quote = selectReferenceQuote(
@@ -7477,10 +7539,7 @@ async function refreshLivePricing() {
         },
         metadata: card.metadata || item.metadata || null,
         productType: card.productType || item.productType || null,
-        demoPrice: item.demoPrice,
-        price: preferSavedPrice
-          ? item.manualPrice
-          : (quote?.amount ?? fallbackPrice),
+        price: quote?.amount ?? null,
         quotes: card.quotes,
         historyStatus: card.historyStatus || null,
         priceHistory: quote
@@ -7490,13 +7549,7 @@ async function refreshLivePricing() {
               mergePriceHistory(item.priceHistory || [], card.history || []),
             )
           : mergePriceHistory(item.priceHistory || [], card.history || []),
-        pricingStatus: preferSavedPrice
-          ? "manual"
-          : quote
-            ? quoteStatus(quote)
-            : fallbackPrice == null
-              ? "unavailable"
-              : "preview",
+        pricingStatus: quote ? quoteStatus(quote) : "unavailable",
         pricingUpdatedAt:
           quote?.observedAt || quote?.retrievedAt?.slice(0, 10) || null,
       };
@@ -7515,6 +7568,7 @@ async function refreshLivePricing() {
     renderInsights();
     if (state.route === "detail") renderDetail();
     if (state.route === "insights") void refreshMovementHistory();
+    void backfillPurchaseMarketReferences();
   } catch {
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.pricingStatus = "error";
@@ -7620,6 +7674,7 @@ async function refreshMovementHistory() {
         : failed
           ? "error"
           : "unavailable";
+    void backfillPurchaseMarketReferences();
   } catch {
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.movementStatus = "error";
@@ -8320,7 +8375,7 @@ function renderInsights() {
         `<div class="insight-kicker">Price changes over 30 days</div><strong>${comparable.length ? `${change >= 0 ? "Up " : "Down "}${money(Math.abs(change))}` : `${movements.length} cards with matching past prices`}</strong><span>${comparable.length} card${comparable.length === 1 ? "" : "s"} compared using the number you own now</span><div class="unavailable-panel">Only the same card version, wear level or professional grade, currency, and price source are compared. A higher price is not money earned until a card is sold.</div>`;
     } else {
       $(".insight-feature").innerHTML =
-        `<div class="insight-kicker">${state.pricingStatus === "partial" ? "Some prices found" : "Prices connected"}</div><strong>${priced} of ${state.items.length} saved cards have prices</strong><span>${state.items.length - priced} need a matching price</span><div class="unavailable-panel">${isShowcaseAccount() ? "The Dashboard shows the account’s recorded value history. Verified market movement appears here after matching provider history connects." : state.movementStatus === "loading" ? "Checking past prices for the same cards…" : state.movementStatus === "plan_required" ? "Past prices are ready after PkmnPrices Pro is connected. Today’s prices still work." : state.movementStatus === "error" ? "Past prices could not be refreshed. Today’s collection value is unchanged." : "Price changes appear after Mica has matching prices from at least 30 days apart."}</div>`;
+        `<div class="insight-kicker">${state.pricingStatus === "partial" ? "Some prices found" : "Prices connected"}</div><strong>${priced} of ${state.items.length} saved cards have prices</strong><span>${state.items.length - priced} need a matching price</span><div class="unavailable-panel">${state.movementStatus === "loading" ? "Checking past prices for the same cards…" : state.movementStatus === "plan_required" ? "Past prices are ready after PkmnPrices Pro is connected. Today’s prices still work." : state.movementStatus === "error" ? "Past prices could not be refreshed. Today’s collection value is unchanged." : "Price changes appear after Mica has matching prices from at least 30 days apart."}</div>`;
     }
     $("#moversList").innerHTML = movements.length
       ? movements
@@ -8341,9 +8396,7 @@ function renderInsights() {
             return `<button type="button" class="mover mover-button" data-mover-id="${esc(item.uid)}"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(context)} · ${esc(provider)} · ${money(movement.fromAmount, movement.currency)} to ${money(movement.toAmount, movement.currency)}</span></div><b class="${dollarChange < 0 ? "negative" : ""}">${dollarChange >= 0 ? "Up " : "Down "}${money(Math.abs(dollarChange), movement.currency)}</b></button>`;
           })
           .join("")
-      : isShowcaseAccount()
-        ? '<div class="data-boundary"><strong>Account value changes are on the Dashboard</strong><p>Verified market changes will appear here after matching price history connects.</p></div>'
-        : '<div class="data-boundary"><strong>Price history is still building</strong><p>A 30-day comparison needs an older price for the same card version and wear level or grade. Mica will not mix different cards.</p></div>';
+      : '<div class="data-boundary"><strong>Price history is still building</strong><p>A 30-day comparison needs an older price for the same card version and wear level or grade. Mica will not mix different cards.</p></div>';
     $$("[data-mover-id]").forEach((button) =>
       button.addEventListener("click", () =>
         openCardDetail(
@@ -8354,9 +8407,8 @@ function renderInsights() {
     );
     return;
   }
-  $(".insight-feature").innerHTML = isShowcaseAccount()
-    ? `<div class="insight-kicker">Past prices</div><strong>Account history is recorded</strong><span>Current saved values and purchase performance are available on the Dashboard.</span><div class="unavailable-panel">Verified market movement will appear here after matching provider history connects.</div>`
-    : `<div class="insight-kicker">Past prices</div><strong>Tracking starts when live prices connect</strong><span>Preview prices are never used to claim a real price change.</span><div class="unavailable-panel">Connect matching past prices to see real changes. Mica never turns preview prices into a market trend.</div>`;
+  $(".insight-feature").innerHTML =
+    `<div class="insight-kicker">Past prices</div><strong>Tracking starts when live prices connect</strong><span>Unavailable prices are never used to claim a real price change.</span><div class="unavailable-panel">Connect matching past prices to see real changes. Mica never turns an estimate into a market trend.</div>`;
   $("#moversList").innerHTML =
     '<div class="data-boundary"><strong>No verified price changes yet</strong><p>Changes appear after Mica has past prices for the same card version, wear level or grade, currency, and source.</p></div>';
 }
@@ -9483,9 +9535,7 @@ function ensureProfileAccount() {
     .replace(/[._-]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
     .trim();
-  const accountLabel = isShowcaseAccount()
-    ? `${profileName || "Jordan"}’s collection`
-    : email;
+  const accountLabel = email;
   const initials =
     profileName
       .split(/\s+/)
@@ -9692,8 +9742,8 @@ async function applySession(session) {
   const previousOwnerId = state.session?.user?.id || "";
   state.session = session;
   if (previousOwnerId !== ownerId) {
-    state.portfolioHistoryRange =
-      session?.user?.app_metadata?.account_type === "showcase" ? "all" : "3m";
+    purchaseMarketReferenceAttempts.clear();
+    state.portfolioHistoryRange = "3m";
     state.intakeQueue = [];
     state.bulkSelected.clear();
     state.bulkMode = false;
@@ -9706,10 +9756,7 @@ async function applySession(session) {
       searchResults: [],
     };
   }
-  state.portfolioHistoryMode =
-    session?.user?.app_metadata?.account_type === "showcase"
-      ? "value"
-      : "return";
+  state.portfolioHistoryMode = "return";
   $("#skipLink").setAttribute("href", session ? "#main" : "#authGate");
   document.body.classList.toggle("authenticated", Boolean(session));
   $("#authGate").hidden = Boolean(session);
@@ -9855,6 +9902,7 @@ window
   .matchMedia("(display-mode: standalone)")
   .addEventListener?.("change", updateInstallControl);
 
+integratePricingIntoCollection();
 applyUiTheme(uiTheme);
 applyMotionPreference();
 void bootstrap();

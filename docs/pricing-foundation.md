@@ -6,6 +6,14 @@ Each card position presents exact identity, compatible current market evidence, 
 
 No price is shown without market context. Raw, graded, currencies, conditions, graders, grades, languages, printings, asking prices, and sold values are never silently combined.
 
+Every purchase keeps three meanings separate:
+
+1. **Market when bought** is a provider observation on, or within three days of, the purchase date. It is filled automatically when matching history exists.
+2. **You paid** is the user’s actual all-in acquisition cost and remains the FIFO cost basis.
+3. **Market now** is fetched from the current compatible provider response and is never replaced by a seeded account value.
+
+Profit or loss is `current compatible market value − remaining actual cost basis`. The historical market reference is context only and never changes cost basis.
+
 ## Deterministic valuation order
 
 1. Match the exact canonical card and variant.

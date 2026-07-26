@@ -1,6 +1,6 @@
 # Mica — Pokémon card portfolio
 
-Mica is a mobile-first, installable portfolio for exact Pokémon card printings. Authenticated collectors can record raw or graded positions, preserve individual purchase lots, track FIFO cost basis and sales, compare compatible provider values, and see acquisitions on real price history without invented data.
+Mica is a mobile-first, installable portfolio for exact Pokémon card printings. Authenticated collectors can record raw or graded positions, preserve individual purchase lots, track FIFO cost basis and sales, compare compatible provider values, and see acquisitions on real price history without invented data. Collection cards present the matching market price near purchase, the amount actually paid, the matching market price now, and profit or loss as separate values.
 
 The product name is presentation-only. Domain models, provider adapters, and database structures do not depend on “Mica.”
 
@@ -65,7 +65,7 @@ AI output is an untrusted draft. Mica always requires the user to choose the exa
 
 The endpoint requires a valid Supabase access token, atomically claims a durable owner-scoped usage allowance, accepts only bounded JPEG/PNG/WebP data URLs, uses strict structured output, hashes the user identifier before sending a safety identifier, and returns `no-store` responses. See [AI vision runbook](docs/ai-vision-runbook.md).
 
-The PkmnPrices account currently configured in this workspace can return current prices. Historical price and linked sold-listing endpoints may report `plan_required`; the app preserves that state rather than inventing history.
+The production pricing path currently returns compatible raw-card prices through its public provider fallback. PkmnPrices historical and exact graded-price endpoints may report `plan_required` until the Pro plan and a working key are active; the app shows unavailable rather than substituting a raw value or inventing history.
 
 ## Scheduled synchronization
 

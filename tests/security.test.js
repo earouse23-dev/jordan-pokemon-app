@@ -137,6 +137,13 @@ const splitPositionBasisGuardMigration = await readFile(
   ),
   "utf8",
 );
+const purchaseMarketReferenceMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260726192306_add_purchase_market_reference.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -259,15 +266,15 @@ test("working interfaces keep readable text at a twelve-pixel minimum", () => {
 test("clean modern and analytics focused interfaces are selectable and persistent", () => {
   assert.match(appShell, /data-ui-theme-option="clean"/);
   assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=75/);
+  assert.match(appShell, /themes\.css\?v=76/);
   assert.match(
     appSource,
     /localStorage\.setItem\(["']mica-ui-theme["'],\s*theme\)/,
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v100/);
-  assert.match(serviceWorker, /themes\.css\?v=75/);
+  assert.match(serviceWorker, /mica-shell-v101/);
+  assert.match(serviceWorker, /themes\.css\?v=76/);
 });
 
 test("beginner mode is the default and uses plain-language decisions", () => {
@@ -304,7 +311,7 @@ test("client presentation shows purchase performance without claiming market evi
   assert.match(appSource, /No verified price changes yet/);
   assert.match(
     appSource,
-    /Preview prices are never used to claim a real price change/,
+    /Unavailable prices are never used to claim a real price change/,
   );
   assert.match(appSource, /function purchaseChangeText/);
   assert.match(appSource, /since purchase/);
@@ -313,22 +320,22 @@ test("client presentation shows purchase performance without claiming market evi
   assert.match(appShell, /Recorded activity only/);
 });
 
-test("pre-filled account values stay isolated and read like normal saved data", () => {
-  assert.match(
+test("owned positions use provider prices and never fabricate current value or history", () => {
+  assert.doesNotMatch(appSource, /function showcaseReference\(item\)/);
+  assert.doesNotMatch(appSource, /function usesShowcaseFallback\(item/);
+  assert.doesNotMatch(appSource, /Saved current price/);
+  assert.doesNotMatch(appSource, /Saved price history/);
+  assert.doesNotMatch(appSource, /savedAccountValue/);
+  assert.match(appSource, /function purchaseMarketReference\(item, lot\)/);
+  assert.match(appSource, /setPurchaseMarketReference/);
+  assert.match(appSource, /Market when bought/);
+  assert.match(appSource, /Market now/);
+  assert.doesNotMatch(appSource, /isShowcaseAccount/);
+  assert.match(appSource, /const accountLabel = email/);
+  assert.doesNotMatch(
     appSource,
-    /function showcaseReference\(item\)[\s\S]+isShowcaseAccount\(\)/,
+    /rebasePortfolioSnapshots|Saved account history|Values recorded/,
   );
-  assert.match(
-    appSource,
-    /function usesShowcaseFallback\(item,[\s\S]+!\["live", "stale"\]\.includes/,
-  );
-  assert.match(appSource, /Saved current price/);
-  assert.match(appSource, /Saved to this account/);
-  assert.match(appSource, /savedAccountValue/);
-  assert.match(appSource, /accountLabel = isShowcaseAccount\(\)/);
-  assert.match(appSource, /Jordan.*collection/);
-  assert.doesNotMatch(appSource, /Made-up data for the demo account only/);
-  assert.doesNotMatch(appSource, /Showcase sample history/);
 });
 
 test("portfolio dashboard uses a responsive stock-style interactive chart", () => {
@@ -343,7 +350,7 @@ test("portfolio dashboard uses a responsive stock-style interactive chart", () =
   );
   assert.match(appSource, /maintainAspectRatio: false/);
   assert.match(appSource, /Hover or tap for the date and value/);
-  assert.match(appSource, /Saved account history|Values recorded/);
+  assert.match(appSource, /Prices checked/);
   assert.match(styles, /\.portfolio-chart-shell[\s\S]+height: clamp/);
   assert.match(styles, /\.portfolio-history-canvas[\s\S]+touch-action: pan-y/);
 });
@@ -382,13 +389,16 @@ test("streamlined collection, intake, and trade surfaces keep primary actions vi
 
 test("consolidated workspace navigation remains responsive and routes to real workflows", () => {
   assert.match(appShell, /class="desktop-sidebar"/);
-  assert.equal([...appShell.matchAll(/class="sidebar-item/g)].length, 5);
+  assert.equal([...appShell.matchAll(/class="sidebar-item/g)].length, 4);
+  assert.doesNotMatch(appShell, /data-sidebar-target="analytics"/);
   assert.doesNotMatch(appShell, /data-sidebar-target="business"/);
   const bottomNavigation =
     appShell.match(/<nav class="bottom-nav"[\s\S]*?<\/nav>/)?.[0] || "";
   assert.match(bottomNavigation, /data-sidebar-target="dashboard"/);
   assert.match(bottomNavigation, /data-sidebar-target="collection"/);
+  assert.doesNotMatch(bottomNavigation, /data-route="insights"/);
   assert.doesNotMatch(bottomNavigation, /data-route="profile"/);
+  assert.match(appSource, /function integratePricingIntoCollection\(\)/);
   assert.match(appSource, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
   assert.match(appShell, /data-condition-filter="Raw"/);
   assert.match(appShell, /data-condition-filter="Graded"/);
@@ -802,6 +812,29 @@ test("additional purchases preserve a separate lot and reject future dates", () 
   assert.match(
     migration,
     /record_collection_purchase[\s\S]+?future_acquisition_date[\s\S]+?insert into public\.purchase_lots/i,
+  );
+});
+
+test("purchase-date market references are owner-scoped and cannot replace cost basis", () => {
+  assert.match(
+    purchaseMarketReferenceMigration,
+    /alter table public\.purchase_lots[\s\S]+market_unit_price_at_purchase/i,
+  );
+  assert.match(
+    purchaseMarketReferenceMigration,
+    /security invoker[\s\S]+auth\.uid\(\)[\s\S]+lot\.user_id=owner_id/i,
+  );
+  assert.match(
+    purchaseMarketReferenceMigration,
+    /market_reference_date_mismatch/,
+  );
+  assert.doesNotMatch(
+    purchaseMarketReferenceMigration,
+    /set\s+(?:total_cost|remaining_cost)\s*=/i,
+  );
+  assert.match(
+    purchaseMarketReferenceMigration,
+    /revoke all[\s\S]+from public,anon[\s\S]+grant execute[\s\S]+to authenticated/i,
   );
 });
 

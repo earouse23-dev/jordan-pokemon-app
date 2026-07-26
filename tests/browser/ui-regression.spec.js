@@ -5,7 +5,6 @@ const workspaces = ["guided", "growth", "pro"];
 const viewIds = [
   "view-collection",
   "view-scan",
-  "view-insights",
   "view-trade",
   "view-profile",
 ];
@@ -124,6 +123,16 @@ for (const theme of themes) {
       for (const viewId of viewIds) {
         await revealShell(page, { theme, viewId, workspace });
         await expect(page.locator(`#${viewId}`)).toBeVisible();
+        if (viewId === "view-collection") {
+          const marketTools = page.locator(
+            "#view-collection > #view-insights.collection-market-tools",
+          );
+          if (workspace === "guided") {
+            await expect(marketTools).toBeHidden();
+          } else {
+            await expect(marketTools).toBeVisible();
+          }
+        }
         const audit = await layoutAudit(page);
         await testInfo.attach(`${theme}-${workspace}-${viewId}.png`, {
           body: await page.screenshot({ fullPage: true }),

@@ -557,7 +557,7 @@ test("sealed positions hydrate from the same private FIFO portfolio model", () =
   assert.equal(position.costBasis, 160);
 });
 
-test("saved account values hydrate as current prices without changing purchase cost", () => {
+test("manual account values never replace provider prices or purchase cost", () => {
   const position = hydratePosition(
     {
       id: "manual-position",
@@ -588,14 +588,23 @@ test("saved account values hydrate as current prices without changing purchase c
         total_cost: 1500,
         remaining_cost: 1500,
         currency: "USD",
+        market_unit_price_at_purchase: 1246,
+        market_price_currency: "USD",
+        market_price_provider: "tcgplayer via pkmnprices",
+        market_price_observed_at: "2025-06-25T00:00:00Z",
       },
     ],
   );
-  assert.equal(position.manualPrice, 2600);
-  assert.equal(position.price, 2600);
-  assert.equal(position.pricingStatus, "manual");
+  assert.equal("manualPrice" in position, false);
+  assert.equal(position.price, null);
+  assert.equal(position.pricingStatus, "loading");
   assert.equal(position.costBasis, 1500);
   assert.equal(position.purchaseDate, "2025-06-25");
+  assert.equal(position.marketPriceAtPurchase, 1246);
+  assert.equal(
+    position.marketPriceAtPurchaseProvider,
+    "tcgplayer via pkmnprices",
+  );
 });
 
 test("position updates only send fields the user changed", async () => {
@@ -777,6 +786,9 @@ test("grading ledger details remain visible after hydration", () => {
     previousRawCondition: "near_mint",
     costBasisKnown: true,
     acquisitionDateKnown: true,
+    marketUnitPriceAtPurchase: null,
+    marketPriceProvider: "",
+    marketPriceObservedAt: null,
   });
 });
 
@@ -1413,6 +1425,9 @@ test("purchase entry points compare each lot with the current exact price", () =
           date: "2026-06-25",
           quantity: 2,
           totalCost: 1000,
+          marketUnitPriceAtPurchase: 540,
+          marketPriceProvider: "tcgplayer via pkmnprices",
+          marketPriceObservedAt: "2026-06-25T00:00:00Z",
         },
         {
           type: "sale",
@@ -1436,6 +1451,9 @@ test("purchase entry points compare each lot with the current exact price", () =
         totalCostMinor: 40000,
         unitCostMinor: 40000,
         currentUnitPriceMinor: 60000,
+        marketAtPurchaseMinor: null,
+        marketPriceProvider: "",
+        marketPriceObservedAt: null,
         changeMinor: 20000,
         returnPercent: 50,
       },
@@ -1445,6 +1463,9 @@ test("purchase entry points compare each lot with the current exact price", () =
         totalCostMinor: 100000,
         unitCostMinor: 50000,
         currentUnitPriceMinor: 60000,
+        marketAtPurchaseMinor: 54000,
+        marketPriceProvider: "tcgplayer via pkmnprices",
+        marketPriceObservedAt: "2026-06-25T00:00:00Z",
         changeMinor: 10000,
         returnPercent: 20,
       },
