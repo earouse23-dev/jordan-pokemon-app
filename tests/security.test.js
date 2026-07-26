@@ -266,7 +266,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v99/);
+  assert.match(serviceWorker, /mica-shell-v100/);
   assert.match(serviceWorker, /themes\.css\?v=75/);
 });
 
@@ -325,6 +325,8 @@ test("pre-filled account values stay isolated and read like normal saved data", 
   assert.match(appSource, /Saved current price/);
   assert.match(appSource, /Saved to this account/);
   assert.match(appSource, /savedAccountValue/);
+  assert.match(appSource, /accountLabel = isShowcaseAccount\(\)/);
+  assert.match(appSource, /Jordan.*collection/);
   assert.doesNotMatch(appSource, /Made-up data for the demo account only/);
   assert.doesNotMatch(appSource, /Showcase sample history/);
 });

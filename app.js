@@ -9483,6 +9483,9 @@ function ensureProfileAccount() {
     .replace(/[._-]+/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase())
     .trim();
+  const accountLabel = isShowcaseAccount()
+    ? `${profileName || "Jordan"}’s collection`
+    : email;
   const initials =
     profileName
       .split(/\s+/)
@@ -9502,7 +9505,7 @@ function ensureProfileAccount() {
   const profile = $(".profile-card");
   const strong = profile?.querySelector("strong");
   const span = profile?.querySelector("span");
-  if (strong) strong.textContent = email;
+  if (strong) strong.textContent = accountLabel;
   if (span)
     span.textContent =
       "Collection and purchase history sync securely across devices";
