@@ -25,10 +25,22 @@ function send(response, status, body, headers = {}) {
   return response.status(status).json(body);
 }
 
+function requestParameter(request, name) {
+  if (request.url) {
+    try {
+      return new URL(request.url, "https://mica.local").searchParams.get(name);
+    } catch {
+      // Fall through to the test/dev request shape.
+    }
+  }
+  const value = request.query?.[name];
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function parseLookup(request) {
   let raw;
   try {
-    raw = JSON.parse(String(request.query?.lookup || "{}"));
+    raw = JSON.parse(String(requestParameter(request, "lookup") || "{}"));
   } catch {
     return null;
   }
