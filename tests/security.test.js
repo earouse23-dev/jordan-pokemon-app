@@ -190,6 +190,21 @@ const catalogSchedulerMigration = await readFile(
   ),
   "utf8",
 );
+const freePlanCatalogMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260727213134_fit_catalog_to_free_plan.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const salesEndpoint = await readFile(
+  new URL("../api/sales.js", import.meta.url),
+  "utf8",
+);
+const offersEndpoint = await readFile(
+  new URL("../api/offers.js", import.meta.url),
+  "utf8",
+);
 const supabaseFunctionConfig = await readFile(
   new URL("../supabase/config.toml", import.meta.url),
   "utf8",
@@ -273,7 +288,7 @@ test("clean modern and analytics focused interfaces are selectable and persisten
   );
   assert.match(themes, /body\[data-ui-theme="clean"\]/);
   assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v101/);
+  assert.match(serviceWorker, /mica-shell-v102/);
   assert.match(serviceWorker, /themes\.css\?v=76/);
 });
 
@@ -1350,5 +1365,37 @@ test("catalog scheduling uses a fail-closed single-purpose credential", () => {
   assert.match(
     supabaseFunctionConfig,
     /\[functions\.sync-catalog\][\s\S]+verify_jwt\s*=\s*false/,
+  );
+});
+
+test("free-plan deployment cannot regrow the provider cache", () => {
+  assert.match(
+    freePlanCatalogMigration,
+    /cron\.unschedule[\s\S]+dispatch-catalog-sync[\s\S]+refresh-current-price-daily-metrics/,
+  );
+  assert.match(
+    freePlanCatalogMigration,
+    /catalog_sync_targets[\s\S]+status = 'paused'/,
+  );
+  assert.match(
+    freePlanCatalogMigration,
+    /truncate table[\s\S]+price_snapshots[\s\S]+price_daily_metrics[\s\S]+price_products/,
+  );
+  assert.doesNotMatch(
+    freePlanCatalogMigration,
+    /truncate table[\s\S]+(?:collection_items|collection_transactions|purchase_lots|card_watchlist|position_price_observations)/,
+  );
+  assert.match(
+    salesEndpoint,
+    /!\["pro", "business"\]\.includes\(config\.pkmnpricesPlan\)/,
+  );
+  assert.match(
+    offersEndpoint,
+    /!\["pro", "business"\]\.includes\(config\.pkmnpricesPlan\)/,
+  );
+  assert.match(appSource, /id="marketProofDetails"/);
+  assert.match(
+    appSource,
+    /marketProofDetails"\)\?\.addEventListener\("toggle"[\s\S]+event\.currentTarget\.open[\s\S]+loadSales\(item\)[\s\S]+loadOffers\(item\)/,
   );
 });

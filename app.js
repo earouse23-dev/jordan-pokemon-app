@@ -3686,7 +3686,7 @@ function renderDetail() {
     <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>Provider-recorded prices</span></div>${renderInteractiveHistory(item, displayPrice)}</section>
     <details class="detail-tool-group advanced-workspace"><summary><span><strong>Buying &amp; selling calculator</strong><small>Plan an offer${owned ? " or estimate what you keep after selling" : " or set a target price"}</small></span><b>Open</b></summary><div class="detail-tool-content">${renderBuyPlanner(item, displayPrice)}${owned ? renderSalePlanner(item, displayPrice) : ""}</div></details>
     ${sealed ? "" : `<details class="detail-tool-group advanced-workspace"><summary><span><strong>Professional grading calculator</strong><small>Compare grading cost with possible graded prices</small></span><b>Open</b></summary><div class="detail-tool-content">${renderGradedPriceLadder(item)}${renderGradingEstimator(item)}</div></details>`}
-    <details class="detail-tool-group advanced-workspace"><summary><span><strong>More price proof</strong><small>Cards currently for sale and completed-sale links</small></span><b>Open</b></summary><div class="detail-tool-content">${renderMarketplaceOffers(item)}${sealed ? '<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>Not available for unopened products</span></div><div class="unavailable-panel">PkmnPrices has a current unopened-product price, but its sold links only support individual cards. Mica does not use unrelated sales.</div></section>' : `<section class="detail-section"><div class="detail-section-head"><h2>Recent completed sales</h2><span>${item.salesStatus === "live" ? "Completed listings" : "Verified links when available"}</span></div>${renderSales(item)}</section>`}</div></details>
+    <details class="detail-tool-group advanced-workspace" id="marketProofDetails" ${item.marketProofOpen ? "open" : ""}><summary><span><strong>More price proof</strong><small>Cards currently for sale and completed-sale links</small></span><b>Open</b></summary><div class="detail-tool-content">${renderMarketplaceOffers(item)}${sealed ? '<section class="detail-section"><div class="detail-section-head"><h2>Recent sales</h2><span>Not available for unopened products</span></div><div class="unavailable-panel">PkmnPrices has a current unopened-product price, but its sold links only support individual cards. Mica does not use unrelated sales.</div></section>' : `<section class="detail-section"><div class="detail-section-head"><h2>Recent completed sales</h2><span>${item.salesStatus === "live" ? "Completed listings" : "Verified links when available"}</span></div>${renderSales(item)}</section>`}</div></details>
     ${renderCardMetadata(item) ? `<details class="detail-tool-group"><summary><span><strong>Card information</strong><small>Character, artist, moves, and set details</small></span><b>Open details</b></summary><div class="detail-tool-content">${renderCardMetadata(item)}</div></details>` : ""}
     ${owned ? `<details class="detail-tool-group"><summary><span><strong>Purchases &amp; notes</strong><small>What you paid, sales, grading, storage, and copies</small></span><b>Open</b></summary><div class="detail-tool-content">${owned ? renderCertificationVerification(item) : ""}${positionSection}${ownedSection}</div></details>` : ""}
     <p class="legal-copy">Prices are estimates, not guaranteed sale amounts. ${sealed ? "The box and seal" : "Wear on the card"} can change what someone will pay.</p>`;
@@ -3776,10 +3776,13 @@ function renderDetail() {
   bindBuyPlanner(item);
   bindSalePlanner(owned);
   mountPriceChart(item);
-  if (!sealed) {
-    void loadSales(item);
-    void loadOffers(item);
-  }
+  $("#marketProofDetails")?.addEventListener("toggle", (event) => {
+    item.marketProofOpen = event.currentTarget.open;
+    if (!sealed && event.currentTarget.open) {
+      void loadSales(item);
+      void loadOffers(item);
+    }
+  });
 }
 
 function identitySnapshot(card, variant) {

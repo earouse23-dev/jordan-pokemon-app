@@ -1,4 +1,5 @@
 import { fetchPkmnPricesSales } from "../lib/providers/pkmnprices.js";
+import { serverEnvironment } from "../lib/env.js";
 
 const SAFE_TEXT = /^[\p{L}\p{N} .:'&+\-/()#]{1,120}$/u;
 
@@ -47,12 +48,25 @@ export default async function handler(request, response) {
   const lookup = parseLookup(request);
   if (!lookup)
     return send(response, 400, { error: "Provide one valid card lookup." });
-  const apiKey = process.env.PKMNPRICES_API_KEY;
+  const config = serverEnvironment();
+  const apiKey = config.pkmnpricesApiKey;
   if (!apiKey)
     return send(response, 503, {
       error: "Licensed sold-listing data is not configured.",
       provider: "pkmnprices",
     });
+  if (!["pro", "business"].includes(config.pkmnpricesPlan))
+    return send(
+      response,
+      403,
+      {
+        error:
+          "Recent sold-listing evidence requires the PkmnPrices Pro plan.",
+        code: "provider_plan_required",
+        provider: "pkmnprices",
+      },
+      { "Cache-Control": "private, no-store" },
+    );
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9_000);

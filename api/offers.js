@@ -1,4 +1,5 @@
 import { fetchPkmnPricesOffers } from "../lib/providers/pkmnprices.js";
+import { serverEnvironment } from "../lib/env.js";
 
 const SAFE_TEXT = /^[\p{L}\p{N} .:'&+\-/()#]{1,120}$/u;
 const windows = new Map();
@@ -71,12 +72,24 @@ export default async function handler(request, response) {
   const lookup = parseLookup(request);
   if (!lookup)
     return send(response, 400, { error: "Provide one valid card lookup." });
-  const apiKey = process.env.PKMNPRICES_API_KEY;
+  const config = serverEnvironment();
+  const apiKey = config.pkmnpricesApiKey;
   if (!apiKey)
     return send(response, 503, {
       error: "Live marketplace offers are not configured.",
       provider: "pkmnprices",
     });
+  if (!["pro", "business"].includes(config.pkmnpricesPlan))
+    return send(
+      response,
+      403,
+      {
+        error: "Live marketplace offers require the PkmnPrices Pro plan.",
+        code: "provider_plan_required",
+        provider: "pkmnprices",
+      },
+      { "Cache-Control": "private, no-store" },
+    );
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9_000);
@@ -106,6 +119,13 @@ export default async function handler(request, response) {
       status: error?.status || null,
       name: error?.name || "Error",
     });
+    if (error?.status === 403)
+      return send(response, 403, {
+        error:
+          "The current PkmnPrices key does not have access to marketplace offers.",
+        code: "provider_plan_required",
+        provider: "pkmnprices",
+      });
     const status = error?.status === 429 ? 429 : 502;
     return send(response, status, {
       error:
