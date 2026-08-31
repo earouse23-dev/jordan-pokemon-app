@@ -1952,3 +1952,3966 @@ body[data-ui-theme] .collection-actions .quick-add {
     font-size: 16px;
   }
 }
+/* Mica approved visual system — one cream and sage interface. */
+body[data-ui-theme="mica"] {
+  --canvas: #f5f0e4;
+  --paper: #fbf8f0;
+  --paper-strong: #fffdf8;
+  --ink: #30382d;
+  --muted: #746f65;
+  --faint: #8d877b;
+  --line: #ded6c7;
+  --line-dark: #c9bfad;
+  --pine: #66785d;
+  --pine-2: #4f6348;
+  --mint: #e4eadf;
+  --copper: #b14b3f;
+  --copper-soft: #f4ded8;
+  --gold: #d2a51f;
+  --danger: #a93f36;
+  --shadow: 0 14px 36px rgba(48, 56, 45, 0.1);
+  color-scheme: light;
+  background:
+    radial-gradient(
+      circle at 12% 8%,
+      rgba(168, 184, 154, 0.16),
+      transparent 28rem
+    ),
+    #f5f0e4;
+}
+
+body[data-ui-theme="mica"] .app-shell {
+  background:
+    linear-gradient(rgba(245, 240, 228, 0.94), rgba(245, 240, 228, 0.94)),
+    repeating-linear-gradient(
+      45deg,
+      transparent 0 28px,
+      rgba(102, 120, 93, 0.035) 29px 30px
+    );
+}
+
+body[data-ui-theme="mica"] .app-header,
+body[data-ui-theme="mica"] .desktop-sidebar {
+  background: color-mix(in srgb, var(--paper-strong) 94%, transparent);
+  border-color: var(--line);
+}
+
+body[data-ui-theme="mica"] .sidebar-brand,
+body[data-ui-theme="mica"] .wordmark,
+body[data-ui-theme="mica"] .auth-brand {
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"] .sidebar-gem,
+body[data-ui-theme="mica"] .wordmark-gem {
+  filter: none;
+}
+
+body[data-ui-theme="mica"] .sidebar-gem i,
+body[data-ui-theme="mica"] .wordmark-gem,
+body[data-ui-theme="mica"] .wordmark-gem::before {
+  background: linear-gradient(145deg, #a8b89a, #66785d);
+}
+
+body[data-ui-theme="mica"] .sidebar-item {
+  color: var(--muted);
+  border: 1px solid transparent;
+}
+
+body[data-ui-theme="mica"] .sidebar-item:hover {
+  color: var(--ink);
+  background: var(--mint);
+}
+
+body[data-ui-theme="mica"] .sidebar-item.active {
+  color: #fffdf8;
+  background: #66785d;
+  border-color: #596b52;
+  box-shadow: 0 8px 20px rgba(102, 120, 93, 0.2);
+}
+
+body[data-ui-theme="mica"] .sidebar-item.active::before {
+  background: #d2a51f;
+}
+
+body[data-ui-theme="mica"] .sidebar-item.active > span {
+  color: #f5f0e4;
+}
+
+body[data-ui-theme="mica"] .sidebar-brand small {
+  color: #66785d;
+}
+
+body[data-ui-theme="mica"] .sidebar-account {
+  border-color: var(--line);
+  background: #30382d;
+  color: #f5f0e4;
+}
+
+body[data-ui-theme="mica"] .sidebar-avatar {
+  border-color: #a8b89a;
+  background: #66785d;
+  color: #fffdf8;
+}
+
+body[data-ui-theme="mica"] .sidebar-account small {
+  color: #ded6c7;
+}
+
+body[data-ui-theme="mica"] .view {
+  width: 100%;
+  max-width: 1600px;
+  padding-inline: clamp(16px, 3vw, 46px);
+}
+
+body[data-ui-theme="mica"] h1,
+body[data-ui-theme="mica"] h2,
+body[data-ui-theme="mica"] h3 {
+  color: var(--ink);
+  letter-spacing: -0.025em;
+}
+
+body[data-ui-theme="mica"] .eyebrow {
+  color: #66785d;
+}
+
+body[data-ui-theme="mica"] button.primary,
+body[data-ui-theme="mica"] .primary,
+body[data-ui-theme="mica"] .quick-add,
+body[data-ui-theme="mica"] .primary-action,
+body[data-ui-theme="mica"] .scan-button {
+  border-color: #66785d;
+  background: #66785d;
+  color: #fffdf8;
+  box-shadow: 0 8px 18px rgba(102, 120, 93, 0.2);
+}
+
+body[data-ui-theme="mica"] button.primary:hover,
+body[data-ui-theme="mica"] .primary:hover,
+body[data-ui-theme="mica"] .quick-add:hover {
+  background: #4f6348;
+}
+
+body[data-ui-theme="mica"] :focus-visible {
+  outline: 3px solid rgba(102, 120, 93, 0.42);
+  outline-offset: 3px;
+}
+
+body[data-ui-theme="mica"] .dashboard-kpi,
+body[data-ui-theme="mica"] .portfolio-history-panel,
+body[data-ui-theme="mica"] .portfolio-detail-panel,
+body[data-ui-theme="mica"] .dashboard-owned-tools > section,
+body[data-ui-theme="mica"] .add-search-panel,
+body[data-ui-theme="mica"] .add-capture-panel,
+body[data-ui-theme="mica"] .trade-side,
+body[data-ui-theme="mica"] .settings-group,
+body[data-ui-theme="mica"] .detail-section,
+body[data-ui-theme="mica"] .market-hero,
+body[data-ui-theme="mica"] .detail-tool-group,
+body[data-ui-theme="mica"] .auth-card {
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper-strong) 96%, transparent);
+  box-shadow: 0 10px 28px rgba(48, 56, 45, 0.06);
+}
+
+body[data-ui-theme="mica"] .dashboard-kpi::after,
+body[data-ui-theme="mica"] .portfolio-history-panel::after,
+body[data-ui-theme="mica"] .add-search-panel::after {
+  content: "";
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  right: 12px;
+  bottom: 10px;
+  border: 1px solid rgba(102, 120, 93, 0.12);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      transparent 28%,
+      rgba(102, 120, 93, 0.09) 30% 36%,
+      transparent 38%
+    ),
+    linear-gradient(
+      45deg,
+      transparent 47%,
+      rgba(102, 120, 93, 0.09) 49% 51%,
+      transparent 53%
+    );
+  pointer-events: none;
+}
+
+body[data-ui-theme="mica"] .dashboard-kpi,
+body[data-ui-theme="mica"] .portfolio-history-panel,
+body[data-ui-theme="mica"] .add-search-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+body[data-ui-theme="mica"] .dashboard-kpis {
+  grid-template-columns: minmax(250px, 1.6fr) repeat(3, minmax(150px, 0.8fr));
+}
+
+body[data-ui-theme="mica"] .dashboard-kpi.primary {
+  background: linear-gradient(135deg, #e6ecdf, #fbf8f0);
+}
+
+body[data-ui-theme="mica"] .dashboard-analytics-grid {
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.75fr);
+  align-items: stretch;
+}
+
+body[data-ui-theme="mica"] .portfolio-chart-shell {
+  min-height: 330px;
+}
+
+body[data-ui-theme="mica"] .dashboard-owned-tools {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+body[data-ui-theme="mica"] .dashboard-owned-tools > section {
+  min-width: 0;
+  padding: 18px;
+  border-radius: 14px;
+}
+
+body[data-ui-theme="mica"] .business-performance-compact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+body[data-ui-theme="mica"]
+  .business-performance-compact
+  > div:not(.compact-empty) {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #f5f0e4;
+}
+
+body[data-ui-theme="mica"] .business-performance-compact span,
+body[data-ui-theme="mica"] .business-performance-compact strong {
+  display: block;
+}
+
+body[data-ui-theme="mica"] .business-performance-compact span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .business-performance-compact strong {
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+body[data-ui-theme="mica"] .dashboard-card-row,
+body[data-ui-theme="mica"] .activity-row {
+  width: 100%;
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+}
+
+body[data-ui-theme="mica"] .activity-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+body[data-ui-theme="mica"] .dashboard-card-row:last-child,
+body[data-ui-theme="mica"] .activity-row:last-child {
+  border-bottom: 0;
+}
+
+body[data-ui-theme="mica"] .dashboard-card-row:hover,
+body[data-ui-theme="mica"] .activity-row:hover {
+  background: var(--mint);
+}
+
+body[data-ui-theme="mica"] .dashboard-card-row img {
+  width: 42px;
+  height: 56px;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+body[data-ui-theme="mica"] .dashboard-card-row span,
+body[data-ui-theme="mica"] .activity-row span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+body[data-ui-theme="mica"] .dashboard-card-row span:last-child,
+body[data-ui-theme="mica"] .activity-row span:last-child {
+  text-align: right;
+}
+
+body[data-ui-theme="mica"] .dashboard-card-row small,
+body[data-ui-theme="mica"] .activity-row small,
+body[data-ui-theme="mica"] .compact-empty span {
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"] .dashboard-card-row .up,
+body[data-ui-theme="mica"] .row-move.up,
+body[data-ui-theme="mica"] .positive {
+  color: #3f713b;
+}
+
+body[data-ui-theme="mica"] .dashboard-card-row .down,
+body[data-ui-theme="mica"] .row-move.down,
+body[data-ui-theme="mica"] .negative {
+  color: #a93f36;
+}
+
+body[data-ui-theme="mica"] .compact-empty {
+  display: grid;
+  gap: 5px;
+  padding: 26px 8px;
+  text-align: center;
+}
+
+body[data-ui-theme="mica"] .view-tabs {
+  position: sticky;
+  z-index: 8;
+  top: calc(70px + var(--safe-top));
+  padding: 8px 0;
+  background: color-mix(in srgb, var(--canvas) 94%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+body[data-ui-theme="mica"] .view-tab.active,
+body[data-ui-theme="mica"] .view-tab:hover {
+  border-color: #a8b89a;
+  background: #e4eadf;
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"] .card-ledger {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+  gap: 14px;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+body[data-ui-theme="mica"] .ledger-row {
+  min-width: 0;
+  min-height: 410px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 215px auto auto auto;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper-strong);
+  box-shadow: 0 8px 22px rgba(48, 56, 45, 0.06);
+}
+
+body[data-ui-theme="mica"] .ledger-row:hover {
+  border-color: #a8b89a;
+  transform: translateY(-2px);
+}
+
+body[data-ui-theme="mica"] .ledger-row .card-thumb {
+  grid-column: 1 / -1;
+  width: auto;
+  height: 215px;
+  max-width: 160px;
+  justify-self: center;
+  border-radius: 9px;
+  object-fit: contain;
+  background: #eee8dc;
+}
+
+body[data-ui-theme="mica"] .ledger-row .card-main {
+  grid-column: 1 / -1;
+}
+
+body[data-ui-theme="mica"] .ledger-row .position-price-grid.compact {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+body[data-ui-theme="mica"] .position-price-grid.compact span {
+  padding: 9px;
+  border-radius: 8px;
+  background: #f5f0e4;
+}
+
+body[data-ui-theme="mica"] .ledger-row .price-cell {
+  grid-column: 1 / -1;
+  min-width: 0;
+  align-items: flex-start;
+  text-align: left;
+}
+
+body[data-ui-theme="mica"] .ledger-favorite {
+  position: absolute;
+  z-index: 4;
+  top: 12px;
+  right: 12px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(255, 253, 248, 0.92);
+  color: #98948b;
+  font-size: 20px;
+}
+
+body[data-ui-theme="mica"] .ledger-favorite.selected,
+body[data-ui-theme="mica"] .favorite-heart.selected {
+  color: #b53e36;
+}
+
+body[data-ui-theme="mica"] .ledger-quick-add {
+  position: relative;
+  z-index: 4;
+  right: auto;
+  bottom: auto;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+  background: #66785d;
+  color: white;
+  font-size: 22px;
+}
+
+body[data-ui-theme="mica"] .add-cards-layout {
+  grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.65fr);
+}
+
+body[data-ui-theme="mica"] .find-action,
+body[data-ui-theme="mica"] .sealed-search-launch {
+  border-color: var(--line);
+  background: #f5f0e4;
+}
+
+body[data-ui-theme="mica"] .find-action.primary-find {
+  border-color: #66785d;
+  background: #66785d;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .find-action.primary-find small {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+body[data-ui-theme="mica"] .find-action:hover,
+body[data-ui-theme="mica"] .sealed-search-launch:hover {
+  border-color: #a8b89a;
+  background: #e4eadf;
+}
+
+body[data-ui-theme="mica"] .password-input button {
+  width: 46px;
+  min-width: 46px;
+  padding: 10px;
+}
+
+body[data-ui-theme="mica"] .password-input button svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+
+body[data-ui-theme="mica"] .password-input button.showing svg circle {
+  fill: currentColor;
+}
+
+body[data-ui-theme="mica"] .icon-button {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+}
+
+body[data-ui-theme="mica"] .favorite-heart {
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  color: #98948b;
+  font-size: 20px;
+}
+
+body[data-ui-theme="mica"] .value-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+body[data-ui-theme="mica"] .advanced-workspace {
+  display: revert;
+}
+
+body[data-ui-theme="mica"] .collection-market-tools,
+body[data-ui-theme="mica"] #view-insights {
+  display: none !important;
+}
+
+body[data-ui-theme="mica"] .trade-side {
+  border-top: 4px solid #a8b89a;
+}
+
+body[data-ui-theme="mica"] .trade-side.receive {
+  border-top-color: #d2a51f;
+}
+
+body[data-ui-theme="mica"] .settings-group > summary {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 4px 0;
+  color: var(--ink);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+body[data-ui-theme="mica"] #view-profile.active {
+  display: flex;
+  flex-direction: column;
+}
+
+body[data-ui-theme="mica"] #view-profile .screen-heading {
+  order: 1;
+}
+
+body[data-ui-theme="mica"] #accountSettings {
+  order: 2;
+}
+
+body[data-ui-theme="mica"] #everydaySettings {
+  order: 3;
+}
+
+body[data-ui-theme="mica"] #collectionDataSettings {
+  order: 4;
+}
+
+body[data-ui-theme="mica"] #notificationSettings {
+  order: 5;
+}
+
+body[data-ui-theme="mica"] #privacySettings {
+  order: 6;
+}
+
+body[data-ui-theme="mica"] #advancedSettings {
+  order: 7;
+}
+
+body[data-ui-theme="mica"] #view-profile > .legal-copy {
+  order: 8;
+}
+
+body[data-ui-theme="mica"] .purchase-notes {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f5f0e4;
+}
+
+@media (max-width: 980px) {
+  body[data-ui-theme="mica"] .dashboard-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body[data-ui-theme="mica"] .dashboard-analytics-grid,
+  body[data-ui-theme="mica"] .dashboard-owned-tools,
+  body[data-ui-theme="mica"] .add-cards-layout {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-ui-theme="mica"] .portfolio-chart-shell {
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  body[data-ui-theme="mica"] .view {
+    padding-inline: 14px;
+  }
+
+  body[data-ui-theme="mica"] .dashboard-kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  body[data-ui-theme="mica"] .dashboard-kpi.primary {
+    grid-column: 1 / -1;
+  }
+
+  body[data-ui-theme="mica"] .card-ledger {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  body[data-ui-theme="mica"] .ledger-row {
+    min-height: 345px;
+    grid-template-rows: 155px auto auto auto;
+    padding: 10px;
+  }
+
+  body[data-ui-theme="mica"] .ledger-row .card-thumb {
+    height: 155px;
+    max-width: 116px;
+  }
+
+  body[data-ui-theme="mica"] .card-name {
+    font-size: 13px;
+  }
+
+  body[data-ui-theme="mica"] .position-price-grid.compact span {
+    padding: 7px;
+  }
+
+  body[data-ui-theme="mica"] .position-price-grid.compact small {
+    font-size: 12px;
+  }
+
+  body[data-ui-theme="mica"] .position-price-grid.compact strong {
+    font-size: 12px;
+  }
+
+  body[data-ui-theme="mica"] .ledger-favorite {
+    top: 7px;
+    right: 7px;
+  }
+
+  body[data-ui-theme="mica"] .portfolio-history-head {
+    align-items: flex-start;
+  }
+
+  body[data-ui-theme="mica"] .portfolio-history-toggle {
+    width: 100%;
+  }
+
+  body[data-ui-theme="mica"] .portfolio-history-toggle button {
+    flex: 1;
+  }
+
+  body[data-ui-theme="mica"] .dashboard-card-row {
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+  }
+}
+
+@media (max-width: 370px) {
+  body[data-ui-theme="mica"] .card-ledger {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-ui-theme="mica"] .dashboard-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-ui-theme="mica"] .dashboard-kpi.primary {
+    grid-column: auto;
+  }
+}
+
+/* Digital grading studio — research-led high-contrast capture and report UI. */
+body[data-ui-theme="mica"] #view-scan {
+  --grade-black: #050606;
+  --grade-panel: #111313;
+  --grade-panel-2: #181a1a;
+  --grade-line: rgba(255, 255, 255, 0.13);
+  --grade-muted: #a7aaaa;
+  --grade-violet: #3d2cff;
+  --grade-green: #28c37b;
+  width: 100%;
+  padding: clamp(18px, 3vw, 38px);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 72% 4%, rgba(96, 52, 255, 0.2), transparent 28%),
+    radial-gradient(
+      circle at 26% 12%,
+      rgba(255, 160, 56, 0.08),
+      transparent 24%
+    ),
+    var(--grade-black);
+  color: #fff;
+  box-shadow: 0 28px 70px rgba(16, 18, 16, 0.2);
+}
+
+body[data-ui-theme="mica"] .add-grade-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.75fr);
+  gap: clamp(28px, 5vw, 76px);
+  align-items: center;
+  min-height: 610px;
+  padding: clamp(18px, 4vw, 58px) clamp(4px, 2vw, 26px);
+}
+
+body[data-ui-theme="mica"] .add-grade-hero-copy {
+  max-width: 680px;
+}
+
+body[data-ui-theme="mica"] .add-grade-hero .eyebrow {
+  margin: 0 0 16px;
+  color: #c7c2ff;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+}
+
+body[data-ui-theme="mica"] .add-grade-hero h1 {
+  margin: 0;
+  color: #fff;
+  font: 950 clamp(46px, 6.2vw, 94px) / 0.86 var(--font-sans);
+  letter-spacing: -0.065em;
+}
+
+body[data-ui-theme="mica"] .add-grade-hero-copy > p:not(.eyebrow) {
+  max-width: 570px;
+  margin: 24px 0 0;
+  color: #bfc1c1;
+  font-size: clamp(14px, 1.4vw, 18px);
+  line-height: 1.55;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch {
+  width: min(100%, 540px);
+  min-height: 94px;
+  margin: 30px 0 0;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 22px;
+  background:
+    linear-gradient(#171818, #171818) padding-box,
+    linear-gradient(110deg, #ffc02f, #e66c83 48%, #7c43ff) border-box;
+  color: #fff;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.36);
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch:hover {
+  transform: translateY(-2px);
+  background:
+    linear-gradient(#202121, #202121) padding-box,
+    linear-gradient(110deg, #ffc02f, #e66c83 48%, #7c43ff) border-box;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch small,
+body[data-ui-theme="mica"] .digital-grader-launch em {
+  color: #c8caca;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch strong {
+  color: #fff;
+  font-size: 21px;
+}
+
+body[data-ui-theme="mica"] .digital-grader-mark {
+  border-radius: 16px;
+  background: linear-gradient(145deg, #ffbd32, #dc718d 50%, #623eff);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.44),
+    0 9px 25px rgba(91, 56, 255, 0.24);
+}
+
+body[data-ui-theme="mica"] .grading-proof-strip {
+  width: min(100%, 540px);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 18px 0 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--grade-line);
+  border-radius: 14px;
+  background: var(--grade-line);
+}
+
+body[data-ui-theme="mica"] .grading-proof-strip div {
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+body[data-ui-theme="mica"] .grading-proof-strip dt {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 850;
+}
+
+body[data-ui-theme="mica"] .grading-proof-strip dd {
+  margin: 3px 0 0;
+  color: var(--grade-muted);
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .add-grade-report-preview {
+  position: relative;
+  width: min(100%, 390px);
+  min-height: 535px;
+  justify-self: center;
+  padding: 17px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 42px;
+  background: linear-gradient(155deg, #181a1a, #090a0a 74%);
+  box-shadow:
+    0 42px 100px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+body[data-ui-theme="mica"] .add-grade-report-preview::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 80% 92%,
+    rgba(88, 51, 255, 0.32),
+    transparent 26%
+  );
+  pointer-events: none;
+}
+
+body[data-ui-theme="mica"] .preview-report-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 3px 13px;
+  color: #b7baba;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-ui-theme="mica"] .preview-report-top i {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+body[data-ui-theme="mica"] .preview-card-frame {
+  position: relative;
+  width: 72%;
+  margin: 0 auto;
+  padding: 14px;
+  border-radius: 24px;
+  background: #e7e4dc;
+}
+
+body[data-ui-theme="mica"] .preview-card-art {
+  aspect-ratio: 63 / 88;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 8px solid #e8ad35;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 65% 34%, #ffe56e 0 6%, transparent 7%),
+    radial-gradient(circle at 45% 48%, #f05e31 0 22%, transparent 23%),
+    linear-gradient(145deg, #5a2da6, #f29c38 50%, #c3322a);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 950;
+  font-style: italic;
+  text-shadow: 0 3px 0 #2259a8;
+}
+
+body[data-ui-theme="mica"] .preview-defect {
+  position: absolute;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 7px;
+  background: #d51c27;
+  color: #fff;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .preview-defect.one {
+  top: 10%;
+  left: 4%;
+}
+
+body[data-ui-theme="mica"] .preview-defect.two {
+  right: 4%;
+  bottom: 10%;
+}
+
+body[data-ui-theme="mica"] .preview-grade-ticket {
+  position: relative;
+  z-index: 1;
+  min-height: 91px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 1fr 1fr;
+  align-items: center;
+  gap: 0 14px;
+  margin: -25px 0 12px;
+  padding: 13px 17px;
+  border: 1px solid transparent;
+  border-radius: 19px;
+  background:
+    linear-gradient(#1c1819, #1c1819) padding-box,
+    linear-gradient(100deg, #f3bd31, #a349ec) border-box;
+}
+
+body[data-ui-theme="mica"] .preview-grade-ticket .digital-grader-mark {
+  grid-row: 1 / 3;
+}
+
+body[data-ui-theme="mica"] .preview-grade-ticket strong {
+  align-self: end;
+  color: #fff;
+  font-size: 38px;
+  line-height: 0.9;
+}
+
+body[data-ui-theme="mica"] .preview-grade-ticket small {
+  align-self: start;
+  color: #b8baba;
+}
+
+body[data-ui-theme="mica"] .preview-subgrades {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+body[data-ui-theme="mica"] .preview-subgrades span {
+  display: flex;
+  justify-content: space-between;
+  padding: 9px 10px;
+  border: 1px solid var(--grade-line);
+  border-radius: 9px;
+  color: #979b9a;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .preview-subgrades b {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .grading-activity {
+  margin: 18px 0 0;
+  padding: 22px;
+  border: 1px solid var(--grade-line);
+  border-radius: 20px;
+  background: #0b0c0c;
+}
+
+body[data-ui-theme="mica"] .grading-activity-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+body[data-ui-theme="mica"] .grading-activity-heading span {
+  color: #9d7dff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+body[data-ui-theme="mica"] .grading-activity-heading h2 {
+  margin: 5px 0 0;
+  color: #fff;
+  font-size: clamp(25px, 3vw, 38px);
+}
+
+body[data-ui-theme="mica"] .grading-activity-heading button,
+body[data-ui-theme="mica"] .grading-activity-row button,
+body[data-ui-theme="mica"] .grading-activity-empty button {
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: 999px;
+  background: #171919;
+  color: #fff;
+  font-weight: 750;
+}
+
+body[data-ui-theme="mica"] #gradingActivityList {
+  display: grid;
+  gap: 8px;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+body[data-ui-theme="mica"] .grading-activity-score {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #6d55ff;
+  border-radius: 13px;
+  background: linear-gradient(150deg, #3427d8, #1a133f);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row > div {
+  min-width: 0;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row strong,
+body[data-ui-theme="mica"] .grading-activity-row small {
+  display: block;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row strong {
+  overflow: hidden;
+  color: #fff;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row small,
+body[data-ui-theme="mica"] .grading-activity-note {
+  margin-top: 4px;
+  color: #929694;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row em {
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row em.complete {
+  background: rgba(40, 195, 123, 0.14);
+  color: #80e8b6;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row em.review {
+  background: rgba(244, 176, 54, 0.14);
+  color: #ffd27b;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row em.working {
+  background: rgba(122, 93, 255, 0.18);
+  color: #c2b6ff;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row em.muted {
+  background: rgba(255, 255, 255, 0.07);
+  color: #a4a8a6;
+}
+
+body[data-ui-theme="mica"] .grading-activity-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 70px;
+  padding: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  color: #a2a6a4;
+}
+
+body[data-ui-theme="mica"] .grading-activity-empty strong,
+body[data-ui-theme="mica"] .grading-activity-empty span {
+  display: block;
+}
+
+body[data-ui-theme="mica"] .grading-activity-empty button {
+  margin-left: auto;
+}
+
+body[data-ui-theme="mica"] #view-scan .add-cards-layout {
+  grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.65fr);
+  gap: 16px;
+  padding-top: 28px;
+  border-top: 1px solid var(--grade-line);
+}
+
+body[data-ui-theme="mica"] #view-scan .add-search-panel,
+body[data-ui-theme="mica"] #view-scan .add-capture-panel {
+  border-color: var(--grade-line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #fff;
+  box-shadow: none;
+}
+
+body[data-ui-theme="mica"] #view-scan .add-search-panel::after {
+  display: none;
+}
+
+body[data-ui-theme="mica"] #view-scan .add-panel-heading span {
+  color: #b4aaff;
+}
+
+body[data-ui-theme="mica"] #view-scan .add-panel-heading h2,
+body[data-ui-theme="mica"] #view-scan .find-empty strong {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] #view-scan .find-search {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: #111313;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] #view-scan .find-search input,
+body[data-ui-theme="mica"] #view-scan select {
+  color: #fff;
+  background-color: transparent;
+}
+
+body[data-ui-theme="mica"] #view-scan .find-search input::placeholder,
+body[data-ui-theme="mica"] #view-scan .search-options label,
+body[data-ui-theme="mica"] #view-scan .find-empty span,
+body[data-ui-theme="mica"] #view-scan .simple-privacy {
+  color: #929695;
+}
+
+body[data-ui-theme="mica"] #view-scan .search-examples button {
+  border-color: var(--grade-line);
+  background: #151717;
+  color: #c9cccc;
+}
+
+body[data-ui-theme="mica"] #view-scan .quick-results {
+  border-color: var(--grade-line);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action,
+body[data-ui-theme="mica"] #view-scan .sealed-search-launch {
+  border-color: var(--grade-line);
+  background: #121414;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action.primary-find {
+  border-color: #4b39ff;
+  background: #3d2cff;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action small,
+body[data-ui-theme="mica"] #view-scan .sealed-search-launch small {
+  color: #969a99;
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action.primary-find small {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+body[data-ui-theme="mica"] .vision-choice-grid.identification-only {
+  grid-template-columns: 1fr;
+}
+
+body[data-ui-theme="mica"] #view-scan .sealed-search-launch b {
+  color: #b7adff;
+}
+
+body[data-ui-theme="mica"] #bottomSheet[data-experience="grading"] {
+  left: 50%;
+  width: min(980px, 100%);
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  transform: translateX(-50%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(76, 45, 255, 0.18), transparent 26%),
+    #060707;
+  color: #f8f8f8;
+  box-shadow: 0 0 100px rgba(0, 0, 0, 0.72);
+  animation: none;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-handle {
+  display: none;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  #sheetContent {
+  width: min(100%, 820px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: max(18px, var(--safe-top)) clamp(16px, 4vw, 38px)
+    max(24px, var(--safe-bottom));
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-heading {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-heading
+  h2,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-heading
+  p {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-heading
+  p {
+  color: #a5a8a7;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-close {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 0 13px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress span,
+body[data-ui-theme="mica"] .grading-capture-progress strong {
+  display: block;
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress span {
+  color: #999d9b;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress strong {
+  margin-top: 3px;
+  color: #fff;
+  font-size: 13px;
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress ol {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress li {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  border-radius: 50%;
+  color: #777b79;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress li.complete,
+body[data-ui-theme="mica"] .grading-capture-progress li.active {
+  border-color: #725eff;
+  background: #3d2cff;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .auto-capture-stage {
+  min-height: min(62dvh, 610px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  background: #000;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .auto-capture-stage
+  video,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .auto-capture-stage
+  > img {
+  height: min(62dvh, 610px);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .auto-capture-guide {
+  border-color: rgba(255, 255, 255, 0.58);
+  box-shadow:
+    0 0 0 999px rgba(0, 0, 0, 0.36),
+    0 0 42px rgba(70, 49, 255, 0.22);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .auto-capture-guide
+  i {
+  border-color: #8d7dff;
+}
+
+body[data-ui-theme="mica"] .camera-check-rail {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+body[data-ui-theme="mica"] .camera-check-rail span {
+  min-width: 0;
+  padding: 7px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #777b79;
+  font-size: 12px;
+  text-align: center;
+}
+
+body[data-ui-theme="mica"] .camera-check-rail span[data-state="pass"] {
+  border-color: rgba(40, 195, 123, 0.55);
+  background: rgba(40, 195, 123, 0.14);
+  color: #80e8b6;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .automation-privacy {
+  margin: 10px auto 0;
+  color: #8f9391;
+  text-align: center;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .automation-privacy
+  strong {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .camera-capture-actions
+  > button,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .camera-upload-fallback {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .camera-shutter {
+  border-color: #fff;
+  background: transparent;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .camera-shutter
+  i {
+  background: #fff;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .camera-use-photo,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  button.primary {
+  border-color: #3d2cff;
+  background: #3d2cff;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .precision-prepare {
+  display: grid;
+  gap: 10px;
+  margin-top: 26px;
+}
+
+body[data-ui-theme="mica"] .precision-prepare > div {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.8fr) minmax(100px, 1fr) 95px;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body[data-ui-theme="mica"] .precision-prepare span,
+body[data-ui-theme="mica"] .precision-prepare strong {
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .precision-prepare strong {
+  color: #8e9290;
+  text-align: right;
+}
+
+body[data-ui-theme="mica"] .precision-prepare i {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #272929;
+}
+
+body[data-ui-theme="mica"] .precision-prepare i b {
+  width: 0;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffc02f, #d96595, #6d46ff);
+  transition: width 300ms ease;
+}
+
+body[data-ui-theme="mica"] .precision-prepare > div[data-state="active"] i b {
+  width: 58%;
+  animation: grade-process 1.2s ease-in-out infinite alternate;
+}
+
+body[data-ui-theme="mica"] .precision-prepare > div[data-state="complete"] i b {
+  width: 100%;
+  background: #28c37b;
+}
+
+body[data-ui-theme="mica"]
+  .precision-prepare
+  > div[data-state="complete"]
+  strong {
+  color: #80e8b6;
+}
+
+body[data-ui-theme="mica"] .grading-process-heading > div > span {
+  color: #b5aaff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+body[data-ui-theme="mica"] .grading-process-heading h2 {
+  margin-top: 6px !important;
+  font-size: clamp(27px, 5vw, 42px) !important;
+}
+
+body[data-ui-theme="mica"] .grading-process-note {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-top: 22px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+body[data-ui-theme="mica"] .grading-process-note p {
+  margin: 0;
+  color: #999d9b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+body[data-ui-theme="mica"] .grading-process-note strong {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing {
+  gap: 17px;
+  margin-top: 28px;
+  padding: clamp(18px, 4vw, 32px);
+  border-color: rgba(255, 255, 255, 0.13);
+  border-radius: 24px;
+  background: #101212;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing
+  > div {
+  grid-template-columns: 1fr auto;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing
+  > div
+  i {
+  grid-column: 1 / -1;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing
+  span {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing
+  small {
+  color: #898d8b;
+  text-align: right;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing-overall {
+  margin: 6px -10px -2px;
+  padding: 18px 12px;
+  border: 1px solid rgba(128, 98, 255, 0.58);
+  border-radius: 18px;
+  background: #3324fa;
+}
+
+body[data-ui-theme="mica"] .grading-report-top {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  margin: calc(max(18px, var(--safe-top)) * -1)
+    calc(clamp(16px, 4vw, 38px) * -1) 20px;
+  padding: max(8px, var(--safe-top)) clamp(16px, 4vw, 38px) 9px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 7, 7, 0.88);
+  backdrop-filter: blur(18px);
+}
+
+body[data-ui-theme="mica"] .grading-report-top div {
+  text-align: center;
+}
+
+body[data-ui-theme="mica"] .grading-report-top span,
+body[data-ui-theme="mica"] .grading-report-top strong {
+  display: block;
+}
+
+body[data-ui-theme="mica"] .grading-report-top span,
+body[data-ui-theme="mica"] .grading-report-top small {
+  color: #858987;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-ui-theme="mica"] .grading-report-top strong {
+  margin-top: 2px;
+  color: #fff;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-result-head {
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  background: #111313;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-result-head strong {
+  color: #fff;
+  font-size: 18px;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-result-head span,
+body[data-ui-theme="mica"] .grading-report-shell .vision-result-head small {
+  color: #8f9391;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-quality {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #111313;
+  color: #c4c7c5;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-quality.ready {
+  border-color: rgba(40, 195, 123, 0.45);
+  background: rgba(40, 195, 123, 0.09);
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-quality.blocking {
+  border-color: rgba(255, 86, 94, 0.5);
+  background: rgba(255, 86, 94, 0.09);
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade-hero {
+  min-height: 190px;
+  align-items: stretch;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 22px;
+  background:
+    linear-gradient(#171516, #171516) padding-box,
+    linear-gradient(110deg, #f5bd28, #d36296 50%, #7147ff) border-box;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade-hero > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 20px;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-condition-score {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 188, 42, 0.1),
+    rgba(105, 65, 255, 0.18)
+  );
+}
+
+body[data-ui-theme="mica"]
+  .grading-report-shell
+  .vision-condition-score
+  strong {
+  margin: 8px 0 4px;
+  color: #fff;
+  font-size: clamp(68px, 12vw, 112px);
+  letter-spacing: -0.08em;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade span,
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade small {
+  color: #9fa3a1;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade strong {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-consensus {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #111313;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-consensus span {
+  color: #8e9290;
+}
+
+body[data-ui-theme="mica"] .report-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 24px 0 10px;
+}
+
+body[data-ui-theme="mica"] .report-section-heading span {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+body[data-ui-theme="mica"] .report-section-heading strong {
+  color: #8e9290;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-subscore-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-subscore-grid div {
+  padding: 16px;
+  border-color: rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background: #111313;
+  text-align: left;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-subscore-grid span {
+  color: #959997;
+  text-transform: capitalize;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-subscore-grid strong {
+  margin: 10px 0 12px;
+  color: #fff;
+  font-size: 32px;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-side-scores {
+  display: flex;
+  gap: 7px;
+  padding: 0;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-side-scores b {
+  flex: 1;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #202222;
+  color: #bfc2c0;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-defect-map,
+body[data-ui-theme="mica"] .grading-report-shell .vision-defects,
+body[data-ui-theme="mica"] .grading-report-shell .vision-no-defects,
+body[data-ui-theme="mica"] .grading-report-shell .report-technical,
+body[data-ui-theme="mica"] .grading-report-shell .vision-method,
+body[data-ui-theme="mica"] .grading-report-shell .vision-retake-list,
+body[data-ui-theme="mica"] .grading-report-shell .vision-probabilities,
+body[data-ui-theme="mica"] .grading-report-shell .vision-abstention {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #111313;
+  color: #9b9f9d;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-defect-map img {
+  background: #080909;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-defect-map figcaption,
+body[data-ui-theme="mica"] .grading-report-shell .vision-defects,
+body[data-ui-theme="mica"] .grading-report-shell .vision-defects small {
+  color: #8f9391;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-defects b,
+body[data-ui-theme="mica"] .grading-report-shell .vision-method summary,
+body[data-ui-theme="mica"] .grading-report-shell .vision-retake-list strong,
+body[data-ui-theme="mica"] .grading-report-shell .report-technical summary {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .vision-no-defects {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid;
+  border-radius: 13px;
+}
+
+body[data-ui-theme="mica"] .vision-no-defects strong {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .vision-no-defects span {
+  color: #8f9391;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .report-technical {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid;
+  border-radius: 13px;
+}
+
+body[data-ui-theme="mica"] .report-technical > summary {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+body[data-ui-theme="mica"] .report-technical[open] > summary {
+  margin-bottom: 12px;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering,
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering > div,
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering > p,
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering-guideline {
+  border-color: rgba(255, 255, 255, 0.11);
+  background: #181a1a;
+  color: #a5a8a7;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering strong,
+body[data-ui-theme="mica"] .grading-report-shell .psa-probability-row strong {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-market-context {
+  border-color: rgba(40, 195, 123, 0.45);
+  border-radius: 18px;
+  background: #0d1914;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-market-context strong,
+body[data-ui-theme="mica"] .grading-report-shell .vision-market-context h3 {
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-disclaimer {
+  color: #7e8280;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .manual-results,
+body[data-ui-theme="mica"] .grading-report-shell .grading-save-state,
+body[data-ui-theme="mica"] .grading-report-shell .grading-save-success,
+body[data-ui-theme="mica"] .grading-report-shell .vision-match-instruction,
+body[data-ui-theme="mica"] .grading-report-shell .unavailable-panel {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: #111313;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"]
+  .grading-report-shell
+  .sheet-actions
+  button.secondary {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: #151717;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .sheet-actions button.primary,
+body[data-ui-theme="mica"] .grading-report-shell #saveDigitalGradeButton {
+  border-color: #3d2cff;
+  background: #3d2cff;
+  color: #fff;
+}
+
+body[data-ui-theme="mica"] .grading-recovery {
+  max-width: 560px;
+  margin: 15dvh auto 0;
+  text-align: center;
+}
+
+body[data-ui-theme="mica"] .grading-recovery .digital-grader-mark {
+  margin: 0 auto 18px;
+}
+
+body[data-ui-theme="mica"] .grading-recovery h2 {
+  margin: 8px 0 12px;
+  color: #fff;
+  font-size: clamp(30px, 6vw, 54px);
+  line-height: 0.98;
+}
+
+body[data-ui-theme="mica"] .grading-recovery > p:not(.eyebrow) {
+  color: #a2a6a4;
+  line-height: 1.55;
+}
+
+@media (max-width: 759px) {
+  body[data-ui-theme="mica"] #view-scan {
+    margin: 0;
+    width: 100%;
+    padding: 24px 14px 128px;
+    border-radius: 0;
+    box-shadow: 0 0 0 14px var(--grade-black);
+  }
+
+  body[data-ui-theme="mica"] .add-grade-hero {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    padding: 24px 0 42px;
+  }
+
+  body[data-ui-theme="mica"] .add-grade-hero h1 {
+    font-size: clamp(40px, 12.5vw, 66px);
+  }
+
+  body[data-ui-theme="mica"] .add-grade-report-preview {
+    width: min(92%, 370px);
+    min-height: 510px;
+  }
+
+  body[data-ui-theme="mica"] #view-scan .add-cards-layout {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-ui-theme="mica"] #view-scan .add-capture-panel {
+    position: static;
+  }
+
+  body[data-ui-theme="mica"] #bottomSheet[data-experience="grading"] {
+    width: 100%;
+    border: 0;
+  }
+
+  body[data-ui-theme="mica"]
+    #bottomSheet[data-experience="grading"]
+    #sheetContent {
+    padding-inline: 12px;
+  }
+
+  body[data-ui-theme="mica"]
+    #bottomSheet[data-experience="grading"]
+    .auto-capture-stage {
+    min-height: min(56dvh, 520px);
+    border-radius: 18px;
+  }
+
+  body[data-ui-theme="mica"]
+    #bottomSheet[data-experience="grading"]
+    .auto-capture-stage
+    video,
+  body[data-ui-theme="mica"]
+    #bottomSheet[data-experience="grading"]
+    .auto-capture-stage
+    > img {
+    height: min(56dvh, 520px);
+  }
+
+  body[data-ui-theme="mica"] .grading-report-shell .vision-grade-hero {
+    grid-template-columns: 1.15fr 0.85fr;
+  }
+
+  body[data-ui-theme="mica"]
+    .grading-report-shell
+    .vision-grade-hero
+    > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  body[data-ui-theme="mica"]
+    .grading-report-shell
+    .vision-condition-score
+    strong {
+    font-size: 74px;
+  }
+}
+
+@media (max-width: 420px) {
+  body[data-ui-theme="mica"] .digital-grader-launch {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  body[data-ui-theme="mica"] .digital-grader-launch > b {
+    display: none;
+  }
+
+  body[data-ui-theme="mica"] .grading-proof-strip dd {
+    font-size: 12px;
+  }
+
+  body[data-ui-theme="mica"] .grading-capture-progress {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  body[data-ui-theme="mica"] .camera-check-rail {
+    gap: 3px;
+  }
+
+  body[data-ui-theme="mica"] .camera-check-rail span {
+    font-size: 12px;
+  }
+
+  body[data-ui-theme="mica"] .grading-activity {
+    padding: 16px;
+  }
+
+  body[data-ui-theme="mica"] .grading-activity-row {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  body[data-ui-theme="mica"] .grading-activity-row em,
+  body[data-ui-theme="mica"] .grading-activity-row button,
+  body[data-ui-theme="mica"] .grading-activity-note {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  body[data-ui-theme="mica"] .precision-prepare > div {
+    grid-template-columns: 1fr 85px;
+  }
+
+  body[data-ui-theme="mica"] .precision-prepare i {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  body[data-ui-theme="mica"] .precision-prepare strong {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
+
+/* Mica grading integration — collection-first, warm paper, and sage depth. */
+body[data-ui-theme="mica"] .auth-resend {
+  width: 100%;
+  min-height: 42px;
+  margin-top: 10px;
+  border: 1px solid var(--line-dark);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--pine-2);
+  font-weight: 800;
+}
+
+body[data-ui-theme="mica"] #view-collection {
+  position: relative;
+  isolation: isolate;
+}
+
+body[data-ui-theme="mica"] #view-collection::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 12px clamp(8px, 2vw, 28px) 70px;
+  border-radius: 28px;
+  background:
+    linear-gradient(rgba(245, 240, 228, 0.7), rgba(245, 240, 228, 0.88)),
+    url("./assets/mica-collection-ornament.jpg") top center / 100% auto
+      no-repeat;
+  opacity: 0.78;
+  pointer-events: none;
+}
+
+body[data-ui-theme="mica"] .collection-grading-workspace {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 18px 30px;
+  align-items: center;
+  margin: 22px 0 24px;
+  padding: clamp(20px, 3vw, 30px);
+  overflow: hidden;
+  border: 1px solid var(--line-dark);
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      100deg,
+      rgba(255, 253, 248, 0.95),
+      rgba(244, 239, 225, 0.88)
+    ),
+    url("./assets/mica-collection-ornament.jpg") center / cover;
+  box-shadow:
+    0 18px 42px rgba(48, 56, 45, 0.1),
+    inset 0 0 0 5px rgba(255, 253, 248, 0.62),
+    inset 0 0 0 6px rgba(102, 120, 93, 0.12);
+}
+
+body[data-ui-theme="mica"] .collection-grading-workspace::after {
+  content: "DG";
+  position: absolute;
+  right: -10px;
+  bottom: -30px;
+  color: rgba(102, 120, 93, 0.055);
+  font: 950 150px/1 var(--font-sans);
+  letter-spacing: -0.1em;
+  pointer-events: none;
+}
+
+body[data-ui-theme="mica"] .collection-grading-copy,
+body[data-ui-theme="mica"] .collection-grading-workspace > button,
+body[data-ui-theme="mica"] .collection-grading-workspace > section {
+  position: relative;
+  z-index: 1;
+}
+
+body[data-ui-theme="mica"] .collection-grading-copy h2 {
+  margin: 5px 0 8px;
+  font: 800 clamp(24px, 3vw, 38px) / 1.02 var(--font-serif);
+}
+
+body[data-ui-theme="mica"] .collection-grading-copy > p:last-child {
+  max-width: 470px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch {
+  width: 100%;
+  min-height: 94px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  padding: 14px 17px;
+  border: 1px solid #73836a;
+  border-radius: 16px;
+  background:
+    linear-gradient(120deg, rgba(80, 100, 72, 0.98), rgba(49, 67, 52, 0.98)),
+    var(--pine);
+  color: #fffdf8;
+  box-shadow:
+    0 14px 26px rgba(49, 67, 52, 0.19),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-align: left;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch:hover {
+  transform: translateY(-2px);
+  background: linear-gradient(120deg, #5e7355, #314334);
+}
+
+body[data-ui-theme="mica"]
+  .digital-grader-launch
+  span:not(.digital-grader-mark),
+body[data-ui-theme="mica"] .digital-grader-launch small,
+body[data-ui-theme="mica"] .digital-grader-launch strong,
+body[data-ui-theme="mica"] .digital-grader-launch em {
+  display: block;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch small,
+body[data-ui-theme="mica"] .digital-grader-launch em {
+  color: rgba(255, 253, 248, 0.72);
+  font-size: 12px;
+  font-style: normal;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch strong {
+  margin: 3px 0;
+  color: #fffdf8;
+  font-size: 20px;
+}
+
+body[data-ui-theme="mica"] .digital-grader-mark {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 52px;
+  border: 1px solid rgba(255, 253, 248, 0.55);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #d9c58d, #8fa184 52%, #52674b);
+  color: #fffdf8;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 8px 18px rgba(38, 53, 40, 0.2);
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+body[data-ui-theme="mica"] .collection-grading-workspace .grading-activity {
+  grid-column: 1 / -1;
+}
+
+body[data-ui-theme="mica"] .grading-activity {
+  margin: 5px 0 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 253, 248, 0.82);
+  box-shadow: inset 0 0 0 3px rgba(102, 120, 93, 0.035);
+}
+
+body[data-ui-theme="mica"] .grading-activity-heading span {
+  color: var(--pine);
+}
+
+body[data-ui-theme="mica"] .grading-activity-heading h2,
+body[data-ui-theme="mica"] .grading-activity-row strong {
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"] .grading-activity-heading h2 {
+  font-size: clamp(22px, 2.4vw, 30px);
+}
+
+body[data-ui-theme="mica"] .grading-activity-heading button,
+body[data-ui-theme="mica"] .grading-activity-row button,
+body[data-ui-theme="mica"] .grading-activity-empty button {
+  border-color: var(--line-dark);
+  background: var(--paper);
+  color: var(--pine-2);
+}
+
+body[data-ui-theme="mica"] .grading-activity-row {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+body[data-ui-theme="mica"] .grading-activity-score {
+  position: relative;
+  overflow: hidden;
+  border-color: #7f9176;
+  background: #52674b;
+  color: #fffdf8;
+}
+
+body[data-ui-theme="mica"] .grading-activity-score img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+body[data-ui-theme="mica"] .grading-activity-score b {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  min-width: 27px;
+  padding: 3px 5px;
+  border-radius: 7px;
+  background: rgba(49, 67, 52, 0.92);
+  color: #fffdf8;
+  font-size: 12px;
+  text-align: center;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row small,
+body[data-ui-theme="mica"] .grading-activity-note,
+body[data-ui-theme="mica"] .grading-activity-empty {
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"] .grading-activity-row em.complete {
+  background: var(--mint);
+  color: var(--pine-2);
+}
+
+body[data-ui-theme="mica"] .grading-activity-row em.review {
+  background: #f5ead0;
+  color: #7a5a13;
+}
+
+body[data-ui-theme="mica"] .grading-activity-row em.working {
+  background: #e8ecdf;
+  color: var(--pine-2);
+}
+
+body[data-ui-theme="mica"] .grading-activity-row em.muted {
+  background: #ece7db;
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"] .grading-activity-empty {
+  border-color: var(--line-dark);
+}
+
+body[data-ui-theme="mica"] #view-scan {
+  width: 100%;
+  padding: 34px clamp(16px, 3vw, 46px) 110px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+}
+
+body[data-ui-theme="mica"] .add-cards-heading {
+  max-width: 650px;
+  margin-bottom: 22px;
+}
+
+body[data-ui-theme="mica"] .add-cards-heading h1 {
+  margin: 4px 0 8px;
+  font: 800 clamp(30px, 4vw, 48px) / 1 var(--font-serif);
+}
+
+body[data-ui-theme="mica"] .add-cards-heading > p:last-child {
+  margin: 0;
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"] #view-scan .add-cards-layout {
+  padding-top: 0;
+  border-top: 0;
+}
+
+body[data-ui-theme="mica"] #view-scan .add-search-panel,
+body[data-ui-theme="mica"] #view-scan .add-capture-panel {
+  border-color: var(--line);
+  background: rgba(255, 253, 248, 0.9);
+  color: var(--ink);
+  box-shadow: 0 12px 30px rgba(48, 56, 45, 0.07);
+}
+
+body[data-ui-theme="mica"] #view-scan .add-search-panel::after {
+  display: block;
+}
+
+body[data-ui-theme="mica"] #view-scan .add-panel-heading span,
+body[data-ui-theme="mica"] #view-scan .sealed-search-launch b {
+  color: var(--pine);
+}
+
+body[data-ui-theme="mica"] #view-scan .add-panel-heading h2,
+body[data-ui-theme="mica"] #view-scan .find-empty strong {
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-search,
+body[data-ui-theme="mica"] #view-scan .search-examples button,
+body[data-ui-theme="mica"] #view-scan .find-action,
+body[data-ui-theme="mica"] #view-scan .sealed-search-launch {
+  border-color: var(--line-dark);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-search input,
+body[data-ui-theme="mica"] #view-scan select {
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-search input::placeholder,
+body[data-ui-theme="mica"] #view-scan .search-options label,
+body[data-ui-theme="mica"] #view-scan .find-empty span,
+body[data-ui-theme="mica"] #view-scan .simple-privacy,
+body[data-ui-theme="mica"] #view-scan .find-action small,
+body[data-ui-theme="mica"] #view-scan .sealed-search-launch small {
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action.primary-find {
+  border-color: var(--pine);
+  background: var(--pine);
+  color: #fffdf8;
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action.primary-find small {
+  color: rgba(255, 253, 248, 0.8);
+}
+
+body[data-ui-theme="mica"] .collection-grade-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+body[data-ui-theme="mica"] .collection-grade-card {
+  width: 100%;
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper-strong);
+  color: var(--ink);
+  text-align: left;
+}
+
+body[data-ui-theme="mica"] .collection-grade-card:hover {
+  border-color: var(--pine);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(48, 56, 45, 0.08);
+}
+
+body[data-ui-theme="mica"] .collection-grade-card img {
+  width: 48px;
+  height: 62px;
+  object-fit: cover;
+  border-radius: 7px;
+  background: var(--mint);
+}
+
+body[data-ui-theme="mica"] .collection-grade-card span,
+body[data-ui-theme="mica"] .collection-grade-card strong,
+body[data-ui-theme="mica"] .collection-grade-card small,
+body[data-ui-theme="mica"] .collection-grade-card em {
+  display: block;
+  min-width: 0;
+}
+
+body[data-ui-theme="mica"] .collection-grade-card strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+body[data-ui-theme="mica"] .collection-grade-card small,
+body[data-ui-theme="mica"] .collection-grade-card em {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+}
+
+body[data-ui-theme="mica"] .collection-grade-card > b {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--mint);
+  color: var(--pine-2);
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .collection-grade-empty {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  padding: 30px 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  color: var(--muted);
+  text-align: center;
+}
+
+body[data-ui-theme="mica"] .collection-grade-empty strong {
+  color: var(--ink);
+  font-size: 20px;
+}
+
+body[data-ui-theme="mica"] #bottomSheet[data-experience="grading"] {
+  border-color: var(--line-dark);
+  background:
+    linear-gradient(rgba(245, 240, 228, 0.94), rgba(245, 240, 228, 0.96)),
+    url("./assets/mica-collection-ornament.jpg") center / cover;
+  color: var(--ink);
+  box-shadow: 0 0 100px rgba(48, 56, 45, 0.28);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-heading
+  h2,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-heading
+  p,
+body[data-ui-theme="mica"] .grading-capture-progress strong,
+body[data-ui-theme="mica"] .grading-process-note strong,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing
+  span,
+body[data-ui-theme="mica"] .grading-recovery h2 {
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-heading
+  p,
+body[data-ui-theme="mica"] .grading-capture-progress span,
+body[data-ui-theme="mica"] .grading-process-note p,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing
+  small,
+body[data-ui-theme="mica"] .grading-recovery > p:not(.eyebrow) {
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .sheet-close {
+  border-color: var(--line-dark);
+  background: var(--paper-strong);
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress,
+body[data-ui-theme="mica"] .grading-process-note,
+body[data-ui-theme="mica"] .precision-prepare > div,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing {
+  border-color: var(--line);
+  background: rgba(255, 253, 248, 0.84);
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress li {
+  border-color: var(--line-dark);
+  color: var(--faint);
+}
+
+body[data-ui-theme="mica"] .grading-capture-progress li.complete,
+body[data-ui-theme="mica"] .grading-capture-progress li.active {
+  border-color: var(--pine);
+  background: var(--pine);
+  color: #fffdf8;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .auto-capture-guide {
+  box-shadow:
+    0 0 0 999px rgba(23, 30, 24, 0.42),
+    0 0 42px rgba(143, 161, 132, 0.32);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .auto-capture-guide
+  i {
+  border-color: #cbd9c2;
+}
+
+body[data-ui-theme="mica"] .camera-check-rail span {
+  border-color: var(--line-dark);
+  background: rgba(255, 253, 248, 0.82);
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"] .camera-check-rail span[data-state="pass"] {
+  border-color: #7d9672;
+  background: var(--mint);
+  color: var(--pine-2);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .automation-privacy,
+body[data-ui-theme="mica"] .precision-prepare strong {
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .automation-privacy
+  strong {
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .camera-capture-actions
+  > button,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .camera-upload-fallback {
+  border-color: var(--line-dark);
+  background: var(--paper-strong);
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .camera-use-photo,
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  button.primary {
+  border-color: var(--pine);
+  background: var(--pine);
+  color: #fffdf8;
+}
+
+body[data-ui-theme="mica"] .precision-prepare i {
+  background: #ded8c9;
+}
+
+body[data-ui-theme="mica"] .precision-prepare i b {
+  background: linear-gradient(90deg, #d2a51f, #9bad8f, #52674b);
+}
+
+body[data-ui-theme="mica"] .precision-prepare > div[data-state="complete"] i b {
+  background: var(--pine);
+}
+
+body[data-ui-theme="mica"]
+  .precision-prepare
+  > div[data-state="complete"]
+  strong,
+body[data-ui-theme="mica"] .grading-process-heading > div > span {
+  color: var(--pine-2);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing-overall {
+  border-color: #7d9173;
+  background: linear-gradient(135deg, #6e8364, #405641);
+  color: #fffdf8;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grade-processing-overall
+  span {
+  color: #fffdf8;
+}
+
+body[data-ui-theme="mica"] .grading-report-top {
+  border-color: var(--line);
+  background: rgba(245, 240, 228, 0.9);
+}
+
+body[data-ui-theme="mica"] .grading-report-top strong,
+body[data-ui-theme="mica"] .grading-report-shell .vision-result-head strong,
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade strong,
+body[data-ui-theme="mica"] .grading-report-shell .vision-consensus,
+body[data-ui-theme="mica"] .report-section-heading span,
+body[data-ui-theme="mica"] .grading-report-shell .vision-subscore-grid strong,
+body[data-ui-theme="mica"] .grading-report-shell .vision-defects b,
+body[data-ui-theme="mica"] .grading-report-shell .vision-method summary,
+body[data-ui-theme="mica"] .grading-report-shell .vision-retake-list strong,
+body[data-ui-theme="mica"] .grading-report-shell .report-technical summary,
+body[data-ui-theme="mica"] .vision-no-defects strong,
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering strong,
+body[data-ui-theme="mica"] .grading-report-shell .psa-probability-row strong,
+body[data-ui-theme="mica"] .grading-report-shell .vision-market-context strong,
+body[data-ui-theme="mica"] .grading-report-shell .vision-market-context h3,
+body[data-ui-theme="mica"] .grading-report-shell .manual-results,
+body[data-ui-theme="mica"] .grading-report-shell .grading-save-state,
+body[data-ui-theme="mica"] .grading-report-shell .grading-save-success,
+body[data-ui-theme="mica"] .grading-report-shell .vision-match-instruction,
+body[data-ui-theme="mica"] .grading-report-shell .unavailable-panel {
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"] .grading-report-top span,
+body[data-ui-theme="mica"] .grading-report-top small,
+body[data-ui-theme="mica"] .grading-report-shell .vision-result-head span,
+body[data-ui-theme="mica"] .grading-report-shell .vision-result-head small,
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade span,
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade small,
+body[data-ui-theme="mica"] .grading-report-shell .vision-consensus span,
+body[data-ui-theme="mica"] .report-section-heading strong,
+body[data-ui-theme="mica"] .grading-report-shell .vision-subscore-grid span,
+body[data-ui-theme="mica"] .grading-report-shell .vision-defect-map figcaption,
+body[data-ui-theme="mica"] .grading-report-shell .vision-defects,
+body[data-ui-theme="mica"] .grading-report-shell .vision-defects small,
+body[data-ui-theme="mica"] .vision-no-defects span,
+body[data-ui-theme="mica"] .grading-report-shell .vision-disclaimer {
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-result-head,
+body[data-ui-theme="mica"] .grading-report-shell .vision-quality,
+body[data-ui-theme="mica"] .grading-report-shell .vision-consensus,
+body[data-ui-theme="mica"] .grading-report-shell .vision-subscore-grid div,
+body[data-ui-theme="mica"] .grading-report-shell .vision-defect-map,
+body[data-ui-theme="mica"] .grading-report-shell .vision-defects,
+body[data-ui-theme="mica"] .grading-report-shell .vision-no-defects,
+body[data-ui-theme="mica"] .grading-report-shell .report-technical,
+body[data-ui-theme="mica"] .grading-report-shell .vision-method,
+body[data-ui-theme="mica"] .grading-report-shell .vision-retake-list,
+body[data-ui-theme="mica"] .grading-report-shell .vision-probabilities,
+body[data-ui-theme="mica"] .grading-report-shell .vision-abstention,
+body[data-ui-theme="mica"] .grading-report-shell .manual-results,
+body[data-ui-theme="mica"] .grading-report-shell .grading-save-state,
+body[data-ui-theme="mica"] .grading-report-shell .grading-save-success,
+body[data-ui-theme="mica"] .grading-report-shell .vision-match-instruction,
+body[data-ui-theme="mica"] .grading-report-shell .unavailable-panel {
+  border-color: var(--line);
+  background: rgba(255, 253, 248, 0.84);
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade-hero {
+  border-color: #7f9176;
+  background: linear-gradient(135deg, #eef1e8, #e2dfcf);
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-grade-hero > div {
+  border-color: rgba(79, 99, 72, 0.16);
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-condition-score {
+  background: linear-gradient(145deg, #f1e5c4, #d9e2d2);
+}
+
+body[data-ui-theme="mica"]
+  .grading-report-shell
+  .vision-condition-score
+  strong {
+  color: #405641;
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-side-scores b,
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering,
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering > div,
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering > p,
+body[data-ui-theme="mica"] .grading-report-shell .vision-centering-guideline {
+  border-color: var(--line);
+  background: #eeeade;
+  color: var(--muted);
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .vision-market-context {
+  border-color: #8fa184;
+  background: #e7eee1;
+}
+
+body[data-ui-theme="mica"]
+  .grading-report-shell
+  .sheet-actions
+  button.secondary {
+  border-color: var(--line-dark);
+  background: var(--paper-strong);
+  color: var(--ink);
+}
+
+body[data-ui-theme="mica"] .grading-report-shell .sheet-actions button.primary,
+body[data-ui-theme="mica"] .grading-report-shell #saveDigitalGradeButton {
+  border-color: var(--pine);
+  background: var(--pine);
+  color: #fffdf8;
+}
+
+@media (max-width: 759px) {
+  body[data-ui-theme="mica"] #view-scan {
+    padding: 24px 14px 128px;
+    box-shadow: none;
+  }
+
+  body[data-ui-theme="mica"] .collection-grading-workspace {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  body[data-ui-theme="mica"] .collection-grading-workspace .grading-activity {
+    grid-column: auto;
+  }
+}
+
+/* Mica tactile pass — layered paper, quiet ornament, and purposeful controls. */
+body[data-ui-theme="mica"] .collection-heading {
+  position: relative;
+  padding: 10px 2px 19px;
+  border-bottom: 1px solid rgba(102, 120, 93, 0.2);
+}
+
+body[data-ui-theme="mica"] .collection-heading::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 94px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #52674b, #a6b59a 74%, transparent);
+}
+
+body[data-ui-theme="mica"] .collection-actions .quick-add {
+  position: relative;
+  min-height: 46px;
+  padding-inline: 18px;
+  border: 1px solid #455b43;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #6e8364, #4a6047);
+  box-shadow:
+    0 10px 18px rgba(45, 61, 45, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -2px 0 rgba(36, 51, 38, 0.16);
+}
+
+body[data-ui-theme="mica"] .collection-actions .quick-add:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 14px 24px rgba(45, 61, 45, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+
+body[data-ui-theme="mica"] .collection-actions .quick-add:active {
+  transform: translateY(0);
+  box-shadow:
+    0 5px 10px rgba(45, 61, 45, 0.18),
+    inset 0 2px 4px rgba(30, 45, 31, 0.18);
+}
+
+body[data-ui-theme="mica"] .view-tabs {
+  margin: 18px 0 12px;
+  padding: 7px;
+  border: 1px solid rgba(102, 120, 93, 0.18);
+  border-radius: 13px;
+  background: rgba(248, 244, 234, 0.92);
+  box-shadow:
+    0 9px 24px rgba(48, 56, 45, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    inset 0 0 0 3px rgba(255, 253, 248, 0.42);
+}
+
+body[data-ui-theme="mica"] .view-tab {
+  border-radius: 9px;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+body[data-ui-theme="mica"] .view-tab.active,
+body[data-ui-theme="mica"] .view-tab:hover {
+  border-color: #9bab90;
+  background: linear-gradient(180deg, #edf1e9, #dfe7da);
+  box-shadow:
+    0 5px 12px rgba(62, 78, 58, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+body[data-ui-theme="mica"] .view-tab.active {
+  transform: translateY(-1px);
+}
+
+body[data-ui-theme="mica"] .ledger-tools {
+  gap: 10px;
+  margin: 12px 0 14px;
+  padding: 9px;
+  border: 1px solid rgba(102, 120, 93, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 253, 248, 0.76);
+  box-shadow:
+    0 10px 24px rgba(48, 56, 45, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+body[data-ui-theme="mica"] .ledger-tools .search-field,
+body[data-ui-theme="mica"] .ledger-tools .tool-button {
+  border-color: rgba(95, 113, 87, 0.32);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #fffdf8, #f5f0e5);
+  box-shadow:
+    inset 0 1px 2px rgba(48, 56, 45, 0.05),
+    0 3px 8px rgba(48, 56, 45, 0.045);
+}
+
+body[data-ui-theme="mica"] .ledger-tools .search-field:focus-within {
+  border-color: #73896a;
+  box-shadow:
+    0 0 0 4px rgba(102, 120, 93, 0.13),
+    inset 0 1px 2px rgba(48, 56, 45, 0.05);
+}
+
+body[data-ui-theme="mica"] .ledger-row {
+  overflow: hidden;
+  border-color: rgba(102, 120, 93, 0.25);
+  border-radius: 17px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 254, 250, 0.98),
+      rgba(245, 240, 228, 0.94)
+    ),
+    var(--paper-strong);
+  box-shadow:
+    0 14px 30px rgba(48, 56, 45, 0.1),
+    0 3px 8px rgba(48, 56, 45, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 0 0 4px rgba(255, 253, 248, 0.38);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+body[data-ui-theme="mica"] .ledger-row::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #52674b, #aeb99f 52%, #d2bc7d);
+  opacity: 0.72;
+}
+
+body[data-ui-theme="mica"] .ledger-row:hover {
+  border-color: #91a187;
+  transform: translateY(-5px);
+  box-shadow:
+    0 22px 42px rgba(48, 56, 45, 0.14),
+    0 5px 12px rgba(48, 56, 45, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98);
+}
+
+body[data-ui-theme="mica"] .ledger-row .card-thumb {
+  border: 1px solid rgba(70, 84, 65, 0.18);
+  background: linear-gradient(145deg, #eee8dc, #e3ddcf);
+  box-shadow:
+    0 12px 24px rgba(39, 47, 38, 0.16),
+    0 2px 5px rgba(39, 47, 38, 0.1);
+}
+
+body[data-ui-theme="mica"] .position-price-grid.compact span {
+  border: 1px solid rgba(102, 120, 93, 0.12);
+  background: linear-gradient(180deg, #f8f4eb, #eee9dd);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+body[data-ui-theme="mica"] .ledger-row-actions {
+  z-index: 5;
+  gap: 7px;
+}
+
+body[data-ui-theme="mica"] .ledger-grade-action,
+body[data-ui-theme="mica"] .ledger-quick-add {
+  border-color: rgba(83, 103, 75, 0.38);
+  background: rgba(255, 253, 248, 0.96);
+  color: var(--pine-2);
+  box-shadow:
+    0 7px 14px rgba(48, 56, 45, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+body[data-ui-theme="mica"] .ledger-grade-action:hover,
+body[data-ui-theme="mica"] .ledger-quick-add:hover {
+  border-color: #52674b;
+  background: #e5ebdf;
+  transform: translateY(-1px);
+}
+
+body[data-ui-theme="mica"] .empty-state {
+  margin-top: 18px;
+  border: 1px solid rgba(102, 120, 93, 0.25);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #fffdf8, #f0ebde);
+  box-shadow:
+    0 16px 34px rgba(48, 56, 45, 0.09),
+    inset 0 0 0 5px rgba(255, 253, 248, 0.55);
+}
+
+body[data-ui-theme="mica"] .collection-grading-workspace {
+  grid-template-columns: minmax(250px, 0.9fr) minmax(340px, 1.1fr);
+  gap: 20px 32px;
+  margin: clamp(34px, 5vw, 58px) 0 14px;
+  padding: clamp(22px, 3.2vw, 34px);
+  border-color: rgba(77, 96, 70, 0.42);
+  border-radius: 22px;
+  background:
+    linear-gradient(
+      105deg,
+      rgba(255, 254, 249, 0.97),
+      rgba(239, 235, 220, 0.91)
+    ),
+    url("./assets/mica-collection-ornament.jpg") center / cover;
+  box-shadow:
+    0 24px 54px rgba(48, 56, 45, 0.13),
+    0 5px 14px rgba(48, 56, 45, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 0 0 6px rgba(255, 253, 248, 0.54),
+    inset 0 0 0 7px rgba(102, 120, 93, 0.13);
+}
+
+body[data-ui-theme="mica"] .collection-grading-workspace::before {
+  content: "Condition tools";
+  position: absolute;
+  left: 24px;
+  top: -14px;
+  z-index: 2;
+  padding: 6px 11px;
+  border: 1px solid rgba(77, 96, 70, 0.36);
+  border-radius: 999px;
+  background: #f8f4e9;
+  color: var(--pine-2);
+  box-shadow: 0 5px 12px rgba(48, 56, 45, 0.08);
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body[data-ui-theme="mica"] .collection-grading-workspace::after {
+  content: "";
+  right: -36px;
+  bottom: -52px;
+  width: 190px;
+  height: 190px;
+  border: 1px solid rgba(102, 120, 93, 0.08);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      transparent 29%,
+      rgba(102, 120, 93, 0.06) 30% 32%,
+      transparent 33%
+    ),
+    conic-gradient(
+      from 45deg,
+      transparent 0 12%,
+      rgba(102, 120, 93, 0.06) 12% 14%,
+      transparent 14% 37%,
+      rgba(102, 120, 93, 0.06) 37% 39%,
+      transparent 39% 62%,
+      rgba(102, 120, 93, 0.06) 62% 64%,
+      transparent 64% 87%,
+      rgba(102, 120, 93, 0.06) 87% 89%,
+      transparent 89%
+    );
+}
+
+body[data-ui-theme="mica"] .collection-grading-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+body[data-ui-theme="mica"] .condition-lab-icon {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 58px;
+  border: 1px solid #889b7e;
+  border-radius: 17px;
+  background: linear-gradient(145deg, #f1f4ec, #dce5d6);
+  color: var(--pine-2);
+  box-shadow:
+    0 10px 20px rgba(48, 65, 46, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 -2px 4px rgba(81, 104, 73, 0.08);
+}
+
+body[data-ui-theme="mica"] .condition-lab-icon svg {
+  width: 34px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+body[data-ui-theme="mica"] .collection-grading-copy h2 {
+  margin: 5px 0 8px;
+  font: 800 clamp(25px, 3vw, 38px) / 1.02 var(--font-serif);
+}
+
+body[data-ui-theme="mica"] .collection-grading-copy > div > p:last-child {
+  max-width: 470px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch {
+  position: relative;
+  overflow: hidden;
+  min-height: 102px;
+  border-color: #405440;
+  border-radius: 18px;
+  background: linear-gradient(130deg, #536a50 0%, #40573f 46%, #2f4435 100%);
+  box-shadow:
+    0 18px 32px rgba(43, 60, 44, 0.25),
+    0 4px 9px rgba(43, 60, 44, 0.17),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -3px 0 rgba(30, 46, 34, 0.19);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    110deg,
+    transparent 10%,
+    rgba(255, 255, 255, 0.12) 34%,
+    transparent 58%
+  );
+  transform: translateX(-110%);
+  transition: transform 500ms ease;
+  pointer-events: none;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 24px 42px rgba(43, 60, 44, 0.29),
+    0 5px 11px rgba(43, 60, 44, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch:hover::after {
+  transform: translateX(110%);
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch:active {
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 18px rgba(43, 60, 44, 0.22),
+    inset 0 3px 8px rgba(24, 39, 29, 0.16);
+}
+
+body[data-ui-theme="mica"] .digital-grader-mark svg {
+  width: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch > b {
+  position: relative;
+  z-index: 1;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 253, 248, 0.26);
+  border-radius: 999px;
+  background: rgba(255, 253, 248, 0.1);
+  color: #fffdf8;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+body[data-ui-theme="mica"] .digital-grader-launch small,
+body[data-ui-theme="mica"] .digital-grader-launch em {
+  color: #fffdf8;
+}
+
+body[data-ui-theme="mica"] .grading-activity {
+  border-color: rgba(102, 120, 93, 0.24);
+  background: rgba(255, 253, 248, 0.84);
+  box-shadow:
+    0 12px 26px rgba(48, 56, 45, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    inset 0 0 0 4px rgba(102, 120, 93, 0.035);
+}
+
+body[data-ui-theme="mica"] .grading-activity-row {
+  border-color: rgba(102, 120, 93, 0.19);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.7),
+    rgba(246, 242, 233, 0.75)
+  );
+  box-shadow:
+    0 7px 16px rgba(48, 56, 45, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+body[data-ui-theme="mica"] #view-scan .add-cards-heading {
+  position: relative;
+  padding-left: 74px;
+}
+
+body[data-ui-theme="mica"] #view-scan .add-cards-heading::before {
+  content: "+";
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #91a187;
+  border-radius: 17px;
+  background: linear-gradient(145deg, #f1f4ec, #dce5d6);
+  color: var(--pine-2);
+  box-shadow:
+    0 11px 22px rgba(48, 65, 46, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  font: 400 36px/1 var(--font-serif);
+}
+
+body[data-ui-theme="mica"] #view-scan .add-search-panel,
+body[data-ui-theme="mica"] #view-scan .add-capture-panel {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(102, 120, 93, 0.3);
+  border-radius: 21px;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 254, 250, 0.98),
+    rgba(243, 238, 225, 0.94)
+  );
+  box-shadow:
+    0 22px 46px rgba(48, 56, 45, 0.12),
+    0 4px 10px rgba(48, 56, 45, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    inset 0 0 0 5px rgba(255, 253, 248, 0.4);
+}
+
+body[data-ui-theme="mica"] #view-scan .add-search-panel::before,
+body[data-ui-theme="mica"] #view-scan .add-capture-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, #52674b, #aab79f 60%, #d1ba78);
+  opacity: 0.76;
+}
+
+body[data-ui-theme="mica"] #view-scan .add-search-panel::after {
+  display: block;
+  width: 54px;
+  height: 54px;
+  right: 18px;
+  bottom: 15px;
+  opacity: 0.7;
+}
+
+body[data-ui-theme="mica"] #view-scan .add-panel-heading {
+  position: relative;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(102, 120, 93, 0.17);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-search {
+  border-color: rgba(83, 103, 75, 0.38);
+  border-radius: 13px;
+  background: #fffdf8;
+  box-shadow:
+    inset 0 2px 5px rgba(48, 56, 45, 0.07),
+    0 5px 12px rgba(48, 56, 45, 0.05);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-search:focus-within {
+  border-color: #718568;
+  box-shadow:
+    0 0 0 4px rgba(102, 120, 93, 0.14),
+    inset 0 2px 5px rgba(48, 56, 45, 0.05);
+}
+
+body[data-ui-theme="mica"] #view-scan .search-examples button {
+  border-radius: 999px;
+  box-shadow: 0 3px 8px rgba(48, 56, 45, 0.05);
+  transition:
+    transform 150ms ease,
+    background 150ms ease;
+}
+
+body[data-ui-theme="mica"] #view-scan .search-examples button:hover {
+  border-color: #839479;
+  background: #e7ede2;
+  transform: translateY(-1px);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action,
+body[data-ui-theme="mica"] #view-scan .sealed-search-launch {
+  border-radius: 14px;
+  box-shadow:
+    0 10px 20px rgba(48, 56, 45, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition:
+    transform 170ms ease,
+    box-shadow 170ms ease;
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action:hover,
+body[data-ui-theme="mica"] #view-scan .sealed-search-launch:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 16px 27px rgba(48, 56, 45, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action svg {
+  width: 48px;
+  height: 48px;
+  padding: 11px;
+  border: 1px solid rgba(83, 103, 75, 0.23);
+  border-radius: 14px;
+  background: #e8ede3;
+  box-shadow:
+    0 7px 14px rgba(48, 56, 45, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action.primary-find {
+  border-color: #405440;
+  background: linear-gradient(135deg, #708468, #4b6248 58%, #354b3b);
+  box-shadow:
+    0 16px 30px rgba(43, 60, 44, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -2px 0 rgba(28, 43, 32, 0.16);
+}
+
+body[data-ui-theme="mica"] #view-scan .find-action.primary-find svg {
+  border-color: rgba(255, 255, 255, 0.27);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fffdf8;
+}
+
+body[data-ui-theme="mica"] #view-scan .quick-card-result {
+  border-color: rgba(102, 120, 93, 0.26);
+  border-radius: 15px;
+  background: linear-gradient(145deg, #fffdf8, #f1ecdf);
+  box-shadow:
+    0 10px 22px rgba(48, 56, 45, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+body[data-ui-theme="mica"] #view-scan .quick-card-result:hover {
+  border-color: #84957a;
+  transform: translateY(-2px);
+  box-shadow: 0 16px 28px rgba(48, 56, 45, 0.12);
+}
+
+@media (max-width: 759px) {
+  body[data-ui-theme="mica"] .view-tabs {
+    margin-inline: -4px;
+    border-radius: 12px;
+  }
+
+  body[data-ui-theme="mica"] .ledger-tools {
+    padding: 7px;
+  }
+
+  body[data-ui-theme="mica"] .ledger-row:hover {
+    transform: translateY(-2px);
+  }
+
+  body[data-ui-theme="mica"] .collection-grading-workspace {
+    grid-template-columns: 1fr;
+    margin-top: 38px;
+    padding: 22px 17px 18px;
+    border-radius: 18px;
+  }
+
+  body[data-ui-theme="mica"] .collection-grading-copy {
+    gap: 12px;
+  }
+
+  body[data-ui-theme="mica"] .condition-lab-icon {
+    width: 48px;
+    height: 48px;
+    flex-basis: 48px;
+    border-radius: 14px;
+  }
+
+  body[data-ui-theme="mica"] .condition-lab-icon svg {
+    width: 28px;
+  }
+
+  body[data-ui-theme="mica"] .digital-grader-launch {
+    grid-template-columns: auto minmax(0, 1fr);
+    min-height: 98px;
+    padding: 13px;
+  }
+
+  body[data-ui-theme="mica"] .digital-grader-launch > b {
+    grid-column: 2;
+    width: max-content;
+    padding: 6px 9px;
+  }
+
+  body[data-ui-theme="mica"] #view-scan .add-cards-heading {
+    padding-left: 62px;
+  }
+
+  body[data-ui-theme="mica"] #view-scan .add-cards-heading::before {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    font-size: 30px;
+  }
+
+  body[data-ui-theme="mica"] #view-scan .add-search-panel,
+  body[data-ui-theme="mica"] #view-scan .add-capture-panel {
+    border-radius: 17px;
+    box-shadow:
+      0 15px 30px rgba(48, 56, 45, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.92);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-ui-theme="mica"] .digital-grader-launch::after {
+    display: none;
+  }
+}
+
+/* Capture coach: real pass/retake examples replace the abstract diagram. */
+body[data-ui-theme="mica"] .grading-coach-examples {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples figure {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(102, 120, 93, 0.28);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #fffef9, #eee9dc);
+  box-shadow:
+    0 18px 34px rgba(35, 47, 34, 0.14),
+    inset 0 1px rgba(255, 255, 255, 0.96);
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples figure > div {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #1d2b20;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples figure > div > b {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  border-radius: 50%;
+  color: #fff;
+  box-shadow: 0 7px 17px rgba(18, 28, 19, 0.3);
+  font-size: 23px;
+  line-height: 1;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples .pass > div > b {
+  background: #4f7355;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples .fail > div > b {
+  background: #a44f42;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples figcaption {
+  min-height: 76px;
+  padding: 12px 14px 14px;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples figcaption strong,
+body[data-ui-theme="mica"] .grading-coach-examples figcaption span {
+  display: block;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples figcaption strong {
+  margin-bottom: 3px;
+  color: #3f684a;
+  font-size: 13px;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples .fail figcaption strong {
+  color: #a44f42;
+}
+
+body[data-ui-theme="mica"] .grading-coach-examples figcaption span {
+  color: #6e6a61;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grading-coach-examples
+  figure {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: linear-gradient(145deg, #273128, #171d18);
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.3),
+    inset 0 1px rgba(255, 255, 255, 0.07);
+}
+
+body[data-ui-theme="mica"]
+  #bottomSheet[data-experience="grading"]
+  .grading-coach-examples
+  figcaption
+  span {
+  color: #adb5aa;
+}
+
+@media (max-width: 520px) {
+  body[data-ui-theme="mica"] .grading-coach-examples {
+    gap: 9px;
+  }
+
+  body[data-ui-theme="mica"] .grading-coach-examples figure {
+    border-radius: 14px;
+  }
+
+  body[data-ui-theme="mica"] .grading-coach-examples figure > div > b {
+    top: 8px;
+    left: 8px;
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+
+  body[data-ui-theme="mica"] .grading-coach-examples figcaption {
+    min-height: 84px;
+    padding: 10px;
+  }
+}
+
+/* Grading release: preserve the Mica palette while giving the workspace depth. */
+body[data-ui-theme="mica"] .collection-grading-workspace {
+  background:
+    linear-gradient(
+      105deg,
+      rgba(255, 254, 249, 0.92),
+      rgba(239, 235, 220, 0.88)
+    ),
+    url("./assets/mica-mineral-paper.jpg") center / cover;
+}
+body[data-ui-theme="mica"] .collection-grade-modes {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+body[data-ui-theme="mica"] .collection-grade-modes > button {
+  width: 100%;
+}
+body[data-ui-theme="mica"] .collection-grade-modes > button > span {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 16px;
+  border-radius: 13px;
+  color: #f9f6eb;
+  background: linear-gradient(145deg, #718568, #344b3b);
+  box-shadow:
+    0 8px 16px rgba(36, 48, 31, 0.22),
+    inset 0 1px rgba(255, 255, 255, 0.22);
+}
+body[data-ui-theme="mica"] .collection-grade-modes > button.recommended > span {
+  background: linear-gradient(145deg, #c4ad73, #536247 62%, #2d3929);
+}
+
+/* Mica depth pass: layered paper, raised controls, and tactile card surfaces. */
+body[data-ui-theme="mica"] .desktop-sidebar {
+  border-right-color: rgba(79, 99, 72, 0.34);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(255, 254, 249, 0.98),
+      rgba(239, 235, 220, 0.96)
+    ),
+    url("./assets/mica-mineral-paper.jpg") center / cover;
+  box-shadow:
+    18px 0 46px rgba(43, 54, 40, 0.12),
+    4px 0 12px rgba(43, 54, 40, 0.07),
+    inset -1px 0 rgba(255, 255, 255, 0.74);
+}
+
+body[data-ui-theme="mica"] .sidebar-brand,
+body[data-ui-theme="mica"] .sidebar-account {
+  border: 1px solid rgba(92, 111, 84, 0.22);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 251, 0.82),
+    rgba(230, 232, 218, 0.72)
+  );
+  box-shadow:
+    0 10px 22px rgba(47, 58, 43, 0.09),
+    inset 0 1px rgba(255, 255, 255, 0.94),
+    inset 0 -1px rgba(65, 80, 59, 0.08);
+}
+
+body[data-ui-theme="mica"] .sidebar-account {
+  color: #263427;
+}
+
+body[data-ui-theme="mica"] .sidebar-account small {
+  color: #53604f;
+}
+
+body[data-ui-theme="mica"] .sidebar-item {
+  color: #4d5e48;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px transparent;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+body[data-ui-theme="mica"] .sidebar-item:hover {
+  transform: translateX(3px);
+  border-color: rgba(94, 113, 86, 0.2);
+  box-shadow:
+    0 8px 17px rgba(47, 58, 43, 0.08),
+    inset 0 1px rgba(255, 255, 255, 0.88);
+}
+
+body[data-ui-theme="mica"] .sidebar-item.active {
+  border-color: rgba(53, 75, 59, 0.5);
+  background: linear-gradient(135deg, #536a50, #40573f 62%, #304536);
+  box-shadow:
+    0 13px 25px rgba(38, 54, 39, 0.22),
+    0 3px 7px rgba(38, 54, 39, 0.14),
+    inset 0 1px rgba(255, 255, 255, 0.25),
+    inset 0 -2px rgba(25, 40, 29, 0.18);
+}
+
+body[data-ui-theme="mica"] .dashboard-kpi,
+body[data-ui-theme="mica"] .portfolio-history-panel,
+body[data-ui-theme="mica"] .portfolio-detail-panel,
+body[data-ui-theme="mica"] .dashboard-owned-tools > section,
+body[data-ui-theme="mica"] .detail-section,
+body[data-ui-theme="mica"] .settings-group,
+body[data-ui-theme="mica"] .trade-side,
+body[data-ui-theme="mica"] .market-hero {
+  border-color: rgba(91, 108, 82, 0.3);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 251, 0.98),
+    rgba(241, 236, 224, 0.96)
+  );
+  box-shadow:
+    0 22px 44px rgba(47, 58, 43, 0.11),
+    0 5px 12px rgba(47, 58, 43, 0.07),
+    inset 0 1px rgba(255, 255, 255, 0.98),
+    inset 0 0 0 4px rgba(255, 253, 247, 0.42),
+    inset 0 -2px rgba(73, 88, 67, 0.06);
+}
+
+body[data-ui-theme="mica"] .dashboard-kpi {
+  transform: translateZ(0);
+  transition:
+    transform 170ms ease,
+    box-shadow 170ms ease;
+}
+
+body[data-ui-theme="mica"] .dashboard-kpi:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 29px 50px rgba(47, 58, 43, 0.14),
+    0 7px 14px rgba(47, 58, 43, 0.08),
+    inset 0 1px rgba(255, 255, 255, 1),
+    inset 0 0 0 4px rgba(255, 253, 247, 0.48);
+}
+
+body[data-ui-theme="mica"] .dashboard-kpi.primary {
+  background:
+    radial-gradient(
+      circle at 88% 16%,
+      rgba(195, 177, 120, 0.25),
+      transparent 28%
+    ),
+    linear-gradient(140deg, #e8eee2, #fbf8ef 62%, #ece3ce);
+  box-shadow:
+    0 25px 48px rgba(47, 66, 48, 0.15),
+    0 6px 14px rgba(47, 66, 48, 0.08),
+    inset 0 1px rgba(255, 255, 255, 0.98),
+    inset 0 0 0 4px rgba(255, 255, 250, 0.38);
+}
+
+body[data-ui-theme="mica"] .view-tabs,
+body[data-ui-theme="mica"] .ledger-tools {
+  border-color: rgba(82, 101, 75, 0.32);
+  background: linear-gradient(
+    180deg,
+    rgba(236, 234, 222, 0.96),
+    rgba(220, 220, 204, 0.9)
+  );
+  box-shadow:
+    0 15px 28px rgba(47, 58, 43, 0.11),
+    inset 0 2px 5px rgba(53, 64, 48, 0.09),
+    inset 0 1px rgba(255, 255, 255, 0.74);
+}
+
+body[data-ui-theme="mica"] .view-tab.active,
+body[data-ui-theme="mica"] .ledger-tools .tool-button,
+body[data-ui-theme="mica"] .ledger-tools .search-field {
+  box-shadow:
+    0 8px 17px rgba(47, 58, 43, 0.1),
+    inset 0 1px rgba(255, 255, 255, 0.96),
+    inset 0 -1px rgba(65, 80, 59, 0.07);
+}
+
+body[data-ui-theme="mica"] .ledger-row {
+  border-color: rgba(89, 107, 81, 0.27);
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 252, 0.98),
+    rgba(239, 235, 223, 0.96)
+  );
+  box-shadow:
+    0 17px 31px rgba(47, 58, 43, 0.1),
+    0 4px 9px rgba(47, 58, 43, 0.06),
+    inset 0 1px rgba(255, 255, 255, 0.98),
+    inset 0 0 0 3px rgba(255, 253, 248, 0.3);
+}
+
+body[data-ui-theme="mica"] .ledger-row .card-thumb {
+  box-shadow:
+    0 13px 24px rgba(35, 45, 33, 0.21),
+    0 3px 7px rgba(35, 45, 33, 0.13),
+    0 0 0 1px rgba(54, 69, 51, 0.18),
+    inset 0 1px rgba(255, 255, 255, 0.55);
+}
+
+body[data-ui-theme="mica"] .collection-grade-modes > button {
+  border-color: rgba(84, 103, 77, 0.31);
+  background:
+    radial-gradient(
+      circle at 90% 8%,
+      rgba(194, 176, 119, 0.12),
+      transparent 30%
+    ),
+    linear-gradient(145deg, #fffef9, #eee9dc);
+  box-shadow:
+    0 18px 32px rgba(47, 58, 43, 0.12),
+    0 4px 9px rgba(47, 58, 43, 0.07),
+    inset 0 1px rgba(255, 255, 255, 0.98),
+    inset 0 0 0 3px rgba(255, 253, 248, 0.34);
+}
+
+body[data-ui-theme="mica"]
+  .collection-grade-modes
+  > button:hover:not([aria-disabled="true"]) {
+  transform: translateY(-5px);
+  border-color: rgba(75, 98, 70, 0.55);
+  box-shadow:
+    0 27px 42px rgba(47, 58, 43, 0.16),
+    0 7px 13px rgba(47, 58, 43, 0.08),
+    inset 0 1px rgba(255, 255, 255, 1);
+}
+
+body[data-ui-theme="mica"] .collection-grade-modes > button.recommended {
+  color: #263427;
+  border-color: rgba(66, 91, 66, 0.62);
+  background:
+    radial-gradient(
+      circle at 88% 10%,
+      rgba(202, 181, 111, 0.29),
+      transparent 34%
+    ),
+    linear-gradient(145deg, #f7f7ed, #dde6d7 65%, #e9dfc7);
+  box-shadow:
+    0 23px 40px rgba(42, 61, 43, 0.17),
+    0 5px 12px rgba(42, 61, 43, 0.09),
+    inset 0 1px rgba(255, 255, 255, 0.98),
+    inset 0 0 0 4px rgba(255, 253, 248, 0.35);
+}
+
+body[data-ui-theme="mica"] .collection-grade-modes > button.recommended small {
+  color: #536a50;
+}
+
+body[data-ui-theme="mica"] .collection-grade-modes > button.recommended strong {
+  color: #263427;
+}
+
+body[data-ui-theme="mica"] .collection-grade-modes > button.recommended em {
+  color: #657062;
+}
+
+body[data-ui-theme="mica"] button.primary,
+body[data-ui-theme="mica"] .primary,
+body[data-ui-theme="mica"] .quick-add,
+body[data-ui-theme="mica"] .primary-action {
+  background: linear-gradient(145deg, #748a6a, #4b6248 60%, #344a3a);
+  box-shadow:
+    0 14px 25px rgba(39, 58, 40, 0.25),
+    0 3px 7px rgba(39, 58, 40, 0.14),
+    inset 0 1px rgba(255, 255, 255, 0.27),
+    inset 0 -2px rgba(24, 39, 28, 0.18);
+}
+
+body[data-ui-theme="mica"] #bottomSheet[data-experience="grading"] {
+  box-shadow:
+    0 -28px 70px rgba(28, 37, 27, 0.26),
+    0 -5px 16px rgba(28, 37, 27, 0.13),
+    inset 0 1px rgba(255, 255, 255, 0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-ui-theme="mica"] .sidebar-item,
+  body[data-ui-theme="mica"] .dashboard-kpi,
+  body[data-ui-theme="mica"] .collection-grade-modes > button {
+    transition: none;
+  }
+}
+
+/* Saved grading reports reopen directly from Recent grading. */
+body[data-ui-theme="mica"] .saved-grade-report {
+  display: grid;
+  gap: 18px;
+}
+
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top span,
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top strong,
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top small {
+  display: block;
+}
+
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top span {
+  color: #aeb9a8;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top strong {
+  margin: 5px 0;
+  color: #f8f6ed;
+  font: 650 clamp(23px, 4vw, 35px) / 1.05 var(--font-serif);
+}
+
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top small {
+  color: #9da69a;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .saved-grade-identity {
+  display: grid;
+  grid-template-columns: 112px repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+body[data-ui-theme="mica"] .saved-grade-identity > img,
+body[data-ui-theme="mica"] .saved-grade-identity > .digital-grader-mark {
+  width: 112px;
+  height: 146px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 13px;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.32);
+}
+
+body[data-ui-theme="mica"] .saved-grade-identity > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 17px;
+  background: linear-gradient(145deg, #2b352b, #171d18);
+  box-shadow:
+    0 16px 30px rgba(0, 0, 0, 0.25),
+    inset 0 1px rgba(255, 255, 255, 0.07);
+}
+
+body[data-ui-theme="mica"] .saved-grade-identity small,
+body[data-ui-theme="mica"] .saved-grade-identity strong,
+body[data-ui-theme="mica"] .saved-grade-identity span {
+  display: block;
+}
+
+body[data-ui-theme="mica"] .saved-grade-identity small {
+  color: #aeb9a8;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+body[data-ui-theme="mica"] .saved-grade-identity strong {
+  margin: 7px 0;
+  color: #f9f7ef;
+  font: 650 clamp(36px, 6vw, 58px) / 0.95 var(--font-serif);
+}
+
+body[data-ui-theme="mica"] .saved-grade-identity span {
+  color: #a6afa3;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .saved-grade-findings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+body[data-ui-theme="mica"] .saved-grade-findings article {
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: #171d18;
+}
+
+body[data-ui-theme="mica"] .saved-grade-findings span,
+body[data-ui-theme="mica"] .saved-grade-findings strong,
+body[data-ui-theme="mica"] .saved-grade-findings small {
+  display: block;
+  font-size: 12px;
+}
+
+body[data-ui-theme="mica"] .saved-grade-findings span {
+  color: #9fab99;
+  text-transform: capitalize;
+}
+
+body[data-ui-theme="mica"] .saved-grade-findings strong {
+  margin-top: 4px;
+  color: #efc57a;
+  text-transform: capitalize;
+}
+
+body[data-ui-theme="mica"] .saved-grade-findings p {
+  margin: 9px 0;
+  color: #e6e9df;
+  line-height: 1.48;
+}
+
+body[data-ui-theme="mica"] .saved-grade-findings small {
+  color: #929c90;
+}
+
+@media (max-width: 620px) {
+  body[data-ui-theme="mica"] .saved-grade-identity {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  body[data-ui-theme="mica"] .saved-grade-identity > img,
+  body[data-ui-theme="mica"] .saved-grade-identity > .digital-grader-mark {
+    width: 88px;
+    height: 120px;
+  }
+
+  body[data-ui-theme="mica"] .saved-grade-identity > div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  body[data-ui-theme="mica"] .saved-grade-findings {
+    grid-template-columns: 1fr;
+  }
+}

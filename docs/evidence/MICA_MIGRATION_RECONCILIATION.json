@@ -1,0 +1,385 @@
+{
+  "captured_at": "2026-08-31",
+  "local_migration_count": 64,
+  "production_history_count": 58,
+  "production_unique_name_count": 57,
+  "missing_local_names": [],
+  "approved_pending_local_names": [
+    "activate_psa_calibration_artifacts",
+    "grading_v3_dataset_factory",
+    "preserve_confirmed_grading_reports",
+    "prefer_best_portfolio_snapshots",
+    "lease_grading_deletion_jobs",
+    "support_psa_feature_contract_v2",
+    "withdraw_account_training_before_deletion"
+  ],
+  "known_version_mismatches": [
+    {
+      "name": "catalog_ingestion",
+      "local_version": "20260712233000",
+      "production_versions": [
+        "20260712231536"
+      ]
+    },
+    {
+      "name": "catalog_ingestion_hardening",
+      "local_version": "20260712234500",
+      "production_versions": [
+        "20260712232147"
+      ]
+    },
+    {
+      "name": "catalog_scheduler",
+      "local_version": "20260712235500",
+      "production_versions": [
+        "20260712232944"
+      ]
+    },
+    {
+      "name": "scheduler_token_auth",
+      "local_version": "20260713000500",
+      "production_versions": [
+        "20260713001039"
+      ]
+    },
+    {
+      "name": "scheduler_legacy_auth_restore",
+      "local_version": "20260713001000",
+      "production_versions": [
+        "20260713001226"
+      ]
+    },
+    {
+      "name": "portfolio_tracking",
+      "local_version": "20260716201558",
+      "production_versions": [
+        "20260717160036"
+      ]
+    },
+    {
+      "name": "add_card_watchlist",
+      "local_version": "20260717190209",
+      "production_versions": [
+        "20260717191515"
+      ]
+    },
+    {
+      "name": "add_collection_tags",
+      "local_version": "20260717213000",
+      "production_versions": [
+        "20260717202657"
+      ]
+    },
+    {
+      "name": "bulk_organize_collection_items",
+      "local_version": "20260720224500",
+      "production_versions": [
+        "20260721003635"
+      ]
+    },
+    {
+      "name": "large_library_indexes",
+      "local_version": "20260720233000",
+      "production_versions": [
+        "20260721004905"
+      ]
+    },
+    {
+      "name": "support_unknown_acquisition_basis",
+      "local_version": "20260720235900",
+      "production_versions": [
+        "20260721023337"
+      ]
+    },
+    {
+      "name": "complete_unknown_acquisition_basis",
+      "local_version": "20260721000500",
+      "production_versions": [
+        "20260721023834"
+      ]
+    },
+    {
+      "name": "remap_collection_position",
+      "local_version": "20260721013000",
+      "production_versions": [
+        "20260721025319"
+      ]
+    },
+    {
+      "name": "record_grading_result",
+      "local_version": "20260721024500",
+      "production_versions": [
+        "20260721222848"
+      ]
+    },
+    {
+      "name": "fix_grading_result_lot_alias",
+      "local_version": "20260721025000",
+      "production_versions": [
+        "20260721223040"
+      ]
+    },
+    {
+      "name": "track_grading_submissions",
+      "local_version": "20260721033000",
+      "production_versions": [
+        "20260721224658"
+      ]
+    },
+    {
+      "name": "index_grading_submission_ownership",
+      "local_version": "20260721034000",
+      "production_versions": [
+        "20260721224918"
+      ]
+    },
+    {
+      "name": "record_portfolio_valuation_history",
+      "local_version": "20260721043000",
+      "production_versions": [
+        "20260721230523"
+      ]
+    },
+    {
+      "name": "require_fresh_portfolio_snapshots",
+      "local_version": "20260721044000",
+      "production_versions": [
+        "20260721230744"
+      ]
+    },
+    {
+      "name": "reset_history_for_backdated_ledger",
+      "local_version": "20260721045000",
+      "production_versions": [
+        "20260721230935"
+      ]
+    },
+    {
+      "name": "split_collection_positions",
+      "local_version": "20260721053000",
+      "production_versions": [
+        "20260721232116"
+      ]
+    },
+    {
+      "name": "require_complete_basis_before_split",
+      "local_version": "20260721053500",
+      "production_versions": [
+        "20260721232359"
+      ]
+    },
+    {
+      "name": "rate_limit_ai_vision",
+      "local_version": "20260721180000",
+      "production_versions": [
+        "20260722041949"
+      ]
+    },
+    {
+      "name": "add_profile_preferences",
+      "local_version": "20260722203925",
+      "production_versions": [
+        "20260722203943"
+      ]
+    },
+    {
+      "name": "add_collection_workflow_indexes",
+      "local_version": "20260722215649",
+      "production_versions": [
+        "20260722215702"
+      ]
+    },
+    {
+      "name": "cover_foreign_key_indexes",
+      "local_version": "20260722143000",
+      "production_versions": [
+        "20260723023931"
+      ]
+    },
+    {
+      "name": "activate_catalog_scheduler_token",
+      "local_version": "20260726041519",
+      "production_versions": [
+        "20260726041725"
+      ]
+    },
+    {
+      "name": "add_indexed_catalog_identity",
+      "local_version": "20260726042516",
+      "production_versions": [
+        "20260726042929"
+      ]
+    },
+    {
+      "name": "rate_limit_ai_advisor",
+      "local_version": "20260726050000",
+      "production_versions": [
+        "20260726161709"
+      ]
+    },
+    {
+      "name": "add_purchase_market_reference",
+      "local_version": "20260726192306",
+      "production_versions": [
+        "20260726193606"
+      ]
+    },
+    {
+      "name": "fit_catalog_to_free_plan",
+      "local_version": "20260727213134",
+      "production_versions": [
+        "20260727213257"
+      ]
+    },
+    {
+      "name": "acquisition_methods_and_digital_grades",
+      "local_version": "20260730030500",
+      "production_versions": [
+        "20260730035209"
+      ]
+    },
+    {
+      "name": "digital_grade_fk_index",
+      "local_version": "20260730035230",
+      "production_versions": [
+        "20260730035241"
+      ]
+    },
+    {
+      "name": "atomic_digital_grade_confirmation",
+      "local_version": "20260730040404",
+      "production_versions": [
+        "20260730040451"
+      ]
+    },
+    {
+      "name": "unknown_additional_purchase_facts",
+      "local_version": "20260730052000",
+      "production_versions": [
+        "20260730041238"
+      ]
+    },
+    {
+      "name": "evidence_first_grading",
+      "local_version": "20260730171023",
+      "production_versions": [
+        "20260730173024"
+      ]
+    },
+    {
+      "name": "grading_owner_indexes",
+      "local_version": "20260730173039",
+      "production_versions": [
+        "20260730173053"
+      ]
+    },
+    {
+      "name": "freeze_confirmed_grading_reports",
+      "local_version": "20260730180500",
+      "production_versions": [
+        "20260730173648"
+      ]
+    },
+    {
+      "name": "persist_grading_consensus",
+      "local_version": "20260730203000",
+      "production_versions": [
+        "20260730200639"
+      ]
+    },
+    {
+      "name": "complete_digital_grading",
+      "local_version": "20260803123000",
+      "production_versions": [
+        "20260804035045"
+      ]
+    },
+    {
+      "name": "psa_accuracy_foundation",
+      "local_version": "20260809213838",
+      "production_versions": [
+        "20260809215703"
+      ]
+    },
+    {
+      "name": "grading_outcome_proofs",
+      "local_version": "20260809220243",
+      "production_versions": [
+        "20260809220422"
+      ]
+    },
+    {
+      "name": "psa_pilot_operations",
+      "local_version": "20260809220912",
+      "production_versions": [
+        "20260809221404"
+      ]
+    },
+    {
+      "name": "psa_pilot_deletion_hardening",
+      "local_version": "20260809221636",
+      "production_versions": [
+        "20260809221730"
+      ]
+    },
+    {
+      "name": "psa_pilot_service_api",
+      "local_version": "20260809221834",
+      "production_versions": [
+        "20260809222058"
+      ]
+    },
+    {
+      "name": "psa_pilot_blind_review",
+      "local_version": "20260809223000",
+      "production_versions": [
+        "20260809223006"
+      ]
+    },
+    {
+      "name": "psa_annotation_contract",
+      "local_version": "20260809224000",
+      "production_versions": [
+        "20260809224842"
+      ]
+    },
+    {
+      "name": "psa_pilot_cohort_dashboard",
+      "local_version": "20260809224800",
+      "production_versions": [
+        "20260809225003"
+      ]
+    },
+    {
+      "name": "psa_capture_cohort_instrumentation",
+      "local_version": "20260809225500",
+      "production_versions": [
+        "20260809225202"
+      ]
+    },
+    {
+      "name": "psa_deletion_worker",
+      "local_version": "20260809230500",
+      "production_versions": [
+        "20260809230633",
+        "20260809232519"
+      ]
+    },
+    {
+      "name": "digital_grading_pregrade_v2",
+      "local_version": "20260812180944",
+      "production_versions": [
+        "20260812184724"
+      ]
+    }
+  ],
+  "duplicate_production_names": [
+    {
+      "name": "psa_deletion_worker",
+      "versions": [
+        "20260809230633",
+        "20260809232519"
+      ]
+    }
+  ]
+}

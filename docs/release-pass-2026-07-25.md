@@ -67,7 +67,7 @@ availability, or the hourly budget blocks the explanation.
 - Replace the PkmnPrices key currently rejected by the provider, upgrade to Pro,
   set `PKMNPRICES_PLAN=pro`, and rerun the live entitlement verifier.
 - Upgrade Supabase and enable leaked-password protection if password sign-in
-  remains available. Magic links are not affected by that setting.
+  remains available. Password recovery continues to work through the verified email address.
 - Complete physical iOS/Android camera, permission, resume, and native push
   testing when app-store packaging begins.
 - Approve final legal entity, privacy, provider-attribution, support, store

@@ -27,7 +27,7 @@ submitting Mica to an app store or opening public registration.
 - [ ] Enable Supabase Auth leaked-password protection immediately after that
       upgrade (`password_hibp_enabled=true`) and rerun the security advisor.
 - [ ] Configure production SMTP, sender-domain authentication, and support
-      monitoring for magic links and password recovery.
+      monitoring for registration, sign-in, email confirmation, and password recovery.
 - [ ] Recheck allowed redirect URLs after the final public domain and native deep
       links are known.
 

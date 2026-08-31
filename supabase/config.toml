@@ -1,2 +1,29 @@
 [functions.sync-catalog]
 verify_jwt = false
+
+[auth]
+site_url = "https://jordan-pokemon-app.vercel.app"
+additional_redirect_urls = [
+  "https://jordan-pokemon-app.vercel.app",
+  "https://jordan-pokemon-app.vercel.app/",
+  "https://jordan-pokemon-app.vercel.app/?auth=reset",
+  "https://*-earouse23-devs-projects.vercel.app/**",
+  "http://localhost:3000/",
+  "http://localhost:4173/",
+  "http://localhost:4173/**",
+  "http://127.0.0.1:4173/**"
+]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+secure_password_change = true
+max_frequency = "1m"
+otp_length = 8
+otp_expiry = 3600
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true

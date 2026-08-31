@@ -43,6 +43,8 @@ test("health endpoint verifies core auth without exposing configuration secrets"
   assert.equal(response.result.statusCode, 200);
   assert.equal(response.result.body.status, "healthy");
   assert.equal(response.result.body.services.database, "healthy");
+  assert.equal(response.result.body.services.auth, "healthy");
+  assert.equal(response.result.body.services.appSchema, "healthy");
   assert.doesNotMatch(
     JSON.stringify(response.result.body),
     /private-test-value/,

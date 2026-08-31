@@ -27,6 +27,7 @@ import {
   normalizePkmnPricesOffer,
   normalizePkmnPricesSealedProduct,
   normalizePkmnPricesSale,
+  pkmnPricesRetryDelayMs,
 } from "../lib/providers/pkmnprices.js";
 import {
   normalizeTcgdexCard,
@@ -629,6 +630,73 @@ test("sealed search requests the documented Japanese product language", async ()
   }
 });
 
+test("PkmnPrices bounds Retry-After and aborts an in-flight retry delay", async () => {
+  const originalFetch = globalThis.fetch;
+  const now = Date.parse("2026-08-19T12:00:00.000Z");
+  assert.equal(pkmnPricesRetryDelayMs({ retryAfter: "120" }, 0, now), 2_000);
+  assert.equal(
+    pkmnPricesRetryDelayMs(
+      { retryAfter: "Wed, 19 Aug 2026 12:00:02 GMT" },
+      0,
+      now,
+    ),
+    2_000,
+  );
+  assert.equal(pkmnPricesRetryDelayMs({ retryAfter: "invalid" }, 0, now), 250);
+
+  const controller = new AbortController();
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ error: { message: "Slow down" } }), {
+      status: 429,
+      headers: { "Retry-After": "120" },
+    });
+  };
+  try {
+    const pending = fetchPkmnPricesSealedSearch(
+      "retry-secret",
+      "booster box",
+      "en",
+      controller.signal,
+    );
+    setTimeout(() => controller.abort(), 10);
+    await assert.rejects(pending, (error) => error?.name === "AbortError");
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("PkmnPrices applies the bounded Retry-After delay before retrying", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  const delays = [];
+  let calls = 0;
+  globalThis.setTimeout = (callback, delay, ...args) => {
+    delays.push(delay);
+    queueMicrotask(() => callback(...args));
+    return { delay };
+  };
+  globalThis.fetch = async () => {
+    calls += 1;
+    if (calls === 1)
+      return new Response(JSON.stringify({ error: { message: "Slow down" } }), {
+        status: 429,
+        headers: { "Retry-After": "120" },
+      });
+    return new Response(JSON.stringify({ data: [] }), { status: 200 });
+  };
+  try {
+    await fetchPkmnPricesSealedSearch("retry-secret", "booster box", "en");
+    assert.equal(calls, 2);
+    assert.deepEqual(delays, [2_000]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
 test("sealed endpoint exposes honest unconfigured state without a provider key", async () => {
   const originalKey = process.env.PKMNPRICES_API_KEY;
   delete process.env.PKMNPRICES_API_KEY;
@@ -1124,6 +1192,97 @@ test("server endpoint prefers PkmnPrices when its key is configured", async () =
     else process.env.PKMNPRICES_API_KEY = originalKey;
     if (originalJustKey === undefined) delete process.env.JUSTTCG_API_KEY;
     else process.env.JUSTTCG_API_KEY = originalJustKey;
+  }
+});
+
+test("a PkmnPrices timeout does not abort the TCGdex fallback tier", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalPkmnKey = process.env.PKMNPRICES_API_KEY;
+  const originalJustKey = process.env.JUSTTCG_API_KEY;
+  const originalProvider = process.env.PRICING_PROVIDER;
+  process.env.PKMNPRICES_API_KEY = "timeout-secret";
+  delete process.env.JUSTTCG_API_KEY;
+  process.env.PRICING_PROVIDER = "pkmnprices";
+  let paidSignal;
+  let fallbackSignal;
+  let body;
+  const response = {
+    setHeader() {},
+    status(status) {
+      this.statusCode = status;
+      return this;
+    },
+    json(value) {
+      body = value;
+      return value;
+    },
+  };
+  globalThis.setTimeout = (callback, delay, ...args) =>
+    originalSetTimeout(callback, delay === 4_500 ? 5 : delay, ...args);
+  globalThis.fetch = async (url, options = {}) => {
+    if (String(url).includes("api.pkmnprices.com")) {
+      paidSignal = options.signal;
+      return new Promise((resolve, reject) => {
+        const rejectAbort = () => reject(options.signal.reason);
+        if (options.signal.aborted) rejectAbort();
+        else
+          options.signal.addEventListener("abort", rejectAbort, { once: true });
+      });
+    }
+    assert.match(String(url), /api\.tcgdex\.net\/v2\/en\/cards\/base1-4/);
+    fallbackSignal = options.signal;
+    assert.equal(fallbackSignal.aborted, false);
+    return new Response(
+      JSON.stringify({
+        id: "base1-4",
+        localId: "4",
+        name: "Charizard",
+        set: { name: "Base Set" },
+        pricing: {
+          tcgplayer: {
+            updated: "2026-07-12T10:00:00Z",
+            unit: "USD",
+            holofoil: { marketPrice: 350 },
+          },
+        },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
+  try {
+    const lookups = JSON.stringify([
+      {
+        clientId: "base1-4",
+        name: "Charizard",
+        set: "Base Set",
+        number: "4/102",
+      },
+    ]);
+    await handler(
+      {
+        method: "GET",
+        query: { lookups },
+        headers: {},
+        socket: { remoteAddress: "timeout-fallback-test" },
+      },
+      response,
+    );
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(body.providers, ["tcgdex"]);
+    assert.equal(body.cards[0].quotes[0].amount, 350);
+    assert.equal(paidSignal.aborted, true);
+    assert.equal(fallbackSignal.aborted, false);
+    assert.notEqual(paidSignal, fallbackSignal);
+  } finally {
+    globalThis.fetch = originalFetch;
+    globalThis.setTimeout = originalSetTimeout;
+    if (originalPkmnKey === undefined) delete process.env.PKMNPRICES_API_KEY;
+    else process.env.PKMNPRICES_API_KEY = originalPkmnKey;
+    if (originalJustKey === undefined) delete process.env.JUSTTCG_API_KEY;
+    else process.env.JUSTTCG_API_KEY = originalJustKey;
+    if (originalProvider === undefined) delete process.env.PRICING_PROVIDER;
+    else process.env.PRICING_PROVIDER = originalProvider;
   }
 });
 

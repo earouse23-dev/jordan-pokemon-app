@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#070c12" />
+    <meta name="theme-color" content="#F5F0E4" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Mica" />
@@ -21,8 +21,8 @@
       sizes="180x180"
       href="icons/apple-touch-icon.png"
     />
-    <link rel="stylesheet" href="styles.css?v=86" />
-    <link rel="stylesheet" href="themes.css?v=76" />
+    <link rel="stylesheet" href="styles.css?v=88" />
+    <link rel="stylesheet" href="themes.css?v=83" />
     <title>Mica — Pokémon Card Library</title>
   </head>
   <body>
@@ -71,7 +71,12 @@
                 aria-pressed="false"
                 aria-label="Show password"
               >
-                Show
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"
+                  />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
               </button>
             </div>
           </div>
@@ -91,26 +96,19 @@
           <button type="button" data-auth-legal="privacy">Privacy notice</button
           >.
         </p>
-        <div class="auth-divider"><span>or</span></div>
-        <form id="magicLinkForm" class="auth-form auth-magic">
-          <label for="magicEmail">Email me a secure sign-in link</label>
-          <div>
-            <input
-              id="magicEmail"
-              name="email"
-              type="email"
-              autocomplete="email"
-              required
-              placeholder="you@example.com"
-            /><button type="submit">Send magic link</button>
-          </div>
-        </form>
         <p
           class="auth-message"
           id="authMessage"
           role="status"
           aria-live="polite"
         ></p>
+        <button
+          class="auth-resend hidden"
+          type="button"
+          id="resendConfirmation"
+        >
+          Resend confirmation email
+        </button>
       </div>
     </section>
     <dialog
@@ -177,7 +175,7 @@
           <span class="sidebar-gem" aria-hidden="true"
             ><i></i><i></i><i></i
           ></span>
-          <span><strong>MICA</strong><small>Pokémon collector</small></span>
+          <span><strong>Mica</strong><small>Card collection</small></span>
         </button>
         <nav class="sidebar-nav" aria-label="Desktop navigation">
           <button
@@ -218,7 +216,7 @@
                 <path
                   d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"
                 /></svg></span
-            ><b>Trade Check</b>
+            ><b>Trades</b>
           </button>
         </nav>
         <button
@@ -237,7 +235,7 @@
         <button
           class="wordmark"
           type="button"
-          data-route="collection"
+          data-route="dashboard"
           aria-label="Mica home"
         >
           <span class="wordmark-gem" aria-hidden="true"><i></i></span>
@@ -262,13 +260,13 @@
       <main id="main" tabindex="-1" aria-label="Mica application">
         <section
           class="view active"
-          id="view-collection"
-          aria-labelledby="collectionTitle"
+          id="view-dashboard"
+          aria-labelledby="dashboardTitle"
         >
           <div class="collection-heading">
             <div>
-              <p class="eyebrow">Your collection</p>
-              <h1 id="collectionTitle">Welcome back</h1>
+              <p class="eyebrow">Portfolio</p>
+              <h1 id="dashboardTitle">Welcome back</h1>
               <p class="collection-subtitle">
                 Here’s your collection overview.
               </p>
@@ -305,17 +303,16 @@
             </article>
             <article class="dashboard-kpi">
               <span>Items you own</span><strong id="ownedCount">0</strong
-              ><small id="freshCoverage">0 current prices</small>
+              ><small id="freshCoverage">Across your saved entries</small>
             </article>
             <article class="dashboard-kpi advanced-workspace">
-              <span>Professionally graded</span
-              ><strong id="gradedOwnedCount">0</strong
-              ><small id="gradedShare">0% of collection</small>
+              <span>What you paid</span
+              ><strong id="gradedOwnedCount">$0.00</strong
+              ><small id="gradedShare">Cash still invested</small>
             </article>
             <article class="dashboard-kpi advanced-workspace">
-              <span>Unopened products</span
-              ><strong id="sealedOwnedCount">0</strong
-              ><small id="sealedShare">0% of collection</small>
+              <span>Profit or loss</span><strong id="sealedOwnedCount">—</strong
+              ><small id="sealedShare">Current value minus paid</small>
             </article>
           </section>
           <div class="dashboard-analytics-grid">
@@ -360,20 +357,70 @@
                   <span>Profit from cards already sold</span
                   ><strong id="realizedGain">—</strong>
                 </div>
-                <div>
-                  <span>Ungraded / graded / unopened</span
-                  ><strong id="allocationSummary">—</strong>
-                </div>
-                <div>
-                  <span>How prices are matched</span
-                  ><strong>Same card version only</strong>
-                </div>
               </div>
               <p class="valuation-note" id="valuationNote">
                 Based on matching market prices.
                 <button id="methodButton" type="button">How it works</button>
               </p>
             </section>
+          </div>
+          <div class="dashboard-owned-tools">
+            <section aria-labelledby="dashboardHighestTitle">
+              <div class="panel-heading">
+                <div>
+                  <span>Collection</span>
+                  <strong id="dashboardHighestTitle"
+                    >Highest-value cards</strong
+                  >
+                </div>
+              </div>
+              <div id="dashboardHighestCards" class="movers-list"></div>
+            </section>
+            <section aria-labelledby="dashboardActivityTitle">
+              <div class="panel-heading">
+                <div>
+                  <span>Latest changes</span>
+                  <strong id="dashboardActivityTitle">Recent activity</strong>
+                </div>
+              </div>
+              <div id="dashboardRecentActivity"></div>
+            </section>
+            <section aria-labelledby="dashboardBusinessTitle">
+              <div class="panel-heading">
+                <div>
+                  <span>Last 90 days</span>
+                  <strong id="dashboardBusinessTitle"
+                    >Business performance</strong
+                  >
+                </div>
+              </div>
+              <div
+                id="dashboardBusinessPerformance"
+                class="business-performance-compact"
+              ></div>
+            </section>
+          </div>
+        </section>
+
+        <section
+          class="view"
+          id="view-collection"
+          aria-labelledby="collectionTitle"
+          hidden
+        >
+          <div class="collection-heading">
+            <div>
+              <p class="eyebrow">Your cards</p>
+              <h1 id="collectionTitle">Collection</h1>
+              <p class="collection-subtitle">
+                Browse, filter, and manage every item you own.
+              </p>
+            </div>
+            <div class="collection-actions">
+              <button class="quick-add" type="button" data-sidebar-target="add">
+                + Add Card
+              </button>
+            </div>
           </div>
 
           <div class="view-tabs" role="group" aria-label="Collection view">
@@ -451,11 +498,7 @@
             </details>
           </div>
 
-          <section
-            class="seller-desk hidden"
-            id="sellerDesk"
-            aria-live="polite"
-          ></section>
+          <section class="seller-desk hidden" id="sellerDesk"></section>
 
           <div class="ledger-tools">
             <label class="search-field">
@@ -486,7 +529,9 @@
           </div>
 
           <div class="ledger-meta">
-            <span id="resultCount">0 items</span>
+            <span id="resultCount" role="status" aria-live="polite"
+              >0 items</span
+            >
             <div class="ledger-meta-actions">
               <button
                 id="selectPositionsButton"
@@ -502,7 +547,7 @@
               </button>
             </div>
           </div>
-          <div class="card-ledger" id="cardLedger" aria-live="polite"></div>
+          <div class="card-ledger" id="cardLedger"></div>
           <button
             class="load-more-positions"
             id="loadMorePositions"
@@ -555,6 +600,77 @@
               Clear filters
             </button>
           </div>
+
+          <section
+            class="collection-grading-workspace"
+            aria-labelledby="collectionGradingTitle"
+          >
+            <div class="collection-grading-copy">
+              <span class="condition-lab-icon" aria-hidden="true">
+                <svg viewBox="0 0 48 48">
+                  <rect x="10" y="7" width="28" height="34" rx="5" />
+                  <path d="M16 15h16M16 21h10M16 33l5-5 4 3 7-8" />
+                  <circle cx="33" cy="13" r="6" />
+                </svg>
+              </span>
+              <div>
+                <p class="eyebrow">Mica condition lab</p>
+                <h2 id="collectionGradingTitle">Digitally grade a card</h2>
+                <p>
+                  Photograph a raw card for a digital condition estimate. You
+                  confirm the exact printing and which eligible Collection card
+                  receives the estimate.
+                </p>
+              </div>
+            </div>
+            <button
+              class="digital-grader-launch"
+              id="digitalGraderButton"
+              type="button"
+            >
+              <span class="digital-grader-mark" aria-hidden="true">
+                <svg viewBox="0 0 32 32">
+                  <path d="M5 10h4l2-3h10l2 3h4v16H5z" />
+                  <circle cx="16" cy="18" r="5" />
+                  <path d="M3 7V3h4M25 3h4v4M29 25v4h-4M7 29H3v-4" />
+                </svg>
+              </span>
+              <span>
+                <small>Digital grader</small>
+                <strong>Open the camera</strong>
+                <em>You confirm identity before an estimate is attached</em>
+              </span>
+              <b>Start 4-view scan →</b>
+            </button>
+            <section
+              class="grading-activity"
+              id="gradingActivity"
+              aria-labelledby="gradingActivityTitle"
+              hidden
+            >
+              <div class="grading-activity-heading">
+                <div>
+                  <span>Saved to your account</span>
+                  <h2 id="gradingActivityTitle">Recent grading</h2>
+                  <small
+                    >When available, a small card-only report thumbnail is
+                    stored privately; normal grading photos are deleted after
+                    analysis.</small
+                  >
+                </div>
+                <button type="button" data-refresh-grading-activity>
+                  Refresh
+                </button>
+              </div>
+              <p
+                class="sr-only"
+                id="gradingActivityStatus"
+                role="status"
+                aria-live="polite"
+              ></p>
+              <div id="gradingActivityList"></div>
+            </section>
+          </section>
         </section>
 
         <section
@@ -562,27 +678,11 @@
           id="view-scan"
           aria-labelledby="scanTitle"
         >
-          <div class="scan-header">
-            <p class="eyebrow">One quick search</p>
-            <h1 id="scanTitle">Add to your collection</h1>
-            <p>
-              Search by name and the number printed at the bottom of the card,
-              or take a photo and let Mica narrow it down.
-            </p>
+          <div class="add-cards-heading">
+            <p class="eyebrow">Add to Mica</p>
+            <h1 id="scanTitle">Add cards</h1>
+            <p>Search the printed details or identify one card with a photo.</p>
           </div>
-          <section
-            class="intake-queue-bar hidden"
-            id="intakeQueueBar"
-            aria-live="polite"
-          >
-            <div>
-              <span>Cards to add</span
-              ><strong id="intakeQueueCount">0 cards ready to review</strong>
-            </div>
-            <button id="reviewIntakeQueue" type="button">
-              Review &amp; add
-            </button>
-          </section>
           <div class="add-cards-layout">
             <section class="add-search-panel" aria-labelledby="addSearchTitle">
               <div class="add-panel-heading">
@@ -605,14 +705,6 @@
                 ><select id="quickSearchLanguage">
                   <option value="en">English</option>
                   <option value="ja">Japanese</option>
-                  <option value="fr">French</option>
-                  <option value="de">German</option>
-                  <option value="es">Spanish</option>
-                  <option value="it">Italian</option>
-                  <option value="pt">Portuguese</option>
-                  <option value="zh-tw">Traditional Chinese</option>
-                  <option value="id">Indonesian</option>
-                  <option value="th">Thai</option>
                 </select>
               </div>
               <div
@@ -633,11 +725,13 @@
                   Pikachu 151
                 </button>
               </div>
-              <div
-                class="quick-results"
-                id="quickSearchResults"
+              <p
+                class="sr-only"
+                id="quickSearchStatus"
+                role="status"
                 aria-live="polite"
-              >
+              ></p>
+              <div class="quick-results" id="quickSearchResults">
                 <div class="find-empty compact">
                   <strong>Type the name or card number</strong
                   ><span
@@ -649,8 +743,8 @@
             </section>
             <aside class="add-capture-panel" aria-labelledby="addCaptureTitle">
               <div class="add-panel-heading">
-                <span>Photo tools</span>
-                <h2 id="addCaptureTitle">Use a photo</h2>
+                <span>Don’t know the card?</span>
+                <h2 id="addCaptureTitle">Identify with a photo</h2>
               </div>
               <div class="find-actions">
                 <button
@@ -663,8 +757,8 @@
                     <circle cx="12" cy="13" r="4" />
                     <path d="M2 6V3h3M19 3h3v3M22 18v3h-3M5 21H2v-3" /></svg
                   ><span
-                    ><strong>Open camera</strong
-                    ><small>Identify one card</small></span
+                    ><strong>Take a photo</strong
+                    ><small>Find the exact card</small></span
                   >
                 </button>
                 <label class="find-action" for="galleryInput"
@@ -677,19 +771,6 @@
                     ><small>Use an existing image</small></span
                   ></label
                 >
-                <button
-                  class="find-action"
-                  id="receiptCameraButton"
-                  type="button"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M6 3h12v18l-3-2-3 2-3-2-3 2z" />
-                    <path d="M9 8h6M9 12h6M9 16h3" /></svg
-                  ><span
-                    ><strong>Scan receipt</strong
-                    ><small>Add an order faster</small></span
-                  >
-                </button>
               </div>
               <button
                 class="sealed-search-launch"
@@ -794,14 +875,10 @@
           </button>
         </section>
 
-        <section
-          class="view"
-          id="view-insights"
-          aria-labelledby="insightsTitle"
-        >
+        <section id="insightsData" hidden aria-hidden="true">
           <div class="screen-heading">
             <p class="eyebrow">Built into your collection</p>
-            <h1 id="insightsTitle">Market tools</h1>
+            <h1 id="insightsTitle">Internal collection calculations</h1>
             <p id="insightsIntro">
               Review price movement, selling estimates, and next steps without
               leaving your collection.
@@ -1024,8 +1101,8 @@
           aria-labelledby="tradeTitle"
         >
           <div class="screen-heading">
-            <p class="eyebrow">Trade check</p>
-            <h1 id="tradeTitle">Trade check</h1>
+            <p class="eyebrow">Compare a deal</p>
+            <h1 id="tradeTitle">Trades</h1>
             <p>
               Add the cards and cash on each side. Mica uses matching market
               values automatically and shows the difference.
@@ -1037,7 +1114,7 @@
             aria-live="polite"
           >
             <span>Start a trade</span
-            ><strong>Add cards to both sides to compare the deal.</strong
+            ><strong>Add what you give and what you receive.</strong
             ><small id="tradeBalanceHelp"
               >Market estimates are automatic. You can still override one for an
               unusual deal.</small
@@ -1112,9 +1189,9 @@
             </section>
           </div>
           <p class="legal-copy">
-            Trade Check is an estimate, not a professional valuation. Card wear,
-            professional grade, authenticity, fees, and personal preference can
-            change a fair deal.
+            Mica’s trade comparison is an estimate, not a professional
+            valuation. Card wear, professional grade, authenticity, fees, and
+            personal preference can change a fair deal.
           </p>
         </section>
 
@@ -1124,102 +1201,38 @@
             <h1 id="profileTitle">Your Mica account</h1>
             <p>Your collection follows you across signed-in devices.</p>
           </div>
-          <div class="profile-card">
-            <div class="profile-avatar">ME</div>
-            <div>
-              <strong>Your collection</strong
-              ><span>Securely synced to your account</span>
+          <div class="settings-group" id="accountSettings">
+            <h2>Account</h2>
+            <div class="profile-card">
+              <div class="profile-avatar">ME</div>
+              <div>
+                <strong>Your collection</strong
+                ><span>Securely synced to your account</span>
+              </div>
+              <span class="plan-badge">Private beta</span>
             </div>
-            <span class="plan-badge">Private beta</span>
           </div>
-          <div class="settings-group appearance-settings">
-            <h2>Interface style · this device</h2>
-            <div
-              class="theme-options"
-              role="group"
-              aria-label="Choose Mica's interface style"
-            >
-              <button
-                type="button"
-                data-ui-theme-option="clean"
-                aria-pressed="false"
-              >
-                <span class="theme-preview clean-preview" aria-hidden="true"
-                  ><i></i><i></i><i></i><i></i></span
-                ><span
-                  ><strong>Clean modern</strong
-                  ><small>Bright, spacious, and easy to scan</small></span
-                ><b>Light</b>
-              </button>
-              <button
-                type="button"
-                data-ui-theme-option="analytics"
-                aria-pressed="false"
-              >
-                <span class="theme-preview analytics-preview" aria-hidden="true"
-                  ><i></i><i></i><i></i><i></i></span
-                ><span
-                  ><strong>Dark dashboard</strong
-                  ><small>Dark, compact, and shows more at once</small></span
-                ><b>Dark</b>
-              </button>
-            </div>
-            <p id="uiThemeHelp">
-              Change this any time. Your collection and calculations stay
-              exactly the same.
-            </p>
-          </div>
-          <div class="settings-group detail-settings">
-            <h2>How much detail do you want?</h2>
-            <p>
-              Start simple. You can reveal seller math later without changing
-              any saved cards.
-            </p>
-            <div
-              class="detail-options"
-              role="group"
-              aria-label="Choose how much information Mica shows"
-            >
-              <button
-                type="button"
-                data-workspace-mode="guided"
-                aria-pressed="false"
-              >
-                <span
-                  ><strong>Simple</strong
-                  ><small
-                    >Everyday collection tasks with plain explanations</small
-                  ></span
-                ><b>Recommended</b>
-              </button>
-              <button
-                type="button"
-                data-workspace-mode="growth"
-                aria-pressed="false"
-              >
-                <span
-                  ><strong>More tools</strong
-                  ><small>Add selling, grading, and money reports</small></span
-                ><b>Optional</b>
-              </button>
-              <button
-                type="button"
-                data-workspace-mode="pro"
-                aria-pressed="false"
-              >
-                <span
-                  ><strong>Everything</strong
-                  ><small
-                    >A denser screen for full-time card businesses</small
-                  ></span
-                ><b>Advanced</b>
-              </button>
-            </div>
-            <p id="workspaceModeHelp"></p>
-          </div>
-          <div class="settings-group workflow-defaults advanced-workspace">
-            <h2>Default trade and selling estimates</h2>
+          <div
+            class="settings-group workflow-defaults advanced-workspace"
+            id="advancedSettings"
+          >
+            <p class="eyebrow">Advanced tools</p>
+            <h2>Selling and grading defaults</h2>
             <p>These estimates save time and remain editable in every deal.</p>
+            <button type="button" id="gradingResearchConsentButton">
+              <span
+                >Help improve digital grading<small
+                  id="gradingResearchConsentHelp"
+                  >Off · normal grading photos are deleted after analysis</small
+                ></span
+              ><strong id="gradingResearchConsentState">Off</strong>
+            </button>
+            <div class="simple-note">
+              <strong>Grading assumptions · version 2026.07</strong><br />
+              Service-tier fees were last reviewed July 29, 2026. Shipping and
+              insurance stay at $0 until you enter them for a comparison; verify
+              every fee before submitting cards.
+            </div>
             <label
               >Trade estimate<small
                 >Starting percentage of the matching market price</small
@@ -1267,56 +1280,8 @@
             </button>
             <p id="workflowDefaultsStatus" role="status" aria-live="polite"></p>
           </div>
-          <div class="settings-group connection-settings advanced-workspace">
-            <h2>Connected services</h2>
-            <p>
-              These statuses show which automatic features are ready to use.
-            </p>
-            <div class="connection-row">
-              <span
-                ><strong>Card database</strong
-                ><small
-                  >Finds the right card version by name and number</small
-                ></span
-              ><b id="catalogConnectionState">Checking…</b>
-            </div>
-            <div class="connection-row">
-              <span
-                ><strong>Expanded prices</strong
-                ><small
-                  >Graded prices, price history, listings, unopened products,
-                  and sold links</small
-                ></span
-              ><b id="pricingConnectionState">Checking…</b>
-            </div>
-            <div class="connection-row">
-              <span
-                ><strong>AI photo analysis</strong
-                ><small
-                  >Card matching, receipt reading, and grade estimates for
-                  ungraded cards</small
-                ></span
-              ><b id="visionConnectionState">Checking…</b>
-            </div>
-            <div class="connection-row">
-              <span
-                ><strong>Push alerts</strong
-                ><small
-                  >Buy-target notifications when Mica is closed</small
-                ></span
-              ><b id="pushConnectionState">Developer mode</b>
-            </div>
-            <p
-              class="connection-note"
-              id="connectionStatusNote"
-              role="status"
-              aria-live="polite"
-            >
-              Checking this deployment without exposing keys…
-            </p>
-          </div>
-          <div class="settings-group">
-            <h2>Collection</h2>
+          <div class="settings-group" id="collectionDataSettings">
+            <h2>Collection &amp; data</h2>
             <button type="button" id="sharePortfolioButton">
               <span
                 >Share a collection summary<small
@@ -1355,8 +1320,8 @@
             </button>
             <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
           </div>
-          <div class="settings-group">
-            <h2>Preferences</h2>
+          <div class="settings-group" id="everydaySettings">
+            <h2>Everyday preferences</h2>
             <button type="button" id="installAppButton">
               <span
                 >Install Mica on this device<small id="installAppHelp"
@@ -1380,6 +1345,9 @@
                 ></span
               ><strong id="motionState">Auto</strong>
             </button>
+          </div>
+          <div class="settings-group" id="notificationSettings">
+            <h2>Notifications</h2>
             <button type="button" id="targetAlertButton">
               <span
                 >Buy target alerts<small id="targetAlertHelp"
@@ -1388,7 +1356,7 @@
               ><strong id="targetAlertState">Off</strong>
             </button>
           </div>
-          <div class="settings-group">
+          <div class="settings-group" id="privacySettings">
             <h2>Trust &amp; privacy</h2>
             <button type="button" data-info="sources">
               <span>Data sources &amp; attribution</span><b>›</b>
@@ -1421,6 +1389,7 @@
           class="nav-item active"
           type="button"
           data-sidebar-target="dashboard"
+          aria-current="page"
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5" /></svg
@@ -1444,15 +1413,13 @@
           ><span>Trade</span>
         </button>
       </nav>
-      <div
-        class="bulk-organize-bar"
-        id="bulkOrganizeBar"
-        aria-live="polite"
-        hidden
-      >
-        <strong id="bulkSelectedCount">0 selected</strong
+      <div class="bulk-organize-bar" id="bulkOrganizeBar" hidden>
+        <strong id="bulkSelectedCount" role="status" aria-live="polite"
+          >0 selected</strong
         ><button id="bulkSelectShown" type="button">Select shown</button
         ><button id="bulkShareButton" type="button" disabled>Share list</button
+        ><button id="bulkGradeButton" type="button" disabled>
+          Plan grading</button
         ><button id="bulkOrganizeButton" type="button" disabled>Organize</button
         ><button id="bulkDoneButton" type="button">Done</button>
       </div>
@@ -1477,6 +1444,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=101"></script>
+    <script type="module" src="app.js?v=107"></script>
   </body>
 </html>

@@ -19,6 +19,7 @@ for (const item of [
   "manifest.webmanifest",
   "sw.js",
   "icons",
+  "assets",
 ]) {
   await access(new URL(item, root));
   await cp(new URL(item, root), new URL(item, dist), { recursive: true });
@@ -34,7 +35,7 @@ await build({
   chunkNames: "chunks/[name]-[hash]",
   splitting: true,
   minify: true,
-  sourcemap: true,
+  sourcemap: process.env.MICA_SOURCE_MAPS === "true",
 });
 const publicConfig = {
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",

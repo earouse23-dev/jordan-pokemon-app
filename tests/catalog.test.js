@@ -165,7 +165,7 @@ function installCatalogFetch({ ignoreName = false } = {}) {
   };
 }
 
-test("does not call an unrelated name a strong match solely because its collector number matches", async () => {
+test("exact-name search excludes unrelated cards that share a collector number", async () => {
   const mock = installCatalogFetch({ ignoreName: true });
   try {
     const results = await searchTcgdexCards("Mew ex 151/165", "en", 12);
@@ -173,8 +173,7 @@ test("does not call an unrelated name a strong match solely because its collecto
     const unrelated = results.find(
       (card) => card.externalIds.tcgdex === "ecard1-151",
     );
-    assert.ok(unrelated);
-    assert.equal(unrelated.match.confidence, "Number-only alternative");
+    assert.equal(unrelated, undefined);
   } finally {
     mock.restore();
   }
@@ -204,7 +203,7 @@ test("parses mixed collector searches without treating the full query as a name"
 for (const [query, expectedId] of [
   ["Mew ex 151/165", "sv03.5-151"],
   ["Charizard 4/102", "base1-4"],
-  ["Greninja 214/167", "sv06-214"],
+  ["Greninja ex 214/167", "sv06-214"],
   ["Pikachu 151", "sv03.5-025"],
 ]) {
   test(`ranks the exact printing first for ${query}`, async () => {

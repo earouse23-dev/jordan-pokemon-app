@@ -1,0 +1,239 @@
+{
+  "captured_at": "2026-08-31",
+  "project_ref": "kdkzdflrxajfdcithrfj",
+  "source": "Supabase migration history (read-only)",
+  "migrations": [
+    {
+      "version": "20260712212159",
+      "name": "launch_schema"
+    },
+    {
+      "version": "20260712230000",
+      "name": "pricing_foundation"
+    },
+    {
+      "version": "20260712231536",
+      "name": "catalog_ingestion"
+    },
+    {
+      "version": "20260712232147",
+      "name": "catalog_ingestion_hardening"
+    },
+    {
+      "version": "20260712232944",
+      "name": "catalog_scheduler"
+    },
+    {
+      "version": "20260713001039",
+      "name": "scheduler_token_auth"
+    },
+    {
+      "version": "20260713001226",
+      "name": "scheduler_legacy_auth_restore"
+    },
+    {
+      "version": "20260717160036",
+      "name": "portfolio_tracking"
+    },
+    {
+      "version": "20260717191515",
+      "name": "add_card_watchlist"
+    },
+    {
+      "version": "20260717202657",
+      "name": "add_collection_tags"
+    },
+    {
+      "version": "20260720195924",
+      "name": "support_sealed_products"
+    },
+    {
+      "version": "20260720201731",
+      "name": "support_sealed_watchlist"
+    },
+    {
+      "version": "20260720203942",
+      "name": "add_position_price_history"
+    },
+    {
+      "version": "20260720211951",
+      "name": "add_seller_listing_workflow"
+    },
+    {
+      "version": "20260721003635",
+      "name": "bulk_organize_collection_items"
+    },
+    {
+      "version": "20260721004905",
+      "name": "large_library_indexes"
+    },
+    {
+      "version": "20260721023337",
+      "name": "support_unknown_acquisition_basis"
+    },
+    {
+      "version": "20260721023834",
+      "name": "complete_unknown_acquisition_basis"
+    },
+    {
+      "version": "20260721025319",
+      "name": "remap_collection_position"
+    },
+    {
+      "version": "20260721222848",
+      "name": "record_grading_result"
+    },
+    {
+      "version": "20260721223040",
+      "name": "fix_grading_result_lot_alias"
+    },
+    {
+      "version": "20260721224658",
+      "name": "track_grading_submissions"
+    },
+    {
+      "version": "20260721224918",
+      "name": "index_grading_submission_ownership"
+    },
+    {
+      "version": "20260721230523",
+      "name": "record_portfolio_valuation_history"
+    },
+    {
+      "version": "20260721230744",
+      "name": "require_fresh_portfolio_snapshots"
+    },
+    {
+      "version": "20260721230935",
+      "name": "reset_history_for_backdated_ledger"
+    },
+    {
+      "version": "20260721232116",
+      "name": "split_collection_positions"
+    },
+    {
+      "version": "20260721232359",
+      "name": "require_complete_basis_before_split"
+    },
+    {
+      "version": "20260722041949",
+      "name": "rate_limit_ai_vision"
+    },
+    {
+      "version": "20260722203943",
+      "name": "add_profile_preferences"
+    },
+    {
+      "version": "20260722215702",
+      "name": "add_collection_workflow_indexes"
+    },
+    {
+      "version": "20260723023931",
+      "name": "cover_foreign_key_indexes"
+    },
+    {
+      "version": "20260726041725",
+      "name": "activate_catalog_scheduler_token"
+    },
+    {
+      "version": "20260726042929",
+      "name": "add_indexed_catalog_identity"
+    },
+    {
+      "version": "20260726161709",
+      "name": "rate_limit_ai_advisor"
+    },
+    {
+      "version": "20260726193606",
+      "name": "add_purchase_market_reference"
+    },
+    {
+      "version": "20260727213257",
+      "name": "fit_catalog_to_free_plan"
+    },
+    {
+      "version": "20260730035209",
+      "name": "acquisition_methods_and_digital_grades"
+    },
+    {
+      "version": "20260730035241",
+      "name": "digital_grade_fk_index"
+    },
+    {
+      "version": "20260730040451",
+      "name": "atomic_digital_grade_confirmation"
+    },
+    {
+      "version": "20260730041238",
+      "name": "unknown_additional_purchase_facts"
+    },
+    {
+      "version": "20260730173024",
+      "name": "evidence_first_grading"
+    },
+    {
+      "version": "20260730173053",
+      "name": "grading_owner_indexes"
+    },
+    {
+      "version": "20260730173648",
+      "name": "freeze_confirmed_grading_reports"
+    },
+    {
+      "version": "20260730200639",
+      "name": "persist_grading_consensus"
+    },
+    {
+      "version": "20260804035045",
+      "name": "complete_digital_grading"
+    },
+    {
+      "version": "20260809215703",
+      "name": "psa_accuracy_foundation"
+    },
+    {
+      "version": "20260809220422",
+      "name": "grading_outcome_proofs"
+    },
+    {
+      "version": "20260809221404",
+      "name": "psa_pilot_operations"
+    },
+    {
+      "version": "20260809221730",
+      "name": "psa_pilot_deletion_hardening"
+    },
+    {
+      "version": "20260809222058",
+      "name": "psa_pilot_service_api"
+    },
+    {
+      "version": "20260809223006",
+      "name": "psa_pilot_blind_review"
+    },
+    {
+      "version": "20260809224842",
+      "name": "psa_annotation_contract"
+    },
+    {
+      "version": "20260809225003",
+      "name": "psa_pilot_cohort_dashboard"
+    },
+    {
+      "version": "20260809225202",
+      "name": "psa_capture_cohort_instrumentation"
+    },
+    {
+      "version": "20260809230633",
+      "name": "psa_deletion_worker"
+    },
+    {
+      "version": "20260809232519",
+      "name": "psa_deletion_worker"
+    },
+    {
+      "version": "20260812184724",
+      "name": "digital_grading_pregrade_v2"
+    }
+  ]
+}

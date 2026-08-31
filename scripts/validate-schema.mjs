@@ -74,6 +74,14 @@ const required = [
   "card_watchlist",
   "position_price_observations",
   "grading_submissions",
+  "grading_research_consents",
+  "grading_scan_sessions",
+  "grading_captures",
+  "grading_evidence",
+  "grading_predictions",
+  "grading_outcomes",
+  "grading_feedback",
+  "grading_physical_cards",
 ];
 
 const failures = [];
@@ -120,6 +128,91 @@ if (
   )
 )
   failures.push("watchlist update ownership RLS is missing");
+for (const table of [
+  "physical_card_partitions",
+  "training_examples",
+  "annotation_reviews",
+  "dataset_manifests",
+  "model_registry",
+  "calibration_registry",
+  "evaluation_runs",
+  "outcome_verification_reviews",
+  "dataset_manifest_examples",
+  "data_deletion_tombstones",
+  "data_deletion_jobs",
+  "pilot_audit_events",
+]) {
+  if (
+    !new RegExp(
+      `create table if not exists grading_private\\.${table}`,
+      "i",
+    ).test(sql)
+  )
+    failures.push(`missing private grading table: ${table}`);
+  if (
+    !new RegExp(
+      `alter table grading_private\\.${table} enable row level security`,
+      "i",
+    ).test(sql)
+  )
+    failures.push(`RLS is not enabled: grading_private.${table}`);
+}
+if (
+  !/revoke all on schema grading_private from public,anon,authenticated/i.test(
+    sql,
+  )
+)
+  failures.push("private grading schema is exposed to client roles");
+for (const match of sql.matchAll(
+  /create(?: or replace)? function public\.([a-z_]+)\s*\(([^)]*)\)([\s\S]*?)as \$\$/gi,
+)) {
+  const [, functionName, , header] = match;
+  if (!/security definer/i.test(header)) continue;
+  if (!/set search_path\s*=\s*''/i.test(header))
+    failures.push(
+      `public security-definer function has a writable search path: ${functionName}`,
+    );
+  if (
+    !new RegExp(`revoke all on function public\\.${functionName}\\(`, "i").test(
+      sql,
+    )
+  )
+    failures.push(
+      `public security-definer function keeps default execute access: ${functionName}`,
+    );
+}
+if (/auth\.role\s*\(/i.test(sql))
+  failures.push("deprecated auth.role() authorization remains in the schema");
+for (const match of sql.matchAll(
+  /create(?: or replace)? view public\.([a-z_]+)([\s\S]*?)\bas\b/gi,
+)) {
+  const [, viewName, header] = match;
+  if (!/security_invoker\s*=\s*true/i.test(header))
+    failures.push(`public view does not preserve caller RLS: ${viewName}`);
+}
+for (const signature of [
+  "grading_v3_freeze_dataset_service\\(text,uuid\\[\\],text\\)",
+  "grading_v3_dataset_export_service\\(uuid\\)",
+  "grading_v3_dataset_candidates_service\\(integer\\)",
+]) {
+  if (
+    !new RegExp(
+      `revoke all on function public\\.${signature}[\\s\\S]+from public,anon,authenticated`,
+      "i",
+    ).test(sql) ||
+    !new RegExp(
+      `grant execute on function public\\.${signature}[\\s\\S]+to service_role`,
+      "i",
+    ).test(sql)
+  )
+    failures.push(`V3 dataset service is not service-only: ${signature}`);
+}
+if (
+  !/add column if not exists annotation_snapshot jsonb[\s\S]+add column if not exists pipeline_snapshot jsonb[\s\S]+add column if not exists capture_snapshot jsonb/i.test(
+    sql,
+  )
+)
+  failures.push("V3 frozen dataset lineage snapshots are missing");
 if (failures.length) {
   console.error(failures.join("\n"));
   process.exit(1);

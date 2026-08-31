@@ -7,6 +7,62 @@ const ALLOWED_IMAGE_TYPES = new Set([
   "image/webp",
 ]);
 const MAX_IMAGE_BYTES = 5_000_000;
+const IMAGE_TOO_LARGE = "image_too_large";
+
+export async function readBoundedImageBody(
+  response,
+  maximum = MAX_IMAGE_BYTES,
+) {
+  if (!response.body) return Buffer.alloc(0);
+  const reader = response.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maximum) {
+        await reader.cancel();
+        throw new Error(IMAGE_TOO_LARGE);
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return Buffer.concat(chunks, total);
+}
+
+export function matchesImageSignature(contentType, bytes) {
+  if (contentType === "image/jpeg")
+    return (
+      bytes.length >= 3 &&
+      bytes[0] === 0xff &&
+      bytes[1] === 0xd8 &&
+      bytes[2] === 0xff
+    );
+  if (contentType === "image/png")
+    return (
+      bytes.length >= 8 &&
+      bytes
+        .subarray(0, 8)
+        .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    );
+  if (contentType === "image/webp")
+    return (
+      bytes.length >= 12 &&
+      bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+      bytes.subarray(8, 12).toString("ascii") === "WEBP"
+    );
+  if (contentType === "image/avif")
+    return (
+      bytes.length >= 16 &&
+      bytes.subarray(4, 8).toString("ascii") === "ftyp" &&
+      /avif|avis/.test(bytes.subarray(8, 32).toString("ascii"))
+    );
+  return false;
+}
 
 export function normalizeImageSource(value) {
   return normalizeCardImageSource(value);
@@ -47,9 +103,10 @@ export default async function handler(request, response) {
         .status(502)
         .json({ error: "Image source is temporarily unavailable" });
 
-    const contentType = String(
-      upstream.headers.get("content-type") || "",
-    ).toLowerCase();
+    const contentType = String(upstream.headers.get("content-type") || "")
+      .split(";", 1)[0]
+      .trim()
+      .toLowerCase();
     if (!ALLOWED_IMAGE_TYPES.has(contentType))
       return response
         .status(415)
@@ -59,9 +116,13 @@ export default async function handler(request, response) {
     if (Number.isFinite(declaredLength) && declaredLength > MAX_IMAGE_BYTES)
       return response.status(413).json({ error: "Image is too large" });
 
-    const bytes = Buffer.from(await upstream.arrayBuffer());
-    if (!bytes.length || bytes.length > MAX_IMAGE_BYTES)
+    const bytes = await readBoundedImageBody(upstream);
+    if (!bytes.length)
       return response.status(413).json({ error: "Image is too large" });
+    if (!matchesImageSignature(contentType, bytes))
+      return response
+        .status(415)
+        .json({ error: "Image source returned invalid image bytes" });
 
     response.setHeader("Content-Type", contentType);
     response.setHeader(
@@ -70,7 +131,9 @@ export default async function handler(request, response) {
     );
     response.setHeader("Cross-Origin-Resource-Policy", "same-origin");
     return response.status(200).send(bytes);
-  } catch {
+  } catch (error) {
+    if (error?.message === IMAGE_TOO_LARGE)
+      return response.status(413).json({ error: "Image is too large" });
     return response
       .status(502)
       .json({ error: "Image source is temporarily unavailable" });

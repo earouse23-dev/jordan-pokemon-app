@@ -152,6 +152,6 @@ Mica already supported exact-print search, English and Japanese cards, raw/grade
 - Card Ladder and Alt: integrations remain disabled until licensed API access is approved. No restricted service was scraped.
 - Very large live repricing: the UI and private database loading now scale incrementally, but continuously refreshing thousands of exact products is constrained by provider rate limits and should be designed against the approved paid provider plan.
 - Multi-currency portfolio conversion is not implemented. Mica keeps currencies separated rather than fabricating exchange-rate comparisons; adding conversions requires an approved rate source and accounting policy.
-- Supabase Auth currently reports leaked-password protection as disabled. Magic-link sign-in is unaffected, but enabling compromised-password screening for password users requires an owner Auth setting decision.
+- Supabase Auth currently reports leaked-password protection as disabled. Enabling compromised-password screening for password users remains an owner launch-setting decision.
 
 No marketplace, paid provider, destructive migration, copied competitor layout, or fabricated market data was introduced.

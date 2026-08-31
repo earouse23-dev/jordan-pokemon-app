@@ -35,7 +35,7 @@ The existing `supabase/functions/sync-catalog` remains the resumable multilingua
 
 ## Security
 
-- Email/password primary authentication and secondary magic links.
+- Email/password authentication with verification and password recovery.
 - Explicit Data API grants for authenticated tables.
 - RLS on every public table.
 - Ownership predicates on collection items, transactions, purchase lots, and FIFO allocations.

@@ -138,6 +138,7 @@ export function priceSyncLookupKey(item) {
 }
 
 const SYNC_BATCH_SIZE = 50;
+const SYNC_WORK_BUDGET_MS = 45_000;
 const UUID_CURSOR =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -183,6 +184,19 @@ export async function loadPriceSyncBatch(
     wrapped,
     nextCursor: items.at(-1)?.id || cursor,
   };
+}
+
+export function completedPriceSyncCursor(
+  items,
+  completedLookupKeys,
+  fallbackCursor = null,
+) {
+  let cursor = fallbackCursor;
+  for (const item of items || []) {
+    if (!completedLookupKeys.has(priceSyncLookupKey(item))) break;
+    cursor = item.id;
+  }
+  return cursor;
 }
 
 export function positionHistoryRows(position, normalized) {
@@ -275,7 +289,7 @@ export default async function handler(request, response) {
     ? authorization.slice(7)
     : "";
   if (request.method === "GET") {
-    if (bearerToken !== config.syncSecret)
+    if (bearerToken !== config.cronSecret)
       return send(response, 401, { error: "Unauthorized" });
   } else {
     if (!bearerToken)
@@ -287,7 +301,8 @@ export default async function handler(request, response) {
     if (identity.user.app_metadata?.role !== "admin")
       return send(response, 403, { error: "Administrator access required" });
   }
-  const startedAt = new Date().toISOString();
+  const startedAtMs = Date.now();
+  const startedAt = new Date(startedAtMs).toISOString();
   await database
     .from("provider_sync_status")
     .upsert({ provider: "pkmnprices", enabled: true, updated_at: startedAt });
@@ -315,8 +330,15 @@ export default async function handler(request, response) {
     duplicates = 0,
     failures = 0,
     successfulGroups = 0;
+  let deadlineReached = false;
+  let checkpointCursor = cursorResult.data?.sync_cursor || null;
+  const attemptedLookupKeys = new Set();
   const proHistory = ["pro", "business"].includes(config.pkmnpricesPlan);
-  for (const groupedItems of groups.values()) {
+  for (const [lookupKey, groupedItems] of groups.entries()) {
+    if (Date.now() - startedAtMs >= SYNC_WORK_BUDGET_MS) {
+      deadlineReached = true;
+      break;
+    }
     const item = groupedItems[0];
     const identity = item.identity_snapshot || {};
     const controller = new AbortController();
@@ -342,10 +364,7 @@ export default async function handler(request, response) {
           includeEurHistory: proHistory,
         },
       );
-      if (!result.card) {
-        failures += 1;
-        continue;
-      }
+      if (!result.card) throw new Error("provider_card_not_found");
       const normalized = normalizePkmnPricesCard(
         result.card,
         result.history,
@@ -385,26 +404,53 @@ export default async function handler(request, response) {
     } finally {
       clearTimeout(timeout);
     }
+    attemptedLookupKeys.add(lookupKey);
+    checkpointCursor = completedPriceSyncCursor(
+      items,
+      attemptedLookupKeys,
+      checkpointCursor,
+    );
+    const checkpoint = await database.from("provider_sync_status").upsert({
+      provider: "pkmnprices",
+      enabled: true,
+      sync_cursor: checkpointCursor,
+      updated_at: new Date().toISOString(),
+    });
+    if (checkpoint.error) failures += 1;
   }
   const finishedAt = new Date().toISOString();
-  await database.from("provider_sync_status").upsert({
+  const statusUpdate = await database.from("provider_sync_status").upsert({
     provider: "pkmnprices",
     enabled: true,
     last_success_at:
       groups.size === 0 || successfulGroups > 0 ? finishedAt : null,
-    last_failure_at: failures ? finishedAt : null,
-    last_error_code: failures ? "partial_failure" : null,
-    sync_cursor: batch.nextCursor,
+    last_failure_at: failures || deadlineReached ? finishedAt : null,
+    last_error_code: deadlineReached
+      ? "deadline_reached"
+      : failures
+        ? successfulGroups
+          ? "partial_failure"
+          : "full_failure"
+        : null,
+    sync_cursor: checkpointCursor,
     updated_at: finishedAt,
   });
-  return send(response, 200, {
-    ok: true,
+  if (statusUpdate.error)
+    return send(response, 500, {
+      ok: false,
+      error: "Could not persist pricing sync status",
+    });
+  const fullFailure = groups.size > 0 && successfulGroups === 0;
+  return send(response, fullFailure ? 502 : 200, {
+    ok: !deadlineReached && failures === 0,
     trackedCards: groups.size,
     trackedPositions: items?.length || 0,
+    attemptedGroups: attemptedLookupKeys.size,
+    deferredGroups: groups.size - attemptedLookupKeys.size,
     inserted,
     duplicates,
     failures,
-    cursor: batch.nextCursor,
+    cursor: checkpointCursor,
     wrapped: batch.wrapped,
     startedAt,
     finishedAt,

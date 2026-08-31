@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { runInNewContext } from "node:vm";
 import accountHandler from "../api/account.js";
 import capabilitiesHandler from "../api/capabilities.js";
 import priceSyncHandler, {
@@ -179,6 +180,48 @@ const visionRateLimitMigration = await readFile(
   ),
   "utf8",
 );
+const acquisitionAndDigitalGradesMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260730030500_acquisition_methods_and_digital_grades.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const atomicDigitalGradeMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260730040404_atomic_digital_grade_confirmation.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const unknownAdditionalPurchaseMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260730052000_unknown_additional_purchase_facts.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const evidenceFirstGradingMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260730171023_evidence_first_grading.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const freezeConfirmedGradingMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260730180500_freeze_confirmed_grading_reports.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const gradingConsensusMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260730203000_persist_grading_consensus.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const catalogSyncFunction = await readFile(
   new URL("../supabase/functions/sync-catalog/index.ts", import.meta.url),
   "utf8",
@@ -195,6 +238,87 @@ const freePlanCatalogMigration = await readFile(
     "../supabase/migrations/20260727213134_fit_catalog_to_free_plan.sql",
     import.meta.url,
   ),
+  "utf8",
+);
+const psaAccuracyFoundationMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260809213838_psa_accuracy_foundation.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const gradingOutcomeProofMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260809220243_grading_outcome_proofs.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const psaPilotOperationsMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260809220912_psa_pilot_operations.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const psaPilotServiceMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260809221834_psa_pilot_service_api.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const psaPilotBlindReviewMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260809223000_psa_pilot_blind_review.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const psaAnnotationContractMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260809224000_psa_annotation_contract.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const psaPilotCohortDashboardMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260809224800_psa_pilot_cohort_dashboard.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const psaCaptureCohortMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260809225500_psa_capture_cohort_instrumentation.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const psaDeletionWorkerMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260809230500_psa_deletion_worker.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const psaCalibrationActivationMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260810185153_activate_psa_calibration_artifacts.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const gradingV3DatasetFactoryMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260817232928_grading_v3_dataset_factory.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const gradingPilotEndpoint = await readFile(
+  new URL("../lib/grading-pilot-api.js", import.meta.url),
   "utf8",
 );
 const salesEndpoint = await readFile(
@@ -233,12 +357,29 @@ const vercelConfig = await readFile(
   new URL("../vercel.json", import.meta.url),
   "utf8",
 );
+const buildScript = await readFile(
+  new URL("../scripts/build.mjs", import.meta.url),
+  "utf8",
+);
+const ciWorkflow = await readFile(
+  new URL("../.github/workflows/ci.yml", import.meta.url),
+  "utf8",
+);
+const packageManifest = JSON.parse(
+  await readFile(new URL("../package.json", import.meta.url), "utf8"),
+);
+const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
 
 test("offline runtime caching is bounded and APIs remain network-only", () => {
   assert.match(serviceWorker, /RUNTIME_LIMIT\s*=\s*80/);
   assert.match(
     serviceWorker,
     /keys\.slice\(0,\s*keys\.length\s*-\s*RUNTIME_LIMIT\)/,
+  );
+  assert.match(serviceWorker, /RUNTIME_CACHE\s*=\s*"mica-runtime-v2"/);
+  assert.match(
+    serviceWorker,
+    /isPrivateStorageRequest[\s\S]+storage\\\/v1[\s\S]+sign\|authenticated[\s\S]+cache:\s*"no-store"/,
   );
   assert.match(
     serviceWorker,
@@ -248,6 +389,92 @@ test("offline runtime caching is bounded and APIs remain network-only", () => {
     serviceWorker,
     /request\.mode\s*===\s*["']navigate["'][\s\S]{0,800}caches[\s\S]+\.match\(["']\.\/index\.html["']\)/,
   );
+});
+
+test("optional grading assets cannot block service-worker installation", async () => {
+  const listeners = {};
+  const coreAssets = [];
+  const optionalAssets = [];
+  let skippedWaiting = false;
+  const cache = {
+    async addAll(assets) {
+      coreAssets.push(...assets);
+    },
+    async add(asset) {
+      optionalAssets.push(asset);
+      if (asset.includes("coach-light-retake"))
+        throw new Error("Optional asset unavailable");
+    },
+  };
+  runInNewContext(serviceWorker, {
+    self: {
+      addEventListener(type, listener) {
+        listeners[type] = listener;
+      },
+      skipWaiting() {
+        skippedWaiting = true;
+      },
+      clients: { claim() {} },
+    },
+    caches: {
+      async open() {
+        return cache;
+      },
+      async keys() {
+        return [];
+      },
+    },
+    clients: {},
+    URL,
+    Response,
+    fetch: globalThis.fetch,
+  });
+
+  let installPromise;
+  listeners.install({
+    waitUntil(promise) {
+      installPromise = promise;
+    },
+  });
+  await installPromise;
+
+  assert.equal(skippedWaiting, true);
+  assert.ok(coreAssets.includes("./index.html"));
+  assert.ok(coreAssets.includes("./app.js?v=107"));
+  assert.equal(
+    coreAssets.some((asset) => asset.includes("coach-")),
+    false,
+  );
+  assert.ok(optionalAssets.includes("./assets/coach-light-retake.jpg"));
+});
+
+test("Node 24 and one non-recursive full release gate are canonical", () => {
+  const releaseGate = packageManifest.scripts["release:check"];
+  assert.equal(packageManifest.engines.node, "24.x");
+  assert.match(releaseGate, /npm run test:browser$/);
+  assert.doesNotMatch(releaseGate, /release:check/);
+  assert.match(ciWorkflow, /node-version:\s*24/);
+  assert.equal(ciWorkflow.match(/npm run release:check/g)?.length, 1);
+  for (const duplicate of [
+    "npm run lint",
+    "npm run typecheck",
+    "npm test",
+    "npm run test:schema",
+    "npm run build",
+    "npm run test:browser",
+  ]) {
+    assert.doesNotMatch(ciWorkflow, new RegExp(`- run: ${duplicate}$`, "m"));
+  }
+  assert.match(readme, /Requires Node 24\.x/);
+  assert.match(readme, /npm run release:check/);
+});
+
+test("production bundles do not publish source maps by default", () => {
+  assert.match(
+    buildScript,
+    /sourcemap:\s*process\.env\.MICA_SOURCE_MAPS\s*===\s*"true"/,
+  );
+  assert.doesNotMatch(buildScript, /sourcemap:\s*true/);
 });
 
 test("installable app metadata uses a scoped standalone shell", () => {
@@ -278,44 +505,42 @@ test("working interfaces keep readable text at a twelve-pixel minimum", () => {
   assert.doesNotMatch(combinedCss, /font:\s*[^;]*\b(?:7|8|9|10|11)px\b/);
 });
 
-test("clean modern and analytics focused interfaces are selectable and persistent", () => {
-  assert.match(appShell, /data-ui-theme-option="clean"/);
-  assert.match(appShell, /data-ui-theme-option="analytics"/);
-  assert.match(appShell, /themes\.css\?v=76/);
-  assert.match(
-    appSource,
-    /localStorage\.setItem\(["']mica-ui-theme["'],\s*theme\)/,
-  );
-  assert.match(themes, /body\[data-ui-theme="clean"\]/);
-  assert.match(themes, /body\[data-ui-theme="analytics"\]/);
-  assert.match(serviceWorker, /mica-shell-v102/);
-  assert.match(serviceWorker, /themes\.css\?v=76/);
+test("Mica uses one approved cream and sage interface", () => {
+  assert.doesNotMatch(appShell, /data-ui-theme-option=/);
+  assert.doesNotMatch(appShell, /data-workspace-mode=/);
+  assert.match(appShell, /themes\.css\?v=83/);
+  assert.match(appSource, /let uiTheme = "mica"/);
+  assert.match(appSource, /let workspaceMode = "unified"/);
+  assert.match(themes, /body\[data-ui-theme="mica"\]/);
+  assert.match(themes, /--canvas:\s*#f5f0e4/i);
+  assert.match(themes, /--pine:\s*#66785d/i);
+  assert.match(serviceWorker, /mica-shell-v110/);
+  assert.match(serviceWorker, /themes\.css\?v=83/);
 });
 
-test("beginner mode is the default and uses plain-language decisions", () => {
-  assert.match(appSource, /let workspaceMode = "guided"/);
-  assert.match(
-    appSource,
-    /function recommendedWorkspace|const recommendedWorkspace/,
-  );
-  assert.match(
-    appSource,
-    /experienceLevel === "beginner"[\s\S]+guided|:\s*"guided"/,
-  );
-  assert.match(appShell, /data-workspace-mode="guided"/);
-  assert.match(appShell, />Simple</);
-  assert.match(appShell, /Everyday collection tasks with plain explanations/);
-  assert.match(appShell, />Recommended</);
+test("signup distinguishes repeated accounts and supports confirmation resend", () => {
+  assert.match(appShell, /id="resendConfirmation"/);
+  assert.match(supabaseData, /client\.auth\.resend\(\{/);
+  assert.match(supabaseData, /type:\s*"signup"/);
+  assert.match(supabaseData, /emailRedirectTo:\s*returnTo/);
+  assert.match(appSource, /result\.user\?\.identities/);
+  assert.match(appSource, /No new email was sent/);
+  assert.match(appSource, /use Forgot password/);
+});
+
+test("one interface uses plain language and moves complexity into Advanced tools", () => {
+  assert.match(appSource, /let workspaceMode = "unified"/);
+  assert.doesNotMatch(appShell, /How much detail do you want/);
+  assert.match(appShell, /Advanced tools/);
   assert.match(appSource, /Total paid/);
   assert.match(appShell, /Unopened/);
-  assert.match(appSource, /What would you like to do\?/);
   assert.match(appSource, /number printed at the bottom|bottom number/);
   assert.doesNotMatch(`${appShell}\n${appSource}`, /Sample average/);
   assert.doesNotMatch(
     appShell,
     /Return on cost|Realized gain\/loss|ETBs|slabs/,
   );
-  assert.match(styles, /body\[data-workspace="guided"\] \.advanced-workspace/);
+  assert.match(themes, /body\[data-ui-theme="mica"\] \.advanced-workspace/);
 });
 
 test("client presentation shows purchase performance without claiming market evidence", () => {
@@ -344,7 +569,8 @@ test("owned positions use provider prices and never fabricate current value or h
   assert.match(appSource, /function purchaseMarketReference\(item, lot\)/);
   assert.match(appSource, /setPurchaseMarketReference/);
   assert.match(appSource, /Market when bought/);
-  assert.match(appSource, /Market now/);
+  assert.match(appSource, /Current market price/);
+  assert.match(appSource, /Price today/);
   assert.doesNotMatch(appSource, /isShowcaseAccount/);
   assert.match(appSource, /const accountLabel = email/);
   assert.doesNotMatch(
@@ -365,7 +591,7 @@ test("portfolio dashboard uses a responsive stock-style interactive chart", () =
   );
   assert.match(appSource, /maintainAspectRatio: false/);
   assert.match(appSource, /Hover or tap for the date and value/);
-  assert.match(appSource, /Prices checked/);
+  assert.match(appSource, />Price change</);
   assert.match(styles, /\.portfolio-chart-shell[\s\S]+height: clamp/);
   assert.match(styles, /\.portfolio-history-canvas[\s\S]+touch-action: pan-y/);
 });
@@ -386,12 +612,12 @@ test("account switches discard stale portfolio responses and filter owned reads"
   );
   assert.match(supabaseData, /signOut\(\{\s*scope:\s*["']local["']/);
   assert.match(appSource, /previousOwnerId !== ownerId/);
-  assert.match(appSource, /state\.intakeQueue = \[\]/);
+  assert.match(appSource, /state\.ledgerView = "all"/);
   assert.match(appSource, /mica-target-alert-hits-\$\{/);
 });
 
 test("streamlined collection, intake, and trade surfaces keep primary actions visible", () => {
-  assert.match(appSource, /Top cards/);
+  assert.match(appShell, /Highest-value cards/);
   assert.doesNotMatch(appSource, /Recent additions/);
   assert.match(appSource, /data-add-purchase/);
   assert.match(appSource, /data-open-position/);
@@ -413,8 +639,15 @@ test("consolidated workspace navigation remains responsive and routes to real wo
   assert.match(bottomNavigation, /data-sidebar-target="collection"/);
   assert.doesNotMatch(bottomNavigation, /data-route="insights"/);
   assert.doesNotMatch(bottomNavigation, /data-route="profile"/);
-  assert.match(appSource, /function integratePricingIntoCollection\(\)/);
-  assert.match(appSource, /window\.scrollTo\(\{ top: 0, behavior: "auto" \}\)/);
+  assert.doesNotMatch(appSource, /intakeQueue|openBatchIntakeSheet/);
+  assert.match(
+    appSource,
+    /route === "collection" \? restoreCollectionViewState\(\) : 0/,
+  );
+  assert.match(appShell, /id="view-dashboard"/);
+  assert.match(appShell, /id="view-collection"/);
+  assert.doesNotMatch(appShell, /id="view-insights"/);
+  assert.doesNotMatch(appShell, />Market tools</);
   assert.match(appShell, /data-condition-filter="Raw"/);
   assert.match(appShell, /data-condition-filter="Graded"/);
   assert.match(appShell, /data-condition-filter="Sealed"/);
@@ -466,11 +699,12 @@ test("configured provider keys are not presented as live before a real request",
   assert.doesNotMatch(appSource, /pricingConnectionState", "Live"/);
 });
 
-test("card, grading, and receipt scans use the live device camera", () => {
+test("card identification and digital grading use the live device camera", () => {
   assert.match(appShell, /id="autoCaptureButton"/);
-  assert.match(appShell, /Open camera/);
+  assert.match(appShell, /Take a photo/);
   assert.match(appShell, /Choose a photo/);
-  assert.match(appShell, /id="receiptCameraButton"/);
+  assert.match(appShell, /id="digitalGraderButton"/);
+  assert.doesNotMatch(appShell, /id="receiptCameraButton"/);
   assert.doesNotMatch(appShell, /for="cameraInput"/);
   assert.doesNotMatch(appShell, /for="receiptInput"/);
   assert.match(appSource, /navigator\.mediaDevices\.getUserMedia/);
@@ -479,7 +713,82 @@ test("card, grading, and receipt scans use the live device camera", () => {
   assert.match(appSource, /applyConstraints\(\{\s*advanced:\s*\[\{\s*torch:/);
   assert.match(appSource, /error\?\.name === "NotAllowedError"/);
   assert.match(appSource, /kind:\s*"back"/);
+  assert.match(appSource, /DeviceMotionEvent\.requestPermission/);
+  assert.match(appSource, /cardBoundsInCameraFrame/);
+  assert.match(appSource, /data-capture-request/);
+  assert.match(appSource, /Add angled light/);
+  assert.match(appSource, /captureType:\s*"alternate_front"/);
+  assert.match(appSource, /captureType:\s*"alternate_back"/);
+  assert.match(appSource, /Preparing \$\{captures\.length\} views/);
+  assert.match(appSource, /geometryReading\.detected/);
+  assert.match(appSource, /scoreGradeableCameraFrame/);
+  assert.match(appSource, /automatic_live_best_frame_v2/);
+  assert.match(appSource, /bestAutomaticFrame/);
+  assert.doesNotMatch(appSource, /class=\"camera-check-rail\"/);
+  assert.doesNotMatch(appSource, /id="visionBackCamera"/);
+  assert.doesNotMatch(appSource, /id="visionGrade" type=/);
+  assert.match(appSource, /measurePrintedBorderCentering/);
+  assert.match(appSource, /data-finding=/);
+  assert.match(appSource, /evidenceCropDataUrl/);
+  assert.match(appSource, /temporary scan photo and is not uploaded again/);
   assert.match(vercelConfig, /camera=\(self\)/);
+});
+
+test("raw card intake offers grading before save and Collection grading stays card-attached", () => {
+  assert.match(appSource, /Would you like to digitally grade this card\?/);
+  assert.match(appSource, /Add without grading/);
+  assert.match(appSource, /Grade now/);
+  assert.match(appShell, /Digitally grade a card/);
+  assert.match(appShell, /You confirm identity before an estimate is attached/);
+  assert.doesNotMatch(appShell, /grading-workspace-facts/);
+  assert.doesNotMatch(appShell, /Full Digital Grade/);
+  assert.doesNotMatch(appSource, /function openGradingTargetPicker/);
+  assert.match(appSource, /function resolveAutomaticGradeCollectionMatch/);
+  assert.match(appSource, /Card identity \+ Collection match/);
+  assert.match(appSource, /attaching DG/);
+  assert.match(
+    appSource,
+    /function beginDigitalGrading[\s\S]{0,1800}openDigitalGradeCaptureStep\(0, \[\]/,
+  );
+  assert.match(
+    appSource,
+    /#digitalGraderButton[\s\S]+\(\) => void openDigitalGrader\(\)/,
+  );
+  assert.match(appSource, /await saveCardAddDraft\(draft/);
+  assert.doesNotMatch(appShell, /add-grade-report-preview/);
+});
+
+test("recent grading activity is owner-scoped and recoverable", () => {
+  assert.match(appShell, /id="gradingActivity"/);
+  assert.match(appSource, /loadRecentGradingSessions/);
+  assert.match(
+    supabaseData,
+    /from\("grading_scan_sessions"\)[\s\S]+\.eq\("user_id", ownerId\)[\s\S]+\.limit\(boundedLimit\)/,
+  );
+  assert.match(
+    supabaseData,
+    /from\("grading_predictions"\)[\s\S]+\.eq\("user_id", ownerId\)[\s\S]+\.in\("scan_session_id", sessionIds\)/,
+  );
+  assert.match(appSource, /data-continue-grading/);
+  assert.match(appSource, /data-open-grading-report/);
+  assert.match(appSource, /function openPsaOutcomeLinkSheet/);
+  assert.match(appSource, /Attach PSA return/);
+  assert.match(appSource, /PSA return attached for independent review/);
+  assert.match(appSource, /Mica capture first, then PSA submission/);
+  assert.match(
+    supabaseData,
+    /from\("grading_outcomes"\)[\s\S]+\.eq\("user_id", ownerId\)[\s\S]+\.in\("scan_session_id", sessionIds\)/,
+  );
+  assert.match(appSource, /updateGradingSessionIdentity/);
+  assert.match(appSource, /coach-parallel-pass\.jpg/);
+  assert.match(appSource, /coach-background-retake\.jpg/);
+  assert.doesNotMatch(appSource, /class="camera-check-rail"/);
+  assert.doesNotMatch(appSource, /Card grading session/);
+  assert.match(appSource, /Your saved reports have not been removed/);
+  assert.match(
+    supabaseData,
+    /updateGradingSessionWorkflow[\s\S]+\.eq\("id", scanSessionId\)[\s\S]+\.eq\("user_id", ownerId\)/,
+  );
 });
 
 test("guided intake preserves unknown purchase facts without inventing profit", () => {
@@ -1045,7 +1354,7 @@ test("scheduled price synchronization rejects unauthenticated requests before pr
     NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
     SUPABASE_SECRET_KEY: "server-secret",
     PKMNPRICES_API_KEY: "provider-secret",
-    PRICE_SYNC_SECRET: "cron-secret",
+    CRON_SECRET: "cron-secret",
   });
   let body;
   const response = {
@@ -1149,7 +1458,7 @@ test("manual price synchronization requires an authenticated administrator", asy
     NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
     SUPABASE_SECRET_KEY: "server-secret",
     PKMNPRICES_API_KEY: "provider-secret",
-    PRICE_SYNC_SECRET: "cron-secret",
+    CRON_SECRET: "cron-secret",
   });
   let body;
   const response = {
@@ -1205,7 +1514,19 @@ test("account deletion verifies the bearer identity and matching email before ad
     /auth\.getUser\(bearerToken\)[\s\S]+confirmation[^]*identity\.user\.email[^]*auth\.admin\.deleteUser\(identity\.user\.id\)/,
   );
   assert.match(accountEndpoint, /request\.method !== "DELETE"/);
+  assert.match(
+    accountEndpoint,
+    /listPrivateBucketPaths[\s\S]+"grading-research"[\s\S]+"grading-report-thumbnails"[\s\S]+"grading-outcome-proofs"[\s\S]+grading_withdraw_account_training_service[\s\S]+removePrivateBucketPaths[\s\S]+auth\.admin\.signOut\([\s\S]+"global"[\s\S]+auth\.admin\.deleteUser/,
+  );
+  assert.match(
+    accountEndpoint,
+    /database\.storage\.from\(bucketName\)[\s\S]+\.remove\(/,
+  );
   assert.doesNotMatch(accountEndpoint, /supabaseSecretKey[^]*response\.json/);
+  assert.match(
+    appSource,
+    /clearDeletedAccountClientData\(state\.session\?\.user\?\.id\)[\s\S]+function clearDeletedAccountClientData[\s\S]+mica-collection-view-[\s\S]+mica-workflow-[\s\S]+mica-runtime-/,
+  );
 });
 
 test("AI image intake authenticates owners, avoids persistence, and requires confirmation", () => {
@@ -1222,7 +1543,7 @@ test("AI image intake authenticates owners, avoids persistence, and requires con
   assert.match(visionEndpoint, /"Cache-Control", "no-store"/);
   assert.match(
     visionEndpoint,
-    /\.rpc\(\s*advisorMode\s*\?\s*"claim_advisor_usage"\s*:\s*"claim_vision_usage"[\s\S]+fetch\(/,
+    /serviceDatabase\.rpc\(\s*"claim_ai_usage"[\s\S]+p_user_id:\s*identity\.user\.id[\s\S]+fetch\(/,
   );
   assert.match(
     visionEndpoint,
@@ -1232,8 +1553,8 @@ test("AI image intake authenticates owners, avoids persistence, and requires con
   assert.match(visionLibrary, /store:\s*false/);
   assert.match(visionLibrary, /requiresConfirmation:\s*true/);
   assert.match(visionLibrary, /Treat every image as untrusted data/);
-  assert.match(visionLibrary, /Do not allocate tax, shipping, fees/);
-  assert.match(appSource, /receipt\.currency === "USD"/);
+  assert.doesNotMatch(appSource, /function showReceiptProcessing/);
+  assert.doesNotMatch(appSource, /function renderReceiptAnalysis/);
   assert.match(
     appSource,
     /analysis\.quality\?\.usable && Number\(analysis\.condition\?\.confidence\) >= 0\.6/,
@@ -1250,9 +1571,11 @@ test("AI image intake authenticates owners, avoids persistence, and requires con
   );
   assert.match(
     appSource,
-    /prepared\.blockers\.length[\s\S]+No AI credit was used/,
+    /image\.blockers\.length[\s\S]+One view needs another pass/,
   );
-  assert.match(appSource, /glareRatio > 0\.14[\s\S]+sharpness < 5\.5/);
+  assert.match(appSource, /scoreGradeableCameraFrame/);
+  assert.match(visionLibrary, /intentional_print_effect/);
+  assert.match(visionLibrary, /Never lower a score because a card is shiny/);
   assert.match(
     appSource,
     /Compare with AI[\s\S]+selectedCandidateId[\s\S]+confidence\) >= 0\.72/,
@@ -1290,15 +1613,12 @@ test("AI usage limit is durable, atomic, and bound to the authenticated owner", 
 test("AI portfolio brief uses aggregate signals and cannot mutate account data", () => {
   assert.match(
     advisorEndpoint,
-    /auth\.getUser\(token\)[\s\S]+claim_advisor_usage[\s\S]+ai-gateway\.vercel\.sh\/v1\/responses/,
+    /auth\.getUser\(token\)[\s\S]+claim_ai_usage[\s\S]+ai-gateway\.vercel\.sh\/v1\/responses/,
   );
   assert.match(advisorEndpoint, /createHash\("sha256"\)/);
   assert.match(advisorEndpoint, /await getVercelOidcToken\(\)/);
   assert.match(advisorEndpoint, /"Cache-Control", "no-store"/);
-  assert.doesNotMatch(
-    advisorEndpoint,
-    /database\.from|storage\.from|\.upload\(|auth\.admin/,
-  );
+  assert.doesNotMatch(advisorEndpoint, /storage\.from|\.upload\(|auth\.admin/);
   assert.match(advisorLibrary, /store:\s*false/);
   assert.match(
     advisorLibrary,
@@ -1331,6 +1651,393 @@ test("AI portfolio brief uses aggregate signals and cannot mutate account data",
     advisorRateLimitMigration,
     /grant execute on function public\.claim_advisor_usage\(integer,integer\) to authenticated/i,
   );
+  assert.match(
+    acquisitionAndDigitalGradesMigration,
+    /revoke all on function public\.claim_ai_usage\(uuid,text,integer,integer\)[\s\S]+from public,anon,authenticated/i,
+  );
+  assert.match(
+    acquisitionAndDigitalGradesMigration,
+    /grant execute on function public\.claim_ai_usage\(uuid,text,integer,integer\)[\s\S]+to service_role/i,
+  );
+});
+
+test("digital grade confirmation is atomic, owner-scoped, and blocks direct client mutation", () => {
+  assert.match(
+    atomicDigitalGradeMigration,
+    /create function public\.confirm_digital_grade_assessment/,
+  );
+  assert.match(atomicDigitalGradeMigration, /security invoker/i);
+  assert.match(
+    atomicDigitalGradeMigration,
+    /owner_id uuid := \(select auth\.uid\(\)\)[\s\S]+where id\s*=\s*p_collection_item_id and user_id\s*=\s*owner_id/i,
+  );
+  assert.match(
+    atomicDigitalGradeMigration,
+    /update public\.digital_grade_assessments[\s\S]+set estimate_status\s*=\s*'superseded'/i,
+  );
+  assert.match(
+    atomicDigitalGradeMigration,
+    /update public\.collection_items[\s\S]+set raw_condition\s*=\s*p_derived_raw_condition/i,
+  );
+  assert.match(
+    atomicDigitalGradeMigration,
+    /revoke insert,\s*update on (?:table )?public\.digital_grade_assessments from authenticated/i,
+  );
+  assert.match(
+    atomicDigitalGradeMigration,
+    /grant execute on function public\.confirm_digital_grade_assessment[\s\S]+to authenticated/i,
+  );
+  assert.match(supabaseData, /rpc\(\s*"confirm_digital_grade_assessment"/);
+});
+
+test("evidence-first grading is owner isolated, consent gated, and retry safe", () => {
+  for (const table of [
+    "grading_research_consents",
+    "grading_scan_sessions",
+    "grading_captures",
+    "grading_evidence",
+    "grading_predictions",
+    "grading_outcomes",
+    "grading_feedback",
+  ]) {
+    assert.match(
+      evidenceFirstGradingMigration,
+      new RegExp(
+        `alter table public\\.${table} enable row level security`,
+        "i",
+      ),
+    );
+  }
+  assert.match(
+    evidenceFirstGradingMigration,
+    /where id=p_scan_session_id and user_id=owner_id/i,
+  );
+  assert.match(
+    evidenceFirstGradingMigration,
+    /session_consent='normal'[\s\S]+normal_scan_cannot_retain_image/i,
+  );
+  assert.match(
+    evidenceFirstGradingMigration,
+    /bucket_id='grading-research'[\s\S]+grading_research_consents[\s\S]+consented/i,
+  );
+  assert.match(
+    evidenceFirstGradingMigration,
+    /usage_events_owner_event_idempotency_idx[\s\S]+return jsonb_build_object\('allowed',true,'retryAfter',0,'reused',true\)/i,
+  );
+  assert.match(
+    freezeConfirmedGradingMigration,
+    /estimate_status='confirmed'[\s\S]+if prediction_id is not null then return prediction_id/i,
+  );
+  assert.match(
+    visionEndpoint,
+    /usage\?\.reused[\s\S]+loadPersistedGradingResponse[\s\S]+return send\(response,\s*200,\s*saved\)/,
+  );
+  assert.match(
+    supabaseData,
+    /recordProfessionalGradingOutcome[\s\S]+from\("grading_outcomes"\)/,
+  );
+  assert.match(
+    appSource,
+    /recordProfessionalGradingOutcome\(supabase[\s\S]+returnedGrade:\s*psaOutcome\?\.returnedGrade\s*\?\?\s*normalizedGrade/,
+  );
+  assert.match(
+    appSource,
+    /function gradingMarketContextMarkup[\s\S]+gradingQuote\(item,\s*"PSA",\s*String\(predictedGrade\)\)[\s\S]+gradingDecision/,
+  );
+  assert.match(appSource, /Mica will not substitute another grade/);
+});
+
+test("PSA accuracy data is physically isolated, label-valid, consent-bound, and service-only", () => {
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /create table if not exists public\.grading_physical_cards/,
+  );
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /physical_card_id uuid not null[\s\S]+references public\.grading_physical_cards/,
+  );
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /returned_grade in \(\s*1,1\.5,2,2\.5,3,3\.5,4,4\.5,5,5\.5,6,6\.5,7,7\.5,8,8\.5,9,10\s*\)/,
+  );
+  assert.doesNotMatch(
+    psaAccuracyFoundationMigration,
+    /returned_grade in \([^\)]*9\.5/,
+  );
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /training_allowed boolean[\s\S]+outcome_linkage_allowed boolean[\s\S]+consent_version='mica-grading-research-v2'/,
+  );
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /create schema if not exists grading_private[\s\S]+revoke all on schema grading_private from public,anon,authenticated/,
+  );
+  for (const table of [
+    "physical_card_partitions",
+    "training_examples",
+    "annotation_reviews",
+    "dataset_manifests",
+    "model_registry",
+    "calibration_registry",
+    "evaluation_runs",
+  ]) {
+    assert.match(
+      psaAccuracyFoundationMigration,
+      new RegExp(
+        `alter table grading_private\\.${table} enable row level security`,
+        "i",
+      ),
+    );
+  }
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /if \(select auth\.uid\(\)\) is not null then[\s\S]+new\.verification_status:=case[\s\S]+when new\.proof_storage_path is not null and new\.proof_sha256 is not null/,
+  );
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /create table if not exists grading_private\.physical_card_partitions[\s\S]+physical_card_id uuid primary key[\s\S]+partition_key text generated always as \(physical_card_id::text\) stored unique/,
+  );
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /foreign key \(physical_card_id,owner_id,dataset_partition\)[\s\S]+references grading_private\.physical_card_partitions/,
+  );
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /old\.dataset_partition<>'unassigned'[\s\S]+physical_card_partition_is_immutable/,
+  );
+});
+
+test("returned-label proof is private, owner-scoped, hashed, and never self-verifies", () => {
+  assert.match(
+    gradingOutcomeProofMigration,
+    /'grading-outcome-proofs','grading-outcome-proofs',false,10485760/,
+  );
+  assert.match(
+    gradingOutcomeProofMigration,
+    /grading outcome proof owners can insert[\s\S]+bucket_id='grading-outcome-proofs'[\s\S]+storage\.foldername\(name\)\)\[1\]=\(select auth\.uid\(\)\)::text/,
+  );
+  assert.match(
+    supabaseData,
+    /uploadGradingOutcomeProof[\s\S]+crypto\.subtle\.digest\("SHA-256"[\s\S]+from\("grading-outcome-proofs"\)/,
+  );
+  assert.match(
+    appSource,
+    /Returned-label proof[\s\S]+uploadGradingOutcomeProof[\s\S]+proofStoragePath:\s*proof\?\.path/,
+  );
+  assert.match(
+    psaAccuracyFoundationMigration,
+    /new\.verification_status:=case[\s\S]+then 'proof_attached'[\s\S]+else 'user_reported'/,
+  );
+});
+
+test("PSA pilot operations require independent review and quarantine revoked lineage", () => {
+  for (const table of [
+    "outcome_verification_reviews",
+    "dataset_manifest_examples",
+    "data_deletion_tombstones",
+    "data_deletion_jobs",
+    "pilot_audit_events",
+  ]) {
+    assert.match(
+      psaPilotOperationsMigration,
+      new RegExp(
+        `create table if not exists grading_private\\.${table}[\\s\\S]+alter table grading_private\\.${table} enable row level security`,
+        "i",
+      ),
+    );
+  }
+  assert.match(
+    psaPilotOperationsMigration,
+    /record_outcome_verification_review[\s\S]+count\(distinct review\.reviewer_key\)[\s\S]+approvals>=2 then 'independently_verified'/,
+  );
+  assert.match(
+    psaPilotOperationsMigration,
+    /record_annotation_review[\s\S]+reviewer_must_be_independent[\s\S]+distinct_labels=1 then 'double_review'/,
+  );
+  assert.match(
+    psaPilotOperationsMigration,
+    /capture_not_proven_before_submission[\s\S]+annotation_review_incomplete[\s\S]+eligibility:='eligible'/,
+  );
+  assert.match(
+    psaPilotOperationsMigration,
+    /delete_training_subject[\s\S]+data_deletion_tombstones[\s\S]+status='quarantined'[\s\S]+validated=false[\s\S]+data_deletion_jobs/,
+  );
+  assert.match(
+    psaPilotOperationsMigration,
+    /freeze_dataset_manifest[\s\S]+manifest_contains_ineligible_example[\s\S]+manifest_contains_deleted_source[\s\S]+dataset_manifest_examples/,
+  );
+  assert.match(
+    psaPilotOperationsMigration,
+    /security definer[\s\S]+revoke all on all functions in schema grading_private from public,anon,authenticated/,
+  );
+  assert.doesNotMatch(psaPilotOperationsMigration, /auth\.role\(\)/);
+});
+
+test("PSA pilot reviewer access stays behind a narrow service-only facade", () => {
+  assert.match(
+    psaPilotServiceMigration,
+    /grading_pilot_review_queue_service[\s\S]+security invoker/,
+  );
+  for (const role of ["public", "anon", "authenticated"])
+    assert.match(
+      psaPilotServiceMigration,
+      new RegExp(
+        `revoke all on function public\\.grading_pilot_review_queue_service\\(text,integer\\)[\\s\\S]+from public,anon,authenticated`,
+        "i",
+      ),
+      `review facade must be revoked from ${role}`,
+    );
+  assert.match(
+    psaPilotServiceMigration,
+    /grant execute on function public\.grading_pilot_review_queue_service\(text,integer\) to service_role/,
+  );
+  assert.match(
+    gradingPilotEndpoint,
+    /app_metadata\?\.grading_review_role[\s\S]+auth\.getUser\(token\)/,
+  );
+  assert.doesNotMatch(gradingPilotEndpoint, /user_metadata/);
+  assert.match(
+    gradingPilotEndpoint,
+    /createSignedUrl\(path, 300\)[\s\S]+grading-outcome-proofs[\s\S]+grading-research/,
+  );
+  assert.match(gradingPilotEndpoint, /createHash\("sha256"\)/);
+  assert.doesNotMatch(
+    gradingPilotEndpoint,
+    /supabaseSecretKey[^]*response\.json/,
+  );
+  assert.match(
+    psaPilotBlindReviewMigration,
+    /not exists\([\s\S]+review\.reviewer_key=p_reviewer_key[\s\S]+not exists\([\s\S]+review\.reviewer_key=p_reviewer_key/,
+  );
+  assert.doesNotMatch(
+    psaPilotBlindReviewMigration.match(
+      /elsif p_kind='annotation'[\s\S]+end if;/,
+    )?.[0] || "",
+    /returnedLabel|label_snapshot|quality_measurements|geometry_measurements/,
+  );
+  assert.match(
+    gradingPilotEndpoint,
+    /safeEntry\.reviews =[\s\S]+mayAdjudicate && reviewCount >= 2[\s\S]+delete safeEntry\.label/,
+  );
+});
+
+test("PSA annotations require human-localized evidence under the frozen protocol", () => {
+  assert.match(
+    psaAnnotationContractMigration,
+    /mica-psa-label-protocol-v1[\s\S]+identityConfirmed[\s\S]+evidence[\s\S]+structure[\s\S]+eyeAppeal/,
+  );
+  assert.match(
+    psaAnnotationContractMigration,
+    /jsonb_array_length\(p_labels->'defects'\)>50[\s\S]+persistentAcrossLight[\s\S]+jsonb_typeof\(defect->'mask'\) is distinct from 'array'/,
+  );
+  assert.match(
+    psaAnnotationContractMigration,
+    /approval_requires_sufficient_evidence/,
+  );
+  assert.match(
+    psaAnnotationContractMigration,
+    /annotation_label_fingerprint\(labels\)[\s\S]+distinct_labels=1 then 'double_review'/,
+  );
+  assert.doesNotMatch(
+    psaAnnotationContractMigration,
+    /modelPrediction|psaPrediction/,
+  );
+});
+
+test("pilot instrumentation reports accuracy coverage by cohort and repeats", () => {
+  assert.match(
+    psaPilotCohortDashboardMigration,
+    /targetRepeatGroups[\s\S]+repeatGroups[\s\S]+having count\(\*\)>=2/,
+  );
+  for (const dimension of [
+    "finish",
+    "language",
+    "returnedLabel",
+    "reviewerStatus",
+    "partition",
+  ])
+    assert.match(
+      psaPilotCohortDashboardMigration,
+      new RegExp(`'${dimension}'`),
+    );
+  assert.match(
+    psaPilotCohortDashboardMigration,
+    /coalesce\(nullif\(cohort->>'finish',''\),'unknown'\)/,
+  );
+});
+
+test("pilot cohort snapshots retain privacy-safe capture and finish dimensions", () => {
+  assert.match(
+    appSource,
+    /privacySafeCaptureContext[\s\S]+deviceClass[\s\S]+evidenceResolutionTier/,
+  );
+  assert.doesNotMatch(
+    appSource,
+    /qualityMetrics[^]*navigator\.userAgent\s*[,}]/,
+  );
+  assert.match(
+    psaCaptureCohortMigration,
+    /reviewed_labels->>'finish'[\s\S]+evidenceResolutionTier[\s\S]+captureMethod/,
+  );
+  for (const dimension of [
+    "manufacturingEra",
+    "designType",
+    "deviceClass",
+    "deviceTier",
+    "captureMethod",
+  ])
+    assert.match(psaCaptureCohortMigration, new RegExp(`'${dimension}'`));
+});
+
+test("research erasure jobs are claimed once, retried, and service-only", () => {
+  assert.match(
+    psaDeletionWorkerMigration,
+    /for update skip locked[\s\S]+status='processing'[\s\S]+attempts=job\.attempts\+1/,
+  );
+  assert.match(
+    psaDeletionWorkerMigration,
+    /where id=p_job_id and status='processing'/,
+  );
+  assert.match(
+    psaDeletionWorkerMigration,
+    /revoke all on function public\.grading_pilot_claim_deletion_jobs_service[\s\S]+from public,anon,authenticated[\s\S]+grant execute[\s\S]+to service_role/,
+  );
+  assert.match(
+    gradingPilotEndpoint,
+    /grading-research[\s\S]+retained_for_research: false[\s\S]+grading_pilot_complete_deletion_job_service/,
+  );
+  assert.match(
+    gradingPilotEndpoint,
+    /authorization !== `Bearer \$\{config\.cronSecret\}`/,
+  );
+});
+
+test("additional purchase facts remain unknown without weakening owner or retry protections", () => {
+  assert.match(unknownAdditionalPurchaseMigration, /security invoker/i);
+  assert.match(
+    unknownAdditionalPurchaseMigration,
+    /where id=p_collection_item_id and user_id=owner_id/i,
+  );
+  assert.match(
+    unknownAdditionalPurchaseMigration,
+    /where user_id=owner_id and idempotency_key=p_idempotency_key/i,
+  );
+  assert.match(
+    unknownAdditionalPurchaseMigration,
+    /p_cost_basis_known boolean default true/,
+  );
+  assert.match(
+    unknownAdditionalPurchaseMigration,
+    /p_acquisition_date_known boolean default true/,
+  );
+  assert.match(
+    unknownAdditionalPurchaseMigration,
+    /item_currency,basis_known,[\s\S]+acquired_date_known,normalized_method/i,
+  );
+  assert.match(appSource, /id="lotCostUnknown"/);
+  assert.match(appSource, /id="lotDateUnknown"/);
+  assert.match(supabaseData, /p_cost_basis_known:/);
+  assert.match(supabaseData, /p_acquisition_date_known:/);
 });
 
 test("catalog scheduling uses a fail-closed single-purpose credential", () => {
@@ -1363,6 +2070,10 @@ test("catalog scheduling uses a fail-closed single-purpose credential", () => {
     /new Map\(cards\.map\(card => \[card\.set\.id/,
   );
   assert.match(
+    catalogSyncFunction,
+    /new Set\(\['en', 'fr', 'es', 'de', 'it', 'pt', 'ja', 'zh-tw', 'id', 'th'\]\)/,
+  );
+  assert.match(
     supabaseFunctionConfig,
     /\[functions\.sync-catalog\][\s\S]+verify_jwt\s*=\s*false/,
   );
@@ -1393,9 +2104,122 @@ test("free-plan deployment cannot regrow the provider cache", () => {
     offersEndpoint,
     /!\["pro", "business"\]\.includes\(config\.pkmnpricesPlan\)/,
   );
-  assert.match(appSource, /id="marketProofDetails"/);
+  assert.doesNotMatch(appSource, /id="marketProofDetails"/);
+  assert.doesNotMatch(appShell, />More price proof</);
+});
+
+test("precision grading exposes safe capture, structural abstention, and portable reports", () => {
+  assert.match(appSource, /id="deviceCameraTimer"[\s\S]+Tripod timer · 3s/);
+  assert.match(appSource, /Hands off · photo in/);
+  assert.match(appSource, /window\.addEventListener\("keydown", onRemoteKey\)/);
+  assert.match(appSource, /evaluatePsa10Centering/);
+  assert.match(appSource, /https:\/\/www\.psacard\.com\/gradingstandards/);
+  assert.match(appSource, /function gradingReportImageBlob/);
+  assert.match(appSource, /ESTIMATE — NOT AN OFFICIAL GRADE/);
+  assert.match(appSource, /Share report image/);
+  assert.match(
+    visionEndpoint,
+    /desiredResponseCount[\s\S]+Math\.min\(3,\s*modelPlan\.length\)[\s\S]+Promise\.all/,
+  );
+  assert.match(visionEndpoint, /mica-registered-reference-consensus-v3/);
+  assert.match(
+    visionEndpoint,
+    /selectGradingReference[\s\S]+registered-reference-review-v3/,
+  );
+  assert.match(
+    visionEndpoint,
+    /requireHighGradeVerification\(\s*analysis,\s*input\.captureDescriptors/,
+  );
   assert.match(
     appSource,
-    /marketProofDetails"\)\?\.addEventListener\("toggle"[\s\S]+event\.currentTarget\.open[\s\S]+loadSales\(item\)[\s\S]+loadOffers\(item\)/,
+    /rerun up to three independent reviews against the original front, back/,
+  );
+  assert.match(
+    gradingConsensusMigration,
+    /add column if not exists review_consensus jsonb not null default '\{\}'::jsonb/i,
+  );
+  assert.match(
+    gradingConsensusMigration,
+    /coalesce\(p_prediction->'consensus','\{\}'::jsonb\)/,
+  );
+  assert.match(appSource, /consensus:\s*analysis\.consensus\s*\|\|\s*\{\}/);
+  assert.match(appSource, /independent image reviews/);
+});
+
+test("PSA calibration activation is frozen-dataset, champion-model, and service only", () => {
+  assert.match(
+    psaCalibrationActivationMigration,
+    /not active or \([\s\S]+validated[\s\S]+featureVersion'[\s\S]+coefficients/,
+  );
+  assert.match(
+    psaCalibrationActivationMigration,
+    /model\.status='champion'[\s\S]+manifest\.status='frozen'/,
+  );
+  assert.match(
+    psaCalibrationActivationMigration,
+    /create unique index if not exists one_active_psa_calibration/,
+  );
+  assert.match(
+    psaCalibrationActivationMigration,
+    /revoke all on function public\.grading_active_calibration_service\(jsonb\)[\s\S]+from public,anon,authenticated/,
+  );
+  assert.match(
+    psaCalibrationActivationMigration,
+    /grant execute on function public\.grading_active_calibration_service\(jsonb\)[\s\S]+to service_role/,
+  );
+  assert.match(
+    psaCalibrationActivationMigration,
+    /grading_register_calibration_service[\s\S]+candidate_model\.status<>'champion'[\s\S]+candidate_manifest\.status<>'frozen'/,
+  );
+  assert.match(
+    psaCalibrationActivationMigration,
+    /revoke all on function public\.grading_register_calibration_service[\s\S]+from public,anon,authenticated/,
+  );
+});
+
+test("V3 datasets freeze complete lineage without exposing private captures", () => {
+  assert.match(
+    gradingV3DatasetFactoryMigration,
+    /add column if not exists annotation_snapshot jsonb[\s\S]+add column if not exists pipeline_snapshot jsonb[\s\S]+add column if not exists capture_snapshot jsonb/,
+  );
+  assert.match(
+    gradingV3DatasetFactoryMigration,
+    /capture_snapshot_for_example[\s\S]+private_storage_path[\s\S]+image_hash[\s\S]+normalizedCropApplied[\s\S]+backgroundExcluded/,
+  );
+  assert.match(
+    gradingV3DatasetFactoryMigration,
+    /manifest_contains_duplicate_physical_card[\s\S]+manifest_contains_duplicate_example_ids/,
+  );
+  assert.match(
+    gradingV3DatasetFactoryMigration,
+    /manifest_contains_deleted_source[\s\S]+manifest_quarantined_by_deletion/,
+  );
+  for (const signature of [
+    "grading_v3_freeze_dataset_service\\(text,uuid\\[\\],text\\)",
+    "grading_v3_dataset_export_service\\(uuid\\)",
+    "grading_v3_dataset_candidates_service\\(integer\\)",
+  ]) {
+    assert.match(
+      gradingV3DatasetFactoryMigration,
+      new RegExp(
+        `revoke all on function public\\.${signature}[\\s\\S]+from public,anon,authenticated`,
+        "i",
+      ),
+    );
+    assert.match(
+      gradingV3DatasetFactoryMigration,
+      new RegExp(
+        `grant execute on function public\\.${signature}[\\s\\S]+to service_role`,
+        "i",
+      ),
+    );
+  }
+  assert.match(
+    gradingPilotEndpoint,
+    /view === "dataset"[\s\S]+role !== "admin"[\s\S]+grading_v3_dataset_candidates_service/,
+  );
+  assert.match(
+    gradingPilotEndpoint,
+    /action === "freeze_v3_dataset"[\s\S]+role !== "admin"[\s\S]+grading_v3_freeze_dataset_service/,
   );
 });

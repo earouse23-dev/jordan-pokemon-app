@@ -36,14 +36,22 @@ export default async function handler(request, response) {
   const supabaseConfigured = Boolean(
     config.supabaseUrl && config.supabasePublishableKey,
   );
-  const [database, pricingProvider] = await Promise.all([
+  const [auth, appSchema, pricingProvider] = await Promise.all([
     supabaseConfigured
       ? probe(`${config.supabaseUrl}/auth/v1/health`, {
           apikey: config.supabasePublishableKey,
         })
       : Promise.resolve("not_configured"),
+    supabaseConfigured
+      ? probe(`${config.supabaseUrl}/rest/v1/collections?select=id&limit=0`, {
+          apikey: config.supabasePublishableKey,
+          Authorization: `Bearer ${config.supabasePublishableKey}`,
+        })
+      : Promise.resolve("not_configured"),
     probe("https://api.pkmnprices.com/health"),
   ]);
+  const database =
+    auth === "healthy" && appSchema === "healthy" ? "healthy" : "degraded";
   const status = database === "healthy" ? "healthy" : "degraded";
   return response.status(status === "healthy" ? 200 : 503).json({
     status,
@@ -51,6 +59,8 @@ export default async function handler(request, response) {
     release: String(process.env.VERCEL_GIT_COMMIT_SHA || "local").slice(0, 12),
     services: {
       database,
+      auth,
+      appSchema,
       catalog: "configured",
       pricingProvider,
       paidPricing: config.pkmnpricesApiKey ? "configured" : "public_fallback",

@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import imageHandler, {
   cardImageProxyPath,
+  matchesImageSignature,
   normalizeImageSource,
+  readBoundedImageBody,
 } from "../api/card-image.js";
 
 function mockResponse() {
@@ -63,11 +65,11 @@ test("card image proxy paths preserve an approved source without exposing it as 
 test("card image relay returns verified image bytes with bounded shared caching", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
-    new Response(Uint8Array.from([137, 80, 78, 71]), {
+    new Response(Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]), {
       status: 200,
       headers: {
         "content-type": "image/png",
-        "content-length": "4",
+        "content-length": "8",
       },
     });
   try {
@@ -84,10 +86,25 @@ test("card image relay returns verified image bytes with bounded shared caching"
     assert.equal(response.statusCode, 200);
     assert.equal(response.headers["content-type"], "image/png");
     assert.match(response.headers["cache-control"], /s-maxage=604800/);
-    assert.deepEqual([...response.body], [137, 80, 78, 71]);
+    assert.deepEqual([...response.body], [137, 80, 78, 71, 13, 10, 26, 10]);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("card image relay stops reading oversized streams and verifies signatures", async () => {
+  await assert.rejects(
+    readBoundedImageBody(new Response(Uint8Array.from([1, 2, 3, 4, 5])), 4),
+    /image_too_large/,
+  );
+  assert.equal(
+    matchesImageSignature(
+      "image/png",
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    ),
+    true,
+  );
+  assert.equal(matchesImageSignature("image/png", Buffer.from("<svg>")), false);
 });
 
 test("card image relay rejects methods and unsupported upstream content", async () => {

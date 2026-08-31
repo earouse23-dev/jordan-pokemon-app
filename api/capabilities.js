@@ -1,6 +1,13 @@
 import { serverEnvironment } from "../lib/env.js";
+import gradingPilotHandler, {
+  gradingDeletionCronHandler,
+} from "../lib/grading-pilot-api.js";
 
-export default function handler(request, response) {
+export default async function handler(request, response) {
+  if (request.query?.surface === "grading-pilot")
+    return gradingPilotHandler(request, response);
+  if (request.query?.surface === "grading-deletion")
+    return gradingDeletionCronHandler(request, response);
   response.setHeader("Cache-Control", "private, no-store");
   if (request.method !== "GET") {
     response.setHeader("Allow", "GET");

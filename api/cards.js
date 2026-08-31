@@ -13,6 +13,24 @@ import {
 
 const windows = new Map();
 const SAFE_TEXT = /^[\p{L}\p{N} .:'&+\-/()#]{1,120}$/u;
+const PROVIDER_TIMEOUT_MS = Object.freeze({
+  pkmnprices: 4_500,
+  justtcg: 2_000,
+  tcgdex: 2_000,
+});
+
+async function settleProviderTier(items, timeoutMs, operation) {
+  if (!items.length) return [];
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await Promise.allSettled(
+      items.map((item) => operation(item, controller.signal)),
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function isRateLimited(request) {
   const forwarded = String(request.headers["x-forwarded-for"] || "")
@@ -116,23 +134,22 @@ export default async function handler(request, response) {
   const proHistory = ["pro", "business"].includes(pkmnPricesPlan);
   const fullHistory = String(request.query?.history || "") === "full";
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 9_000);
   const retrievedAt = new Date().toISOString();
   try {
     const cardsByClientId = new Map();
     const providers = new Set();
     if (pkmnPricesKey) {
-      const primary = await Promise.allSettled(
-        lookups.map((lookup) =>
-          fetchPkmnPricesLookup(pkmnPricesKey, lookup, controller.signal, {
+      const primary = await settleProviderTier(
+        lookups,
+        PROVIDER_TIMEOUT_MS.pkmnprices,
+        (lookup, signal) =>
+          fetchPkmnPricesLookup(pkmnPricesKey, lookup, signal, {
             includeHistory: fullHistory,
             historyPeriod: proHistory ? "365d" : "90d",
             historyLimit: proHistory ? 365 : 90,
             includeEur: proHistory,
             includeEurHistory: fullHistory && proHistory,
           }),
-        ),
       );
       primary.forEach((result, index) => {
         if (result.status !== "fulfilled" || !result.value.card) return;
@@ -151,10 +168,10 @@ export default async function handler(request, response) {
       const justTcgFallbacks = lookups.filter(
         (lookup) => !cardsByClientId.has(lookup.clientId),
       );
-      const fallback = await Promise.allSettled(
-        justTcgFallbacks.map((lookup) =>
-          fetchJustTcgLookup(justTcgKey, lookup, controller.signal),
-        ),
+      const fallback = await settleProviderTier(
+        justTcgFallbacks,
+        PROVIDER_TIMEOUT_MS.justtcg,
+        (lookup, signal) => fetchJustTcgLookup(justTcgKey, lookup, signal),
       );
       fallback.forEach((result, index) => {
         if (result.status !== "fulfilled" || !result.value.card) return;
@@ -170,10 +187,10 @@ export default async function handler(request, response) {
     const fallbacks = lookups.filter(
       (lookup) => !cardsByClientId.has(lookup.clientId),
     );
-    const fallbackResults = await Promise.allSettled(
-      fallbacks.map((lookup) =>
-        fetchTcgdexPricingLookup(lookup, controller.signal),
-      ),
+    const fallbackResults = await settleProviderTier(
+      fallbacks,
+      PROVIDER_TIMEOUT_MS.tcgdex,
+      (lookup, signal) => fetchTcgdexPricingLookup(lookup, signal),
     );
     fallbackResults.forEach((result, index) => {
       if (result.status !== "fulfilled" || !result.value) return;
@@ -230,7 +247,5 @@ export default async function handler(request, response) {
       error: "The pricing providers did not respond in time.",
       providers: ["pkmnprices", "justtcg", "tcgdex"],
     });
-  } finally {
-    clearTimeout(timeout);
   }
 }

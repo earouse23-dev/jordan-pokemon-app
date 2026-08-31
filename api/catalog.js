@@ -6,18 +6,7 @@ import {
   searchTcgdexCards,
 } from "../lib/providers/tcgdex.js";
 
-const LANGUAGES = new Set([
-  "en",
-  "fr",
-  "es",
-  "de",
-  "it",
-  "pt",
-  "ja",
-  "zh-tw",
-  "id",
-  "th",
-]);
+const LANGUAGES = new Set(["en", "ja"]);
 
 function send(response, status, body, headers = {}) {
   for (const [key, value] of Object.entries(headers))

@@ -1,19 +1,37 @@
-const SHELL_CACHE = "mica-shell-v102";
-const RUNTIME_CACHE = "mica-runtime-v1";
+const SHELL_CACHE = "mica-shell-v110";
+const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
-const SHELL = [
+const CORE_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=86",
-  "./themes.css?v=76",
+  "./styles.css?v=88",
+  "./themes.css?v=83",
   "./app-config.js?v=69",
-  "./app.js?v=101",
+  "./app.js?v=107",
   "./manifest.webmanifest",
   "./icons/icon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
+];
+const OPTIONAL_SHELL = [
+  "./assets/mica-mineral-paper.jpg",
+  "./assets/mica-collection-ornament.jpg",
+  "./assets/coach-parallel-pass.jpg",
+  "./assets/coach-parallel-retake.jpg",
+  "./assets/coach-frame-pass.jpg",
+  "./assets/coach-frame-retake.jpg",
+  "./assets/coach-light-pass.jpg",
+  "./assets/coach-light-retake.jpg",
+  "./assets/coach-background-pass.jpg",
+  "./assets/coach-background-retake.jpg",
   "./icons/apple-touch-icon.png",
 ];
+
+async function cacheShell() {
+  const cache = await caches.open(SHELL_CACHE);
+  await cache.addAll(CORE_SHELL);
+  await Promise.allSettled(OPTIONAL_SHELL.map((asset) => cache.add(asset)));
+}
 
 async function trimRuntimeCache() {
   const cache = await caches.open(RUNTIME_CACHE);
@@ -24,13 +42,14 @@ async function trimRuntimeCache() {
   );
 }
 
+function isPrivateStorageRequest(url) {
+  return /\/storage\/v1\/(?:object|render\/image)\/(?:sign|authenticated)\//.test(
+    url.pathname,
+  );
+}
+
 self.addEventListener("install", (event) =>
-  event.waitUntil(
-    caches
-      .open(SHELL_CACHE)
-      .then((cache) => cache.addAll(SHELL))
-      .then(() => self.skipWaiting()),
-  ),
+  event.waitUntil(cacheShell().then(() => self.skipWaiting())),
 );
 self.addEventListener("activate", (event) =>
   event.waitUntil(
@@ -81,6 +100,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (url.origin !== self.location.origin) {
+    if (isPrivateStorageRequest(url)) {
+      event.respondWith(fetch(event.request, { cache: "no-store" }));
+      return;
+    }
     if (!["image", "font", "style"].includes(event.request.destination)) {
       event.respondWith(fetch(event.request));
       return;

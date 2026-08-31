@@ -6,7 +6,7 @@ The product name is presentation-only. Domain models, provider adapters, and dat
 
 ## Run
 
-Requires Node 20+.
+Requires Node 24.x, matching the production and CI runtime.
 
 1. Copy `.env.example` to `.env`.
 2. Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for browser authentication.
@@ -14,7 +14,9 @@ Requires Node 20+.
 4. Configure `PKMNPRICES_API_KEY` for primary market pricing. Set `PKMNPRICES_PLAN=pro` after upgrading so Mica requests the prepared 365-day history, Japanese, marketplace-offer, and sealed-product paths.
 5. AI card/receipt intake uses Vercel AI Gateway. On Vercel, OIDC supplies authentication automatically; for local or non-Vercel use, configure `AI_GATEWAY_API_KEY`. Keep the default `VISION_MODEL` or choose another approved OpenAI vision model.
 
-See [Developer-mode connections](docs/developer-mode-connections.md) for the activation checklist and the automation/navigation map. 6. Apply the migrations in `supabase/migrations/` to the linked Supabase project. 7. Run:
+6. Apply the migrations in `supabase/migrations/` to the linked Supabase
+   project.
+7. Run:
 
 ```bash
 npm run dev
@@ -22,10 +24,16 @@ npm run dev
 
 The app opens on the port printed by the local server. It does not fall back to local demo collection storage when Supabase is missing or unavailable.
 
+Before release, run the same canonical gate used by CI:
+
+```bash
+npm run release:check
+```
+
 ## Authentication and persistence
 
 - Email/password is the primary sign-up and sign-in method.
-- Magic link is a secondary sign-in option.
+- Existing email-only users can use **Forgot password?** to create a password.
 - Supabase Auth sessions automatically attach JWTs to Data API requests.
 - Collection items, transactions, purchase lots, FIFO allocations, and portfolio data persist in Supabase.
 - Ownership RLS uses `(select auth.uid()) = user_id` for reads and writes.
@@ -34,7 +42,9 @@ The app opens on the port printed by the local server. It does not fall back to 
 
 ## Portfolio rules
 
-- Raw conditions normalize to Near Mint, Lightly Played, Moderately Played, Heavily Played, or Damaged while preserving provider labels.
+- Confirmed raw conditions normalize to Near Mint, Lightly Played, Moderately
+  Played, Heavily Played, or Damaged while preserving provider labels. Unknown
+  wear stays unknown until digital grading or the owner confirms it.
 - Supported graders are PSA, BGS, CGC, TAG, and SGC, with an extensible `OTHER` normalization value.
 - Grades retain decimal precision such as BGS 9.5.
 - Raw and graded values are never combined. Graders, grades, variants, editions, finishes, languages, and currencies must remain compatible.
@@ -61,7 +71,14 @@ Provider responses are normalized before reaching portfolio calculations or UI c
 
 Authenticated users can photograph a card or slab for identity suggestions, add front and back photos for a conservative raw-grade range, or scan a receipt/order confirmation for purchase facts. Images are resized and converted on-device, sent once through the server-only Vercel AI Gateway path, and are not written to Supabase, object storage, application logs, or portfolio records. The upstream request sets `store: false`.
 
-AI output is an untrusted draft. Mica always requires the user to choose the exact catalog printing and confirm raw/graded state, condition or grader/grade, certification, quantity, and total acquisition cost before saving. Grade ranges are planning estimates—not professional grades—and cannot rule out defects hidden by sleeves, glare, lighting, focus, or angle. Receipt extraction never invents allocation of tax, shipping, fees, discounts, or unclear order value.
+AI output is an untrusted draft. Mica always requires the user to choose the
+exact catalog printing and confirm raw or professionally graded state, quantity,
+acquisition method, and the facts relevant to that method. Professionally
+graded cards require the grader and actual grade. Raw cards may save a confirmed
+digital estimate or choose Grade later; Mica does not default unknown wear to
+Near Mint. Grade ranges are planning estimates—not professional grades—and
+cannot rule out defects hidden by sleeves, glare, lighting, focus, or angle.
+Receipt extraction never invents allocation of unclear order value.
 
 The endpoint requires a valid Supabase access token, atomically claims a durable owner-scoped usage allowance, accepts only bounded JPEG/PNG/WebP data URLs, uses strict structured output, hashes the user identifier before sending a safety identifier, and returns `no-store` responses. See [AI vision runbook](docs/ai-vision-runbook.md).
 
@@ -69,7 +86,7 @@ The production pricing path currently returns compatible raw-card prices through
 
 ## Scheduled synchronization
 
-Vercel calls `GET /api/price-sync` daily at 05:00 UTC. The endpoint requires the exact bearer value in `PRICE_SYNC_SECRET` or `CRON_SECRET`, loads a rotating 50-position batch of actively owned cards, requests PkmnPrices server-side, and inserts immutable normalized observations. A durable UUID cursor wraps through the full active collection without increasing the daily provider budget, and imported TCGplayer Product IDs are preferred over name-only matching. Position-scoped history works even when a searched card has not yet been mapped to an internal catalog UUID. Duplicate observations are retained once through a database unique constraint; partial failures update provider diagnostics without deleting prior valid data. Pro and Business plans backfill up to 365 days of exact compatible history; the free plan still accumulates genuine current observations over time.
+Vercel calls `GET /api/price-sync` daily at 05:00 UTC. The endpoint requires the exact bearer value in Vercel `CRON_SECRET`, loads a rotating 50-position batch of actively owned cards, requests PkmnPrices server-side, and inserts immutable normalized observations. It checkpoints progress after every attempted identity and stops before the function deadline, so a slow provider cannot replay and starve the same batch forever. A durable UUID cursor wraps through the full active collection without increasing the daily provider budget, and imported TCGplayer Product IDs are preferred over name-only matching. Position-scoped history works even when a searched card has not yet been mapped to an internal catalog UUID. Duplicate observations are retained once through a database unique constraint; partial failures update provider diagnostics without deleting prior valid data. Pro and Business plans backfill up to 365 days of exact compatible history; the free plan still accumulates genuine current observations over time.
 
 Users whose Supabase `app_metadata.role` is `admin` receive a protected profile action for provider health, ambiguous or missing mappings, open anomalies, and manual re-sync. The manual `POST /api/price-sync` path validates the caller's Supabase access token and admin role on the server; the cron secret is never sent to the browser.
 
@@ -85,7 +102,7 @@ See `.env.example`. Important values:
 - `PKMNPRICES_API_KEY`
 - `PKMNPRICES_PLAN` (`free`, `pro`, or `business`; defaults to `free`)
 - `TCGDEX_BASE_URL`
-- `PRICE_SYNC_SECRET` or Vercel `CRON_SECRET`
+- Vercel `CRON_SECRET`
 - `PRICE_STALE_AFTER_HOURS`
 - `PRICE_ANOMALY_THRESHOLD_PERCENT`
 - `AI_GATEWAY_API_KEY` (local/non-Vercel fallback; do not expose to the browser)
@@ -115,7 +132,7 @@ Apply migrations before testing authenticated persistence. After applying them:
 1. Run Supabase database advisors.
 2. Verify the new tables have explicit Data API grants; Supabase no longer exposes new public tables automatically.
 3. Test with two accounts and confirm neither can select, update, or delete the other account’s collection, transactions, lots, or allocations.
-4. Enable email/password and magic-link providers and add the production URL to Auth redirect URLs.
+4. Enable email/password registration, email confirmation, and password recovery; add the production URL to Auth redirect URLs.
 5. Confirm Vercel has the public Supabase variables at build time and server-only values at function runtime.
 6. Run the required PSA 10 and raw Near Mint acceptance flows.
 
@@ -131,5 +148,8 @@ If a value is unavailable, inspect exact identity/variant mapping, state, condit
 - [Continuous product improvement log](docs/continuous-improvement-2026-07-20.md)
 - [Security review](docs/security-review.md)
 - [AI vision runbook](docs/ai-vision-runbook.md)
+- [Digital grading benchmark](docs/digital-grading-benchmark.md)
+- [Evidence-first grading implementation](docs/digital-grading-implementation.md)
+- [Boards 01–06 implementation and verification](docs/boards-01-06-verification.md)
 
 Mica is independent and is not affiliated with or endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak, TCGplayer, Cardmarket, eBay, PSA, CGC, Beckett, SGC, Alt, or Card Ladder.

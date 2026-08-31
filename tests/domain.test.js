@@ -47,6 +47,7 @@ import {
 import {
   bulkOrganizePositions,
   createImportedPosition,
+  deleteGradingOutcomeProof,
   deletePosition,
   hydratePosition,
   hydrateWatchlistEntry,
@@ -55,11 +56,14 @@ import {
   loadPortfolioValuationHistory,
   recordGradingResult,
   recordGradingSubmission,
+  recordPurchaseLot,
   recordPortfolioValuationSnapshot,
   remapCollectionPosition,
+  saveDigitalGradeAssessment,
   splitCollectionPosition,
   updateGradingSubmission,
   updatePosition,
+  uploadGradingOutcomeProof,
 } from "../lib/supabase-data.js";
 
 test("normalizes provider raw conditions while retaining the original label", () => {
@@ -260,6 +264,178 @@ test("portfolio history withholds returns when coverage or cash flow is incomple
   assert.equal(history.status, "incomplete");
   assert.equal(history.latest.marketChangeMinor, null);
   assert.equal(history.latest.returnPercent, null);
+});
+
+test("portfolio chart stays cash-flow correct across the complete position lifecycle", () => {
+  const readyCase = ({ start, end, transaction }) =>
+    marketAdjustedPortfolioHistory(
+      [
+        {
+          date: "2026-07-01",
+          total: start,
+          currency: "USD",
+          pricedItems: 1,
+          unpricedItems: 0,
+          freshItems: 1,
+        },
+        {
+          date: "2026-07-20",
+          total: end,
+          currency: "USD",
+          pricedItems: end === 0 ? 0 : 1,
+          unpricedItems: 0,
+          freshItems: end === 0 ? 0 : 1,
+        },
+      ],
+      [transaction],
+    );
+
+  const addedCard = readyCase({
+    start: 1000,
+    end: 1500,
+    transaction: {
+      type: "purchase",
+      date: "2026-07-10",
+      totalCost: 500,
+      currency: "USD",
+    },
+  });
+  assert.equal(addedCard.status, "ready");
+  assert.equal(addedCard.latest.marketChangeMinor, 0);
+
+  const additionalLot = readyCase({
+    start: 1000,
+    end: 1250,
+    transaction: {
+      type: "purchase",
+      date: "2026-07-10",
+      totalCost: 250,
+      currency: "USD",
+    },
+  });
+  assert.equal(additionalLot.latest.marketChangeMinor, 0);
+
+  const partialSale = readyCase({
+    start: 1000,
+    end: 600,
+    transaction: {
+      type: "sale",
+      date: "2026-07-10",
+      netProceeds: 400,
+      currency: "USD",
+    },
+  });
+  assert.equal(partialSale.latest.marketChangeMinor, 0);
+
+  const completeSale = readyCase({
+    start: 1000,
+    end: 0,
+    transaction: {
+      type: "sale",
+      date: "2026-07-10",
+      netProceeds: 1000,
+      currency: "USD",
+    },
+  });
+  assert.equal(completeSale.latest.marketChangeMinor, 0);
+
+  const gradingReturn = readyCase({
+    start: 1000,
+    end: 1050,
+    transaction: {
+      type: "grading_return",
+      date: "2026-07-10",
+      totalCost: 50,
+      currency: "USD",
+    },
+  });
+  assert.equal(gradingReturn.latest.marketChangeMinor, 0);
+
+  const incompletePricing = marketAdjustedPortfolioHistory(
+    [
+      {
+        date: "2026-07-01",
+        total: 1000,
+        currency: "USD",
+        pricedItems: 1,
+        unpricedItems: 0,
+        freshItems: 1,
+      },
+      {
+        date: "2026-07-20",
+        total: 1000,
+        currency: "USD",
+        pricedItems: 1,
+        unpricedItems: 1,
+        freshItems: 0,
+      },
+    ],
+    [],
+  );
+  assert.equal(incompletePricing.status, "incomplete");
+  assert.equal(incompletePricing.latest.marketChangeMinor, null);
+  assert.equal(incompletePricing.latest.returnPercent, null);
+});
+
+test("digital grading confirmation uses one atomic owner-scoped RPC", async () => {
+  let call;
+  const client = {
+    async rpc(name, input) {
+      call = { name, input };
+      return { data: "assessment-1", error: null };
+    },
+  };
+  const result = await saveDigitalGradeAssessment(client, {
+    collectionItemId: "position-1",
+    predictedGrade: 8.5,
+    predictedGradeLow: 8,
+    predictedGradeHigh: 9,
+    derivedRawCondition: "near_mint",
+    subscores: { centering: 8.5 },
+    defects: ["corner whitening"],
+    confidence: 0.82,
+    photoQuality: { usable: true },
+    modelVersion: "gateway:model",
+  });
+  assert.equal(result, "assessment-1");
+  assert.equal(call.name, "confirm_digital_grade_assessment");
+  assert.deepEqual(call.input, {
+    p_collection_item_id: "position-1",
+    p_predicted_grade: 8.5,
+    p_predicted_grade_low: 8,
+    p_predicted_grade_high: 9,
+    p_derived_raw_condition: "near_mint",
+    p_subscores: { centering: 8.5 },
+    p_defects: ["corner whitening"],
+    p_confidence: 0.82,
+    p_photo_quality: { usable: true },
+    p_model_version: "gateway:model",
+  });
+});
+
+test("additional purchases preserve unknown cost and date flags through the RPC", async () => {
+  let call;
+  const client = {
+    async rpc(name, input) {
+      call = { name, input };
+      return { data: "purchase-1", error: null };
+    },
+  };
+  const result = await recordPurchaseLot(client, {
+    collectionItemId: "position-1",
+    transactionDate: "2026-07-29",
+    quantity: 2,
+    unitPrice: 0,
+    acquisitionMethod: "unknown",
+    acquisitionCostKnown: false,
+    acquisitionDateKnown: false,
+    idempotencyKey: "stable-retry-key",
+  });
+  assert.equal(result, "purchase-1");
+  assert.equal(call.name, "record_collection_purchase");
+  assert.equal(call.input.p_cost_basis_known, false);
+  assert.equal(call.input.p_acquisition_date_known, false);
+  assert.equal(call.input.p_idempotency_key, "stable-retry-key");
 });
 
 test("batch raw intake validates every row without merging exact variants or costs", () => {
@@ -699,6 +875,72 @@ test("recording a returned grade uses one atomic ledger RPC", async () => {
   });
 });
 
+test("PSA return proof is hashed locally and uploaded to an owner path", async () => {
+  const uploads = [];
+  const client = {
+    auth: {
+      getUser: async () => ({ data: { user: { id: "owner-1" } }, error: null }),
+    },
+    storage: {
+      from(bucket) {
+        return {
+          async upload(path, file, options) {
+            uploads.push({ bucket, path, file, options });
+            return { error: null };
+          },
+        };
+      },
+    },
+  };
+  const proof = new File(["official-return"], "return.pdf", {
+    type: "application/pdf",
+  });
+  const result = await uploadGradingOutcomeProof(client, {
+    scanSessionId: "scan-1",
+    file: proof,
+  });
+  assert.match(result.sha256, /^[a-f0-9]{64}$/);
+  assert.equal(result.path, `owner-1/scan-1/${result.sha256}.pdf`);
+  assert.equal(uploads[0].bucket, "grading-outcome-proofs");
+  assert.equal(uploads[0].options.upsert, false);
+});
+
+test("PSA proof cleanup is owner scoped and rejects a foreign storage path", async () => {
+  const removals = [];
+  const client = {
+    auth: {
+      getUser: async () => ({ data: { user: { id: "owner-1" } }, error: null }),
+    },
+    storage: {
+      from(bucket) {
+        return {
+          async remove(paths) {
+            removals.push({ bucket, paths });
+            return { error: null };
+          },
+        };
+      },
+    },
+  };
+  await deleteGradingOutcomeProof(client, {
+    scanSessionId: "scan-1",
+    path: "owner-1/scan-1/proof.pdf",
+  });
+  assert.deepEqual(removals, [
+    {
+      bucket: "grading-outcome-proofs",
+      paths: ["owner-1/scan-1/proof.pdf"],
+    },
+  ]);
+  await assert.rejects(
+    deleteGradingOutcomeProof(client, {
+      scanSessionId: "scan-1",
+      path: "another-owner/scan-1/proof.pdf",
+    }),
+    /Invalid private proof path/,
+  );
+});
+
 test("separating copies uses one idempotent FIFO RPC", async () => {
   let call;
   const client = {
@@ -786,6 +1028,8 @@ test("grading ledger details remain visible after hydration", () => {
     previousRawCondition: "near_mint",
     costBasisKnown: true,
     acquisitionDateKnown: true,
+    acquisitionMethod: null,
+    acquisitionContext: {},
     marketUnitPriceAtPurchase: null,
     marketPriceProvider: "",
     marketPriceObservedAt: null,

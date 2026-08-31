@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { evaluateVisionBenchmark } from "../lib/vision-evaluation.js";
@@ -47,6 +48,34 @@ function imageDataUrl(path) {
 async function runCase(entry) {
   const startedAt = Date.now();
   const images = await Promise.all((entry.images || []).map(imageDataUrl));
+  const payload = {
+    mode: entry.mode,
+    images,
+    requestId: randomUUID(),
+  };
+  if (entry.scanSessionId) payload.scanSessionId = entry.scanSessionId;
+  if (entry.mode === "match" && Array.isArray(entry.candidates))
+    payload.candidates = entry.candidates;
+  if (entry.mode === "grade") {
+    const defaults = [
+      { type: "front", side: "front" },
+      { type: "back", side: "back" },
+      { type: "alternate_front", side: "front" },
+      { type: "alternate_back", side: "back" },
+      {
+        type: "angled_surface",
+        side: "front",
+        reason: "Benchmark supplemental surface view.",
+      },
+    ];
+    payload.captureDescriptors = Array.isArray(entry.captureDescriptors)
+      ? entry.captureDescriptors
+      : images.map((_, index) => defaults[index]);
+    if (Array.isArray(entry.captureMeasurements))
+      payload.captureMeasurements = entry.captureMeasurements;
+    if (Array.isArray(entry.captureGeometry))
+      payload.captureGeometry = entry.captureGeometry;
+  }
   const response = await fetch(`${baseUrl}/api/vision`, {
     method: "POST",
     headers: {
@@ -54,7 +83,7 @@ async function runCase(entry) {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    body: JSON.stringify({ mode: entry.mode, images }),
+    body: JSON.stringify(payload),
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok)
