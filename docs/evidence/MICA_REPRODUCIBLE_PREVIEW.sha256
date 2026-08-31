@@ -1,0 +1,27 @@
+# Mica configuration-neutral preview artifact
+# Generated with: npm run build:preview-artifact
+# Public Supabase values and source maps are deliberately omitted. Staging injects
+# its own public runtime configuration; server-only credentials are never bundled.
+
+49a205505cd8fe54392ff3e2e4dd238d1aaf11791a4747392cd3d739e89d66e2  ./app-config.js
+6cd8be19c0a26982b5eb2f5a0db1bd55bb17e198c2ea2867fdb510ee15158caa  ./app.js
+ee2bf1579c20bdc5be015ef965ca20af71a04c9a3d747689e8730d1013fb3694  ./assets/coach-background-pass.jpg
+fa4a70c9fb65d0e53e50f99b36df30e092553433787e1cd02c9d6c87cae87101  ./assets/coach-background-retake.jpg
+3407a7743f7f5773ed4f4d6e8cf4a70b8eba1d4267865a57f494bb6e6e44930f  ./assets/coach-frame-pass.jpg
+7549d544b9f92f5fe422f2ff6eeb750bd7815c616fc66f0b8ff272468d87b695  ./assets/coach-frame-retake.jpg
+4f84fdf28b260c1340d04e235e4dd7514482e7206ca2db846b73085ad0b7e42c  ./assets/coach-light-pass.jpg
+6710b4edf27d9049192723b866c1aaf5092ca4521764b7003820ed454fe3d6b3  ./assets/coach-light-retake.jpg
+dd5e0f1bfb31791b2fca9508cc6ab33eb900607d235add4ab91ee9b1fcbcb037  ./assets/coach-parallel-pass.jpg
+78d80edee1b6341016d7957ccaf87ca4a60d67c8c799c141009a15c7cc08ac73  ./assets/coach-parallel-retake.jpg
+0ec64cd1a9f930157f31d9b50b2b4db03e820da11150ccd6b956285f408397aa  ./assets/mica-collection-ornament.jpg
+9d733caea14da0bdda8231d6f491ba04e2388bbeedb41baed4d5665bbaee9759  ./assets/mica-mineral-paper.jpg
+7179480966e052f96c506fcbded9a883f4f744f38e214698529a4f29b84541d0  ./chunks/auto-O6DI3WU2.js
+6c3f06a32100d27bf052ec464d8e396ca55a1977efbff89e126eb560b2c18b32  ./icons/apple-touch-icon.png
+a41e0f47e99823aed2b6267db94176a8600542eadfd0113a2f3907a2ff73568f  ./icons/icon-192.png
+3b285a525ff42de9a27b522be01b046b6ad1de44a48e794726aa5fbb29041227  ./icons/icon-512.png
+924acc1d5c054eaecba7947403764f77aeb14b0a17600954fa5d2a0a7287714a  ./icons/icon.svg
+de7e18024bc144087c4db5b8faa7a210a514959e9f9729b4cce0764f6b6bb99c  ./index.html
+2db940851dc90775bea5a33dc838fc518481839de996f6503a1f06545c8f9bbe  ./manifest.webmanifest
+10003480df9d3187ad41a219b916fc49d1f9bf6526bf8b8d217c4f67cc2f7a57  ./styles.css
+ebe933adc307a415fe005d507475daba3a5f3d66d51cf32e69402bd8ee2a6627  ./sw.js
+cb848458e4a85dfc29afc0f6c2c790b9352857858126b51159ddc3feacb13f9b  ./themes.css

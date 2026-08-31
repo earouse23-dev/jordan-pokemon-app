@@ -10,6 +10,8 @@ try {
 }
 const root = new URL("../", import.meta.url);
 const dist = new URL("../dist/", import.meta.url);
+const neutralPublicConfig = process.argv.includes("--neutral-public-config");
+if (neutralPublicConfig) process.env.MICA_SOURCE_MAPS = "false";
 await rm(dist, { recursive: true, force: true });
 await mkdir(dist, { recursive: true });
 for (const item of [
@@ -38,9 +40,12 @@ await build({
   sourcemap: process.env.MICA_SOURCE_MAPS === "true",
 });
 const publicConfig = {
-  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  supabasePublishableKey:
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "",
+  supabaseUrl: neutralPublicConfig
+    ? ""
+    : process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  supabasePublishableKey: neutralPublicConfig
+    ? ""
+    : process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "",
 };
 await writeFile(
   new URL("../dist/app-config.js", import.meta.url),
