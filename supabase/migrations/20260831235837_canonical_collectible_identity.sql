@@ -313,24 +313,24 @@ create or replace function identity_private.ensure_sealed_identity(
 declare
   snapshot jsonb:=coalesce(p_snapshot,'{}'::jsonb);
   mapping_provider text;
-  external_id text;
+  mapping_external_id text;
   product_key text;
   product_id uuid;
   product_name text;
   product_language text;
   product_status text;
 begin
-  external_id:=nullif(btrim(snapshot#>>'{externalIds,pkmnpricesSealed}'),'');
-  mapping_provider:=case when external_id is not null then 'pkmnprices' else null end;
-  if external_id is null then
-    external_id:=nullif(btrim(snapshot#>>'{externalIds,tcgplayerSealed}'),'');
-    mapping_provider:=case when external_id is not null then 'tcgplayer' else null end;
+  mapping_external_id:=nullif(btrim(snapshot#>>'{externalIds,pkmnpricesSealed}'),'');
+  mapping_provider:=case when mapping_external_id is not null then 'pkmnprices' else null end;
+  if mapping_external_id is null then
+    mapping_external_id:=nullif(btrim(snapshot#>>'{externalIds,tcgplayerSealed}'),'');
+    mapping_provider:=case when mapping_external_id is not null then 'tcgplayer' else null end;
   end if;
   product_name:=left(coalesce(nullif(btrim(snapshot->>'name'),''),'Unresolved sealed product'),300);
   product_language:=lower(coalesce(nullif(btrim(snapshot->>'language'),''),'en'));
   if product_language !~ '^[a-z]{2,3}(-[a-z0-9]{2,8})?$' then product_language:='und'; end if;
   product_key:=case
-    when mapping_provider is not null then 'pokemon:'||product_language||':'||mapping_provider||':'||external_id
+    when mapping_provider is not null then 'pokemon:'||product_language||':'||mapping_provider||':'||mapping_external_id
     else 'legacy:'||left(regexp_replace(coalesce(p_source_key,'unknown'),'[^A-Za-z0-9:_-]','','g'),400)
   end;
   product_status:=case when mapping_provider is null then 'needs_review' else 'active' end;
@@ -356,7 +356,7 @@ begin
       collectible_id,provider,provider_entity_type,external_id,match_status,
       match_confidence,match_method
     ) values(
-      product_id,mapping_provider,'sealed_product',external_id,'manually_verified',1,
+      product_id,mapping_provider,'sealed_product',mapping_external_id,'manually_verified',1,
       'legacy_exact_provider_id'
     ) on conflict (provider,provider_entity_type,external_id,external_variant_id)
       do nothing;

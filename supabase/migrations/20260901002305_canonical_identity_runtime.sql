@@ -26,6 +26,7 @@ begin
     if hop_count>20 then raise exception 'collectible_identity_merge_cycle'; end if;
     current_id:=next_id;
   end loop;
+  return current_id;
 end $$;
 
 create or replace function identity_private.derive_collection_item_identity()
