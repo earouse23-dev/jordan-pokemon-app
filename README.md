@@ -62,7 +62,8 @@ npm run release:check
 
 1. PkmnPrices is the primary source for compatible raw and graded prices and history.
 2. TCGdex supplies catalog identity, sets, variants, images, and compatible TCGplayer/Cardmarket raw comparisons.
-3. JustTCG remains an optional configured raw-price fallback.
+3. JustTCG remains disabled unless a separate commercial license is approved
+   and `JUSTTCG_COMMERCIAL_LICENSE_APPROVED=true` is configured server-side.
 4. Alt and Card Ladder adapters are present but disabled. They require authorized API or licensed data access; the app does not scrape them.
 
 Provider responses are normalized before reaching portfolio calculations or UI components. Current observations, history, source, market, currency, condition/grader/grade, and freshness remain explicit. Provider disagreements are shown separately and are not averaged by default.
@@ -82,7 +83,12 @@ Receipt extraction never invents allocation of unclear order value.
 
 The endpoint requires a valid Supabase access token, atomically claims a durable owner-scoped usage allowance, accepts only bounded JPEG/PNG/WebP data URLs, uses strict structured output, hashes the user identifier before sending a safety identifier, and returns `no-store` responses. See [AI vision runbook](docs/ai-vision-runbook.md).
 
-The production pricing path currently returns compatible raw-card prices through its public provider fallback. PkmnPrices historical and exact graded-price endpoints may report `plan_required` until the Pro plan and a working key are active; the app shows unavailable rather than substituting a raw value or inventing history.
+PkmnPrices Pro is the approved target. A configured plan name is only a request
+profile: each real endpoint response proves whether current, historical, graded,
+sealed, EUR, marketplace-offer, and completed-sale capabilities are available.
+Until the Pro key is active, the production path continues to expose only its
+compatible public fallback and shows unavailable rather than substituting a raw
+value or inventing history.
 
 ## Scheduled synchronization
 
@@ -100,10 +106,10 @@ See `.env.example`. Important values:
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_SECRET_KEY`
 - `PKMNPRICES_API_KEY`
-- `PKMNPRICES_PLAN` (`free`, `pro`, or `business`; defaults to `free`)
+- `PKMNPRICES_PLAN` (`pro` is Mica's approved target; endpoint responses remain authoritative)
+- `JUSTTCG_COMMERCIAL_LICENSE_APPROVED` (defaults to `false`)
 - `TCGDEX_BASE_URL`
 - Vercel `CRON_SECRET`
-- `PRICE_STALE_AFTER_HOURS`
 - `PRICE_ANOMALY_THRESHOLD_PERCENT`
 - `AI_GATEWAY_API_KEY` (local/non-Vercel fallback; do not expose to the browser)
 - `VISION_MODEL` (defaults to the live-tested `openai/gpt-5-mini`)

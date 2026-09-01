@@ -1,6 +1,6 @@
 {
   "captured_at": "2026-08-31",
-  "local_migration_count": 66,
+  "local_migration_count": 67,
   "production_history_count": 58,
   "production_unique_name_count": 57,
   "missing_local_names": [],
@@ -13,6 +13,7 @@
     "prefer_best_portfolio_snapshots",
     "lease_grading_deletion_jobs",
     "support_psa_feature_contract_v2",
+    "transparent_pricing_evidence",
     "withdraw_account_training_before_deletion"
   ],
   "known_version_mismatches": [

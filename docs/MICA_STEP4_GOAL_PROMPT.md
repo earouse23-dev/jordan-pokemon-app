@@ -1,6 +1,6 @@
 # Mica Step 4 goal prompt
 
-Status: approval gate — read-only provider and pricing audit complete
+Status: PkmnPrices Pro approved — implementation and verification in progress
 
 ## Goal
 
@@ -27,9 +27,9 @@ Verify time-sensitive provider facts against official sources. Do not make paid
 provider calls.
 
 Prepare a provider architecture decision with explicit cost, licensing,
-coverage, reliability, and implementation tradeoffs. Prefer a no-new-cost path,
-but do not treat price, licensing, supported markets, or currencies as approved
-without Elliott's decision.
+coverage, reliability, and implementation tradeoffs. Elliott approved
+PkmnPrices Pro on 2026-08-31. Treat the real key response as authoritative even
+when a configured plan label says Pro.
 
 Audit result: `docs/MICA_STEP4_PROVIDER_AUDIT.md`
 

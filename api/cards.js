@@ -120,11 +120,16 @@ export default async function handler(request, response) {
     (process.env.PRICING_PROVIDER === "pkmnprices"
       ? process.env.PRICING_PROVIDER_API_KEY
       : "");
-  const justTcgKey =
-    process.env.JUSTTCG_API_KEY ||
-    (process.env.PRICING_PROVIDER === "justtcg"
-      ? process.env.PRICING_PROVIDER_API_KEY
-      : "");
+  const justTcgApproved =
+    String(
+      process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED || "",
+    ).toLowerCase() === "true";
+  const justTcgKey = justTcgApproved
+    ? process.env.JUSTTCG_API_KEY ||
+      (process.env.PRICING_PROVIDER === "justtcg"
+        ? process.env.PRICING_PROVIDER_API_KEY
+        : "")
+    : "";
   const configuredPlan = String(
     process.env.PKMNPRICES_PLAN || "free",
   ).toLowerCase();
@@ -159,6 +164,7 @@ export default async function handler(request, response) {
           retrievedAt,
           lookups[index].clientId,
           result.value.historyStatus,
+          { eur: result.value.eurStatus },
         );
         cardsByClientId.set(card.providerCardId, card);
         providers.add("pkmnprices");
@@ -223,14 +229,15 @@ export default async function handler(request, response) {
         partial: unavailable.length > 0,
         capabilities: {
           pkmnprices: {
-            configuredPlan: pkmnPricesPlan,
+            declaredPlan: pkmnPricesPlan,
+            authority: "runtime_endpoint_response",
             requestedHistoryPeriod: fullHistory
               ? proHistory
                 ? "365d"
                 : "90d"
               : null,
-            japaneseRequestsEnabled: proHistory,
-            eurRequestsEnabled: proHistory,
+            requestedLanguages: proHistory ? ["en", "ja", "de"] : ["en"],
+            requestedCurrencies: proHistory ? ["USD", "EUR"] : ["USD"],
           },
         },
       },

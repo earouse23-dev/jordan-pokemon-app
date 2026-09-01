@@ -1,7 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { normalizeRawCondition } from "../lib/domain.js";
 import { serverEnvironment, validateServerEnvironment } from "../lib/env.js";
-import { finishForVariant, selectReferenceQuote } from "../lib/pricing.js";
+import {
+  PRICE_EVIDENCE_RULE_VERSION,
+  finishForVariant,
+  priceEvidenceKind,
+  priceFreshness,
+  selectReferenceQuote,
+} from "../lib/pricing.js";
 import {
   fetchPkmnPricesLookup,
   normalizePkmnPricesCard,
@@ -12,8 +18,14 @@ function send(response, status, body) {
   return response.status(status).json(body);
 }
 function observationRow(item, quote) {
+  const observedAt =
+    quote.providerUpdatedAt || quote.observedAt || quote.soldAt || null;
+  if (!observedAt || !Number.isFinite(new Date(observedAt).getTime()))
+    return null;
   const graded = Boolean(quote.gradingCompany);
   const amount = Number(quote.amount);
+  const freshness = priceFreshness(quote);
+  const confidence = Number(quote.quality?.confidence);
   const priceField =
     {
       market: "market_price",
@@ -25,8 +37,15 @@ function observationRow(item, quote) {
     card_id: item.card_id,
     card_variant_id: item.variant_id || null,
     provider: quote.quality?.aggregator || quote.provider,
-    market: quote.provider,
+    aggregator: quote.aggregator || quote.quality?.aggregator || quote.provider,
+    market: quote.market || quote.provider,
+    source_record_id: quote.providerProductId || null,
+    source_variant_id: quote.providerVariantId || null,
     currency: quote.currency,
+    region: quote.region || "unknown",
+    language: quote.language || "unknown",
+    finish: quote.finish || "unknown",
+    printing: quote.printing || null,
     valuation_type:
       quote.priceType === "average"
         ? "average_sale"
@@ -45,9 +64,33 @@ function observationRow(item, quote) {
     grade_label: graded ? String(quote.grade) : null,
     [priceField]: amount,
     sample_size: quote.quality?.sampleSize || null,
-    confidence_score: quote.quality?.confidence || null,
-    observed_at: quote.observedAt || quote.retrievedAt,
-    provider_updated_at: quote.observedAt || null,
+    confidence_score:
+      Number.isFinite(confidence) && confidence >= 0 && confidence <= 1
+        ? confidence
+        : null,
+    confidence_reason: {
+      direct: quote.quality?.direct === true,
+      field: quote.quality?.field || null,
+      sampleSize: quote.quality?.sampleSize || null,
+    },
+    observed_at: observedAt,
+    provider_updated_at: quote.providerUpdatedAt || quote.observedAt || null,
+    retrieved_at: quote.retrievedAt || new Date().toISOString(),
+    expires_at: freshness.expiresAt,
+    evidence_kind: priceEvidenceKind(quote),
+    derivation: quote.derivation || "aggregated",
+    fees_included: quote.feesIncluded === true,
+    shipping_included: quote.shippingIncluded === true,
+    capability_status: "live",
+    exclusion_status: quote.excluded
+      ? "excluded"
+      : quote.anomalous || quote.outlierReview?.flagged
+        ? "flagged"
+        : "included",
+    exclusion_reason:
+      quote.exclusionReason || quote.outlierReview?.reason || null,
+    evidence_rule_version: PRICE_EVIDENCE_RULE_VERSION,
+    outlier_review: quote.outlierReview || {},
     source_url: quote.providerUrl || null,
     raw_provider_payload: {
       providerVariantId: quote.providerVariantId,
@@ -98,15 +141,30 @@ export function positionObservationRow(
   valuationType = "average_sale",
 ) {
   const graded = item.card_state === "graded";
+  const observedAt =
+    point.recordedAt || point.providerUpdatedAt || point.observedAt || null;
+  const observation = { ...point, valuationType };
+  const freshness = priceFreshness(observation);
+  const confidence = Number(point.quality?.confidence);
   return {
     user_id: item.user_id,
     collection_item_id: item.id,
     aggregator: point.quality?.aggregator || "pkmnprices",
     provider: point.provider,
+    market: point.market || point.provider,
     provider_variant_id: point.providerVariantId || "",
+    source_record_id: point.providerProductId || null,
+    source_url: point.providerUrl || null,
     currency: point.currency,
+    region:
+      point.region ||
+      (point.provider === "cardmarket" || point.currency === "EUR"
+        ? "EU"
+        : "US"),
+    language: point.language || item.identity_snapshot?.language || "unknown",
     valuation_type: valuationType,
     finish: point.finish,
+    printing: point.printing || null,
     card_state: item.card_state,
     raw_condition: item.card_state === "raw" ? item.raw_condition : "",
     provider_condition: point.condition || null,
@@ -121,7 +179,39 @@ export function positionObservationRow(
       : null,
     granularity: point.granularity === "day" ? "day" : "observation",
     quality: point.quality || {},
-    observed_at: point.recordedAt || point.observedAt || point.retrievedAt,
+    provider_updated_at:
+      point.providerUpdatedAt || point.recordedAt || point.observedAt || null,
+    retrieved_at: point.retrievedAt || new Date().toISOString(),
+    expires_at: freshness.expiresAt,
+    evidence_kind: priceEvidenceKind(observation),
+    derivation: point.derivation || "aggregated",
+    fees_included: point.feesIncluded === true,
+    shipping_included: point.shippingIncluded === true,
+    capability_status: "live",
+    exclusion_status: point.excluded
+      ? "excluded"
+      : point.anomalous || point.outlierReview?.flagged
+        ? "flagged"
+        : "included",
+    exclusion_reason:
+      point.exclusionReason || point.outlierReview?.reason || null,
+    evidence_rule_version: PRICE_EVIDENCE_RULE_VERSION,
+    confidence_score:
+      Number.isFinite(confidence) && confidence >= 0 && confidence <= 1
+        ? confidence
+        : null,
+    confidence_reason: {
+      direct: point.quality?.direct === true,
+      sampleSize: point.quality?.sampleSize || point.saleCount || null,
+      granularity: point.granularity || "observation",
+    },
+    outlier_review: point.outlierReview || {},
+    source_metadata: {
+      providerVariantId: point.providerVariantId || null,
+      field: point.quality?.field || null,
+      saleCount: point.saleCount || null,
+    },
+    observed_at: observedAt,
   };
 }
 
@@ -141,6 +231,24 @@ const SYNC_BATCH_SIZE = 50;
 const SYNC_WORK_BUDGET_MS = 45_000;
 const UUID_CURSOR =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function pricingCreditPlan(plan) {
+  const normalizedPlan = String(plan).toLowerCase();
+  const expanded = ["pro", "business"].includes(normalizedPlan);
+  return {
+    dailyBudget:
+      normalizedPlan === "business"
+        ? 200_000
+        : normalizedPlan === "pro"
+          ? 20_000
+          : 100,
+    // Conservative returned-item upper bound: direct validation, two searches,
+    // current USD/EUR cards, and USD/EUR daily history. The provider charges
+    // by returned item, so reserving the upper bound fails safely.
+    upperBoundPerGroup: expanded ? 800 : 50,
+    expanded,
+  };
+}
 
 function activePositionQuery(database) {
   return database
@@ -222,10 +330,10 @@ export function positionHistoryRows(position, normalized) {
     context,
   );
   const points = compatibleHistory(position, normalized.history);
-  if (quote)
+  if (quote && (quote.providerUpdatedAt || quote.observedAt || quote.soldAt))
     points.push({
       ...quote,
-      recordedAt: quote.observedAt || quote.retrievedAt,
+      recordedAt: quote.providerUpdatedAt || quote.observedAt || quote.soldAt,
       granularity: "observation",
     });
   const rows = [
@@ -235,7 +343,7 @@ export function positionHistoryRows(position, normalized) {
           (point) =>
             Number(point.amount) > 0 &&
             point.provider &&
-            (point.recordedAt || point.observedAt || point.retrievedAt),
+            (point.recordedAt || point.providerUpdatedAt || point.observedAt),
         )
         .map((point) => {
           const row = positionObservationRow(
@@ -303,9 +411,8 @@ export default async function handler(request, response) {
   }
   const startedAtMs = Date.now();
   const startedAt = new Date(startedAtMs).toISOString();
-  await database
-    .from("provider_sync_status")
-    .upsert({ provider: "pkmnprices", enabled: true, updated_at: startedAt });
+  const creditPlan = pricingCreditPlan(config.pkmnpricesPlan);
+  const dailyCreditBudget = creditPlan.dailyBudget;
   const cursorResult = await database
     .from("provider_sync_status")
     .select("sync_cursor")
@@ -326,6 +433,25 @@ export default async function handler(request, response) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   }
+  const creditReservation = await database.rpc(
+    "reserve_provider_daily_credits",
+    {
+      p_provider: "pkmnprices",
+      p_daily_budget: dailyCreditBudget,
+      p_requested: groups.size * creditPlan.upperBoundPerGroup,
+    },
+  );
+  if (creditReservation.error)
+    return send(response, 500, {
+      error: "Could not reserve the provider credit allowance",
+    });
+  const reservedCredits = Math.max(0, Number(creditReservation.data) || 0);
+  const permittedGroupCount = Math.min(
+    groups.size,
+    Math.floor(reservedCredits / creditPlan.upperBoundPerGroup),
+  );
+  const permittedGroups = [...groups.entries()].slice(0, permittedGroupCount);
+  const creditBudgetReached = permittedGroupCount < groups.size;
   let inserted = 0,
     duplicates = 0,
     failures = 0,
@@ -333,8 +459,14 @@ export default async function handler(request, response) {
   let deadlineReached = false;
   let checkpointCursor = cursorResult.data?.sync_cursor || null;
   const attemptedLookupKeys = new Set();
-  const proHistory = ["pro", "business"].includes(config.pkmnpricesPlan);
-  for (const [lookupKey, groupedItems] of groups.entries()) {
+  const observedEntitlements = {
+    declaredPlan: config.pkmnpricesPlan,
+    current: "not_checked",
+    history: "not_requested",
+    eur: "not_requested",
+  };
+  const proHistory = creditPlan.expanded;
+  for (const [lookupKey, groupedItems] of permittedGroups) {
     if (Date.now() - startedAtMs >= SYNC_WORK_BUDGET_MS) {
       deadlineReached = true;
       break;
@@ -365,12 +497,16 @@ export default async function handler(request, response) {
         },
       );
       if (!result.card) throw new Error("provider_card_not_found");
+      observedEntitlements.current = "live";
+      observedEntitlements.history = result.historyStatus || "not_requested";
+      observedEntitlements.eur = result.eurStatus || "not_requested";
       const normalized = normalizePkmnPricesCard(
         result.card,
         result.history,
         new Date().toISOString(),
         item.card_id,
         result.historyStatus,
+        { eur: result.eurStatus },
       );
       for (const position of groupedItems) {
         const { quote, rows } = positionHistoryRows(position, normalized);
@@ -390,9 +526,9 @@ export default async function handler(request, response) {
           }
         }
         if (position.card_id && quote) {
-          const saved = await database
-            .from("price_observations")
-            .insert(observationRow(position, quote));
+          const row = observationRow(position, quote);
+          if (!row) continue;
+          const saved = await database.from("price_observations").insert(row);
           if (saved.error?.code === "23505") duplicates += 1;
           else if (saved.error) failures += 1;
           else inserted += 1;
@@ -424,15 +560,22 @@ export default async function handler(request, response) {
     enabled: true,
     last_success_at:
       groups.size === 0 || successfulGroups > 0 ? finishedAt : null,
-    last_failure_at: failures || deadlineReached ? finishedAt : null,
-    last_error_code: deadlineReached
-      ? "deadline_reached"
-      : failures
-        ? successfulGroups
-          ? "partial_failure"
-          : "full_failure"
-        : null,
+    last_failure_at:
+      failures || deadlineReached || creditBudgetReached ? finishedAt : null,
+    last_error_code: creditBudgetReached
+      ? "daily_credit_budget_reached"
+      : deadlineReached
+        ? "deadline_reached"
+        : failures
+          ? successfulGroups
+            ? "partial_failure"
+            : "full_failure"
+          : null,
     sync_cursor: checkpointCursor,
+    daily_credit_budget: dailyCreditBudget,
+    entitlement_snapshot: observedEntitlements,
+    entitlement_checked_at:
+      observedEntitlements.current === "not_checked" ? null : finishedAt,
     updated_at: finishedAt,
   });
   if (statusUpdate.error)
@@ -440,13 +583,23 @@ export default async function handler(request, response) {
       ok: false,
       error: "Could not persist pricing sync status",
     });
-  const fullFailure = groups.size > 0 && successfulGroups === 0;
-  return send(response, fullFailure ? 502 : 200, {
-    ok: !deadlineReached && failures === 0,
+  const fullFailure = permittedGroups.length > 0 && successfulGroups === 0;
+  const responseStatus =
+    creditBudgetReached && permittedGroups.length === 0
+      ? 429
+      : fullFailure
+        ? 502
+        : 200;
+  return send(response, responseStatus, {
+    ok: !deadlineReached && !creditBudgetReached && failures === 0,
     trackedCards: groups.size,
     trackedPositions: items?.length || 0,
     attemptedGroups: attemptedLookupKeys.size,
     deferredGroups: groups.size - attemptedLookupKeys.size,
+    creditBudgetReached,
+    dailyCreditBudget,
+    reservedCredits,
+    creditUpperBoundPerGroup: creditPlan.upperBoundPerGroup,
     inserted,
     duplicates,
     failures,

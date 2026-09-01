@@ -54,6 +54,8 @@ export default async function handler(request, response) {
       error: "Sealed-product data is ready but PkmnPrices is not configured.",
       code: "provider_unconfigured",
       provider: "pkmnprices",
+      capability: "sealed",
+      capabilityStatus: "unsupported",
     });
 
   const controller = new AbortController();
@@ -68,7 +70,12 @@ export default async function handler(request, response) {
       return send(
         response,
         200,
-        { product, retrievedAt: new Date().toISOString() },
+        {
+          product,
+          capability: "sealed",
+          capabilityStatus: product ? "live" : "missing",
+          retrievedAt: new Date().toISOString(),
+        },
         {
           "Cache-Control": "s-maxage=900, stale-while-revalidate=3600",
           "CDN-Cache-Control": "max-age=900",
@@ -85,7 +92,12 @@ export default async function handler(request, response) {
     return send(
       response,
       200,
-      { products, retrievedAt: new Date().toISOString() },
+      {
+        products,
+        capability: "sealed",
+        capabilityStatus: products.length ? "live" : "missing",
+        retrievedAt: new Date().toISOString(),
+      },
       {
         "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
         "CDN-Cache-Control": "max-age=3600",
@@ -97,6 +109,8 @@ export default async function handler(request, response) {
         error: "The current PkmnPrices key cannot access sealed products.",
         code: "provider_plan_required",
         provider: "pkmnprices",
+        capability: "sealed",
+        capabilityStatus: "unsupported",
       });
     if (error?.status === 404)
       return send(response, 404, { error: "Sealed product not found." });
@@ -113,6 +127,8 @@ export default async function handler(request, response) {
           : "Sealed-product data is temporarily unavailable.",
       code: status === 429 ? "provider_rate_limited" : "provider_unavailable",
       provider: "pkmnprices",
+      capability: "sealed",
+      capabilityStatus: status === 429 ? "rate_limited" : "provider_error",
     });
   } finally {
     clearTimeout(timeout);

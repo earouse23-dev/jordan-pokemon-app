@@ -366,10 +366,7 @@ const ciWorkflow = await readFile(
   "utf8",
 );
 const identityGateWorkflow = await readFile(
-  new URL(
-    "../.github/workflows/supabase-identity-gate.yml",
-    import.meta.url,
-  ),
+  new URL("../.github/workflows/supabase-identity-gate.yml", import.meta.url),
   "utf8",
 );
 const packageManifest = JSON.parse(
@@ -477,10 +474,16 @@ test("Node 24 and one non-recursive full release gate are canonical", () => {
 });
 
 test("canonical identity database rehearsal is local, bounded, and disposable", () => {
-  assert.match(supabaseFunctionConfig, /^project_id\s*=\s*"jordan-pokemon-app"/m);
+  assert.match(
+    supabaseFunctionConfig,
+    /^project_id\s*=\s*"jordan-pokemon-app"/m,
+  );
   assert.match(supabaseFunctionConfig, /\[db\][\s\S]+major_version\s*=\s*17/);
   assert.match(supabaseFunctionConfig, /\[db\][\s\S]+port\s*=\s*54322/);
-  assert.match(supabaseFunctionConfig, /\[db\.seed\][\s\S]+enabled\s*=\s*false/);
+  assert.match(
+    supabaseFunctionConfig,
+    /\[db\.seed\][\s\S]+enabled\s*=\s*false/,
+  );
   assert.match(
     identityGateWorkflow,
     /branches:\s*\n\s*- codex\/mica-baseline-reconciliation/,
@@ -716,7 +719,9 @@ test("consolidated workspace navigation remains responsive and routes to real wo
 
 test("public capability status is explicit and never exposes provider secrets", () => {
   const originalKey = process.env.PKMNPRICES_API_KEY;
+  const originalPlan = process.env.PKMNPRICES_PLAN;
   process.env.PKMNPRICES_API_KEY = "secret-never-returned";
+  process.env.PKMNPRICES_PLAN = "pro";
   let body;
   const response = {
     setHeader() {},
@@ -732,16 +737,20 @@ test("public capability status is explicit and never exposes provider secrets", 
   try {
     capabilitiesHandler({ method: "GET" }, response);
     assert.equal(response.statusCode, 200);
-    assert.equal(body.pricing.status, "connected");
+    assert.equal(body.pricing.status, "configured_unverified");
+    assert.equal(body.pricing.capabilityAuthority, "runtime_endpoint_response");
+    assert.equal(body.pricing.features.graded, "pending_runtime_verification");
     assert.equal(JSON.stringify(body).includes("secret-never-returned"), false);
   } finally {
     if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;
     else process.env.PKMNPRICES_API_KEY = originalKey;
+    if (originalPlan === undefined) delete process.env.PKMNPRICES_PLAN;
+    else process.env.PKMNPRICES_PLAN = originalPlan;
   }
 });
 
 test("configured provider keys are not presented as live before a real request", () => {
-  assert.match(appSource, /plan connected/);
+  assert.match(appSource, /key configured · features checked when used/);
   assert.doesNotMatch(appSource, /pricingConnectionState", "Live"/);
 });
 
@@ -2125,7 +2134,7 @@ test("catalog scheduling uses a fail-closed single-purpose credential", () => {
   );
 });
 
-test("free-plan deployment cannot regrow the provider cache", () => {
+test("paused catalog cache stays bounded while Pro evidence trusts runtime entitlement", () => {
   assert.match(
     freePlanCatalogMigration,
     /cron\.unschedule[\s\S]+dispatch-catalog-sync[\s\S]+refresh-current-price-daily-metrics/,
@@ -2142,13 +2151,21 @@ test("free-plan deployment cannot regrow the provider cache", () => {
     freePlanCatalogMigration,
     /truncate table[\s\S]+(?:collection_items|collection_transactions|purchase_lots|card_watchlist|position_price_observations)/,
   );
-  assert.match(
+  assert.doesNotMatch(
     salesEndpoint,
     /!\["pro", "business"\]\.includes\(config\.pkmnpricesPlan\)/,
   );
-  assert.match(
+  assert.doesNotMatch(
     offersEndpoint,
     /!\["pro", "business"\]\.includes\(config\.pkmnpricesPlan\)/,
+  );
+  assert.match(
+    salesEndpoint,
+    /error\?\.status === 403[\s\S]+capabilityStatus: "unsupported"/,
+  );
+  assert.match(
+    offersEndpoint,
+    /error\?\.status === 403[\s\S]+capabilityStatus: "unsupported"/,
   );
   assert.doesNotMatch(appSource, /id="marketProofDetails"/);
   assert.doesNotMatch(appShell, />More price proof</);

@@ -1,0 +1,56 @@
+{
+  "name": "Mica comparable price outlier benchmark v1",
+  "ruleVersion": "mica-price-evidence-v1",
+  "reviewStatus": "pending_owner_review",
+  "reviewInstructions": "Confirm that each flagged index is an observation a reasonable reviewer would send to manual review. Flags do not delete or exclude data.",
+  "cases": [
+    {
+      "id": "tight-market-no-flags",
+      "amounts": [98, 99, 100, 101, 102],
+      "flaggedIndexes": [],
+      "reason": "A tight five-sale cohort should remain included."
+    },
+    {
+      "id": "single-high-outlier",
+      "amounts": [98, 99, 100, 101, 1000],
+      "flaggedIndexes": [4],
+      "reason": "A ten-times price should be reviewed, not silently included or deleted."
+    },
+    {
+      "id": "single-low-outlier",
+      "amounts": [5, 99, 100, 101, 102],
+      "flaggedIndexes": [0],
+      "reason": "A likely partial, damaged, or mapping mismatch should be reviewed."
+    },
+    {
+      "id": "insufficient-sample",
+      "amounts": [100, 1000],
+      "flaggedIndexes": [],
+      "reason": "Two observations cannot support an automatic exclusion recommendation."
+    },
+    {
+      "id": "naturally-wide-market",
+      "amounts": [50, 75, 100, 125, 150],
+      "flaggedIndexes": [],
+      "reason": "A broadly distributed cohort has no isolated robust outlier."
+    },
+    {
+      "id": "stable-low-value-market",
+      "amounts": [0.9, 0.98, 1, 1.02, 1.1],
+      "flaggedIndexes": [],
+      "reason": "Small absolute prices should not be flagged merely for rounding variation."
+    },
+    {
+      "id": "low-value-multiplier",
+      "amounts": [0.9, 0.98, 1, 1.02, 5],
+      "flaggedIndexes": [4],
+      "reason": "The relative rule should still detect an isolated multiplier at low prices."
+    },
+    {
+      "id": "identical-cohort",
+      "amounts": [25, 25, 25, 25, 25],
+      "flaggedIndexes": [],
+      "reason": "A zero-MAD cohort with no deviation contains no outlier."
+    }
+  ]
+}

@@ -51,7 +51,9 @@ function parseLookup(request) {
     name: String(raw?.name || "").trim(),
     set: String(raw?.set || "").trim(),
     number: String(raw?.number || "").trim(),
-    language: String(raw?.language || "en").trim().toLowerCase(),
+    language: String(raw?.language || "en")
+      .trim()
+      .toLowerCase(),
     condition: String(raw?.condition || "").trim(),
     variant: String(raw?.variant || "Normal").trim(),
   };
@@ -89,19 +91,11 @@ export default async function handler(request, response) {
   if (!apiKey)
     return send(response, 503, {
       error: "Live marketplace offers are not configured.",
+      code: "provider_unconfigured",
       provider: "pkmnprices",
+      capability: "asking_prices",
+      capabilityStatus: "unsupported",
     });
-  if (!["pro", "business"].includes(config.pkmnpricesPlan))
-    return send(
-      response,
-      403,
-      {
-        error: "Live marketplace offers require the PkmnPrices Pro plan.",
-        code: "provider_plan_required",
-        provider: "pkmnprices",
-      },
-      { "Cache-Control": "private, no-store" },
-    );
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9_000);
@@ -119,6 +113,16 @@ export default async function handler(request, response) {
         providerCardId: result.cardId,
         offers: result.offers,
         statuses: result.statuses,
+        capability: "asking_prices",
+        capabilityStatus: Object.values(result.statuses).some(
+          (status) => status === "live",
+        )
+          ? "live"
+          : Object.values(result.statuses).every(
+                (status) => status === "plan_required",
+              )
+            ? "unsupported"
+            : "missing",
         retrievedAt: new Date().toISOString(),
       },
       {
@@ -137,6 +141,8 @@ export default async function handler(request, response) {
           "The current PkmnPrices key does not have access to marketplace offers.",
         code: "provider_plan_required",
         provider: "pkmnprices",
+        capability: "asking_prices",
+        capabilityStatus: "unsupported",
       });
     const status = error?.status === 429 ? 429 : 502;
     return send(response, status, {
@@ -146,6 +152,8 @@ export default async function handler(request, response) {
           : "Marketplace offers are temporarily unavailable.",
       code: status === 429 ? "provider_rate_limited" : "provider_unavailable",
       provider: "pkmnprices",
+      capability: "asking_prices",
+      capabilityStatus: status === 429 ? "rate_limited" : "provider_error",
     });
   } finally {
     clearTimeout(timeout);

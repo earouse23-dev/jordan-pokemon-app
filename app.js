@@ -11,7 +11,6 @@ import {
   selectedInventoryShare,
   transactionReportCsv,
   missingSetChecklist,
-  isStale,
   localIsoDate,
   matchesSearch,
   ownedCardSummary,
@@ -21,7 +20,10 @@ import {
   finishForVariant,
   gradedPriceLadder,
   mergePriceHistory,
+  normalizePriceCapabilityStatus,
+  portfolioPriceCoverage,
   priceEvidence,
+  priceFreshness,
   priceMovement,
   selectCardmarketReference,
   selectReferenceQuote,
@@ -1283,7 +1285,8 @@ function recordPriceObservation(item, quote, providerHistory = []) {
   ).slice(-1000);
 }
 function itemValue(item) {
-  return item.price == null
+  return item.price == null ||
+    !["live", "manual", "manual_override"].includes(item.pricingStatus)
     ? null
     : Number(item.price) * Number(item.quantity || 0);
 }
@@ -1351,9 +1354,20 @@ function friendlyObservedAt(value) {
 
 function priceStatusText(item) {
   if (item.price == null)
-    return item.gradingCompany
-      ? "Graded market price not connected"
-      : "Matching market price unavailable";
+    return item.pricingStatus === "unsupported"
+      ? item.gradingCompany
+        ? "Graded pricing is not supported by the connected provider"
+        : "This price context is not supported"
+      : item.pricingStatus === "stale"
+        ? `Stale · observed ${friendlyObservedAt(item.pricingUpdatedAt)}`
+        : item.pricingStatus === "rate_limited"
+          ? "Price source is busy"
+          : item.pricingStatus === "error" ||
+              item.pricingStatus === "provider_error"
+            ? "Price source could not be reached"
+            : item.gradingCompany
+              ? "Matching graded market price unavailable"
+              : "Matching market price unavailable";
   if (item.pricingStatus === "live")
     return `Updated ${friendlyObservedAt(item.pricingUpdatedAt)}`;
   if (item.pricingStatus === "stale")
@@ -1379,7 +1393,55 @@ function applyUiTheme(_theme, { announce = false } = {}) {
 
 function quoteStatus(quote) {
   if (!quote) return "unavailable";
-  return isStale(quote.observedAt || quote.retrievedAt) ? "stale" : "live";
+  return priceFreshness(quote).status;
+}
+
+function capabilityStatusForItem(card, item) {
+  const capability =
+    item.cardState === "sealed"
+      ? "sealed"
+      : item.gradingCompany
+        ? "graded"
+        : "raw";
+  const normalized = normalizePriceCapabilityStatus(
+    card?.capabilities?.[capability] ||
+      card?.capabilities?.current ||
+      "missing",
+  );
+  return {
+    status:
+      normalized.status === "provider_error"
+        ? "error"
+        : normalized.status === "live"
+          ? "missing"
+          : normalized.status === "missing"
+            ? "missing"
+            : normalized.status,
+    reason:
+      normalized.status === "live"
+        ? "exact_context_unavailable"
+        : normalized.reason,
+  };
+}
+
+function quotePricingFields(quote, card, item) {
+  const capability = capabilityStatusForItem(card, item);
+  if (!quote)
+    return {
+      price: null,
+      referencePrice: null,
+      pricingStatus: capability.status,
+      pricingReason: capability.reason,
+      pricingUpdatedAt: null,
+    };
+  const freshness = priceFreshness(quote);
+  return {
+    price: freshness.status === "live" ? Number(quote.amount) : null,
+    referencePrice: Number(quote.amount),
+    pricingStatus: freshness.status,
+    pricingReason: freshness.reason,
+    pricingUpdatedAt: freshness.observedAt,
+  };
 }
 
 function selectPositionQuote(quotes, item) {
@@ -1395,10 +1457,18 @@ function selectPositionQuote(quotes, item) {
 
 function renderQuoteRow(quote, label) {
   if (!quote) return "";
+  const freshness = priceFreshness(quote);
+  const aggregator = String(
+    quote.aggregator ||
+      quote.quality?.aggregator ||
+      quote.provider ||
+      "unknown",
+  );
+  const market = String(quote.market || quote.provider || "unknown");
   const source = quote.providerUrl
     ? `<a href="${esc(quote.providerUrl)}" target="_blank" rel="noreferrer">${esc(label)}</a>`
     : `<strong>${esc(label)}</strong>`;
-  return `<div class="price-source"><div>${source}<span>${esc(quote.finish)} · ${esc(quote.condition ? conditionLabel(quote.condition) : "Wear not specified")} · ${esc(quote.currency)}</span><span>Price dated ${esc(friendlyObservedAt(quote.observedAt))} · checked ${esc(friendlyObservedAt(quote.retrievedAt))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
+  return `<div class="price-source"><div>${source}<span>${esc(quote.finish)} · ${esc(quote.condition ? conditionLabel(quote.condition) : "Wear not specified")} · ${esc(quote.currency)}</span><span>${esc(market)} market via ${esc(aggregator)} · ${freshness.band === "live" ? "live" : freshness.band === "aging" ? "aging" : "stale"}</span><span>Price dated ${esc(friendlyObservedAt(freshness.observedAt))} · checked ${esc(friendlyObservedAt(quote.retrievedAt))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
 }
 
 function renderPriceEvidence(item, context) {
@@ -1427,7 +1497,13 @@ function renderPriceEvidence(item, context) {
   const freshness = report.freshestAt
     ? `Newest price ${String(report.freshestAt).slice(0, 10)}`
     : "No price date";
-  return `<section class="price-confidence ${report.level}" aria-label="How reliable this price is"><div class="price-confidence-head"><div><span>How reliable is this price?</span><strong>${esc(report.label)}</strong></div><b>${report.sourceCount} matching source${report.sourceCount === 1 ? "" : "s"}</b></div><p>${esc(report.summary)}</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>${esc(agreement)}</span><span>${esc(freshness)}</span></div></section>`;
+  const range =
+    report.rangeLow == null
+      ? "No compatible range"
+      : report.rangeLow === report.rangeHigh
+        ? `One observation · ${money(report.rangeLow, item.currency || "USD")}`
+        : `Range ${money(report.rangeLow, item.currency || "USD")}–${money(report.rangeHigh, item.currency || "USD")}`;
+  return `<section class="price-confidence ${report.level}" aria-label="How reliable this price is"><div class="price-confidence-head"><div><span>How reliable is this price?</span><strong>${esc(report.label)}</strong></div><b>${Math.round(report.confidenceScore * 100)}% evidence confidence</b></div><p>${esc(report.summary)}</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>${esc(agreement)}</span><span>${esc(range)}</span><span>${esc(freshness)}</span><span>${report.liveSourceCount} live of ${report.sourceCount} matching market${report.sourceCount === 1 ? "" : "s"}</span></div></section>`;
 }
 
 function renderGradedPriceLadder(item) {
@@ -2025,7 +2101,7 @@ function renderSales(item) {
     .slice(0, 5)
     .map(
       (sale) =>
-        `<a class="sale-row" href="${esc(sale.sourceUrl)}" target="_blank" rel="noreferrer"><div><strong>${esc(sale.title)}</strong><span>${esc(sale.soldAt)} · ${esc(sale.gradingCompany ? `${sale.gradingCompany} grade ${sale.grade}` : "Ungraded")}</span></div><b>${money(sale.amount, sale.currency)}</b></a>`,
+        `<a class="sale-row" href="${esc(sale.sourceUrl)}" target="_blank" rel="noreferrer"><div><strong>${esc(sale.title)}</strong><span>${esc(sale.soldAt)} · ${esc(sale.gradingCompany ? `${sale.gradingCompany} grade ${sale.grade}` : "Ungraded")}</span>${sale.outlierReview?.flagged ? "<small>Unusual price · review the listing context</small>" : ""}</div><b>${money(sale.amount, sale.currency)}</b></a>`,
     )
     .join("")}</div>`;
 }
@@ -3578,11 +3654,16 @@ function renderPortfolioHistory() {
 }
 
 async function capturePortfolioValuation() {
-  if (!state.session || !state.items.length || state.pricingStatus !== "live")
+  if (
+    !state.session ||
+    !state.items.length ||
+    !["live", "partial"].includes(state.pricingStatus)
+  )
     return;
   const ownerId = state.session.user.id;
   const loadVersion = sessionLoadVersion;
-  const totals = calculateTotals(state.items);
+  const totals = calculateTotals(state.items, { currency: "USD" });
+  const coverage = portfolioPriceCoverage(state.items, { currency: "USD" });
   if (!totals.priced) return;
   const freshItems = state.items.reduce(
     (sum, item) =>
@@ -3599,7 +3680,7 @@ async function capturePortfolioValuation() {
       currency: "USD",
       pricedItems: totals.priced,
       unpricedItems: totals.unpriced,
-      freshItems,
+      freshItems: coverage.liveAutomaticUnits || freshItems,
     });
     const history = await loadPortfolioValuationHistory(supabase, ownerId);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
@@ -3752,7 +3833,10 @@ function renderCollection() {
     "empty-library",
     state.items.length === 0 && state.ledgerView === "all",
   );
-  const totals = calculateTotals(state.items);
+  const totals = calculateTotals(state.items, { currency: "USD" });
+  const priceCoverage = portfolioPriceCoverage(state.items, {
+    currency: "USD",
+  });
   const gain = totals.comparableValue - totals.comparableCost;
   const soldPositions = state.items.filter((item) =>
     (item.transactions || []).some(
@@ -3812,9 +3896,9 @@ function renderCollection() {
       : "Profit from completed sales with a recorded purchase cost";
   const hasProviderPricing = ["live", "partial"].includes(state.pricingStatus);
   $("#freshCoverage").textContent =
-    `${state.items.length.toLocaleString()} saved ${state.items.length === 1 ? "entry" : "entries"}`;
-  const partial = totals.unpriced
-    ? ` · ${totals.unpriced} unpriced item${totals.unpriced === 1 ? "" : "s"} excluded`
+    `${priceCoverage.automaticCoveragePercent.toFixed(0)}% automatic price coverage · ${priceCoverage.liveAutomaticUnits.toLocaleString()} of ${priceCoverage.totalUnits.toLocaleString()} units`;
+  const partial = priceCoverage.unpricedUnits
+    ? ` · ${priceCoverage.unpricedUnits} unpriced unit${priceCoverage.unpricedUnits === 1 ? "" : "s"} excluded`
     : "";
   const costCoverage = totals.unknownCost
     ? ` · ${totals.unknownCost} missing purchase cost`
@@ -3828,6 +3912,25 @@ function renderCollection() {
     totals.gainCoverage === totals.quantity
       ? "Based on matching market prices and what was paid. "
       : `Change in value uses ${totals.gainCoverage} of ${totals.quantity} cards that have both a current price and the amount paid. `;
+  const coverageParts = [
+    `${priceCoverage.automaticCoveragePercent.toFixed(0)}% live automatic coverage`,
+    `${priceCoverage.categories.strong.units} strong`,
+    `${priceCoverage.categories.moderate.units} moderate`,
+    `${priceCoverage.categories.limited.units} limited`,
+  ];
+  const excludedUnits =
+    priceCoverage.categories.stale.units +
+    priceCoverage.categories.missing.units +
+    priceCoverage.categories.unsupported.units +
+    priceCoverage.categories.rate_limited.units +
+    priceCoverage.categories.provider_error.units +
+    priceCoverage.categories.other_currency.units;
+  if (priceCoverage.categories.manual_override.units)
+    coverageParts.push(
+      `${priceCoverage.categories.manual_override.units} owner-entered`,
+    );
+  if (excludedUnits) coverageParts.push(`${excludedUnits} excluded`);
+  $("#valuationCoverage").textContent = `${coverageParts.join(" · ")}. `;
   $("#allCount").textContent = totals.quantity.toLocaleString();
   $("#rawCount").textContent = rawCount.toLocaleString();
   $("#gradedCount").textContent = gradedCount.toLocaleString();
@@ -3845,7 +3948,10 @@ function renderCollection() {
   ).length;
   $("#watchlistCount").textContent = state.watchlist.length;
   $("#setCount").textContent = collectionSetGroups().length;
-  const pricedCount = state.items.filter((item) => item.price != null).length;
+  const pricedCount = ["strong", "moderate", "limited"].reduce(
+    (sum, category) => sum + priceCoverage.categories[category].positions,
+    0,
+  );
   const pricingLabel =
     state.pricingStatus === "loading"
       ? "Updating live prices…"
@@ -4508,6 +4614,7 @@ async function loadSealedDetailPricing(item) {
       item.currency || "USD",
       {},
     );
+    const pricing = quotePricingFields(quote, product, item);
     const updated = {
       ...item,
       ...product,
@@ -4522,10 +4629,8 @@ async function loadSealedDetailPricing(item) {
       notes: item.notes,
       tags: item.tags,
       status: item.status,
-      price: quote?.amount ?? null,
-      pricingStatus: quote ? quoteStatus(quote) : "unavailable",
-      pricingUpdatedAt:
-        quote?.observedAt || quote?.retrievedAt?.slice?.(0, 10) || null,
+      ...pricing,
+      priceCapabilities: product.capabilities || null,
     };
     if (item.uid)
       state.items = state.items.map((candidate) =>
@@ -4576,6 +4681,11 @@ async function loadCardPreviewPricing(card) {
     const quote = selectReferenceQuote(priced.quotes, card.variant, "USD", {
       condition: "Near Mint",
     });
+    const pricing = quotePricingFields(quote, priced, {
+      ...card,
+      condition: "Near Mint",
+      cardState: "raw",
+    });
     const updated = {
       ...card,
       externalIds: {
@@ -4583,14 +4693,11 @@ async function loadCardPreviewPricing(card) {
         ...(priced.externalIds || {}),
       },
       metadata: priced.metadata || card.metadata || null,
-      priceCapabilities: payload.capabilities || null,
-      price: quote?.amount ?? null,
+      priceCapabilities: priced.capabilities || null,
+      ...pricing,
       quotes: priced.quotes || [],
       priceHistory: recordPriceObservation(card, quote, priced.history || []),
       historyStatus: priced.historyStatus || null,
-      pricingStatus: quote ? quoteStatus(quote) : "unavailable",
-      pricingUpdatedAt:
-        quote?.observedAt || quote?.retrievedAt?.slice(0, 10) || null,
     };
     catalog = catalog.map((item) => (item.id === card.id ? updated : item));
     state.detailCard = updated;
@@ -4630,6 +4737,7 @@ async function loadOwnedDetailPricing(item) {
     const priced = payload.cards?.[0];
     if (!priced || state.detailId !== item.uid) return;
     const quote = selectPositionQuote(priced.quotes, item);
+    const pricing = quotePricingFields(quote, priced, item);
     const pricedItem = {
       ...item,
       externalIds: {
@@ -4637,8 +4745,8 @@ async function loadOwnedDetailPricing(item) {
         ...(priced.externalIds || {}),
       },
       metadata: priced.metadata || item.metadata || null,
-      priceCapabilities: payload.capabilities || null,
-      price: quote?.amount ?? null,
+      priceCapabilities: priced.capabilities || null,
+      ...pricing,
       quotes: priced.quotes || [],
       historyStatus: priced.historyStatus || null,
       priceHistory: recordPriceObservation(
@@ -4646,9 +4754,6 @@ async function loadOwnedDetailPricing(item) {
         quote,
         mergePriceHistory(item.priceHistory || [], priced.history || []),
       ),
-      pricingStatus: quote ? quoteStatus(quote) : "unavailable",
-      pricingUpdatedAt:
-        quote?.observedAt || quote?.retrievedAt?.slice?.(0, 10) || null,
     };
     const movement = movementForItem(pricedItem);
     const updated = {
@@ -4955,10 +5060,11 @@ function renderDetail() {
         ? "preview"
         : "loading");
   const pricingStatus = providerPricingStatus;
-  const livePrice = ["live", "stale"].includes(pricingStatus)
-    ? (tcgQuote?.amount ?? null)
+  const valuationPrice =
+    pricingStatus === "live" ? (item.price ?? tcgQuote?.amount ?? null) : null;
+  const displayPrice = ["live", "stale"].includes(pricingStatus)
+    ? (valuationPrice ?? item.referencePrice ?? tcgQuote?.amount ?? null)
     : null;
-  const displayPrice = livePrice;
   const marketLabel =
     pricingStatus === "live"
       ? "Price today"
@@ -5010,7 +5116,7 @@ function renderDetail() {
           item.costBasis == null
             ? null
             : Math.round(Number(item.costBasis) * 100),
-        currentUnitPrice: displayPrice,
+        currentUnitPrice: valuationPrice,
         netSaleProceedsMinor:
           item.netSaleProceeds == null
             ? null
@@ -5027,13 +5133,13 @@ function renderDetail() {
       (lot) => !lot.costBasisKnown || !lot.acquisitionDateKnown,
     ) || null;
   const positionSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Market price when bought</span><strong>${item.marketPriceAtPurchase == null ? "Waiting for matching history" : `${money(item.marketPriceAtPurchase, item.currency)} each`}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Current market price</span><strong>${displayPrice === null ? "Unavailable" : `${money(displayPrice, item.currency)} each`}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Profit or loss</span><strong>${performance.unrealizedGainMinor === null ? "Needs the amount you paid and a current market price" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${money(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Current price source</span><strong>${esc(tcgQuote?.provider || "Unavailable")}</strong></div><div><span>Purchase-date source</span><strong>${esc(item.marketPriceAtPurchaseProvider || "Waiting for provider history")}</strong></div></div>${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Market price when bought</span><strong>${item.marketPriceAtPurchase == null ? "Waiting for matching history" : `${money(item.marketPriceAtPurchase, item.currency)} each`}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Current market price</span><strong>${valuationPrice === null ? "Unavailable" : `${money(valuationPrice, item.currency)} each`}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Profit or loss</span><strong>${performance.unrealizedGainMinor === null ? "Needs the amount you paid and a current market price" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${money(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Current price source</span><strong>${esc(tcgQuote?.provider || "Unavailable")}</strong></div><div><span>Purchase-date source</span><strong>${esc(item.marketPriceAtPurchaseProvider || "Waiting for provider history")}</strong></div></div>${pricingStatus === "stale" && displayPrice !== null ? `<div class="warning-panel"><strong>Older evidence is shown for reference only.</strong><p>${money(displayPrice, item.currency)} is outside the live freshness window, so it is excluded from current value and profit.</p></div>` : ""}${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
     : "";
   const favorite =
     owned &&
     (item.tags || []).some((tag) => String(tag).toLowerCase() === "favorites");
   const action = owned
-    ? `<div class="owned-banner"><div><span>${item.status === "listed" ? "Listed for sale" : "In your collection"}</span><strong>${item.quantity} owned · ${displayPrice == null ? "Price unavailable" : `${money(displayPrice)} each`}</strong></div><div class="owned-actions"><button class="favorite-heart${favorite ? " selected" : ""}" id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>${!sealed && !item.gradingCompany && item.status === "owned" ? `<section class="detail-digital-grade"><div><span>${item.digitalGrade ? "Digital grade" : "Ungraded card"}</span><strong>${item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Check condition before you submit"}</strong><small>${item.digitalGrade ? "Your latest photo estimate" : "Four guided views · one uninterrupted grader"}</small></div><button id="detailDigitalGradeButton" type="button">${item.digitalGrade ? "Regrade" : "Digital grade"}</button></section>` : ""}`
+    ? `<div class="owned-banner"><div><span>${item.status === "listed" ? "Listed for sale" : "In your collection"}</span><strong>${item.quantity} owned · ${valuationPrice == null ? "Current price unavailable" : `${money(valuationPrice)} each`}</strong></div><div class="owned-actions"><button class="favorite-heart${favorite ? " selected" : ""}" id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>${!sealed && !item.gradingCompany && item.status === "owned" ? `<section class="detail-digital-grade"><div><span>${item.digitalGrade ? "Digital grade" : "Ungraded card"}</span><strong>${item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Check condition before you submit"}</strong><small>${item.digitalGrade ? "Your latest photo estimate" : "Four guided views · one uninterrupted grader"}</small></div><button id="detailDigitalGradeButton" type="button">${item.digitalGrade ? "Regrade" : "Digital grade"}</button></section>` : ""}`
     : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched ? "Edit Watch" : sealed ? "Watch product" : "Watch card"}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
   const watchedPerformance = watched
     ? watchPerformance({
@@ -5050,7 +5156,7 @@ function renderDetail() {
       : "";
   const listingSection =
     owned && item.status === "listed"
-      ? `<section class="detail-section listing-status advanced-workspace"><div class="detail-section-head"><h2>Currently listed for sale</h2><span>Price checked ${esc(item.priceReviewedAt || "not yet")}</span></div><div class="position-summary"><div><span>Your price per card</span><strong>${item.askingPrice === null ? "Missing" : money(item.askingPrice, item.currency)}</strong></div><div><span>Matching price today</span><strong>${displayPrice === null ? "Unavailable" : money(displayPrice, item.currency)}</strong></div><div><span>Where it is listed</span><strong>${esc(item.listingVenue || "Missing")}</strong></div><div><span>Listed on</span><strong>${esc(item.listedAt || "Not recorded")}</strong></div></div><button class="planner-record" id="manageListingButton" type="button">Review or update sale listing</button></section>`
+      ? `<section class="detail-section listing-status advanced-workspace"><div class="detail-section-head"><h2>Currently listed for sale</h2><span>Price checked ${esc(item.priceReviewedAt || "not yet")}</span></div><div class="position-summary"><div><span>Your price per card</span><strong>${item.askingPrice === null ? "Missing" : money(item.askingPrice, item.currency)}</strong></div><div><span>Matching price today</span><strong>${valuationPrice === null ? "Unavailable" : money(valuationPrice, item.currency)}</strong></div><div><span>Where it is listed</span><strong>${esc(item.listingVenue || "Missing")}</strong></div><div><span>Listed on</span><strong>${esc(item.listedAt || "Not recorded")}</strong></div></div><button class="planner-record" id="manageListingButton" type="button">Review or update sale listing</button></section>`
       : "";
   const productType = String(item.productType || "sealed product")
     .replaceAll("_", " ")
@@ -5323,12 +5429,11 @@ function openSealedSearch() {
               "USD",
               {},
             );
+            const pricing = quotePricingFields(quote, product, product);
             const detailed = {
               ...product,
-              price: quote?.amount ?? null,
-              pricingStatus: quote ? quoteStatus(quote) : "unavailable",
-              pricingUpdatedAt:
-                quote?.observedAt || quote?.retrievedAt?.slice?.(0, 10) || null,
+              ...pricing,
+              priceCapabilities: product.capabilities || null,
             };
             closeSheet({ discardHistory: true });
             openCardDetail(detailed);
@@ -5589,6 +5694,13 @@ function openWatchlistSheet(card, existing = null, defaults = {}) {
             ? { condition, gradingCompany: grader || "", grade: grade || "" }
             : {},
         );
+        const pricing = quotePricingFields(quote, card, {
+          ...card,
+          cardState,
+          condition,
+          gradingCompany: grader,
+          grade,
+        });
         const added = await createWatchlistEntry(supabase, {
           userId: state.session.user.id,
           cardId: cardState === "sealed" ? null : card.cardId || null,
@@ -5598,16 +5710,19 @@ function openWatchlistSheet(card, existing = null, defaults = {}) {
           grader,
           grade,
           targetPrice,
-          startingMarketPrice: quote?.amount ?? null,
+          startingMarketPrice: pricing.price,
           currency: "USD",
           notes: data.notes,
         });
         state.watchlist.unshift({
           ...added,
-          currentPrice: quote?.amount ?? null,
+          currentPrice: pricing.price,
+          referencePrice: pricing.referencePrice,
           quotes: card.quotes || [],
-          pricingStatus: quote ? quoteStatus(quote) : "loading",
-          pricingUpdatedAt: quote?.observedAt || null,
+          priceCapabilities: card.capabilities || null,
+          pricingStatus: pricing.pricingStatus,
+          pricingReason: pricing.pricingReason,
+          pricingUpdatedAt: pricing.pricingUpdatedAt,
         });
       }
       closeSheet({ discardHistory: true });
@@ -10195,10 +10310,10 @@ async function refreshCapabilityStatus() {
     setStatus("catalogConnectionState", "Active", "active");
     setStatus(
       "pricingConnectionState",
-      capabilities.pricing?.status === "connected"
-        ? `${String(capabilities.pricing.plan || "free").toUpperCase()} plan connected`
+      capabilities.pricing?.status === "configured_unverified"
+        ? `${String(capabilities.pricing.declaredPlan || "provider").toUpperCase()} key configured · features checked when used`
         : "Basic public prices only",
-      capabilities.pricing?.status === "connected" ? "active" : "limited",
+      "limited",
     );
     setStatus(
       "visionConnectionState",
@@ -10254,11 +10369,11 @@ function openAutomationInfo(kind) {
     },
     pricing: {
       title: "Automatic market data",
-      state: "Provider adapter complete · upgrade required",
+      state: "PkmnPrices Pro approved · key connection pending",
       summary:
         "The pricing adapter already keeps raw, graded, sealed, grader, grade, printing, condition, currency, timestamp, and provider evidence separate. Unsupported data stays unavailable instead of being guessed.",
       connection:
-        "Upgrade PkmnPrices, keep PKMNPRICES_API_KEY server-only, and set PKMNPRICES_PLAN=pro in Vercel. The prepared graded ladder, 365-day history, offers, sealed, Japanese, and eBay sold-evidence paths activate without a product rebuild.",
+        "Connect the approved PkmnPrices Pro key server-side and keep PKMNPRICES_PLAN=pro in Vercel. The prepared graded ladder, 365-day history, USD and EUR markets, offers, sealed products, English, Japanese, German, and eBay sold-evidence paths activate only when their real endpoint requests succeed.",
     },
   };
   const feature = features[kind];
@@ -10586,7 +10701,7 @@ function downloadAccountBackup() {
 function openInsuranceReport() {
   if (!requireAccountData()) return;
   const date = localIsoDate();
-  const totals = calculateTotals(state.items);
+  const totals = calculateTotals(state.items, { currency: "USD" });
   const documentation = insuranceDocumentation(state.items);
   const rows = [...state.items]
     .sort((a, b) => (itemValue(b) ?? -1) - (itemValue(a) ?? -1))
@@ -10600,10 +10715,7 @@ function openInsuranceReport() {
         item.costBasis === null || item.costBasis === undefined
           ? null
           : Number(item.costBasis);
-      const value =
-        item.price === null || item.price === undefined
-          ? null
-          : Number(item.price) * Number(item.quantity || 0);
+      const value = itemValue(item);
       return `<article class="insurance-row"><img src="${esc(item.thumb || item.image || "./icons/icon.svg")}" alt="${esc(item.name)} reference image"><div class="insurance-card-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Version unknown")}</span><small>${esc(context)} · ${Number(item.quantity) || 0} owned</small>${item.certificationNumber ? `<small>Certification number ${esc(item.certificationNumber)}</small>` : ""}${item.location ? `<small>Stored at ${esc(item.location)}</small>` : ""}${item.notes ? `<p>${esc(item.notes)}</p>` : ""}</div><div class="insurance-values"><span>What you paid<strong>${basis === null ? "Not recorded" : money(basis, item.currency)}</strong></span><span>Estimated value today<strong>${value === null ? "Unavailable" : money(value, item.currency)}</strong></span></div></article>`;
     })
     .join("");
@@ -11138,12 +11250,16 @@ async function refreshLivePricing() {
         return {
           ...item,
           price: null,
+          referencePrice: null,
           move: null,
           quotes: [],
-          pricingStatus: "unavailable",
+          pricingStatus: "missing",
+          pricingReason: "provider_match_missing",
           pricingUpdatedAt: null,
         };
       const quote = selectPositionQuote(card.quotes, item);
+      const quoteState = quote ? quoteStatus(quote) : null;
+      const capabilityState = capabilityStatusForItem(card, item);
       const updated = {
         ...item,
         externalIds: {
@@ -11152,8 +11268,10 @@ async function refreshLivePricing() {
         },
         metadata: card.metadata || item.metadata || null,
         productType: card.productType || item.productType || null,
-        price: quote?.amount ?? null,
+        price: quoteState === "live" ? quote.amount : null,
+        referencePrice: quote?.amount ?? null,
         quotes: card.quotes,
+        priceCapabilities: card.capabilities || null,
         historyStatus: card.historyStatus || null,
         priceHistory: quote
           ? recordPriceObservation(
@@ -11162,7 +11280,10 @@ async function refreshLivePricing() {
               mergePriceHistory(item.priceHistory || [], card.history || []),
             )
           : mergePriceHistory(item.priceHistory || [], card.history || []),
-        pricingStatus: quote ? quoteStatus(quote) : "unavailable",
+        pricingStatus: quoteState || capabilityState.status,
+        pricingReason: quoteState
+          ? priceFreshness(quote).reason
+          : capabilityState.reason,
         pricingUpdatedAt:
           quote?.observedAt || quote?.retrievedAt?.slice(0, 10) || null,
       };
@@ -11174,7 +11295,11 @@ async function refreshLivePricing() {
     catalog = catalog.map((item) =>
       cards.has(item.id) ? applyPricing(item) : item,
     );
-    state.pricingStatus = partial ? "partial" : "live";
+    const coverage = portfolioPriceCoverage(state.items);
+    state.pricingStatus =
+      partial || coverage.liveAutomaticUnits < coverage.totalUnits
+        ? "partial"
+        : "live";
     state.pricingRetrievedAt = retrievedAt;
     await capturePortfolioValuation();
     renderCollection();
@@ -11185,10 +11310,18 @@ async function refreshLivePricing() {
   } catch {
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.pricingStatus = "error";
-    state.items = state.items.map((item) => ({
-      ...item,
-      pricingStatus: item.price == null ? "error" : item.pricingStatus,
-    }));
+    state.items = state.items.map((item) => {
+      const quote = selectPositionQuote(item.quotes, item);
+      const pricing = quotePricingFields(quote, item, item);
+      return {
+        ...item,
+        ...pricing,
+        pricingStatus: quote ? pricing.pricingStatus : "error",
+        pricingReason: quote
+          ? `${pricing.pricingReason}:refresh_failed`
+          : "provider_refresh_failed",
+      };
+    });
     renderCollection();
     renderInsights();
   }
@@ -11249,6 +11382,8 @@ async function refreshMovementHistory() {
       const card = cards.get(item.id);
       if (!card) return item;
       const quote = selectPositionQuote(card.quotes, item);
+      const quoteState = quote ? quoteStatus(quote) : null;
+      const capabilityState = capabilityStatusForItem(card, item);
       const updated = {
         ...item,
         externalIds: {
@@ -11257,8 +11392,12 @@ async function refreshMovementHistory() {
         },
         metadata: card.metadata || item.metadata || null,
         priceCapabilities:
-          card.priceCapabilities || item.priceCapabilities || null,
-        price: quote?.amount ?? item.price,
+          card.capabilities ||
+          card.priceCapabilities ||
+          item.priceCapabilities ||
+          null,
+        price: quoteState === "live" ? quote.amount : quote ? null : item.price,
+        referencePrice: quote?.amount ?? item.referencePrice ?? null,
         quotes: card.quotes || item.quotes || [],
         historyStatus: card.historyStatus || item.historyStatus || null,
         priceHistory: recordPriceObservation(
@@ -11266,7 +11405,11 @@ async function refreshMovementHistory() {
           quote,
           mergePriceHistory(item.priceHistory || [], card.history || []),
         ),
-        pricingStatus: quote ? quoteStatus(quote) : item.pricingStatus,
+        pricingStatus:
+          quoteState || capabilityState.status || item.pricingStatus,
+        pricingReason: quoteState
+          ? priceFreshness(quote).reason
+          : capabilityState.reason,
         pricingUpdatedAt:
           quote?.observedAt ||
           quote?.retrievedAt?.slice?.(0, 10) ||
@@ -11396,9 +11539,14 @@ async function refreshWatchlistPricing() {
         return {
           ...item,
           currentPrice: null,
+          referencePrice: null,
           quotes: [],
           pricingStatus:
-            sealed && sealedPlanRequired ? "plan_required" : "unavailable",
+            sealed && sealedPlanRequired ? "unsupported" : "missing",
+          pricingReason:
+            sealed && sealedPlanRequired
+              ? "provider_plan_required"
+              : "provider_match_missing",
         };
       const quote = selectReferenceQuote(
         card.quotes,
@@ -11406,6 +11554,8 @@ async function refreshWatchlistPricing() {
         item.currency || "USD",
         sealed ? {} : item,
       );
+      const quoteState = quote ? quoteStatus(quote) : null;
+      const capabilityState = capabilityStatusForItem(card, item);
       return {
         ...item,
         externalIds: {
@@ -11414,11 +11564,16 @@ async function refreshWatchlistPricing() {
         },
         metadata: card.metadata || item.metadata || null,
         productType: card.productType || item.productType || null,
-        currentPrice: quote?.amount ?? null,
+        currentPrice: quoteState === "live" ? quote.amount : null,
+        referencePrice: quote?.amount ?? null,
         quotes: card.quotes || [],
+        priceCapabilities: card.capabilities || null,
         priceHistory: card.history || [],
         historyStatus: card.historyStatus || null,
-        pricingStatus: quote ? quoteStatus(quote) : "unavailable",
+        pricingStatus: quoteState || capabilityState.status,
+        pricingReason: quoteState
+          ? priceFreshness(quote).reason
+          : capabilityState.reason,
         pricingUpdatedAt:
           quote?.observedAt || quote?.retrievedAt?.slice?.(0, 10) || null,
       };
@@ -12181,14 +12336,22 @@ async function priceTradeCard(tradeItem, card) {
           condition: "Near Mint",
         })
       : null;
-    if (quote && String(tradeItem.valuePerCard).trim() === "") {
+    const pricing = quotePricingFields(quote, priced, {
+      ...card,
+      cardState: "raw",
+      condition: "Near Mint",
+    });
+    if (pricing.price != null && String(tradeItem.valuePerCard).trim() === "") {
       tradeItem.valuePerCard = (
-        Number(quote.amount) *
+        pricing.price *
         (Number(state.preferences.tradeValuePercent) / 100)
       ).toFixed(2);
-      tradeItem.referencePrice = Number(quote.amount);
+      tradeItem.referencePrice = pricing.price;
       tradeItem.pricingStatus = "live";
-    } else tradeItem.pricingStatus = quote ? "live" : "unavailable";
+    } else {
+      tradeItem.referencePrice = pricing.referencePrice;
+      tradeItem.pricingStatus = pricing.pricingStatus;
+    }
   } catch {
     tradeItem.pricingStatus = "unavailable";
   }

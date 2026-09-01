@@ -186,7 +186,34 @@ test("portfolio totals respect quantity and exclude unpriced values", () => {
     comparableValue: 30,
     comparableCost: 20,
     gainCoverage: 2,
+    excludedCurrency: 0,
   });
+});
+test("portfolio totals exclude stale and failed prices without treating them as zero", () => {
+  const totals = calculateTotals([
+    { quantity: 1, cost: 10, price: 20, pricingStatus: "live" },
+    { quantity: 2, cost: 5, price: 15, pricingStatus: "stale" },
+    { quantity: 3, cost: 2, price: 8, pricingStatus: "provider_error" },
+    { quantity: 1, cost: 4, price: 0, pricingStatus: "manual" },
+  ]);
+  assert.equal(totals.quantity, 7);
+  assert.equal(totals.value, 20);
+  assert.equal(totals.priced, 2);
+  assert.equal(totals.unpriced, 5);
+  assert.equal(totals.comparableValue, 20);
+});
+test("currency-scoped totals never add EUR amounts into a USD headline", () => {
+  const totals = calculateTotals(
+    [
+      { quantity: 1, currency: "USD", cost: 10, price: 20 },
+      { quantity: 2, currency: "EUR", cost: 30, price: 40 },
+    ],
+    { currency: "USD" },
+  );
+  assert.equal(totals.value, 20);
+  assert.equal(totals.cost, 10);
+  assert.equal(totals.excludedCurrency, 2);
+  assert.equal(totals.priced, 1);
 });
 test("gain coverage excludes copies with unknown cost instead of treating them as free", () => {
   const totals = calculateTotals([

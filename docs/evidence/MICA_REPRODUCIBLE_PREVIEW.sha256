@@ -4,7 +4,7 @@
 # its own public runtime configuration; server-only credentials are never bundled.
 
 49a205505cd8fe54392ff3e2e4dd238d1aaf11791a4747392cd3d739e89d66e2  ./app-config.js
-1ea7e9535b63b586799eab3dfaeced572233419a3b15871eca3acd5c9ef77513  ./app.js
+4b7bd1026732fcf8d4502b9e36f6cbb7a95f8be86d75d2d1bcb67741b84072f2  ./app.js
 ee2bf1579c20bdc5be015ef965ca20af71a04c9a3d747689e8730d1013fb3694  ./assets/coach-background-pass.jpg
 fa4a70c9fb65d0e53e50f99b36df30e092553433787e1cd02c9d6c87cae87101  ./assets/coach-background-retake.jpg
 3407a7743f7f5773ed4f4d6e8cf4a70b8eba1d4267865a57f494bb6e6e44930f  ./assets/coach-frame-pass.jpg
@@ -20,7 +20,7 @@ dd5e0f1bfb31791b2fca9508cc6ab33eb900607d235add4ab91ee9b1fcbcb037  ./assets/coach
 a41e0f47e99823aed2b6267db94176a8600542eadfd0113a2f3907a2ff73568f  ./icons/icon-192.png
 3b285a525ff42de9a27b522be01b046b6ad1de44a48e794726aa5fbb29041227  ./icons/icon-512.png
 924acc1d5c054eaecba7947403764f77aeb14b0a17600954fa5d2a0a7287714a  ./icons/icon.svg
-41b1272504158062a1e285b1a3d4fac672ff27fa6bd7f6f0d6bef05409cd5618  ./index.html
+a6aff18a84fca176c2e3352a8c3a0911d30c91385b917e67ec0c7efeb4a5167a  ./index.html
 2db940851dc90775bea5a33dc838fc518481839de996f6503a1f06545c8f9bbe  ./manifest.webmanifest
 10003480df9d3187ad41a219b916fc49d1f9bf6526bf8b8d217c4f67cc2f7a57  ./styles.css
 45798e5525da349f8dedbbf79b2e1429be4170e9bd3a2d95ae64f8498d4f6fae  ./sw.js

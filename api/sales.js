@@ -1,5 +1,6 @@
 import { fetchPkmnPricesSales } from "../lib/providers/pkmnprices.js";
 import { serverEnvironment } from "../lib/env.js";
+import { reviewComparableOutliers } from "../lib/pricing.js";
 
 const SAFE_TEXT = /^[\p{L}\p{N} .:'&+\-/()#]{1,120}$/u;
 
@@ -65,20 +66,11 @@ export default async function handler(request, response) {
   if (!apiKey)
     return send(response, 503, {
       error: "Licensed sold-listing data is not configured.",
+      code: "provider_unconfigured",
       provider: "pkmnprices",
+      capability: "completed_sales",
+      capabilityStatus: "unsupported",
     });
-  if (!["pro", "business"].includes(config.pkmnpricesPlan))
-    return send(
-      response,
-      403,
-      {
-        error:
-          "Recent sold-listing evidence requires the PkmnPrices Pro plan.",
-        code: "provider_plan_required",
-        provider: "pkmnprices",
-      },
-      { "Cache-Control": "private, no-store" },
-    );
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9_000);
@@ -88,13 +80,16 @@ export default async function handler(request, response) {
       lookup,
       controller.signal,
     );
+    const sales = reviewComparableOutliers(result.sales);
     return send(
       response,
       200,
       {
         clientId: lookup.clientId,
         providerCardId: result.cardId,
-        sales: result.sales,
+        sales,
+        capability: "completed_sales",
+        capabilityStatus: sales.length ? "live" : "missing",
         retrievedAt: new Date().toISOString(),
       },
       {
@@ -113,6 +108,8 @@ export default async function handler(request, response) {
           "The current PkmnPrices key does not have access to sold-listing evidence.",
         code: "provider_plan_required",
         provider: "pkmnprices",
+        capability: "completed_sales",
+        capabilityStatus: "unsupported",
       });
     }
     const status = error?.status === 429 ? 429 : 502;
@@ -123,6 +120,8 @@ export default async function handler(request, response) {
           : "Sold-listing data is temporarily unavailable.",
       code: status === 429 ? "provider_rate_limited" : "provider_unavailable",
       provider: "pkmnprices",
+      capability: "completed_sales",
+      capabilityStatus: status === 429 ? "rate_limited" : "provider_error",
     });
   } finally {
     clearTimeout(timeout);

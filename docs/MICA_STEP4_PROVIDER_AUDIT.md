@@ -1,6 +1,6 @@
 # Mica Step 4 provider and pricing audit
 
-Status: decision-ready read-only audit
+Status: provider architecture approved; implementation in progress
 
 Checked: 2026-08-31
 
@@ -11,33 +11,36 @@ the providers' current official public documentation. It did not create an
 account, add or rotate a credential, make a paid API request, purchase a plan,
 apply a production migration, or deploy code.
 
-The recommendation is a zero-new-cost software architecture. It deliberately
-does not decide Mica's pricing, business model, or marketing claims.
+The audit began with a zero-new-cost option. Elliott subsequently approved
+PkmnPrices Pro as the target provider tier on 2026-08-31. The account owner,
+not Codex, is responsible for purchasing the subscription and supplying its
+credential securely. This document does not decide Mica's product pricing,
+business model, or marketing claims.
 
 ## Decision summary
 
-The safest no-new-cost starting point is:
+The approved starting point is:
 
-1. Keep PkmnPrices Free as the primary source only for capabilities the current
-   key actually returns.
+1. Use PkmnPrices Pro as the primary source, while treating real endpoint
+   responses—not the configured plan label—as the capability authority.
 2. Keep TCGdex as the no-key catalog and compatible raw aggregate fallback, but
    do not describe its upstream market data as licensed for commercial
    redistribution until that scope is confirmed.
 3. Do not use JustTCG Free in a shipped commercial product. Its current terms
    explicitly limit the free tier to personal, non-commercial use.
-4. Start automatic portfolio valuation with English raw cards in the US market
-   and USD. Show Cardmarket EUR observations separately when available; do not
-   convert or combine currencies.
-5. Treat graded prices, completed sales, marketplace asks, sealed prices,
-   Japanese prices, and history as runtime capabilities. If an endpoint returns
+4. Support the Pro languages and sources: English, Japanese, and German;
+   TCGplayer USD and Cardmarket EUR; raw, graded, sealed, history, marketplace
+   asks, and eBay sold evidence where the key returns them. Never convert or
+   combine currencies without a separately approved FX source.
+5. Treat every Pro feature as a runtime capability. If an endpoint returns
    `403`, plan-required, or no compatible evidence, show **unsupported** or
-   **unavailable** instead of substituting another asset or source.
+   **missing** instead of substituting another asset or source.
 6. Accumulate licensed, exact, immutable observations over time. Never invent
    history and never mix asking prices with completed sales.
 
-This path costs $0, adds no provider dependency, and lets Step 4 improve the
-software contract before any future provider purchase. It cannot provide the
-full long-term roadmap coverage by itself.
+This path targets the currently advertised $14.99/month Pro tier and its 20,000
+daily credits. No subscription purchase, credential change, production
+migration, or deployment is performed by this repository work.
 
 ## Current provider facts
 
@@ -65,7 +68,8 @@ check also received plan-required responses for paid capabilities. Therefore:
 - endpoint success or a real `403` is authoritative;
 - `PKMNPRICES_PLAN` must never grant a capability by itself;
 - the client must receive explicit capability states from the server;
-- no Step 4 design may budget more than 100 returned items/day on Free;
+- the Step 4 scheduler must record and respect the Pro budget of 20,000 returned
+  items/day, while remaining safe if the runtime key has a smaller allowance;
 - a production coverage promise cannot rely on the marketing matrix alone.
 
 The terms permit API use within the subscribed limits and prohibit API-key
@@ -87,12 +91,12 @@ Official sources:
 
 Current limits are:
 
-| Plan | Price | Monthly | Daily | Per minute | Batch |
-|---|---:|---:|---:|---:|---:|
-| Free | $0 | 1,000 | 100 | 10 | 20 cards |
-| Starter | $19 + tax | 10,000 | 1,000 | 50 | 100 cards |
-| Professional | $49 + tax | 50,000 | 5,000 | 100 | 100 cards |
-| Enterprise | $149 + tax | 500,000 | 50,000 | 500 | 200 cards |
+| Plan         |      Price | Monthly |  Daily | Per minute |     Batch |
+| ------------ | ---------: | ------: | -----: | ---------: | --------: |
+| Free         |         $0 |   1,000 |    100 |         10 |  20 cards |
+| Starter      |  $19 + tax |  10,000 |  1,000 |         50 | 100 cards |
+| Professional |  $49 + tax |  50,000 |  5,000 |        100 | 100 cards |
+| Enterprise   | $149 + tax | 500,000 | 50,000 |        500 | 200 cards |
 
 The terms explicitly say Free is personal and non-commercial. Paid tiers allow
 end-user display, derived analytics, server-side caching, and stored historical
@@ -165,9 +169,10 @@ traffic, caching, upstream price display, retention, and attribution in writing.
    and provider disagreement, but automatic ingestion does not consistently
    run deterministic outlier rules or produce a human-review benchmark.
 6. **Scheduled pricing is PkmnPrices-only.** It processes at most 50 positions
-   per invocation with a 45-second work budget. Free's 100 daily credits cannot
-   refresh a large portfolio daily, and the scheduler does not persist fallback
-   TCGdex observations.
+   per invocation with a 45-second work budget. Step 4 adds an atomic daily
+   credit reservation with conservative returned-item upper bounds, plus
+   durable entitlement visibility. It still does not persist fallback TCGdex
+   observations.
 7. **Current rate protection is not durable.** `/api/cards`, offers, and sealed
    use process-local maps that reset or fragment across serverless instances;
    `/api/sales` has no equivalent application limiter.
@@ -217,12 +222,12 @@ record whose contract permits it. It is never a placeholder for another state.
 
 Freshness must be centralized and source-specific:
 
-| Evidence | Live | Aging | Stale for automatic value |
-|---|---:|---:|---:|
-| Provider documented daily market index | <= 48h | >48h to 96h | >96h |
-| Completed sale/comparable | <= 30d | >30d to 90d | >90d |
-| Active asking price | <= 24h | >24h to 72h | >72h |
-| Undated provider value | never | never | immediately |
+| Evidence                               |   Live |       Aging | Stale for automatic value |
+| -------------------------------------- | -----: | ----------: | ------------------------: |
+| Provider documented daily market index | <= 48h | >48h to 96h |                      >96h |
+| Completed sale/comparable              | <= 30d | >30d to 90d |                      >90d |
+| Active asking price                    | <= 24h | >24h to 72h |                      >72h |
+| Undated provider value                 |  never |       never |               immediately |
 
 These are technical defaults for review, not claims about market liquidity.
 Provider-specific documented timestamps can narrow them. A fresh retrieval time
@@ -263,30 +268,33 @@ Portfolio reporting:
 - no aggregate across currencies without a named FX source and separate
   approval.
 
-## No-cost implementation boundary
+## Implementation and subscription boundary
 
 The provider-neutral schema, centralized freshness, explicit capability states,
 confidence calculations, outlier benchmark, portfolio coverage UI, regression
-tests, and local migration rehearsal can be implemented for $0.
+tests, and local migration rehearsal do not themselves make paid API calls.
+PkmnPrices Pro is approved as the target live provider tier.
 
-The no-cost path does **not** authorize:
+This approval does **not** authorize Codex to:
 
 - a provider signup or credential change;
 - production migration or deployment;
-- a paid PkmnPrices or JustTCG plan;
+- purchase, upgrade, or bill the PkmnPrices plan;
 - paid or quota-consuming benchmark calls;
 - long-term retention that provider terms do not clearly allow;
 - an automatic valuation for an unsupported card context.
 
-## Approval gate
+## Approved provider decision
 
-Before dependent Step 4 implementation, Elliott must approve:
+Elliott approved PkmnPrices Pro as Mica's target on 2026-08-31. The locked
+software scope is:
 
-1. Zero-new-cost provider path: existing PkmnPrices Free when entitled, TCGdex
-   raw fallback, and JustTCG disabled.
-2. Initial automatic valuation scope: English raw cards, US/TCGplayer market,
-   USD; EUR/Cardmarket is a separate comparison only.
-3. Explicit unsupported states for graded, sold, sealed, Japanese, and history
-   whenever the current free entitlement does not return them.
-
-No payment method is needed for this choice.
+1. PkmnPrices Pro primary; TCGdex attributed fallback; JustTCG disabled unless
+   a commercial license is separately approved.
+2. English, Japanese, and German identities; USD/TCGplayer and EUR/Cardmarket
+   observations kept separate; the portfolio headline remains USD-only until
+   an FX source is separately approved.
+3. Raw, graded, sealed, history, marketplace asks, and completed-sale evidence
+   are enabled only after the live key proves each entitlement.
+4. The account owner purchases Pro and configures the key outside source
+   control. No key belongs in chat, Git, browser code, or a public artifact.

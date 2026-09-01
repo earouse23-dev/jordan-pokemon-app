@@ -16,27 +16,32 @@ export default async function handler(request, response) {
   try {
     const config = serverEnvironment();
     const pricingConnected = Boolean(config.pkmnpricesApiKey);
-    const expandedPricing =
+    const expandedPricingRequested =
       pricingConnected && ["pro", "business"].includes(config.pkmnpricesPlan);
+    const requestedCapabilityStatus = expandedPricingRequested
+      ? "pending_runtime_verification"
+      : "not_requested";
     return response.status(200).json({
       catalog: { status: "active", provider: "TCGdex" },
       pricing: {
-        status: pricingConnected ? "connected" : "public_fallback",
-        plan: pricingConnected ? config.pkmnpricesPlan : "free",
+        status: pricingConnected ? "configured_unverified" : "public_fallback",
+        declaredPlan: pricingConnected ? config.pkmnpricesPlan : null,
+        capabilityAuthority: "runtime_endpoint_response",
         verification: pricingConnected
-          ? "configured_live_requests_verify_entitlements"
+          ? "checked_when_each_feature_is_used"
           : "public_only",
         features: {
-          currentUsd: pricingConnected ? "configured" : "public_fallback",
-          graded: expandedPricing ? "configured" : "upgrade_required",
-          history: expandedPricing ? "configured" : "upgrade_required",
-          cardmarket: expandedPricing ? "configured" : "upgrade_required",
-          marketplaceOffers: expandedPricing
-            ? "configured"
-            : "upgrade_required",
-          ebaySold: expandedPricing ? "configured" : "upgrade_required",
-          sealed: expandedPricing ? "configured" : "upgrade_required",
-          japanese: expandedPricing ? "configured" : "upgrade_required",
+          currentUsd: pricingConnected
+            ? "pending_runtime_verification"
+            : "public_fallback",
+          graded: requestedCapabilityStatus,
+          history: requestedCapabilityStatus,
+          cardmarket: requestedCapabilityStatus,
+          marketplaceOffers: requestedCapabilityStatus,
+          ebaySold: requestedCapabilityStatus,
+          sealed: requestedCapabilityStatus,
+          japanese: requestedCapabilityStatus,
+          german: requestedCapabilityStatus,
         },
       },
       vision: {

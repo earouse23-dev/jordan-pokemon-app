@@ -1,16 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import handler from "../api/cards.js";
+import { pricingCreditPlan } from "../api/price-sync.js";
 import offersHandler from "../api/offers.js";
 import sealedHandler from "../api/sealed.js";
 import salesHandler from "../api/sales.js";
 import {
+  PRICE_EVIDENCE_RULE_VERSION,
   finishForVariant,
   gradedPriceLadder,
   mergePriceHistory,
+  normalizePriceCapabilityStatus,
   normalizeCard,
+  portfolioPriceCoverage,
   priceEvidence,
+  priceFreshness,
   priceMovement,
+  reviewComparableOutliers,
   selectCardmarketReference,
   selectReferenceQuote,
 } from "../lib/pricing.js";
@@ -128,7 +134,7 @@ test("price evidence scores only exact compatible context and explains disagreem
       grade: null,
       priceType: "market",
       amount: 100,
-      observedAt: "2026-07-18",
+      observedAt: "2026-07-19",
     },
     {
       provider: "pkmnprices",
@@ -197,6 +203,189 @@ test("price evidence scores only exact compatible context and explains disagreem
   );
   assert.equal(missing.level, "unavailable");
   assert.equal(missing.sourceCount, 0);
+});
+
+test("freshness uses the provider timestamp instead of making old data fresh when retrieved", () => {
+  const now = new Date("2026-08-31T12:00:00Z").getTime();
+  const market = priceFreshness(
+    {
+      priceType: "market",
+      observedAt: "2026-08-29T10:00:00Z",
+      retrievedAt: "2026-08-31T11:59:00Z",
+    },
+    { now },
+  );
+  assert.equal(market.status, "stale");
+  assert.equal(market.band, "aging");
+  assert.equal(market.reason, "outside_live_window");
+  const sold = priceFreshness(
+    { priceType: "last_sold", soldAt: "2026-08-10T12:00:00Z" },
+    { now },
+  );
+  assert.equal(sold.status, "live");
+  const undated = priceFreshness(
+    { priceType: "market", retrievedAt: "2026-08-31T11:59:00Z" },
+    { now },
+  );
+  assert.equal(undated.status, "stale");
+  assert.equal(undated.reason, "source_timestamp_missing");
+});
+
+test("capability states distinguish unsupported, missing, limits, and provider failures", () => {
+  assert.deepEqual(normalizePriceCapabilityStatus("plan_required"), {
+    status: "unsupported",
+    reason: "plan_required",
+  });
+  assert.equal(normalizePriceCapabilityStatus("unavailable").status, "missing");
+  assert.equal(
+    normalizePriceCapabilityStatus("provider_rate_limited").status,
+    "rate_limited",
+  );
+  assert.equal(
+    normalizePriceCapabilityStatus("provider_unavailable").status,
+    "provider_error",
+  );
+});
+
+test("confidence counts underlying markets rather than duplicate aggregators", () => {
+  const now = new Date("2026-08-31T12:00:00Z").getTime();
+  const base = {
+    currency: "USD",
+    finish: "holofoil",
+    condition: "Near Mint",
+    priceType: "market",
+    observedAt: "2026-08-31T00:00:00Z",
+  };
+  const report = priceEvidence(
+    [
+      {
+        ...base,
+        provider: "tcgplayer",
+        market: "tcgplayer",
+        aggregator: "pkmnprices",
+        amount: 100,
+      },
+      {
+        ...base,
+        provider: "tcgplayer",
+        market: "tcgplayer",
+        aggregator: "tcgdex",
+        amount: 101,
+      },
+      {
+        ...base,
+        provider: "ebay",
+        market: "ebay",
+        aggregator: "pkmnprices",
+        amount: 104,
+      },
+    ],
+    "Holofoil",
+    "USD",
+    { condition: "Near Mint" },
+    now,
+  );
+  assert.equal(report.sourceCount, 2);
+  assert.equal(report.level, "strong");
+  assert.deepEqual(
+    report.evidence.map((row) => row.market),
+    ["tcgplayer", "ebay"],
+  );
+});
+
+test("portfolio coverage reports confidence, manual values, and excluded gaps separately", () => {
+  const now = new Date("2026-08-31T12:00:00Z").getTime();
+  const quote = {
+    currency: "USD",
+    finish: "holofoil",
+    condition: "Near Mint",
+    priceType: "market",
+    observedAt: "2026-08-31T00:00:00Z",
+  };
+  const coverage = portfolioPriceCoverage(
+    [
+      {
+        quantity: 2,
+        price: 105,
+        referencePrice: 105,
+        pricingStatus: "live",
+        variant: "Holofoil",
+        currency: "USD",
+        condition: "Near Mint",
+        quotes: [
+          {
+            ...quote,
+            provider: "tcgplayer",
+            market: "tcgplayer",
+            amount: 103,
+          },
+          { ...quote, provider: "ebay", market: "ebay", amount: 107 },
+        ],
+      },
+      {
+        quantity: 1,
+        price: null,
+        referencePrice: 90,
+        pricingStatus: "stale",
+      },
+      { quantity: 3, price: null, pricingStatus: "unsupported" },
+      { quantity: 1, price: 50, pricingStatus: "manual" },
+    ],
+    { now },
+  );
+  assert.equal(coverage.totalUnits, 7);
+  assert.equal(coverage.liveAutomaticUnits, 2);
+  assert.equal(coverage.pricedUnits, 3);
+  assert.equal(coverage.categories.strong.units, 2);
+  assert.equal(coverage.categories.stale.units, 1);
+  assert.equal(coverage.categories.unsupported.units, 3);
+  assert.equal(coverage.categories.manual_override.units, 1);
+  assert.equal(coverage.automaticValue, 210);
+  assert.equal(coverage.manualValue, 50);
+  assert.equal(coverage.displayedValue, 260);
+});
+
+test("scheduled pricing reserves a conservative provider allowance for every plan", () => {
+  assert.deepEqual(pricingCreditPlan("free"), {
+    dailyBudget: 100,
+    upperBoundPerGroup: 50,
+    expanded: false,
+  });
+  assert.deepEqual(pricingCreditPlan("pro"), {
+    dailyBudget: 20_000,
+    upperBoundPerGroup: 800,
+    expanded: true,
+  });
+  assert.equal(
+    Math.floor(
+      pricingCreditPlan("pro").dailyBudget /
+        pricingCreditPlan("pro").upperBoundPerGroup,
+    ),
+    25,
+  );
+  assert.equal(pricingCreditPlan("business").dailyBudget, 200_000);
+});
+
+test("robust outlier review flags but never silently excludes comparable evidence", () => {
+  const reviewed = reviewComparableOutliers(
+    [100, 101, 99, 102, 1000].map((amount) => ({ amount })),
+  );
+  assert.equal(reviewed.filter((row) => row.outlierReview.flagged).length, 1);
+  assert.equal(reviewed.at(-1).outlierReview.flagged, true);
+  assert.equal(
+    reviewed.at(-1).outlierReview.ruleVersion,
+    PRICE_EVIDENCE_RULE_VERSION,
+  );
+  assert.equal(
+    reviewed.some((row) => row.outlierReview.excluded),
+    false,
+  );
+  const small = reviewComparableOutliers([{ amount: 10 }, { amount: 1000 }]);
+  assert.equal(
+    small.some((row) => row.outlierReview.flagged),
+    false,
+  );
+  assert.equal(small[0].outlierReview.reason, "insufficient_comparables");
 });
 
 test("selects compatible Cardmarket reference without mixing currencies", () => {
@@ -1010,7 +1199,9 @@ test("normalizes public TCGdex TCGplayer and Cardmarket price fields", () => {
 test("server endpoint keeps the JustTCG key in the upstream header and returns normalized data", async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.JUSTTCG_API_KEY;
+  const originalLicense = process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED;
   process.env.JUSTTCG_API_KEY = "test-server-secret";
+  process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED = "true";
   let body;
   const headers = {};
   const response = {
@@ -1080,6 +1271,73 @@ test("server endpoint keeps the JustTCG key in the upstream header and returns n
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.JUSTTCG_API_KEY;
     else process.env.JUSTTCG_API_KEY = originalKey;
+    if (originalLicense === undefined)
+      delete process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED;
+    else process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED = originalLicense;
+  }
+});
+
+test("server endpoint ignores JustTCG until a commercial license is approved", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.JUSTTCG_API_KEY;
+  const originalLicense = process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED;
+  const originalPkmnKey = process.env.PKMNPRICES_API_KEY;
+  process.env.JUSTTCG_API_KEY = "must-not-be-used";
+  delete process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED;
+  delete process.env.PKMNPRICES_API_KEY;
+  let justTcgCalled = false;
+  let body;
+  const response = {
+    setHeader() {},
+    status(status) {
+      this.statusCode = status;
+      return this;
+    },
+    json(value) {
+      body = value;
+      return value;
+    },
+  };
+  globalThis.fetch = async (url) => {
+    if (String(url).includes("justtcg")) justTcgCalled = true;
+    return new Response(
+      JSON.stringify({
+        id: "base-set-1",
+        name: "Test card",
+        set: { id: "base", name: "Test Set" },
+        localId: "1",
+        variants: { normal: true },
+        pricing: {},
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    );
+  };
+  try {
+    const lookups = JSON.stringify([
+      {
+        clientId: "set-1",
+        tcgdexId: "base-set-1",
+        name: "Test card",
+        set: "Test Set",
+        number: "1/100",
+      },
+    ]);
+    await handler(
+      { method: "GET", query: { lookups }, headers: {}, socket: {} },
+      response,
+    );
+    assert.equal(response.statusCode, 200);
+    assert.equal(justTcgCalled, false);
+    assert.deepEqual(body.providers, ["tcgdex"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.JUSTTCG_API_KEY;
+    else process.env.JUSTTCG_API_KEY = originalKey;
+    if (originalLicense === undefined)
+      delete process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED;
+    else process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED = originalLicense;
+    if (originalPkmnKey === undefined) delete process.env.PKMNPRICES_API_KEY;
+    else process.env.PKMNPRICES_API_KEY = originalPkmnKey;
   }
 });
 
