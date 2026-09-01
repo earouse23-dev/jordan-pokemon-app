@@ -47,18 +47,21 @@ import {
 import {
   bulkOrganizePositions,
   createImportedPosition,
+  createWatchlistEntry,
   deleteGradingOutcomeProof,
   deletePosition,
   hydratePosition,
   hydrateWatchlistEntry,
   loadRowsInChunks,
   loadRowsInPages,
+  loadIdentityCorrections,
   loadPortfolioValuationHistory,
   recordGradingResult,
   recordGradingSubmission,
   recordPurchaseLot,
   recordPortfolioValuationSnapshot,
   remapCollectionPosition,
+  revertIdentityCorrection,
   saveDigitalGradeAssessment,
   splitCollectionPosition,
   updateGradingSubmission,
@@ -498,11 +501,60 @@ test("watchlist hydration preserves the exact raw or graded target context", () 
   });
   assert.equal(watched.id, "sv3pt5-199");
   assert.equal(watched.watchlistId, "watch-1");
+  assert.equal(watched.collectibleId, null);
   assert.equal(watched.cardState, "graded");
   assert.equal(watched.gradingCompany, "PSA");
   assert.equal(watched.grade, "10");
   assert.equal(watched.targetPrice, 250);
   assert.equal(watched.currentPrice, null);
+});
+
+test("watchlist writes preserve a stable catalog variant UUID", async () => {
+  const variantId = "12345678-1234-4234-8234-123456789abc";
+  let inserted;
+  const row = {
+    id: "watch-identity",
+    collectible_id: variantId,
+    card_id: "card-id",
+    provider_card_id: "base1-4",
+    variant_key: "Holofoil",
+    identity_snapshot: {
+      providerCardId: "base1-4",
+      name: "Charizard",
+      variant: "Holofoil",
+      variantId,
+    },
+    card_state: "raw",
+    raw_condition: "near_mint",
+    grader: null,
+    grade: null,
+    target_price: null,
+    starting_market_price: null,
+    currency: "USD",
+  };
+  const client = {
+    from() {
+      return {
+        insert(value) {
+          inserted = value;
+          return {
+            select() {
+              return { single: async () => ({ data: row, error: null }) };
+            },
+          };
+        },
+      };
+    },
+  };
+  const watched = await createWatchlistEntry(client, {
+    userId: "owner-id",
+    cardId: "card-id",
+    identity: row.identity_snapshot,
+    cardState: "raw",
+    rawCondition: "near_mint",
+  });
+  assert.equal(inserted.variant_id, variantId);
+  assert.equal(watched.collectibleId, variantId);
 });
 
 test("watchlist hydration preserves an exact sealed product target", () => {
@@ -838,6 +890,49 @@ test("catalog correction uses one atomic owner-scoped remap RPC", async () => {
       p_card_id: null,
       p_variant_id: null,
     },
+  });
+});
+
+test("identity correction history is owner-scoped and reversal uses one RPC", async () => {
+  let filter;
+  let rpcCall;
+  const history = [{ id: "correction-1", event_type: "correction" }];
+  const client = {
+    from(table) {
+      assert.equal(table, "identity_corrections");
+      return {
+        select() {
+          return {
+            eq(column, value) {
+              filter = { column, value };
+              return {
+                order: async () => ({ data: history, error: null }),
+              };
+            },
+          };
+        },
+      };
+    },
+    async rpc(name, input) {
+      rpcCall = { name, input };
+      return { data: "position-1", error: null };
+    },
+  };
+  assert.deepEqual(
+    await loadIdentityCorrections(client, "position-1"),
+    history,
+  );
+  assert.deepEqual(filter, {
+    column: "collection_item_id",
+    value: "position-1",
+  });
+  assert.equal(
+    await revertIdentityCorrection(client, "correction-1"),
+    "position-1",
+  );
+  assert.deepEqual(rpcCall, {
+    name: "revert_collection_identity_correction",
+    input: { p_correction_id: "correction-1" },
   });
 });
 

@@ -82,6 +82,14 @@ const required = [
   "grading_outcomes",
   "grading_feedback",
   "grading_physical_cards",
+  "sealed_products",
+  "collectible_identities",
+  "identity_match_rule_versions",
+  "collectible_provider_mappings",
+  "identity_match_decisions",
+  "identity_corrections",
+  "identity_merge_proposals",
+  "identity_merge_events",
 ];
 
 const failures = [];

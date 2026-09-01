@@ -344,7 +344,11 @@ test("internal catalog lookup uses padded collector keys without duplicating pro
   assert.equal(result.cards[0].id, "tcgdex:en:sv03.5-025");
   assert.equal(result.cards[0].setId, "sv03.5");
   assert.equal(result.cards[0].number, "025/165");
+  assert.equal(result.cards[0].cardId, "internal-card");
+  assert.equal(result.cards[0].collectibleId, "variant");
+  assert.equal(result.cards[0].variantOptions[0].id, "variant");
   assert.equal(result.resolution.status, "exact");
+  assert.equal(result.resolution.recommendedCollectibleId, "variant");
 });
 
 test("catalog endpoint preserves the selected language and never serializes provider secrets", async () => {

@@ -1,11 +1,13 @@
 {
   "captured_at": "2026-08-31",
-  "local_migration_count": 64,
+  "local_migration_count": 66,
   "production_history_count": 58,
   "production_unique_name_count": 57,
   "missing_local_names": [],
   "approved_pending_local_names": [
     "activate_psa_calibration_artifacts",
+    "canonical_collectible_identity",
+    "canonical_identity_runtime",
     "grading_v3_dataset_factory",
     "preserve_confirmed_grading_reports",
     "prefer_best_portfolio_snapshots",

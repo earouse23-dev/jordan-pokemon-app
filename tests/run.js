@@ -16,3 +16,4 @@ import "./grading-pilot.test.js";
 import "./advisor.test.js";
 import "./account.test.js";
 import "./audit-hardening.test.js";
+import "./identity.test.js";

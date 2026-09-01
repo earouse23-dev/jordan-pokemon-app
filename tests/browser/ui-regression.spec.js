@@ -197,7 +197,7 @@ test("generic Add opens search while photo capture remains explicit", async ({
   await page.goto("/");
   await revealShell(page, "view-dashboard");
   await page.evaluate(async () => {
-    const { openAddWorkspace } = await import("/app.js?v=107");
+    const { openAddWorkspace } = await import("/app.js?v=108");
     openAddWorkspace();
   });
   await expect(page.locator("#view-scan")).toBeVisible();
@@ -212,13 +212,68 @@ test("generic Add opens search while photo capture remains explicit", async ({
   );
 });
 
+test("adding a catalog card requires confirmation of its stable exact version", async ({
+  page,
+}) => {
+  const normalId = "11111111-1111-4111-8111-111111111111";
+  const reverseId = "22222222-2222-4222-8222-222222222222";
+  await page.goto("/");
+  await revealShell(page, "view-scan");
+  await page.evaluate(
+    async ({ normalId, reverseId }) => {
+      const { openPositionSheet } = await import("/app.js?v=108");
+      openPositionSheet({
+        id: "tcgdex:en:sv03.5-025",
+        cardId: "33333333-3333-4333-8333-333333333333",
+        name: "Pikachu",
+        set: "151",
+        number: "025/165",
+        language: "en",
+        rarity: "Common",
+        variantOptions: [
+          {
+            id: normalId,
+            collectibleId: normalId,
+            finish: "normal",
+            edition: "",
+            language: "en",
+          },
+          {
+            id: reverseId,
+            collectibleId: reverseId,
+            finish: "reverse holofoil",
+            edition: "",
+            language: "en",
+          },
+        ],
+      });
+    },
+    { normalId, reverseId },
+  );
+
+  await expect(
+    page.getByRole("heading", { name: "Add to your library" }),
+  ).toBeVisible();
+  const selector = page.locator("#positionVariantChoice");
+  await expect(selector).toBeVisible();
+  await expect(selector.locator("option")).toHaveCount(2);
+  await expect(page.locator("#sheetContent")).toContainText(
+    "Confirm the printing shown on your card",
+  );
+  await selector.selectOption(reverseId);
+  await expect(page.locator("#positionVariantId")).toHaveValue(reverseId);
+  await expect(page.locator("#positionVariant")).toHaveValue(
+    "Reverse Holofoil",
+  );
+});
+
 test("collapsed collection filters are excluded from arrow navigation", async ({
   page,
 }) => {
   await page.goto("/");
   await revealShell(page, "view-collection");
   const visibleTargets = await page.evaluate(async () => {
-    const { visibleCollectionViewTabs } = await import("/app.js?v=107");
+    const { visibleCollectionViewTabs } = await import("/app.js?v=108");
     return visibleCollectionViewTabs().map(
       (tab) => tab.dataset.conditionFilter || tab.dataset.ledgerView,
     );
@@ -259,7 +314,7 @@ test("onboarding contains focus, leaves the app inert, and can be skipped", asyn
   await page.goto("/");
   await revealShell(page, "view-dashboard");
   await page.evaluate(async () => {
-    const { openOnboarding } = await import("/app.js?v=107");
+    const { openOnboarding } = await import("/app.js?v=108");
     openOnboarding();
   });
   await expect(page.locator("#onboardingDialog")).toHaveAttribute(

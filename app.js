@@ -61,6 +61,13 @@ import {
   normalizeRawCondition,
 } from "./lib/domain.js";
 import {
+  collectibleIdentitySnapshot,
+  normalizeVariantOption,
+  selectVariantOption,
+  variantDifferenceFields,
+  variantOptionSummary,
+} from "./lib/identity.js";
+import {
   calculateMicaPregrade,
   calculateMicaConditionScore,
   compareDigitalGradeStability,
@@ -97,6 +104,7 @@ import {
   deleteWatchlistEntry,
   loadDiagnostics,
   loadGradingReports,
+  loadIdentityCorrections,
   loadRecentGradingSessions,
   loadGradingResearchConsent,
   loadProfile,
@@ -110,6 +118,7 @@ import {
   recordPurchaseLot,
   recordSale,
   remapCollectionPosition,
+  revertIdentityCorrection,
   resendSignupConfirmation,
   setPurchaseMarketReference,
   sendPasswordReset,
@@ -136,6 +145,7 @@ import {
 } from "./lib/supabase-data.js";
 
 const supabase = createAppSupabase();
+const UUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 let chartInstance = null;
 let chartMountVersion = 0;
 let portfolioChartInstance = null;
@@ -4991,7 +5001,7 @@ function renderDetail() {
     ? `<section class="detail-section grading-submission-status"><div class="detail-section-head"><h2>Cards sent for grading</h2><span>${esc(activeSubmission.grader)} · ${esc(gradingStatusLabel)}</span></div><div class="position-summary"><div><span>Cards away</span><strong>${activeSubmission.quantity}</strong></div><div><span>Date sent</span><strong>${esc(activeSubmission.submittedAt)}</strong></div><div><span>Last update</span><strong>${esc(activeSubmission.statusUpdatedAt)}</strong></div><div><span>Expected back</span><strong>${esc(activeSubmission.expectedReturnDate || "Not estimated")}</strong></div><div><span>Order number</span><strong>${esc(activeSubmission.submissionReference || "Not added")}</strong></div><div><span>Estimated cost</span><strong>${activeSubmission.estimatedTotalCost === null ? "Not estimated" : money(activeSubmission.estimatedTotalCost, item.currency)}</strong></div></div><p class="legal-copy">You update this status yourself; it is not connected to ${esc(activeSubmission.grader)}. Mica adds grading cost only after you enter the amount you actually paid.</p><div class="sheet-actions"><button class="secondary" id="updateGradingSubmissionButton" type="button">Update status</button><button class="primary" id="recordGradingResultButton" type="button">Add returned grade</button></div></section>`
     : "";
   const ownedSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>×${item.quantity}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Ungraded"}</strong><span>${item.purchaseDate ? `Acquired ${esc(item.purchaseDate)}` : "Acquisition date not added"}${item.cost !== null && item.cost !== undefined ? ` · ${money(item.cost)} each` : " · Amount paid not recorded"}</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="purchase-notes"><strong>Purchase notes</strong><p>${esc(item.notes)}</p></div>` : ""}${!sealed && !item.gradingCompany && item.status === "owned" && !activeSubmission ? '<button class="position-new-state" id="startGradingSubmissionButton" type="button">Send to professional grading</button><button class="position-new-state" id="recordGradingResultButton" type="button">Record a grade already returned</button>' : ""}${sealed ? "" : '<button class="position-new-state" id="correctPositionMatchButton" type="button">Choose a different card version</button>'}<button class="record-remove" id="removeCopyButton" type="button">Remove this saved entry</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>×${item.quantity}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Ungraded"}</strong><span>${item.purchaseDate ? `Acquired ${esc(item.purchaseDate)}` : "Acquisition date not added"}${item.cost !== null && item.cost !== undefined ? ` · ${money(item.cost)} each` : " · Amount paid not recorded"}</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="purchase-notes"><strong>Purchase notes</strong><p>${esc(item.notes)}</p></div>` : ""}${!sealed && !item.gradingCompany && item.status === "owned" && !activeSubmission ? '<button class="position-new-state" id="startGradingSubmissionButton" type="button">Send to professional grading</button><button class="position-new-state" id="recordGradingResultButton" type="button">Record a grade already returned</button>' : ""}${sealed ? "" : '<button class="position-new-state" id="correctPositionMatchButton" type="button">Choose a different card version</button><button class="position-new-state" id="identityHistoryButton" type="button">Identity correction history</button>'}<button class="record-remove" id="removeCopyButton" type="button">Remove this saved entry</button></section>`
     : "";
   const performance = owned
     ? positionPerformance({
@@ -5205,6 +5215,10 @@ function renderDetail() {
   $("#correctPositionMatchButton")?.addEventListener("click", () =>
     openRemapPositionSheet(item),
   );
+  $("#identityHistoryButton")?.addEventListener(
+    "click",
+    () => void openIdentityHistorySheet(item),
+  );
   $("#recordSaleButton")?.addEventListener("click", () => openSaleSheet(item));
   $("#recordPurchaseButton")?.addEventListener("click", () =>
     openPurchaseLotSheet(item),
@@ -5245,23 +5259,7 @@ function renderDetail() {
 }
 
 function identitySnapshot(card, variant) {
-  return {
-    providerCardId: card.id,
-    name: card.name,
-    set: card.set,
-    setId: card.setId || null,
-    number: card.number,
-    language: card.language || "en",
-    rarity: card.rarity || null,
-    variant,
-    release: card.release || null,
-    artist: card.artist || null,
-    image: card.image || card.thumb || null,
-    thumb: card.thumb || card.image || null,
-    productType: card.productType || null,
-    cardState: card.cardState || null,
-    externalIds: card.externalIds || { tcgdex: card.id },
-  };
+  return collectibleIdentitySnapshot(card, variant);
 }
 
 function openSealedSearch() {
@@ -5640,7 +5638,7 @@ async function saveCardAddDraft(
   const itemId = await createPosition(supabase, {
     ...input,
     identity: {
-      ...identitySnapshot(card, input.variant),
+      ...identitySnapshot(card, input.variantId || input.variant),
       acquisitionCostKnown,
       acquisitionDateKnown,
       acquisitionContext:
@@ -5649,7 +5647,12 @@ async function saveCardAddDraft(
           : {},
     },
     cardId: card.cardId || null,
-    variantId: card.variantId || null,
+    variantId:
+      input.variantId && UUID_PATTERN.test(input.variantId)
+        ? input.variantId
+        : card.variantId && UUID_PATTERN.test(card.variantId)
+          ? card.variantId
+          : null,
     idempotencyKey: draft.idempotencyKey,
     currency: "USD",
   });
@@ -5705,18 +5708,36 @@ function openNewCardGradingDecision(draft) {
   );
 }
 
-function openPositionSheet(card, options = {}) {
+export function openPositionSheet(card, options = {}) {
   if (card.cardState === "sealed" || card.productType) {
     openSealedPositionSheet(card);
     return;
   }
   const today = localIsoDate();
-  const variants =
-    Array.isArray(card.variants) && card.variants.length
-      ? card.variants
-      : [card.variant || "Unknown"];
+  const variantOptions = (
+    Array.isArray(card.variantOptions) && card.variantOptions.length
+      ? card.variantOptions
+      : [card.variant || "Unknown"]
+  ).map((option) =>
+    normalizeVariantOption(option, { language: card.language }),
+  );
   const prefill = options.prefill || {};
-  const initialVariant = card.variant || prefill.variant || variants[0];
+  const initialVariant = selectVariantOption(
+    { ...card, variantOptions },
+    prefill.variantId || card.variantId || prefill.variant || card.variant,
+  );
+  const variantDifferences = variantDifferenceFields(variantOptions);
+  const variantControl =
+    variantOptions.length > 1
+      ? `<div class="field full"><label for="positionVariantChoice">Exact card version</label><select id="positionVariantChoice" name="variantChoice" required>${variantOptions
+          .map(
+            (variant) =>
+              `<option value="${esc(variant.id || variant.label)}" ${variant.id === initialVariant.id ? "selected" : ""}>${esc(variantOptionSummary(variant))}</option>`,
+          )
+          .join(
+            "",
+          )}</select><small>These matches differ by ${esc(variantDifferences.join(", ") || "catalog identity")}. Confirm the printing shown on your card.</small></div>`
+      : `<div class="simple-note full"><strong>${esc(variantOptionSummary(initialVariant))}</strong><br>This version was selected from your search. Confirm it matches the printed card.</div>`;
   const initialState = prefill.cardState === "graded" ? "graded" : "raw";
   const initialQuantity = Number(prefill.quantity) > 0 ? prefill.quantity : 1;
   const initialDate = prefill.transactionDate || today;
@@ -5724,7 +5745,7 @@ function openPositionSheet(card, options = {}) {
   const idempotencyKey = crypto.randomUUID();
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to your library</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)} · ${esc(languageName(card.language || "en"))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="positionForm"><div class="form-grid">
-      <input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant)}"><div class="simple-note full"><strong>${esc(initialVariant)}</strong><br>This exact card version was selected from your search.</div>
+      <input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant.label)}"><input id="positionVariantId" name="variantId" type="hidden" value="${esc(initialVariant.id || "")}">${variantControl}
       <div class="field"><label for="positionState">Is it sealed in a case by a professional grading company?</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>No · ungraded card</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Yes · professionally graded</option></select></div>
       <input id="positionCondition" name="rawCondition" type="hidden" value="">
       <div class="simple-note raw-position"><strong>${options.visionAnalysis ? `Mica pregrade: ${esc(options.visionAnalysis.gradeRange || "unavailable")}` : "Ungraded card"}</strong><br>${options.visionAnalysis ? "This one-decimal pregrade remains separate from a professional PSA return." : "Save the card now. Digital grading is available from its Collection row."}</div>
@@ -5738,6 +5759,12 @@ function openPositionSheet(card, options = {}) {
     </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>The card is still saved and valued, but Mica cannot show money gained until you add what you paid.</p>
     <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Save card</button></div></form>`);
   const form = $("#positionForm");
+  const syncVariant = () => {
+    const choice = $("#positionVariantChoice")?.value || initialVariant.id;
+    const selected = selectVariantOption({ ...card, variantOptions }, choice);
+    $("#positionVariant").value = selected.label;
+    $("#positionVariantId").value = selected.id || "";
+  };
   const syncState = () => {
     const graded = $("#positionState").value === "graded";
     $$(".graded-position", form).forEach((node) => (node.hidden = !graded));
@@ -5799,12 +5826,14 @@ function openPositionSheet(card, options = {}) {
     syncState();
     updateTotal();
   });
+  $("#positionVariantChoice")?.addEventListener("change", syncVariant);
   form.addEventListener("input", updateTotal);
   $("#positionCostUnknown").addEventListener("change", syncKnownFacts);
   $("#positionDateUnknown").addEventListener("change", syncKnownFacts);
   $("#positionAcquisitionMethod").addEventListener("change", syncKnownFacts);
   $("#positionCancel").addEventListener("click", closeSheet);
   syncState();
+  syncVariant();
   syncKnownFacts();
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -6644,31 +6673,74 @@ function openPositionEditSheet(item) {
   });
 }
 
-function catalogVariants(card) {
-  const values = (card.variants || []).map((value) => String(value));
-  const normalized = values.map((value) => normalizeIdentity(value));
-  const first = normalized.some((value) => value.includes("firstedition"));
-  const holo = normalized.some(
-    (value) => value.includes("holo") && !value.includes("reverse"),
+function catalogVariantOptions(card) {
+  const values =
+    Array.isArray(card.variantOptions) && card.variantOptions.length
+      ? card.variantOptions
+      : card.variants?.length
+        ? card.variants
+        : [card.variant || "Unknown"];
+  return values.map((value) =>
+    normalizeVariantOption(value, { language: card.language }),
   );
-  const reverse = normalized.some((value) => value.includes("reverse"));
-  const normal = normalized.some((value) => value.includes("normal"));
-  const result = [];
-  if (first && holo) result.push("1st Edition Holofoil");
-  if (first && (normal || !holo)) result.push("1st Edition Normal");
-  if (holo) result.push("Holofoil");
-  if (reverse) result.push("Reverse Holofoil");
-  if (normal) result.push("Normal");
-  values.forEach((value, index) => {
-    if (!/(firstedition|holo|reverse|normal)/.test(normalized[index]))
-      result.push(
-        value
-          .replace(/([a-z])([A-Z])/g, "$1 $2")
-          .replace(/^./, (letter) => letter.toUpperCase()),
-      );
-  });
-  if (!result.length && card.variant) result.push(card.variant);
-  return [...new Set(result.length ? result : ["Unknown"])];
+}
+
+function correctionIdentityLabel(snapshot = {}) {
+  return [
+    snapshot.name,
+    snapshot.set || snapshot.setName,
+    snapshot.number || snapshot.collectorNumber,
+    snapshot.language,
+    snapshot.variant || snapshot.finish,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+async function openIdentityHistorySheet(item) {
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Identity correction history</h2><p>${esc(item.name)} · changes are append-only and reversible.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div id="identityHistoryResults" aria-live="polite"><div class="searching-cards"><i></i><span>Loading correction history…</span></div></div><p class="form-error" id="identityHistoryError" role="alert"></p>`,
+  );
+  const render = async () => {
+    const history = await loadIdentityCorrections(supabase, item.uid);
+    const reversedIds = new Set(
+      history.map((event) => event.reverses_correction_id).filter(Boolean),
+    );
+    $("#identityHistoryResults").innerHTML = history.length
+      ? `<div class="transaction-list">${history
+          .map((event, index) => {
+            const reversal = event.event_type === "reversal";
+            const reversible =
+              !reversal && index === 0 && !reversedIds.has(event.id);
+            return `<div class="transaction-row"><div><strong>${reversal ? "Correction reversed" : "Card identity corrected"}</strong><span>${esc(correctionIdentityLabel(event.from_snapshot) || "Previous identity unavailable")} → ${esc(correctionIdentityLabel(event.to_snapshot) || "Updated identity unavailable")}</span><span>${esc(event.rule_version)} · ${esc(new Date(event.created_at).toLocaleString())}${event.reason ? ` · ${esc(event.reason)}` : ""}</span></div>${reversible ? `<button type="button" data-revert-identity="${esc(event.id)}">Undo</button>` : ""}</div>`;
+          })
+          .join("")}</div>`
+      : '<div class="find-empty"><strong>No identity corrections</strong><span>The original saved match is still active.</span></div>';
+    $("[data-revert-identity]")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      $("#identityHistoryError").textContent =
+        "Restoring the previous identity…";
+      try {
+        await revertIdentityCorrection(supabase, button.dataset.revertIdentity);
+        state.portfolioHistory = [];
+        state.portfolioHistoryStatus = "idle";
+        closeSheet({ discardHistory: true });
+        await reloadPortfolio(item.uid);
+        toast("Previous card identity restored");
+      } catch (error) {
+        button.disabled = false;
+        $("#identityHistoryError").textContent =
+          `Could not undo this correction: ${error.message || "Unknown error"}`;
+      }
+    });
+  };
+  try {
+    await render();
+  } catch (error) {
+    $("#identityHistoryError").textContent =
+      `Could not load identity history: ${error.message || "Unknown error"}`;
+  }
 }
 
 function openRemapPositionSheet(item) {
@@ -6693,10 +6765,10 @@ function openRemapPositionSheet(item) {
     $$("[data-remap-result]", $("#remapResults")).forEach((button) =>
       button.addEventListener("click", () => {
         selected = cards[Number(button.dataset.remapResult)];
-        const variants = catalogVariants(selected);
+        const variants = catalogVariantOptions(selected);
         $("#remapChoice").hidden = false;
         $("#remapChoice").innerHTML =
-          `<strong>Selected: ${esc(selected.name)} · ${esc(selected.set)} ${esc(selected.number)}</strong><br><label for="remapVariant">Card version</label><select id="remapVariant">${variants.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}</select>`;
+          `<strong>Selected: ${esc(selected.name)} · ${esc(selected.set)} ${esc(selected.number)}</strong><br><label for="remapVariant">Card version</label><select id="remapVariant">${variants.map((value) => `<option value="${esc(value.id || value.label)}">${esc(variantOptionSummary(value))}</option>`).join("")}</select><small>Confirm the exact finish, edition, promo type, and language before saving.</small>`;
         $("#remapSave").disabled = false;
         $$("[data-remap-result]", $("#remapResults")).forEach((row) =>
           row.setAttribute("aria-pressed", String(row === button)),
@@ -6740,13 +6812,17 @@ function openRemapPositionSheet(item) {
     const submit = $("#remapSave");
     submit.disabled = true;
     $("#remapError").textContent = "Updating the card match…";
-    const variant = $("#remapVariant").value;
+    const variant = selectVariantOption(
+      { ...selected, variantOptions: catalogVariantOptions(selected) },
+      $("#remapVariant").value,
+    );
     try {
       await remapCollectionPosition(supabase, {
         collectionItemId: item.uid,
         identity: identitySnapshot(selected, variant),
         cardId: selected.cardId || null,
-        variantId: selected.variantId || null,
+        variantId:
+          variant.id && UUID_PATTERN.test(variant.id) ? variant.id : null,
       });
       state.portfolioHistory = [];
       state.portfolioHistoryStatus = "idle";
@@ -9906,31 +9982,43 @@ async function showProcessing(file) {
 }
 
 function catalogItem(item, selectedVariant = "") {
-  const variant =
-    selectedVariant ||
-    (item.variants?.includes("holo")
-      ? "holo"
-      : item.variants?.includes("normal")
-        ? "normal"
-        : item.variants?.includes("reverse")
-          ? "reverse"
-          : item.variants?.[0] || "Unknown");
-  const variantLabel =
-    {
-      holo: "Holofoil",
-      normal: "Normal",
-      reverse: "Reverse Holofoil",
-      "reverse-holo": "Reverse Holofoil",
-    }[variant] || variant;
+  const rawOptions = Array.isArray(item.variantOptions)
+    ? item.variantOptions
+    : (item.variants || []).map((variant, index) => ({
+        id: `${item.id || "card"}:${index}:${String(variant).toLowerCase()}`,
+        finish: variant,
+        language: item.language,
+        status: "needs_review",
+      }));
+  const variantOptions = rawOptions.length
+    ? rawOptions.map((option) =>
+        normalizeVariantOption(option, { language: item.language }),
+      )
+    : [
+        normalizeVariantOption(item.variant || "Unknown", {
+          language: item.language,
+          id: item.variantId || null,
+        }),
+      ];
+  const variant = selectVariantOption(
+    { ...item, variantOptions },
+    selectedVariant,
+  );
+  const selectedKey = variant.collectibleId || variant.id || variant.label;
   return {
     ...item,
     id:
-      selectedVariant && item.variants?.length > 1
-        ? `${item.id}::${variant}`
+      selectedVariant && variantOptions.length > 1
+        ? `${item.id}::${selectedKey}`
         : item.id,
     catalogIdentityId: item.id,
-    variant: variantLabel,
-    variants: [variantLabel],
+    cardId: item.cardId || item.internalId || null,
+    collectibleId: variant.collectibleId || null,
+    variantId: variant.id || null,
+    variant: variant.label,
+    variants: variantOptions.map((option) => option.label),
+    variantOptions,
+    identityStatus: variant.status,
     price: null,
     move: null,
     cost: null,
@@ -9961,10 +10049,14 @@ async function searchCatalog(query, language, limit = 12) {
   if (!response.ok) throw new Error("catalog");
   const payload = await response.json();
   const items = (payload.cards || []).flatMap((item) => {
-    const variants = [...new Set(item.variants || [])];
+    const variants = Array.isArray(item.variantOptions)
+      ? item.variantOptions
+      : [...new Set(item.variants || [])];
     return variants.length > 1
-      ? variants.map((variant) => catalogItem(item, variant))
-      : [catalogItem(item, variants[0])];
+      ? variants.map((variant) =>
+          catalogItem(item, variant.id || variant.collectibleId || variant),
+        )
+      : [catalogItem(item, variants[0]?.id || variants[0])];
   });
   rememberCatalogItems(items);
   return { items, parsedQuery: payload.parsedQuery || null };

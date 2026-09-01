@@ -1,0 +1,284 @@
+[
+  {
+    "caseId": "common-en-non-holo",
+    "category": "common",
+    "observed": {
+      "name": "Pikachu",
+      "set": "151",
+      "number": "025/165",
+      "language": "en",
+      "finish": "normal",
+      "edition": "unlimited",
+      "promoType": "none"
+    },
+    "candidates": [
+      {
+        "id": "pikachu-normal",
+        "name": "Pikachu",
+        "set": "151",
+        "number": "025/165",
+        "language": "en",
+        "finish": "non_holo",
+        "edition": "unlimited",
+        "promoType": "none"
+      },
+      {
+        "id": "pikachu-reverse",
+        "name": "Pikachu",
+        "set": "151",
+        "number": "025/165",
+        "language": "en",
+        "finish": "reverse_holofoil",
+        "edition": "unlimited",
+        "promoType": "none"
+      }
+    ],
+    "expectedId": "pikachu-normal"
+  },
+  {
+    "caseId": "japanese-printing",
+    "category": "japanese",
+    "observed": {
+      "name": "リザードンex",
+      "set": "ポケモンカード151",
+      "number": "201/165",
+      "language": "ja",
+      "finish": "holofoil",
+      "edition": "unlimited",
+      "promoType": "none"
+    },
+    "candidates": [
+      {
+        "id": "charizard-ja",
+        "name": "リザードンex",
+        "set": "ポケモンカード151",
+        "number": "201/165",
+        "language": "ja",
+        "finish": "holofoil",
+        "edition": "unlimited",
+        "promoType": "none"
+      },
+      {
+        "id": "charizard-en",
+        "name": "Charizard ex",
+        "set": "151",
+        "number": "199/165",
+        "language": "en",
+        "finish": "holofoil",
+        "edition": "unlimited",
+        "promoType": "none"
+      }
+    ],
+    "expectedId": "charizard-ja"
+  },
+  {
+    "caseId": "black-star-promo",
+    "category": "promo",
+    "observed": {
+      "name": "Mew",
+      "set": "Wizards Black Star Promos",
+      "number": "8",
+      "language": "en",
+      "finish": "holofoil",
+      "edition": "unlimited",
+      "promoType": "black_star"
+    },
+    "candidates": [
+      {
+        "id": "mew-promo-8",
+        "name": "Mew",
+        "set": "Wizards Black Star Promos",
+        "number": "8",
+        "language": "en",
+        "finish": "holofoil",
+        "edition": "unlimited",
+        "promoType": "black_star"
+      },
+      {
+        "id": "mew-set-8",
+        "name": "Mew",
+        "set": "Example Set",
+        "number": "8",
+        "language": "en",
+        "finish": "holofoil",
+        "edition": "unlimited",
+        "promoType": "none"
+      }
+    ],
+    "expectedId": "mew-promo-8"
+  },
+  {
+    "caseId": "reverse-holo",
+    "category": "reverse_holo",
+    "observed": {
+      "name": "Pikachu",
+      "set": "151",
+      "number": "025/165",
+      "language": "en",
+      "finish": "reverse holo",
+      "edition": "unlimited",
+      "promoType": "none"
+    },
+    "candidates": [
+      {
+        "id": "pikachu-normal",
+        "name": "Pikachu",
+        "set": "151",
+        "number": "025/165",
+        "language": "en",
+        "finish": "normal",
+        "edition": "unlimited",
+        "promoType": "none"
+      },
+      {
+        "id": "pikachu-reverse",
+        "name": "Pikachu",
+        "set": "151",
+        "number": "025/165",
+        "language": "en",
+        "finish": "reverse_holofoil",
+        "edition": "unlimited",
+        "promoType": "none"
+      }
+    ],
+    "expectedId": "pikachu-reverse"
+  },
+  {
+    "caseId": "parallel-printing",
+    "category": "parallel",
+    "observed": {
+      "name": "Professor's Research",
+      "set": "Celebrations",
+      "number": "024/025",
+      "language": "en",
+      "finish": "parallel foil",
+      "edition": "parallel",
+      "promoType": "none"
+    },
+    "candidates": [
+      {
+        "id": "research-standard",
+        "name": "Professor's Research",
+        "set": "Celebrations",
+        "number": "024/025",
+        "language": "en",
+        "finish": "holofoil",
+        "edition": "unlimited",
+        "promoType": "none"
+      },
+      {
+        "id": "research-parallel",
+        "name": "Professor's Research",
+        "set": "Celebrations",
+        "number": "024/025",
+        "language": "en",
+        "finish": "parallel",
+        "edition": "parallel",
+        "promoType": "none"
+      }
+    ],
+    "expectedId": "research-parallel"
+  },
+  {
+    "caseId": "graded-psa-10",
+    "category": "graded",
+    "observed": {
+      "name": "Charizard",
+      "set": "Base Set",
+      "number": "4/102",
+      "language": "en",
+      "finish": "holofoil",
+      "edition": "unlimited",
+      "promoType": "none",
+      "grader": "PSA",
+      "grade": "10"
+    },
+    "candidates": [
+      {
+        "id": "charizard-psa-10",
+        "name": "Charizard",
+        "set": "Base Set",
+        "number": "4/102",
+        "language": "en",
+        "finish": "holofoil",
+        "edition": "unlimited",
+        "promoType": "none",
+        "grader": "PSA",
+        "grade": "10"
+      },
+      {
+        "id": "charizard-psa-9",
+        "name": "Charizard",
+        "set": "Base Set",
+        "number": "4/102",
+        "language": "en",
+        "finish": "holofoil",
+        "edition": "unlimited",
+        "promoType": "none",
+        "grader": "PSA",
+        "grade": "9"
+      }
+    ],
+    "expectedId": "charizard-psa-10"
+  },
+  {
+    "caseId": "sealed-etb",
+    "category": "sealed",
+    "observed": {
+      "name": "Crown Zenith Elite Trainer Box",
+      "set": "Crown Zenith",
+      "language": "en",
+      "productType": "elite_trainer_box"
+    },
+    "candidates": [
+      {
+        "id": "cz-etb-en",
+        "name": "Crown Zenith Elite Trainer Box",
+        "set": "Crown Zenith",
+        "language": "en",
+        "productType": "elite_trainer_box"
+      },
+      {
+        "id": "cz-pc-etb-en",
+        "name": "Crown Zenith Pokémon Center Elite Trainer Box Plus",
+        "set": "Crown Zenith",
+        "language": "en",
+        "productType": "pokemon_center_elite_trainer_box"
+      }
+    ],
+    "expectedId": "cz-etb-en"
+  },
+  {
+    "caseId": "ambiguous-finish-must-not-autoselect",
+    "category": "ambiguous",
+    "observed": {
+      "name": "Pikachu",
+      "set": "151",
+      "number": "025/165",
+      "language": "en"
+    },
+    "candidates": [
+      {
+        "id": "pikachu-normal",
+        "name": "Pikachu",
+        "set": "151",
+        "number": "025/165",
+        "language": "en",
+        "finish": "normal",
+        "edition": "unlimited",
+        "promoType": "none"
+      },
+      {
+        "id": "pikachu-reverse",
+        "name": "Pikachu",
+        "set": "151",
+        "number": "025/165",
+        "language": "en",
+        "finish": "reverse_holofoil",
+        "edition": "unlimited",
+        "promoType": "none"
+      }
+    ],
+    "expectedId": null
+  }
+]

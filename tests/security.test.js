@@ -440,7 +440,7 @@ test("optional grading assets cannot block service-worker installation", async (
 
   assert.equal(skippedWaiting, true);
   assert.ok(coreAssets.includes("./index.html"));
-  assert.ok(coreAssets.includes("./app.js?v=107"));
+  assert.ok(coreAssets.includes("./app.js?v=108"));
   assert.equal(
     coreAssets.some((asset) => asset.includes("coach-")),
     false,
@@ -514,7 +514,7 @@ test("Mica uses one approved cream and sage interface", () => {
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
   assert.match(themes, /--canvas:\s*#f5f0e4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
-  assert.match(serviceWorker, /mica-shell-v110/);
+  assert.match(serviceWorker, /mica-shell-v111/);
   assert.match(serviceWorker, /themes\.css\?v=83/);
 });
 
