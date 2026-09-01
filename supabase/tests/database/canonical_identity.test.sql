@@ -223,17 +223,13 @@ select is(
   1::bigint,
   'user 1 sees only their watch entry'
 );
-select is(
-  (
-    with affected as (
-      update public.collection_items
-      set notes='cross-owner update must be filtered'
-      where id='d0000000-0000-4000-8000-000000000002'
-      returning id
-    )
-    select count(*) from affected
-  ),
-  0::bigint,
+select is_empty(
+  $$
+    update public.collection_items
+    set notes='cross-owner update must be filtered'
+    where id='d0000000-0000-4000-8000-000000000002'
+    returning id
+  $$,
   'RLS filters a cross-owner update'
 );
 select throws_ok(

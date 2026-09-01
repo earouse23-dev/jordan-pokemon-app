@@ -228,7 +228,7 @@ const declaredPlan = Number(
 );
 const testAssertions = (
   integrationTest.match(
-    /^select (?:has_table|col_not_null|is|ok|throws_ok|lives_ok)\(/gim,
+    /^select (?:has_table|col_not_null|is|is_empty|ok|throws_ok|lives_ok)\(/gim,
   ) || []
 ).length;
 if (!declaredPlan || declaredPlan !== testAssertions)
