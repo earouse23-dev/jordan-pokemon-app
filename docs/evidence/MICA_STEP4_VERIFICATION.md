@@ -47,6 +47,12 @@ Checked: 2026-08-31
 - Desktop/mobile Chromium UI regression tests: 28 passed.
 - Pricing outlier benchmark: 8/8 expected outcomes passed; owner review remains
   pending.
+- Disposable local Supabase PostgreSQL 17 verification: all 67 repository
+  migrations applied cleanly; the transparent-pricing pgTAP suite passed 32/32,
+  and the complete database suite passed 79/79 across two files.
+- Local database lint completed without an error-level finding. It reported two
+  warning-level unused-code findings in older identity/grading functions; neither
+  is introduced by Step 4.
 - Static pricing-migration verifier: passed, including additive schema,
   constraints, indexes, owner isolation, service-only atomic credit reservation,
   and transactional pgTAP coverage.
@@ -62,10 +68,10 @@ Checked: 2026-08-31
 
 - No provider subscription, key, paid/quota-consuming request, production
   migration, deployment, or production record mutation occurred.
-- The local pgTAP database test could not execute because Docker/Podman is not
-  installed. The free Colima installation path was attempted, but Homebrew's
-  Cellar is not writable by the current user. Codex did not use `sudo`, alter
-  Homebrew ownership, or create a metered cloud branch.
+- The database proof used checksum-verified, user-local Lima, Colima, and Docker
+  CLI tooling. The explicitly disposable `mica-step4` VM, containers, volumes,
+  and test records were stopped and deleted immediately after verification. No
+  `sudo`, Homebrew ownership change, or metered cloud branch was used.
 - The linked remote migration dry run stopped before applying anything because
   the already-recorded production/local migration history differs.
 - Live Pro entitlements remain unverified until the account owner connects the
@@ -73,15 +79,15 @@ Checked: 2026-08-31
 
 ## Approval gates
 
-Step 4 closes only after:
+Step 4 closes only after the two remaining external gates pass:
 
 1. Elliott approves or revises the eight human-readable outlier benchmark cases
    in `tests/fixtures/pricing-outlier-benchmark.json`.
-2. The additive migration and 32 pgTAP assertions pass in a disposable local or
-   isolated Supabase environment.
-3. The connected Pro key proves the required current, history, graded, sealed,
-   EUR/Cardmarket, marketplace-offer, eBay-sold, Japanese, and German
-   capabilities without a production deployment.
+2. **Passed 2026-08-31:** the additive migration applied and all 32 pricing
+   pgTAP assertions passed in a disposable local Supabase environment.
+3. The connected PkmnPrices Pro key proves the required current, history,
+   graded, sealed, EUR/Cardmarket, marketplace-offer, eBay-sold, Japanese, and
+   German capabilities without a production deployment.
 
 Do not begin Step 5 until these gates are recorded as passed or Elliott
 explicitly changes the gate.
