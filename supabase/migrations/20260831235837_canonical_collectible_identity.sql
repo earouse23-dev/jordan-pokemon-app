@@ -312,7 +312,7 @@ create or replace function identity_private.ensure_sealed_identity(
 ) returns uuid language plpgsql security definer set search_path='' as $$
 declare
   snapshot jsonb:=coalesce(p_snapshot,'{}'::jsonb);
-  provider text;
+  mapping_provider text;
   external_id text;
   product_key text;
   product_id uuid;
@@ -321,24 +321,24 @@ declare
   product_status text;
 begin
   external_id:=nullif(btrim(snapshot#>>'{externalIds,pkmnpricesSealed}'),'');
-  provider:=case when external_id is not null then 'pkmnprices' else null end;
+  mapping_provider:=case when external_id is not null then 'pkmnprices' else null end;
   if external_id is null then
     external_id:=nullif(btrim(snapshot#>>'{externalIds,tcgplayerSealed}'),'');
-    provider:=case when external_id is not null then 'tcgplayer' else null end;
+    mapping_provider:=case when external_id is not null then 'tcgplayer' else null end;
   end if;
   product_name:=left(coalesce(nullif(btrim(snapshot->>'name'),''),'Unresolved sealed product'),300);
   product_language:=lower(coalesce(nullif(btrim(snapshot->>'language'),''),'en'));
   if product_language !~ '^[a-z]{2,3}(-[a-z0-9]{2,8})?$' then product_language:='und'; end if;
   product_key:=case
-    when provider is not null then 'pokemon:'||product_language||':'||provider||':'||external_id
+    when mapping_provider is not null then 'pokemon:'||product_language||':'||mapping_provider||':'||external_id
     else 'legacy:'||left(regexp_replace(coalesce(p_source_key,'unknown'),'[^A-Za-z0-9:_-]','','g'),400)
   end;
-  product_status:=case when provider is null then 'needs_review' else 'active' end;
-  if provider is null and p_owner_id is null then raise exception 'sealed_owner_required'; end if;
+  product_status:=case when mapping_provider is null then 'needs_review' else 'active' end;
+  if mapping_provider is null and p_owner_id is null then raise exception 'sealed_owner_required'; end if;
   insert into public.sealed_products(
     owner_id,name,set_name,product_type,language,canonical_key,identity_status,metadata
   ) values(
-    case when provider is null then p_owner_id else null end,
+    case when mapping_provider is null then p_owner_id else null end,
     product_name,nullif(snapshot->>'set',''),nullif(snapshot->>'productType',''),
     product_language,product_key,product_status,
     jsonb_build_object('source','canonical_identity_backfill')
@@ -348,15 +348,15 @@ begin
   insert into public.collectible_identities(
     id,owner_id,identity_kind,sealed_product_id,canonical_key,identity_status
   ) values(
-    product_id,case when provider is null then p_owner_id else null end,
+    product_id,case when mapping_provider is null then p_owner_id else null end,
     'sealed_product',product_id,'sealed-product:'||product_id::text,product_status
   ) on conflict (id) do nothing;
-  if provider is not null then
+  if mapping_provider is not null then
     insert into public.collectible_provider_mappings(
       collectible_id,provider,provider_entity_type,external_id,match_status,
       match_confidence,match_method
     ) values(
-      product_id,provider,'sealed_product',external_id,'manually_verified',1,
+      product_id,mapping_provider,'sealed_product',external_id,'manually_verified',1,
       'legacy_exact_provider_id'
     ) on conflict (provider,provider_entity_type,external_id,external_variant_id)
       do nothing;
