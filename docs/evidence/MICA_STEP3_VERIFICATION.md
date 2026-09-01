@@ -14,8 +14,8 @@ Production mutation: none
 - Identity migration contract verification.
 - The staging-only database suite parses as PostgreSQL and contains 47
   transaction-wrapped assertions for two-owner RLS, corrections, reversals,
-  merges, account deletion, explicit grants, and immutable audit history. Its
-  execution remains part of the isolated-CI gate.
+  merges, account deletion, explicit grants, and immutable audit history. The
+  isolated CI gate executed all 47 assertions successfully twice.
 - PostgreSQL parse of both migrations and the read-only reconciliation script
   with `pglast`.
 - Schema validation: 64 public tables, all with RLS declarations.
@@ -68,7 +68,7 @@ to invoke the add-card surface directly; it now proves the stable variant UUID,
 two-option selector, confirmation copy, and hidden submitted value on desktop
 and mobile.
 
-## Remaining gate
+## Isolated CI gate passed
 
 The Supabase organization is on the Free plan. Hosted branching would require a
 Pro subscription in addition to `$0.01344/hour`, so no branch was created and no
@@ -76,8 +76,29 @@ billing method was added. The public repository can instead use a free standard
 GitHub-hosted runner, following Supabase's documented CI testing workflow.
 
 `.github/workflows/supabase-identity-gate.yml` is bounded to 30 minutes, contains
-no secrets or production reference, permits reads only from the repository, and
-uses only `--local` database operations. It applies the migrations, runs the 47
-assertions and database lint, resets to the pre-Step 3 schema, reapplies from a
-clean database, repeats the assertions, and deletes the database volume. The
-workflow run is the remaining gate. Step 3 stays incomplete until it passes.
+no secrets or production reference, and permits reads only from the repository.
+Its PostgreSQL connection is fixed to the disposable loopback database.
+
+The successful evidence run is [GitHub Actions run 33458418252](https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/33458418252),
+job `99703240838`, at commit
+`27c7d41f065ef90db813eccae12a39fff25887cf`. It ran from
+`2026-09-01T01:21:32Z` to `2026-09-01T01:23:54Z` (2 minutes 22 seconds), well
+inside the 30-minute limit, with Supabase CLI 2.116.0 and PostgreSQL 17.
+
+The run proved:
+
+- the complete migration history and both Step 3 migrations apply cleanly;
+- all missing-reference, parent/child mismatch, orphan, merge-cycle, and invalid
+  reversal counts are zero;
+- all 47 two-owner pgTAP assertions pass;
+- database lint contains no errors; it retains one pre-existing unused-variable
+  warning and one non-blocking unused-parameter warning;
+- reset to migration `20260819194052` removes the Step 3 identity registry;
+- a clean reapplication succeeds and all 47 assertions pass again;
+- local migration history records both Step 3 migrations; and
+- the disposable database resources stop and are deleted successfully.
+
+The rehearsal exposed and fixed a stale-snapshot bug in same-statement identity
+resolution plus ambiguous sealed-provider mapping variables. No production
+database, deployment, environment variable, billing method, or private record
+was changed. Step 3's exit gate is complete.

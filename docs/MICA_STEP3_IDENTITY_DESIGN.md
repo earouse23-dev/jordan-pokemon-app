@@ -1,6 +1,6 @@
 # Mica Step 3 canonical identity design
 
-Status: implemented locally; isolated CI migration rehearsal pending
+Status: complete; isolated CI migration rehearsal passed
 Date: 2026-08-31
 Dependencies: Steps 1 and 2 complete
 
@@ -127,14 +127,16 @@ not a claim of complete real-world catalog coverage. Elliott's difficult-card
 and import examples should be added before expanding language or provider
 coverage.
 
-## Remaining exit-gate work
+## Exit gate passed
 
 Read-only production preflight found 119 current portfolio, watchlist,
 dependent, and grading rows with safe migration paths and zero invalid identity
 links or orphaned parent relationships. No private record contents were read.
 
-The migrations still need to be applied and reset on the isolated Supabase local
-stack in GitHub Actions. The workflow runs
-`supabase/identity-reconciliation-dry-run.sql`, database lint, and the 47
-transactional integration assertions before and after rollback/reapplication.
-Step 4 must not begin until that rehearsal passes.
+GitHub Actions run `33458418252` applied the complete migration history to
+PostgreSQL 17, returned zero reconciliation errors, passed all 47 transactional
+integration assertions, passed database lint without errors, reset to the
+pre-Step 3 migration, reapplied every migration, and passed all 47 assertions a
+second time. The disposable database was deleted after 2 minutes 22 seconds.
+
+Step 3 is complete. No production migration or deployment occurred.

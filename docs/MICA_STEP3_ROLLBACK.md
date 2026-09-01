@@ -1,6 +1,6 @@
 # Mica Step 3 rollback and recovery
 
-Status: ready for isolated CI rehearsal
+Status: isolated CI rollback rehearsed successfully
 Production use: not approved
 
 ## Safety rule
