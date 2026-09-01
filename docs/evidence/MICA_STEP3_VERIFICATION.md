@@ -8,14 +8,14 @@ Production mutation: none
 
 - Complete `npm run release:check` passed in one run on 2026-08-31.
 - JavaScript syntax/type checks.
-- 293/293 unit, domain, provider, grading, security, and identity tests.
+- 294/294 unit, domain, provider, grading, security, and identity tests.
 - Identity benchmark: 8/8 expected outcomes, zero silent substitutions, 100%
   confirmation coverage.
 - Identity migration contract verification.
 - The staging-only database suite parses as PostgreSQL and contains 47
   transaction-wrapped assertions for two-owner RLS, corrections, reversals,
   merges, account deletion, explicit grants, and immutable audit history. Its
-  execution remains part of the isolated-branch gate.
+  execution remains part of the isolated-CI gate.
 - PostgreSQL parse of both migrations and the read-only reconciliation script
   with `pglast`.
 - Schema validation: 64 public tables, all with RLS declarations.
@@ -70,7 +70,14 @@ and mobile.
 
 ## Remaining gate
 
-Supabase has only the production `main` branch. An isolated branch costs
-`$0.01344/hour` at the time checked. Creating it is a paid external-state change
-and requires Elliott's explicit approval. Until the branch migration and
-rollback rehearsal pass, Step 3 is not marked complete and Step 4 must not begin.
+The Supabase organization is on the Free plan. Hosted branching would require a
+Pro subscription in addition to `$0.01344/hour`, so no branch was created and no
+billing method was added. The public repository can instead use a free standard
+GitHub-hosted runner, following Supabase's documented CI testing workflow.
+
+`.github/workflows/supabase-identity-gate.yml` is bounded to 30 minutes, contains
+no secrets or production reference, permits reads only from the repository, and
+uses only `--local` database operations. It applies the migrations, runs the 47
+assertions and database lint, resets to the pre-Step 3 schema, reapplies from a
+clean database, repeats the assertions, and deletes the database volume. The
+workflow run is the remaining gate. Step 3 stays incomplete until it passes.

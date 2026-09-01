@@ -365,6 +365,13 @@ const ciWorkflow = await readFile(
   new URL("../.github/workflows/ci.yml", import.meta.url),
   "utf8",
 );
+const identityGateWorkflow = await readFile(
+  new URL(
+    "../.github/workflows/supabase-identity-gate.yml",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const packageManifest = JSON.parse(
   await readFile(new URL("../package.json", import.meta.url), "utf8"),
 );
@@ -467,6 +474,44 @@ test("Node 24 and one non-recursive full release gate are canonical", () => {
   }
   assert.match(readme, /Requires Node 24\.x/);
   assert.match(readme, /npm run release:check/);
+});
+
+test("canonical identity database rehearsal is local, bounded, and disposable", () => {
+  assert.match(supabaseFunctionConfig, /^project_id\s*=\s*"jordan-pokemon-app"/m);
+  assert.match(supabaseFunctionConfig, /\[db\][\s\S]+major_version\s*=\s*17/);
+  assert.match(supabaseFunctionConfig, /\[db\.seed\][\s\S]+enabled\s*=\s*false/);
+  assert.match(
+    identityGateWorkflow,
+    /branches:\s*\n\s*- codex\/mica-baseline-reconciliation/,
+  );
+  assert.match(identityGateWorkflow, /permissions:\s*\n\s*contents: read/);
+  assert.match(identityGateWorkflow, /timeout-minutes: 30/);
+  assert.match(identityGateWorkflow, /version: 2\.116\.0/);
+  assert.match(identityGateWorkflow, /run: supabase db start/);
+  assert.match(
+    identityGateWorkflow,
+    /db query --local[\s\S]+--file supabase\/identity-reconciliation-dry-run\.sql/,
+  );
+  assert.equal(
+    identityGateWorkflow.match(
+      /supabase\/tests\/database\/canonical_identity\.test\.sql/g,
+    )?.length,
+    2,
+  );
+  assert.match(
+    identityGateWorkflow,
+    /db reset --local --no-seed --version 20260819194052/,
+  );
+  assert.match(identityGateWorkflow, /db query --local/);
+  assert.match(identityGateWorkflow, /db reset --local --no-seed/);
+  assert.match(identityGateWorkflow, /--schema public,identity_private/);
+  assert.match(identityGateWorkflow, /--fail-on error/);
+  assert.match(
+    identityGateWorkflow,
+    /supabase stop[\s\S]+--project-id jordan-pokemon-app[\s\S]+--no-backup/,
+  );
+  assert.doesNotMatch(identityGateWorkflow, /--linked|db push|apply_migration/);
+  assert.doesNotMatch(identityGateWorkflow, /kdkzdflrxajfdcithrfj/);
 });
 
 test("production bundles do not publish source maps by default", () => {

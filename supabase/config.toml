@@ -1,3 +1,11 @@
+project_id = "jordan-pokemon-app"
+
+[db]
+major_version = 17
+
+[db.seed]
+enabled = false
+
 [functions.sync-catalog]
 verify_jwt = false
 

@@ -1,20 +1,22 @@
 # Mica Step 3 rollback and recovery
 
-Status: ready for isolated staging rehearsal
+Status: ready for isolated CI rehearsal
 Production use: not approved
 
 ## Safety rule
 
-Do not apply these migrations directly to production. First rehearse them on an
-isolated Supabase branch created from the current production schema. Do not
-enable the new client build until the post-migration reconciliation report is
-clean.
+Do not apply these migrations directly to production. First rehearse them with
+the pinned Supabase CLI and local PostgreSQL 17 on a fresh GitHub-hosted runner.
+The repository is public, so a standard runner is free and avoids both a paid
+Supabase Pro upgrade and local container installation. Do not enable the new
+client build until the post-migration reconciliation report is clean.
 
 ## Before migration
 
-1. Record the branch ID, parent project, migration history, and schema advisor
-   results.
-2. Confirm the branch contains no production user data.
+1. Record the commit SHA, workflow-run ID, migration history, and local database
+   advisor results.
+2. Confirm the workflow has no production credentials, project reference, or
+   `--linked` operation.
 3. Run the aggregate preflight queries recorded in
    `docs/evidence/MICA_STEP3_VERIFICATION.md`.
 4. Confirm a previous application build remains available.
@@ -33,9 +35,12 @@ clean.
    propagation, account deletion, grants, and audit immutability. The script
    rolls every fixture back.
 
+6. Reset to migration `20260819194052`, prove that the Step 3 registry is absent,
+   reapply all migrations, and repeat the 47 assertions.
+
 Any migration error stops the rehearsal. Do not repair partial state manually.
-Reset or delete only the disposable branch and start again from the recorded
-baseline.
+The job has a 30-minute timeout and always deletes its local database volume.
+The hosted runner is destroyed after the job.
 
 ## Application rollback
 
@@ -46,8 +51,9 @@ during an incident.
 
 ## Database rollback
 
-For a disposable branch, reset the branch to the migration immediately before
-`canonical_collectible_identity`, or delete and recreate the branch.
+For an isolated CI rehearsal, reset to `20260819194052`, then recreate the
+database from the complete migration history. The workflow automates both
+directions before deleting its volume.
 
 For production, do not drop identity tables, columns, correction history, or
 merge events during incident response. First disable the new client, preserve
@@ -56,11 +62,12 @@ down migration. No destructive production down migration is included in Step 3.
 
 ## Recovery checks
 
-After rollback or branch reset:
+After rollback or CI reset:
 
 - the previous app build loads;
 - existing collection, transactions, prices, and grading reports remain
   readable;
 - no production migration-history row was added;
 - no production deployment or environment variable changed;
-- the disposable branch can be recreated from the same baseline.
+- the disposable database can be recreated from the same commit and migration
+  baseline.

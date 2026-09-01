@@ -134,4 +134,114 @@ select
   count(*) filter (where identity_status='retired') as retired_identities
 from public.collectible_identities;
 
+do $$
+begin
+  if exists(
+    select 1 from public.collection_items where collectible_id is null
+    union all select 1 from public.collection_transactions where collectible_id is null
+    union all select 1 from public.purchase_lots where collectible_id is null
+    union all select 1 from public.position_price_observations where collectible_id is null
+    union all select 1 from public.card_watchlist where collectible_id is null
+    union all select 1 from public.price_products where collectible_id is null
+    union all select 1 from public.price_observations where collectible_id is null
+    union all select 1 from public.card_provider_mappings where collectible_id is null
+    union all select 1 from public.scan_candidates where collectible_id is null
+    union all select 1 from public.owned_copies where collectible_id is null
+    union all select 1 from public.digital_grade_assessments where collectible_id is null
+    union all select 1 from public.grading_scan_sessions where collectible_id is null
+    union all select 1 from public.grading_predictions where collectible_id is null
+    union all select 1 from public.grading_outcomes where collectible_id is null
+  ) then
+    raise exception 'canonical_identity_missing_reference';
+  end if;
+
+  if exists(
+    select 1
+    from public.collection_transactions transaction
+    join public.collection_items item
+      on item.id=transaction.collection_item_id
+     and item.user_id=transaction.user_id
+    where transaction.collectible_id<>item.collectible_id
+    union all
+    select 1
+    from public.purchase_lots lot
+    join public.collection_items item
+      on item.id=lot.collection_item_id and item.user_id=lot.user_id
+    where lot.collectible_id<>item.collectible_id
+    union all
+    select 1
+    from public.owned_copies copy
+    join public.collection_items item
+      on item.id=copy.collection_item_id and item.user_id=copy.user_id
+    where copy.collectible_id<>item.collectible_id
+    union all
+    select 1
+    from public.grading_scan_sessions session
+    join public.grading_physical_cards physical
+      on physical.id=session.physical_card_id and physical.user_id=session.user_id
+    where session.collectible_id<>physical.collectible_id
+    union all
+    select 1
+    from public.grading_predictions prediction
+    join public.grading_scan_sessions session
+      on session.id=prediction.scan_session_id and session.user_id=prediction.user_id
+    where prediction.collectible_id<>session.collectible_id
+    union all
+    select 1
+    from public.collection_items item
+    where coalesce(item.identity_snapshot->>'collectibleId','')
+      <>item.collectible_id::text
+  ) then
+    raise exception 'canonical_identity_parent_child_mismatch';
+  end if;
+
+  if exists(
+    select 1
+    from public.collectible_identities identity
+    left join public.card_variants variant on variant.id=identity.variant_id
+    left join public.cards card on card.id=identity.card_id
+    left join public.sealed_products sealed on sealed.id=identity.sealed_product_id
+    left join public.collectible_identities target on target.id=identity.merged_into_id
+    where (identity.identity_kind='card_variant' and variant.id is null)
+       or (identity.identity_kind='card_printing' and card.id is null)
+       or (identity.identity_kind='sealed_product' and sealed.id is null)
+       or (identity.identity_status='merged' and target.id is null)
+  ) then
+    raise exception 'canonical_identity_orphan_target';
+  end if;
+
+  if exists(
+    with recursive merge_chain as (
+      select identity.id as origin_id,identity.merged_into_id as next_id,
+        array[identity.id] as visited,false as cycle
+      from public.collectible_identities identity
+      where identity.merged_into_id is not null
+      union all
+      select chain.origin_id,identity.merged_into_id,
+        chain.visited||identity.id,identity.id=any(chain.visited)
+      from merge_chain chain
+      join public.collectible_identities identity on identity.id=chain.next_id
+      where chain.next_id is not null and not chain.cycle
+    )
+    select 1 from merge_chain where cycle
+  ) then
+    raise exception 'canonical_identity_merge_cycle';
+  end if;
+
+  if exists(
+    select 1
+    from public.identity_corrections reversal
+    where reversal.event_type='reversal'
+      and reversal.reverses_correction_id is null
+  ) or exists(
+    select reverses_correction_id
+    from public.identity_corrections
+    where reverses_correction_id is not null
+    group by reverses_correction_id
+    having count(*)>1
+  ) then
+    raise exception 'canonical_identity_invalid_reversal_history';
+  end if;
+end $$;
+
 rollback;

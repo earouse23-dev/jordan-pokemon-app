@@ -1,0 +1,74 @@
+name: Step 3 Supabase identity gate
+
+on:
+  push:
+    branches:
+      - codex/mica-baseline-reconciliation
+    paths:
+      - ".github/workflows/supabase-identity-gate.yml"
+      - "supabase/**"
+  workflow_dispatch:
+
+concurrency:
+  group: step3-identity-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  identity-database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pinned Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+
+      - name: Start isolated local Postgres
+        run: supabase db start
+
+      - name: Run aggregate identity reconciliation
+        run: >-
+          supabase db query --local
+          --file supabase/identity-reconciliation-dry-run.sql
+
+      - name: Run two-owner identity integration gate
+        run: >-
+          supabase test db
+          supabase/tests/database/canonical_identity.test.sql
+          --local
+
+      - name: Run local database advisor
+        run: >-
+          supabase db lint --local
+          --schema public,identity_private
+          --level warning
+          --fail-on error
+
+      - name: Rehearse rollback to the pre-Step 3 schema
+        run: |
+          supabase db reset --local --no-seed --version 20260819194052
+          supabase db query --local "do \$\$ begin if to_regclass('public.collectible_identities') is not null then raise exception 'step3_rollback_failed'; end if; end \$\$;"
+
+      - name: Reapply all migrations from a clean database
+        run: supabase db reset --local --no-seed
+
+      - name: Repeat identity gate after clean reapplication
+        run: >-
+          supabase test db
+          supabase/tests/database/canonical_identity.test.sql
+          --local
+
+      - name: Record local migration history
+        run: supabase migration list --local
+
+      - name: Destroy disposable database resources
+        if: always()
+        run: >-
+          supabase stop
+          --project-id jordan-pokemon-app
+          --no-backup

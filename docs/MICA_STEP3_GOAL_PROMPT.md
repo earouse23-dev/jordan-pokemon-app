@@ -16,11 +16,12 @@ production.
 
 ## Required next action
 
-Create or connect an isolated Supabase staging branch after Elliott explicitly
-approves its cost. Apply the two Step 3 migrations there only. Run the read-only
-reconciliation report, Supabase advisors, and the transactional 47-assertion
-two-user integration test at
-`supabase/tests/database/canonical_identity.test.sql`.
+Push `codex/mica-baseline-reconciliation` and let
+`.github/workflows/supabase-identity-gate.yml` run the pinned Supabase CLI on a
+disposable GitHub-hosted runner. It must apply the full migration history to
+local PostgreSQL 17, run the read-only reconciliation report and database lint,
+execute the transactional 47-assertion two-user integration test, reset to the
+pre-Step 3 migration, reapply every migration, and repeat the integration test.
 
 ## Constraints
 
@@ -34,12 +35,13 @@ two-user integration test at
 
 ## Completion criteria
 
-- Both migrations apply cleanly to isolated staging.
+- Both migrations apply cleanly to isolated PostgreSQL 17.
 - Every identity-bearing row has a non-null canonical identity.
 - All parent/child identity mismatches, orphan counts, and merge cycles are zero.
 - Owner isolation passes with two disposable accounts.
 - Correction and merge reversal pass.
 - Security and performance advisor results are recorded.
 - Rollback/reset is rehearsed successfully.
+- The disposable runner stops within 30 minutes and leaves no database running.
 
 Stop before Step 4 unless every criterion passes.
