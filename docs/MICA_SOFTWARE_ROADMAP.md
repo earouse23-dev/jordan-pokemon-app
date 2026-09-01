@@ -55,11 +55,11 @@ Stop and wait for approval after the Step 1 audit.
 
 ## Execution rules
 
-| Step type | Run it in | Purpose |
-|---|---|---|
-| Live competitor or provider research | Work | Verify current software, documentation, limits, and screenshots |
-| Technical option comparison | Chat | Compare verified options and prepare a decision for approval |
-| Repository audit, implementation, testing, and verification | Code | Inspect, change, run, and verify the actual software |
+| Step type                                                   | Run it in | Purpose                                                         |
+| ----------------------------------------------------------- | --------- | --------------------------------------------------------------- |
+| Live competitor or provider research                        | Work      | Verify current software, documentation, limits, and screenshots |
+| Technical option comparison                                 | Chat      | Compare verified options and prepare a decision for approval    |
+| Repository audit, implementation, testing, and verification | Code      | Inspect, change, run, and verify the actual software            |
 
 ## Phase 1. Understand and stabilize the current software
 
@@ -266,6 +266,21 @@ Create migrations, backfill scripts, dry-run reports, rollback procedures, API c
 **Handoff:** Move the provider evidence from Work into Chat. Approve one technical approach. Send that decision and the evidence to Code.
 
 **Required outcome:** Every displayed value explains its source, market, condition, freshness, comparable evidence, and confidence.
+
+#### Approved implementation decision — 2026-08-31
+
+- PkmnPrices Pro is the approved primary pricing tier. Do not revert the plan to
+  PkmnPrices Free in later sessions.
+- The account owner purchases Pro and supplies its key securely outside Git and
+  chat. A configured `pro` label requests features but never proves access; real
+  endpoint responses remain the capability authority.
+- TCGdex remains the attributed public catalog/raw fallback. JustTCG remains
+  disabled unless a separate commercial license is approved.
+- Support the Pro target scope—English, Japanese, German, USD/TCGplayer,
+  EUR/Cardmarket, raw, graded, sealed, history, marketplace asks, and completed
+  sales—only where the live key proves the corresponding entitlement.
+- Keep USD and EUR evidence separate. Do not add an FX conversion or mix
+  currencies without separate approval.
 
 #### Competitor software to beat
 
