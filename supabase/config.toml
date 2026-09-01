@@ -2,6 +2,7 @@ project_id = "jordan-pokemon-app"
 
 [db]
 major_version = 17
+port = 54322
 
 [db.seed]
 enabled = false

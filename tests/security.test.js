@@ -479,6 +479,7 @@ test("Node 24 and one non-recursive full release gate are canonical", () => {
 test("canonical identity database rehearsal is local, bounded, and disposable", () => {
   assert.match(supabaseFunctionConfig, /^project_id\s*=\s*"jordan-pokemon-app"/m);
   assert.match(supabaseFunctionConfig, /\[db\][\s\S]+major_version\s*=\s*17/);
+  assert.match(supabaseFunctionConfig, /\[db\][\s\S]+port\s*=\s*54322/);
   assert.match(supabaseFunctionConfig, /\[db\.seed\][\s\S]+enabled\s*=\s*false/);
   assert.match(
     identityGateWorkflow,
@@ -490,7 +491,7 @@ test("canonical identity database rehearsal is local, bounded, and disposable", 
   assert.match(identityGateWorkflow, /run: supabase db start/);
   assert.match(
     identityGateWorkflow,
-    /db query --local[\s\S]+--file supabase\/identity-reconciliation-dry-run\.sql/,
+    /psql postgresql:\/\/postgres:postgres@127\.0\.0\.1:54322\/postgres[\s\S]+--set ON_ERROR_STOP=1[\s\S]+--file supabase\/identity-reconciliation-dry-run\.sql/,
   );
   assert.equal(
     identityGateWorkflow.match(

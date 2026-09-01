@@ -33,7 +33,8 @@ jobs:
 
       - name: Run aggregate identity reconciliation
         run: >-
-          supabase db query --local
+          psql postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          --set ON_ERROR_STOP=1
           --file supabase/identity-reconciliation-dry-run.sql
 
       - name: Run two-owner identity integration gate
