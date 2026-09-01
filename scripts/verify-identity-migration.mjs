@@ -98,6 +98,11 @@ for (const functionName of [
   );
 }
 
+requirePattern(
+  /function identity_private\.resolve_collectible_identity\([\s\S]*?language plpgsql\s+volatile\s+security definer/i,
+  "identity resolver cannot see identities created in the same statement",
+);
+
 for (const functionName of [
   "remap_collection_position",
   "revert_collection_identity_correction",

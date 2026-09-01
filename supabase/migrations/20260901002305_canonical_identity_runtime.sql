@@ -6,7 +6,7 @@ create or replace function identity_private.resolve_collectible_identity(
   p_collectible_id uuid
 ) returns uuid
 language plpgsql
-stable
+volatile
 security definer
 set search_path=''
 as $$
