@@ -12,6 +12,10 @@ Production mutation: none
 - Identity benchmark: 8/8 expected outcomes, zero silent substitutions, 100%
   confirmation coverage.
 - Identity migration contract verification.
+- The staging-only database suite parses as PostgreSQL and contains 47
+  transaction-wrapped assertions for two-owner RLS, corrections, reversals,
+  merges, account deletion, explicit grants, and immutable audit history. Its
+  execution remains part of the isolated-branch gate.
 - PostgreSQL parse of both migrations and the read-only reconciliation script
   with `pglast`.
 - Schema validation: 64 public tables, all with RLS declarations.

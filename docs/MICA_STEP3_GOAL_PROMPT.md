@@ -18,7 +18,9 @@ production.
 
 Create or connect an isolated Supabase staging branch after Elliott explicitly
 approves its cost. Apply the two Step 3 migrations there only. Run the read-only
-reconciliation report, Supabase advisors, and two-user integration checks.
+reconciliation report, Supabase advisors, and the transactional 47-assertion
+two-user integration test at
+`supabase/tests/database/canonical_identity.test.sql`.
 
 ## Constraints
 

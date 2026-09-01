@@ -8,10 +8,21 @@ const migrations = await Promise.all(
   files.map((file) => readFile(new URL(file, import.meta.url), "utf8")),
 );
 const sql = migrations.join("\n");
+const integrationTest = await readFile(
+  new URL(
+    "../supabase/tests/database/canonical_identity.test.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const failures = [];
 
 function requirePattern(pattern, message) {
   if (!pattern.test(sql)) failures.push(message);
+}
+
+function requireTestPattern(pattern, message) {
+  if (!pattern.test(integrationTest)) failures.push(message);
 }
 
 for (const table of [
@@ -181,6 +192,50 @@ if (/from \(select 1\) anchor/i.test(sql))
 if ((sql.match(/\$\$/g) || []).length % 2 !== 0)
   failures.push("identity migration has an unmatched function body delimiter");
 
+for (const [pattern, message] of [
+  [/^begin;/im, "identity integration test is not transactional"],
+  [/^rollback;/im, "identity integration test does not roll back fixtures"],
+  [
+    /11111111-1111-4111-8111-111111111111[\s\S]+22222222-2222-4222-8222-222222222222/i,
+    "identity integration test does not use two owners",
+  ],
+  [
+    /RLS filters a cross-owner update/i,
+    "identity integration test does not exercise RLS isolation",
+  ],
+  [
+    /cross_owner_merge_not_allowed/i,
+    "identity integration test does not reject cross-owner merges",
+  ],
+  [
+    /correction_already_reversed/i,
+    "identity integration test does not prove correction reversal is one-shot",
+  ],
+  [
+    /merge_not_active/i,
+    "identity integration test does not prove merge reversal is one-shot",
+  ],
+  [
+    /delete from auth\.users/i,
+    "identity integration test does not exercise account deletion",
+  ],
+]) {
+  requireTestPattern(pattern, message);
+}
+
+const declaredPlan = Number(
+  integrationTest.match(/select plan\((\d+)\)/i)?.[1] || 0,
+);
+const testAssertions = (
+  integrationTest.match(
+    /^select (?:has_table|col_not_null|is|ok|throws_ok|lives_ok)\(/gim,
+  ) || []
+).length;
+if (!declaredPlan || declaredPlan !== testAssertions)
+  failures.push(
+    `identity integration plan declares ${declaredPlan} but has ${testAssertions} assertions`,
+  );
+
 if (failures.length) {
   for (const failure of failures)
     console.error(`identity-migration: ${failure}`);
@@ -189,5 +244,6 @@ if (failures.length) {
 
 console.info(
   "Identity migration verified: additive registry, complete references, RLS, " +
-    "pinned privileged functions, reversible corrections, and merge aliases.",
+    "pinned privileged functions, reversible corrections, merge aliases, and " +
+    `${testAssertions} transactional integration assertions.`,
 );

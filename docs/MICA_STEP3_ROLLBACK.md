@@ -27,8 +27,11 @@ clean.
 3. Run `supabase/identity-reconciliation-dry-run.sql` in a read-only
    transaction.
 4. Run the Supabase security and performance advisors.
-5. Exercise creation, correction, reversal, merge, merge reversal, watchlist,
-   pricing, and grading-lineage writes with two disposable users.
+5. Run `supabase/tests/database/canonical_identity.test.sql`. Its 47
+   transactional assertions exercise two-owner RLS, creation, correction,
+   reversal, merge, merge reversal, watchlist identity, dependent-ledger
+   propagation, account deletion, grants, and audit immutability. The script
+   rolls every fixture back.
 
 Any migration error stops the rehearsal. Do not repair partial state manually.
 Reset or delete only the disposable branch and start again from the recorded
