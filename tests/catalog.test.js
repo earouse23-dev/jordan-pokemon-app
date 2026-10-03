@@ -381,6 +381,19 @@ test("catalog endpoint preserves the selected language and never serializes prov
     );
     assert.equal(body.cards[0].language, "ja");
     assert.equal(body.parsedQuery.setName, "151");
+    mock.requested.length = 0;
+    await catalogHandler(
+      {
+        method: "GET",
+        query: { q: "Pikachu 151", language: "de", limit: "8" },
+      },
+      response,
+    );
+    assert.equal(response.statusCode, 200);
+    assert.ok(
+      mock.requested.every((url) => url.pathname.includes("/v2/de/cards")),
+    );
+    assert.equal(body.cards[0].language, "de");
     assert.equal(
       JSON.stringify(body).includes("never-return-this-secret"),
       false,
@@ -447,4 +460,137 @@ test("set catalog returns the exact checklist and rejects invalid set identifier
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("catalog pages continue beyond twelve, bind filters, and retry failed details without skipping", async () => {
+  const originalFetch = globalThis.fetch;
+  const requested = [];
+  let failDetails = false;
+  const fixtures = Array.from({ length: 25 }, (_, i) => ({
+    ...cards[0],
+    id: `page-${String(i).padStart(3, "0")}`,
+    name: "Mew ex",
+  }));
+  globalThis.fetch = async (input) => {
+    const url = new URL(input);
+    requested.push(url);
+    if (url.pathname.endsWith("/cards")) {
+      const page = Number(url.searchParams.get("pagination:page"));
+      const size = Number(url.searchParams.get("pagination:itemsPerPage"));
+      return Response.json(fixtures.slice((page - 1) * size, page * size));
+    }
+    if (failDetails) return new Response("unavailable", { status: 503 });
+    return Response.json(
+      fixtures.find((card) => url.pathname.endsWith(`/${card.id}`)),
+    );
+  };
+  const invoke = async (query) => {
+    let body;
+    const response = {
+      setHeader() {},
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json(value) {
+        body = value;
+      },
+    };
+    await catalogHandler(
+      {
+        method: "GET",
+        query: {
+          q: "Mew ex",
+          language: "en",
+          limit: 12,
+          source: "tcgdex",
+          ...query,
+        },
+      },
+      response,
+    );
+    return { body, status: response.statusCode };
+  };
+  try {
+    const first = await invoke({});
+    assert.equal(first.body.cards.length, 12);
+    assert.equal(first.body.total, null);
+    assert.equal(first.body.hasMore, true);
+    const second = await invoke({ cursor: first.body.nextCursor });
+    const third = await invoke({ cursor: second.body.nextCursor });
+    assert.equal(
+      new Set(
+        [...first.body.cards, ...second.body.cards, ...third.body.cards].map(
+          (card) => card.id,
+        ),
+      ).size,
+      25,
+    );
+    assert.equal(third.body.nextCursor, null);
+    assert.equal(requested[0].searchParams.get("sort:field"), "id");
+    assert.equal(
+      (await invoke({ q: "Pikachu", cursor: first.body.nextCursor })).status,
+      400,
+    );
+    assert.equal(
+      (await invoke({ set: "Base Set", cursor: first.body.nextCursor })).status,
+      400,
+    );
+    assert.equal((await invoke({ cursor: "x".repeat(2049) })).status, 400);
+    failDetails = true;
+    assert.equal((await invoke({ cursor: first.body.nextCursor })).status, 502);
+    failDetails = false;
+    assert.deepEqual(
+      (await invoke({ cursor: first.body.nextCursor })).body.cards,
+      second.body.cards,
+    );
+    const filtered = await invoke({ set: "Base Set" });
+    assert.equal(filtered.body.cards.length, 0);
+    assert.equal(
+      filtered.body.hasMore,
+      true,
+      "filtered provider pages must still allow continuation",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("internal catalog paging applies exact filters before range and stable ordering", async () => {
+  const { searchInternalCatalogPage } = await import("../lib/catalog-db.js");
+  const operations = [];
+  const rows = Array.from({ length: 13 }, (_, i) => ({
+    id: `row-${i}`,
+    name: "Pikachu",
+    collector_number: "25",
+    card_sets: { name: "Base Set", official_count: 102 },
+  }));
+  const builder = {};
+  for (const method of ["select", "eq", "in", "ilike", "order", "range"])
+    builder[method] = (...args) => {
+      operations.push([method, ...args]);
+      return builder;
+    };
+  builder.then = (resolve) => resolve({ data: rows });
+  const result = await searchInternalCatalogPage(
+    { from: () => builder },
+    "Pikachu 25/102",
+    "en",
+    { limit: 12, offset: 12, set: "Base Set" },
+  );
+  assert.equal(result.cards.length, 12);
+  assert.equal(result.hasMore, true);
+  assert.ok(
+    operations.some(
+      (op) => op[0] === "eq" && op[1] === "name_key" && op[2] === "pikachu",
+    ),
+  );
+  assert.ok(
+    operations.some(
+      (op) =>
+        op[0] === "ilike" && op[1] === "card_sets.name" && op[2] === "Base Set",
+    ),
+  );
+  assert.deepEqual(operations.at(-1), ["range", 12, 24]);
+  assert.deepEqual(operations.at(-2), ["order", "id", { ascending: true }]);
 });

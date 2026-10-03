@@ -1,7 +1,7 @@
 {
   "name": "Mica comparable price outlier benchmark v1",
   "ruleVersion": "mica-price-evidence-v1",
-  "reviewStatus": "pending_owner_review",
+  "reviewStatus": "owner_approved_2026-09-02",
   "reviewInstructions": "Confirm that each flagged index is an observation a reasonable reviewer would send to manual review. Flags do not delete or exclude data.",
   "cases": [
     {

@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 
+// Keep fixture requests on the page route in WebKit as well as Chromium.
+test.use({ serviceWorkers: "block" });
+
 const viewIds = [
   "view-dashboard",
   "view-collection",
@@ -12,7 +15,8 @@ const widths = [320, 390, 768, 1024, 1440];
 async function revealShell(page, viewId) {
   await page.evaluate((selectedView) => {
     document.body.dataset.uiTheme = "mica";
-    document.body.dataset.workspace = "unified";
+    document.body.dataset.workspace = "collector";
+    document.body.dataset.softwareMode = "collector";
     document.body.classList.add("authenticated");
     document.querySelector("#authGate").hidden = true;
     document.querySelector("#appShell").removeAttribute("aria-hidden");
@@ -144,6 +148,112 @@ test("the unified Mica shell fits every required viewport", async ({
   );
 });
 
+test("Collector, Investor, and Seller modes change real workflows without hiding shared tools", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await revealShell(page, "view-dashboard");
+  const selectMode = (mode) =>
+    page.evaluate(async (selectedMode) => {
+      const { switchSoftwareMode } = await import("/app.js?v=111");
+      return switchSoftwareMode(selectedMode, {
+        persist: false,
+        announce: false,
+      });
+    }, mode);
+
+  await selectMode("collector");
+  await expect(page.locator("#dashboardModeLabel")).toHaveText(
+    "Collector home",
+  );
+  await expect(page.locator("#softwareModeHome")).toContainText("Set progress");
+  await expect(page.locator("#softwareModeHome")).toContainText(
+    "Digitally graded",
+  );
+
+  await selectMode("investor");
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-software-mode",
+    "investor",
+  );
+  await expect(page.locator("#dashboardTitle")).toHaveText(
+    "Portfolio overview",
+  );
+  await expect(page.locator("#softwareModeHome")).toContainText(
+    "Purchase costs recorded",
+  );
+  await expect(page.locator("#softwareModeHome")).toContainText(
+    "Largest holding",
+  );
+
+  await selectMode("seller");
+  await expect(page.locator("#dashboardTitle")).toHaveText("Seller workspace");
+  await expect(page.locator("#softwareModeHome")).toContainText(
+    "Inventory over 90 days",
+  );
+  await expect(
+    page.locator(".dashboard-owned-tools > section").first(),
+  ).toContainText("Business performance");
+
+  await expect(page.locator(".sidebar-nav [data-sidebar-target]")).toHaveCount(
+    4,
+  );
+  await expect(
+    page.locator("#softwareModeSettings [data-software-mode]"),
+  ).toHaveCount(3);
+  await selectMode("collector");
+  await expect(page.locator("#softwareModeSelect")).toHaveValue("collector");
+  const audit = await layoutAudit(page);
+  expect(audit.overflow).toBeLessThanOrEqual(0);
+  expect(audit.textBelowFloor).toEqual([]);
+  expect(audit.outsideViewport).toEqual([]);
+  expect(audit.undersizedMobileButtons).toEqual([]);
+});
+
+test("collection organization is accessible, explicit, and contained", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.setViewportSize({ width: 320, height: 844 });
+  await revealShell(page, "view-collection");
+  await page.evaluate(() => {
+    const status = document.querySelector("#collectionOrganizationStatus");
+    const views = document.querySelector("#collectionSavedViews");
+    const goals = document.querySelector("#collectionGoals");
+    status.textContent =
+      "2,500 saved entries · 12 missing a physical location · 2 digital folders";
+    views.innerHTML = `
+      <button type="button" aria-pressed="true">All folders</button>
+      <button type="button" aria-pressed="false">Trade binder</button>
+      <button type="button">Japanese favorites</button>
+      <button class="undo-organization" type="button">Undo last bulk change</button>`;
+    goals.innerHTML = `
+      <button type="button">
+        <span><strong>Complete 151</strong><small>103 of 165 · 62%</small></span>
+        <i aria-hidden="true"><b style="width:62%"></b></i><em>Open</em>
+      </button>`;
+  });
+
+  const workspace = page.locator("#collectionOrganization");
+  await expect(workspace).toBeVisible();
+  await workspace.locator("summary").click();
+  await expect(
+    page.getByRole("heading", { name: "Keep every card findable" }),
+  ).toBeVisible();
+  await expect(workspace).toContainText("missing a physical location");
+  await expect(
+    workspace.getByRole("button", { name: "All folders" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(workspace).toContainText("103 of 165");
+  await expect(page.locator("#quickSearchLanguage option")).toHaveCount(10);
+
+  const audit = await layoutAudit(page);
+  expect(audit.overflow).toBeLessThanOrEqual(0);
+  expect(audit.textBelowFloor).toEqual([]);
+  expect(audit.outsideViewport).toEqual([]);
+  expect(audit.undersizedMobileButtons).toEqual([]);
+});
+
 test("digital grading lives in Collection while Add Cards stays focused", async ({
   page,
 }) => {
@@ -157,7 +267,7 @@ test("digital grading lives in Collection while Add Cards stays focused", async 
     "Open the camera",
   );
   await expect(page.locator("#digitalGraderButton em")).toContainText(
-    "confirm identity",
+    "not a professional grade",
   );
   await expect(page.locator("[data-collection-grading-mode]")).toHaveCount(0);
   await expect(page.locator(".grading-workspace-facts")).toHaveCount(0);
@@ -182,9 +292,7 @@ test("digital grading lives in Collection while Add Cards stays focused", async 
     "Take a photo",
   );
   await expect(page.locator("#receiptCameraButton")).toHaveCount(0);
-  await expect(
-    page.getByText("Photos are analyzed once and are not saved."),
-  ).toBeVisible();
+  await expect(page.locator("#view-scan .simple-privacy")).toBeVisible();
   await expect(page.locator("#autoCaptureButton")).toHaveAttribute(
     "type",
     "button",
@@ -197,11 +305,16 @@ test("generic Add opens search while photo capture remains explicit", async ({
   await page.goto("/");
   await revealShell(page, "view-dashboard");
   await page.evaluate(async () => {
-    const { openAddWorkspace } = await import("/app.js?v=108");
+    const { openAddWorkspace } = await import("/app.js?v=111");
     openAddWorkspace();
   });
   await expect(page.locator("#view-scan")).toBeVisible();
-  await expect(page.locator("#quickCardSearch")).toBeFocused();
+  const keyboardPointer = await page.evaluate(
+    () => matchMedia("(hover: hover) and (pointer: fine)").matches,
+  );
+  if (keyboardPointer)
+    await expect(page.locator("#quickCardSearch")).toBeFocused();
+  else await expect(page.locator("#quickCardSearch")).not.toBeFocused();
   await expect(page.locator("#bottomSheet")).toBeHidden();
   await expect(page.locator(".bottom-nav [data-route='scan']")).toHaveAttribute(
     "aria-current",
@@ -210,6 +323,181 @@ test("generic Add opens search while photo capture remains explicit", async ({
   await expect(page.locator("#autoCaptureButton strong")).toHaveText(
     "Take a photo",
   );
+});
+
+test("exact catalog cards can be queued without slowing the direct add path", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await revealShell(page, "view-scan");
+  await page.evaluate(async () => {
+    const { queueIntakeCard, openBatchIntakeSheet } =
+      await import("/app.js?v=111");
+    const pikachu = {
+      id: "tcgdex:en:base1-58",
+      name: "Pikachu",
+      set: "Base Set",
+      number: "58/102",
+      language: "en",
+      variant: "Normal",
+    };
+    queueIntakeCard(pikachu);
+    queueIntakeCard(pikachu);
+    queueIntakeCard({
+      id: "tcgdex:de:base1-4",
+      name: "Glurak",
+      set: "Grundset",
+      number: "4/102",
+      language: "de",
+      variant: "Holofoil",
+    });
+    openBatchIntakeSheet();
+  });
+  await expect(page.locator("#intakeQueueCount")).toHaveText(
+    "3 cards · 2 exact versions",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Review card queue" }),
+  ).toBeVisible();
+  await expect(page.locator(".intake-row")).toHaveCount(2);
+  await expect(page.locator("[data-intake-quantity]").first()).toHaveValue("2");
+  await expect(page.locator("#sheetContent")).toContainText(
+    "confirm each exact version before saving",
+  );
+  await page.locator("#reviewNextIntake").click();
+  await expect(
+    page.getByRole("heading", { name: "Add to your library" }),
+  ).toBeVisible();
+  await expect(page.locator("#positionQuantity")).toHaveValue("2");
+});
+
+test("CSV review shows mapping, duplicate evidence, and a read-only dry check", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await revealShell(page, "view-profile");
+  await page.evaluate(async () => {
+    const { openCsvImportReview } = await import("/app.js?v=111");
+    await openCsvImportReview(
+      "Name,Set,Number,Quantity,Condition,Purchase Date,Purchase Price\nPikachu,Base Set,58/102,1,Near Mint,2026-01-02,5.00\nPikachu,Base Set,58/102,1,Near Mint,2026-01-02,5.00",
+      { name: "sample.csv" },
+    );
+  });
+  await expect(
+    page.getByRole("heading", { name: "Review spreadsheet import" }),
+  ).toBeVisible();
+  await expect(page.locator("#sheetContent")).toContainText(
+    "Nothing enters your library during preview",
+  );
+  await expect(page.locator("#sheetContent")).toContainText(
+    "Exact repeats combined",
+  );
+  await expect(page.locator("#commitCsvImport")).toBeDisabled();
+  await page.locator("#runCsvDryCheck").click();
+  await expect(page.locator("#importStatus")).toContainText(
+    "Your library is still unchanged",
+  );
+  await expect(page.locator("#commitCsvImport")).toBeEnabled();
+});
+
+test("manual unopened entry remains available for every supported catalog language", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await revealShell(page, "view-scan");
+  await page.evaluate(async () => {
+    const { openManualSealedEntry } = await import("/app.js?v=111");
+    openManualSealedEntry({ name: "151 Booster Bundle", language: "de" });
+  });
+  await expect(
+    page.getByRole("heading", { name: "Enter unopened product" }),
+  ).toBeVisible();
+  await expect(page.locator("#manualSealedLanguage option")).toHaveCount(10);
+  await expect(page.locator("#manualSealedLanguage")).toHaveValue("de");
+  await expect(page.locator("#sheetContent")).toContainText(
+    "provider search is unavailable",
+  );
+  await expect(page.locator("#sheetContent")).toContainText(
+    "marked for review",
+  );
+});
+
+test("market values carry compact source, context, freshness, and confidence", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const disclosure = await page.evaluate(async () => {
+    const { priceProvenanceText } = await import("/app.js?v=111");
+    const quote = {
+      provider: "tcgplayer",
+      market: "tcgplayer",
+      aggregator: "pkmnprices",
+      currency: "USD",
+      finish: "holofoil",
+      condition: "Near Mint",
+      priceType: "market",
+      amount: 100,
+      observedAt: new Date().toISOString(),
+      retrievedAt: new Date().toISOString(),
+    };
+    return {
+      live: priceProvenanceText({
+        cardState: "raw",
+        condition: "Near Mint",
+        variant: "Holofoil",
+        currency: "USD",
+        pricingStatus: "live",
+        price: 100,
+        quotes: [quote],
+      }),
+      manual: priceProvenanceText({ pricingStatus: "manual" }),
+    };
+  });
+  expect(disclosure.live).toContain("TCGplayer via PkmnPrices");
+  expect(disclosure.live).toContain("Like new");
+  expect(disclosure.live).toContain("live");
+  expect(disclosure.live).toContain("Limited evidence");
+  expect(disclosure.manual).toContain("Owner-entered value");
+  expect(disclosure.manual).toContain("no market source");
+});
+
+test("trade values never relabel stale or owner-entered evidence as live", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const result = await page.evaluate(async () => {
+    const { tradePricingSeed } = await import("/app.js?v=111");
+    return {
+      live: tradePricingSeed(
+        { price: 100, pricingStatus: "live", quotes: [] },
+        90,
+      ),
+      stale: tradePricingSeed(
+        { price: 100, pricingStatus: "stale", quotes: [] },
+        90,
+      ),
+      manual: tradePricingSeed(
+        { price: 100, pricingStatus: "manual_override", quotes: [] },
+        90,
+      ),
+    };
+  });
+  expect(result.live).toMatchObject({
+    canPrefill: true,
+    pricingStatus: "live",
+    valuePerCard: "90.00",
+  });
+  expect(result.stale).toMatchObject({
+    canPrefill: false,
+    pricingStatus: "loading",
+    valuePerCard: "",
+    price: null,
+  });
+  expect(result.manual).toMatchObject({
+    canPrefill: true,
+    pricingStatus: "manual",
+    valuePerCard: "90.00",
+  });
 });
 
 test("adding a catalog card requires confirmation of its stable exact version", async ({
@@ -221,7 +509,7 @@ test("adding a catalog card requires confirmation of its stable exact version", 
   await revealShell(page, "view-scan");
   await page.evaluate(
     async ({ normalId, reverseId }) => {
-      const { openPositionSheet } = await import("/app.js?v=108");
+      const { openPositionSheet } = await import("/app.js?v=111");
       openPositionSheet({
         id: "tcgdex:en:sv03.5-025",
         cardId: "33333333-3333-4333-8333-333333333333",
@@ -256,11 +544,11 @@ test("adding a catalog card requires confirmation of its stable exact version", 
   ).toBeVisible();
   const selector = page.locator("#positionVariantChoice");
   await expect(selector).toBeVisible();
-  await expect(selector.locator("option")).toHaveCount(2);
+  await expect(selector.getByRole("radio")).toHaveCount(2);
   await expect(page.locator("#sheetContent")).toContainText(
     "Confirm the printing shown on your card",
   );
-  await selector.selectOption(reverseId);
+  await selector.getByRole("radio", { name: /Reverse Holofoil/ }).check();
   await expect(page.locator("#positionVariantId")).toHaveValue(reverseId);
   await expect(page.locator("#positionVariant")).toHaveValue(
     "Reverse Holofoil",
@@ -273,7 +561,7 @@ test("collapsed collection filters are excluded from arrow navigation", async ({
   await page.goto("/");
   await revealShell(page, "view-collection");
   const visibleTargets = await page.evaluate(async () => {
-    const { visibleCollectionViewTabs } = await import("/app.js?v=108");
+    const { visibleCollectionViewTabs } = await import("/app.js?v=111");
     return visibleCollectionViewTabs().map(
       (tab) => tab.dataset.conditionFilter || tab.dataset.ledgerView,
     );
@@ -314,7 +602,7 @@ test("onboarding contains focus, leaves the app inert, and can be skipped", asyn
   await page.goto("/");
   await revealShell(page, "view-dashboard");
   await page.evaluate(async () => {
-    const { openOnboarding } = await import("/app.js?v=108");
+    const { openOnboarding } = await import("/app.js?v=111");
     openOnboarding();
   });
   await expect(page.locator("#onboardingDialog")).toHaveAttribute(
@@ -328,10 +616,12 @@ test("onboarding contains focus, leaves the app inert, and can be skipped", asyn
   expect(await page.locator("#appShell").evaluate((node) => node.inert)).toBe(
     true,
   );
-  await expect(page.locator('input[name="goal"]').first()).toBeFocused();
+  await expect(
+    page.locator('input[name="softwareMode"]').first(),
+  ).toBeFocused();
   await expect(page.getByRole("button", { name: "Skip setup" })).toBeVisible();
   await expect(page.locator("#onboardingDescription")).toContainText(
-    "do not currently hide, unlock, or automate",
+    "You can change this anytime",
   );
 });
 
@@ -543,12 +833,62 @@ test("research capture consent stays optional and separate from normal grading",
   await expect(page.locator("#gradingResearchConsentState")).toHaveText("Off");
 });
 
+test("grading-to-sale lifecycle and calibration remain readable across the supported shell", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await revealShell(page, "view-collection");
+  await page.evaluate(() => {
+    const host = document.querySelector("#cardLedger");
+    host.innerHTML = `
+      <article class="detail-section grading-lifecycle" aria-labelledby="testLifecycleTitle">
+        <div class="detail-section-head"><h2 id="testLifecycleTitle">Grading-to-sale lifecycle</h2><span>Evidence analyzed</span></div>
+        <ol class="grading-lifecycle-track">
+          <li class="complete"><i aria-hidden="true"></i><span>Grading candidate</span></li>
+          <li class="current"><i aria-hidden="true"></i><span>Evidence analyzed</span></li>
+          <li class="pending"><i aria-hidden="true"></i><span>Selected to submit</span></li>
+          <li class="pending"><i aria-hidden="true"></i><span>Submitted</span></li>
+          <li class="pending"><i aria-hidden="true"></i><span>Returned</span></li>
+          <li class="pending"><i aria-hidden="true"></i><span>Final disposition</span></li>
+        </ol>
+        <div class="grading-lifecycle-summary">
+          <div><span>Photo evidence</span><strong>4 captures</strong><small>Recommendation withheld · 1 correction recorded</small></div>
+          <div><span>Submission</span><strong>Not submitted</strong><small>Costs remain editable estimates</small></div>
+          <div><span>Professional return</span><strong>Not returned</strong><small>Certification not recorded</small></div>
+          <div><span>Current disposition</span><strong>Evidence analyzed</strong><small>Updated value unavailable</small></div>
+        </div>
+        <p class="legal-copy">Digital estimates are never official grades.</p>
+      </article>`;
+  });
+  await expect(
+    page.getByRole("heading", { name: "Grading-to-sale lifecycle" }),
+  ).toBeVisible();
+  await expect(page.locator(".grading-lifecycle-track li")).toHaveCount(6);
+  await expect(page.locator(".grading-lifecycle")).toContainText(
+    "Recommendation withheld",
+  );
+  let audit = await layoutAudit(page);
+  expect(audit.overflow).toBeLessThanOrEqual(0);
+  expect(audit.textBelowFloor).toEqual([]);
+  expect(audit.outsideViewport).toEqual([]);
+
+  await revealShell(page, "view-profile");
+  await expect(page.locator("#gradingCalibrationSummary")).toBeVisible();
+  await expect(page.locator("#gradingCalibrationSummary")).toContainText(
+    "Checking linked grading returns",
+  );
+  audit = await layoutAudit(page);
+  expect(audit.overflow).toBeLessThanOrEqual(0);
+  expect(audit.textBelowFloor).toEqual([]);
+  expect(audit.outsideViewport).toEqual([]);
+});
+
 test("portable grading report renders as a complete estimate-labeled image", async ({
   page,
 }, testInfo) => {
   await page.goto("/");
   const result = await page.evaluate(async () => {
-    const { gradingReportImageBlob } = await import("/app.js");
+    const { gradingReportImageBlob } = await import("/app.js?v=111");
     const subscores = ["centering", "corners", "edges", "surface"].map(
       (category, index) => ({
         category,
@@ -601,4 +941,141 @@ test("portable grading report renders as a complete estimate-labeled image", asy
     body: await page.screenshot({ fullPage: true }),
     contentType: "image/png",
   });
+});
+
+test("Add card saves in one step and retries safely without exposing server errors", async ({
+  page,
+}) => {
+  const requests = [];
+  await page.route("**/app-config.js*", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: 'globalThis.__APP_CONFIG__ = {supabaseUrl:"https://mica-ui-test.supabase.co",supabasePublishableKey:"fixture-key"};',
+    }),
+  );
+  await page.route("https://mica-ui-test.supabase.co/**", async (route) => {
+    if (!route.request().url().endsWith("/rpc/create_collection_position")) {
+      await route.fulfill({ contentType: "application/json", body: "[]" });
+      return;
+    }
+    requests.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: requests.length === 1 ? 503 : 200,
+      contentType: "application/json",
+      body:
+        requests.length === 1
+          ? JSON.stringify({
+              message: "internal relation collection_items failed",
+              code: "XX000",
+            })
+          : JSON.stringify("44444444-4444-4444-8444-444444444444"),
+    });
+  });
+  await page.goto("/");
+  await revealShell(page, "view-scan");
+  await page.evaluate(async () => {
+    const { openPositionSheet } = await import("/app.js?v=111");
+    openPositionSheet({
+      name: "Pikachu",
+      set: "151",
+      number: "025/165",
+      language: "en",
+      variant: "Normal",
+    });
+  });
+  await page.getByRole("button", { name: "Add card", exact: true }).click();
+  await expect(page.locator("#positionError")).toContainText(
+    "Your details are still here",
+  );
+  expect(requests).toHaveLength(1);
+  expect(requests[0].p_card_state).toBe("raw");
+  expect(requests[0].p_identity.acquisitionCostKnown).toBe(false);
+  expect(requests[0].p_raw_condition).toBeNull();
+  await expect(page.locator("#positionTotalCost")).toHaveValue("");
+  await expect(page.locator("#sheetContent")).not.toContainText(
+    "collection_items",
+  );
+  await expect(page.locator(".new-card-grade-choice")).toHaveCount(0);
+  await page.getByRole("button", { name: "Add card", exact: true }).click();
+  await expect(page.locator("#positionForm")).not.toBeVisible();
+  expect(requests).toHaveLength(2);
+  expect(requests[1]).toEqual({
+    ...requests[0],
+    p_identity: {
+      ...requests[0].p_identity,
+      ingestion: {
+        ...requests[0].p_identity.ingestion,
+        confirmedAt: expect.any(String),
+      },
+    },
+  });
+});
+
+test("optional grading stays separate from the default add action and slab details remain required", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await revealShell(page, "view-scan");
+  await page.evaluate(async () => {
+    const { openPositionSheet } = await import("/app.js?v=111");
+    openPositionSheet({
+      name: "Pikachu",
+      set: "151",
+      number: "025/165",
+      language: "en",
+      variant: "Normal",
+    });
+  });
+  await expect(page.locator("#positionGradeFirst")).toBeVisible();
+  await page.locator("#positionState").selectOption("graded");
+  await expect(page.locator("#positionGradeFirst")).not.toBeVisible();
+  await expect(page.locator("#positionGrader")).toHaveAttribute("required", "");
+  await expect(page.locator("#positionGrade")).toHaveAttribute("required", "");
+  await page.getByRole("button", { name: "Add card", exact: true }).click();
+  await expect(page.locator("#positionForm")).toBeVisible();
+  expect(
+    await page
+      .locator("#positionGrader")
+      .evaluate((node) => node.validity.valueMissing),
+  ).toBe(true);
+  await page.locator("#positionState").selectOption("raw");
+  await expect(page.locator("#positionGradeFirst")).toBeVisible();
+  await expect(page.locator("#positionCondition")).toHaveValue("unknown");
+  await page.locator("#positionGradeFirst").click();
+  await expect(page.locator("#positionForm")).toBeVisible();
+  await expect(page.locator("#positionGradeFirst")).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Add card", exact: true }),
+  ).toBeEnabled();
+  await expect(page.locator("#positionTotalCost")).toHaveValue("");
+  const audit = await layoutAudit(page);
+  expect(audit.overflow).toBeLessThanOrEqual(0);
+  expect(audit.undersizedMobileButtons).toEqual([]);
+});
+
+test("onboarding saves from the first screen and preserves choices when saving fails", async ({
+  page,
+}) => {
+  await page.route("**/app-config.js*", (route) =>
+    route.fulfill({
+      contentType: "application/javascript",
+      body: "globalThis.__APP_CONFIG__ = {};",
+    }),
+  );
+  await page.goto("/");
+  await revealShell(page, "view-dashboard");
+  await page.evaluate(async () =>
+    (await import("/app.js?v=111")).openOnboarding(),
+  );
+  await page.locator('input[name="softwareMode"][value="seller"]').check();
+  await page.getByRole("button", { name: "Get started" }).click();
+  await expect(page.locator("#onboardingError")).toHaveText(
+    "Couldn’t save your preferences. Please try again.",
+  );
+  await expect(
+    page.locator('input[name="softwareMode"][value="seller"]'),
+  ).toBeChecked();
+  await expect(page.getByRole("button", { name: "Get started" })).toBeEnabled();
+  await expect(page.locator(".onboarding-tour")).toHaveCount(0);
+  await expect(page.locator("#onboardingDialog")).not.toContainText("getUser");
 });

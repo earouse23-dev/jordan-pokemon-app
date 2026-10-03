@@ -1,3 +1,4 @@
+import { withNativeCors } from "../lib/native-cors.js";
 import { normalizeCardImageSource } from "../lib/image-source.js";
 
 const ALLOWED_IMAGE_TYPES = new Set([
@@ -75,7 +76,7 @@ export function cardImageProxyPath(value) {
     : null;
 }
 
-export default async function handler(request, response) {
+async function handler(request, response) {
   response.setHeader("X-Content-Type-Options", "nosniff");
   if (request.method !== "GET") {
     response.setHeader("Allow", "GET");
@@ -139,3 +140,5 @@ export default async function handler(request, response) {
       .json({ error: "Image source is temporarily unavailable" });
   }
 }
+
+export default withNativeCors(handler, ["GET"]);

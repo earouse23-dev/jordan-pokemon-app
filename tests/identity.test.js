@@ -11,9 +11,17 @@ import {
   collectibleIdentitySnapshot,
   normalizeVariantOption,
   resolveIdentityCandidates,
+  sealedProductMatches,
   selectVariantOption,
   variantDifferenceFields,
 } from "../lib/identity.js";
+
+test("sealed provider refresh cannot substitute language, type or package variant", () => {
+  const saved = { id: "sealed:42", cardState: "sealed", name: "Crown Zenith Elite Trainer Box", set: "Crown Zenith", language: "ja", productType: "elite_trainer_box", sealedVariant: "Pokemon Center", sealedRegion: "JP" };
+  assert.equal(sealedProductMatches(saved, { ...saved, language: "Japanese" }), true);
+  for (const change of [{ language: "en" }, { productType: "booster_box" }, { sealedVariant: "Standard" }, { sealedRegion: null }, { name: "Another Box" }])
+    assert.equal(sealedProductMatches(saved, { ...saved, ...change }), false);
+});
 
 const benchmark = JSON.parse(
   await readFile(
@@ -129,4 +137,55 @@ test("a close variant can never win when an observed discriminator conflicts", (
   );
   assert.equal(result.status, "unsupported");
   assert.equal(result.recommendedId, null);
+});
+
+test("profile action snapshots keep language, finish, and unknown distinctions exact", () => {
+  const base = {
+    id: "shared-provider-id",
+    name: "Pikachu",
+    set: "Test Set",
+    number: "25/100",
+  };
+  const snapshots = [
+    ["en-reverse", "en", "reverse_holofoil"],
+    ["en-holo", "en", "holofoil"],
+    ["ja-reverse", "ja", "reverse_holofoil"],
+    ["ja-holo", "ja", "holofoil"],
+  ].map(([id, language, finish]) =>
+    collectibleIdentitySnapshot(
+      {
+        ...base,
+        language,
+        variantId: id,
+        variantOptions: [
+          {
+            id,
+            collectibleId: id,
+            label: finish,
+            finish,
+            edition: "unknown",
+            promoType: "unknown",
+            language,
+            status: "needs_review",
+          },
+        ],
+      },
+      id,
+    ),
+  );
+  assert.equal(new Set(snapshots.map((item) => item.variantId)).size, 4);
+  assert.deepEqual(
+    snapshots.map(({ language, finish, edition, promoType }) => ({
+      language,
+      finish,
+      edition,
+      promoType,
+    })),
+    [
+      { language: "en", finish: "reverse_holofoil", edition: "unknown", promoType: "unknown" },
+      { language: "en", finish: "holofoil", edition: "unknown", promoType: "unknown" },
+      { language: "ja", finish: "reverse_holofoil", edition: "unknown", promoType: "unknown" },
+      { language: "ja", finish: "holofoil", edition: "unknown", promoType: "unknown" },
+    ],
+  );
 });

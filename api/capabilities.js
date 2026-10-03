@@ -1,9 +1,11 @@
+import { withNativeCors } from "../lib/native-cors.js";
 import { serverEnvironment } from "../lib/env.js";
+import { notificationDeliveryCapabilities } from "../lib/notification-delivery.js";
 import gradingPilotHandler, {
   gradingDeletionCronHandler,
 } from "../lib/grading-pilot-api.js";
 
-export default async function handler(request, response) {
+async function handler(request, response) {
   if (request.query?.surface === "grading-pilot")
     return gradingPilotHandler(request, response);
   if (request.query?.surface === "grading-deletion")
@@ -15,7 +17,7 @@ export default async function handler(request, response) {
   }
   try {
     const config = serverEnvironment();
-    const pricingConnected = Boolean(config.pkmnpricesApiKey);
+    const pricingConnected = false;
     const expandedPricingRequested =
       pricingConnected && ["pro", "business"].includes(config.pkmnpricesPlan);
     const requestedCapabilityStatus = expandedPricingRequested
@@ -44,19 +46,12 @@ export default async function handler(request, response) {
           german: requestedCapabilityStatus,
         },
       },
+      notifications: { inApp: "active", email: "release_hold", webPush: "release_hold" },
       vision: {
-        status: config.aiGatewayApiKey
-          ? "connected"
-          : process.env.VERCEL
-            ? "vercel_managed"
-            : "setup_required",
+        status: "release_hold",
       },
       advisor: {
-        status: config.aiGatewayApiKey
-          ? "connected"
-          : process.env.VERCEL
-            ? "vercel_managed"
-            : "setup_required",
+        status: "release_hold",
         privacy: "aggregate_signals_only",
       },
       push: { status: "development_only" },
@@ -65,3 +60,5 @@ export default async function handler(request, response) {
     return response.status(500).json({ error: "Configuration is invalid" });
   }
 }
+
+export default withNativeCors(handler, ["GET"]);

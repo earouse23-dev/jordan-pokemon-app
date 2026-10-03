@@ -1,10 +1,31 @@
 import {
+  appFetch as fetch,
+  initializeNative,
+  nativeBuild,
+  nativeRuntime,
+} from "./lib/native-runtime.js";
+import {
+  notificationTimeZone,
+  enableDevicePush,
+  disableDevicePush,
+  devicePushStatus,
+} from "./lib/web-push-client.js";
+import {
+  orderedRequiredCaptures,
+  nextMissingCaptureIndex,
+  replaceRequiredCapture,
+} from "./lib/grading-capture.js";
+import { compareGradingOutcome } from "./lib/grading-economics.js";
+import { cardPriceHistoryWindow } from "./lib/price-history.js";
+import {
   money,
   calculateTotals,
   collectionToCsv,
   collectionWindow,
+  COLLECTION_IMPORT_FIELDS,
   accountBackupJson,
   importRecordKey,
+  inspectCollectionCsv,
   parseCollectionCsv,
   portfolioSnapshot,
   runBoundedTasks,
@@ -14,22 +35,54 @@ import {
   localIsoDate,
   matchesSearch,
   ownedCardSummary,
-  sameCatalogCard,
+  sameCatalogPrinting,
 } from "./lib/core.js";
 import {
+  buildCollectionImportPreview,
+  chunkImportRows,
+  confirmIngestionEnvelope,
+  createIngestionEnvelope,
+  sha256Text,
+} from "./lib/ingestion.js";
+import {
+  calculateCollectionGoal,
+  filterCollectionOrganization,
+  groupCollectionOrganization,
+  normalizeCustomFields,
+  normalizeSavedView,
+  previewBulkOrganization,
+  sortCollectionOrganization,
+} from "./lib/collection-organization.js";
+import {
+  DEFAULT_ACTION_THRESHOLDS,
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  actionRuleKinds,
+  evaluateActionRules,
+  normalizeNotificationPreferences,
+} from "./lib/action-center.js";
+import {
+  modeCollectionDefault,
+  normalizeSoftwareMode,
+  softwareModeConfig,
+  softwareModePreference,
+} from "./lib/software-modes.js";
+import {
+  exactSoldValuation,
   finishForVariant,
-  gradedPriceLadder,
   mergePriceHistory,
   normalizePriceCapabilityStatus,
   portfolioPriceCoverage,
   priceEvidence,
   priceFreshness,
   priceMovement,
+  safeMarketSourceUrl,
   selectCardmarketReference,
   selectReferenceQuote,
 } from "./lib/pricing.js";
+import { convertIndicative, fxAgeDays, usableFxRate } from "./lib/fx.js";
 import {
   acquisitionFromTotal,
+  toMinorUnits,
   allocateFifo,
   batchAcquisitionPlan,
   blendedPosition,
@@ -45,6 +98,8 @@ import {
   listingReadiness,
   listingReviewItems,
   marketAdjustedPortfolioHistory,
+  portfolioProfitLoss,
+  portfolioProfitLossHistory,
   portfolioActions,
   portfolioReview,
   positionPerformance,
@@ -57,6 +112,8 @@ import {
   watchPerformance,
 } from "./lib/portfolio.js";
 import {
+  gradedCopyContextKey,
+  gradedCopyGroup,
   graderCertificationLookup,
   normalizeGrade,
   normalizeGrader,
@@ -64,9 +121,9 @@ import {
 } from "./lib/domain.js";
 import {
   collectibleIdentitySnapshot,
+  sealedProductMatches,
   normalizeVariantOption,
   selectVariantOption,
-  variantDifferenceFields,
   variantOptionSummary,
 } from "./lib/identity.js";
 import {
@@ -83,30 +140,53 @@ import {
   submissionRecommendation,
 } from "./lib/grading.js";
 import {
-  analyzeCardGuideGeometry,
-  detectCardBoundaryFromPixels,
+  deriveGradingLifecycle,
+  evaluateGradingConfidence,
+  gradingExpectedValueScenario,
+  gradingLifecycleLabel,
+  normalizeGradingCorrection,
+} from "./lib/grading-lifecycle.js";
+import {
+  cardCameraConstraints,
+  configureCardCamera,
+  detectDocumentBoundaryFromPixels,
+  documentBoundsFromCorners,
+  documentRecognitionRegions,
   evaluatePsa10Centering,
   measureDeviceLevel,
   measurePrintedBorderCentering,
-  normalizedCardCrop,
+  rectifyDocumentPixels,
   scoreGradeableCameraFrame,
+  shouldKeepCameraFrame,
   summarizeGradeableFrameSequence,
 } from "./lib/capture-precision.js";
 import {
+  archiveCollectionGoal,
   bulkOrganizePositions,
+  beginCollectionImport,
+  commitCollectionImport,
   completeUnknownPurchaseLot,
   confirmGradingPrediction,
   createAppSupabase,
+  createCollectionAttachmentDownloadUrl,
   createGradingScanSession,
   createIdentifiedGradePosition,
-  createImportedPosition,
   createPosition,
   createWatchlistEntry,
+  deleteCollectionPositionAttachment,
+  deleteCollectionView,
   deletePosition,
   deleteWatchlistEntry,
   loadDiagnostics,
+  loadActionCenter,
+  loadCollectionOrganization,
+  loadCollectionPositionAttachments,
+  loadCollectionSearchPage,
+  loadGradingCalibrationSummary,
   loadGradingReports,
   loadIdentityCorrections,
+  loadImportMappingProfile,
+  loadRecentCollectionImports,
   loadRecentGradingSessions,
   loadGradingResearchConsent,
   loadProfile,
@@ -114,24 +194,39 @@ import {
   loadPortfolioValuationHistory,
   loadWatchlist,
   recordGradingResult,
+  recordGradingInputCorrection,
+  recordGradingLifecycleDecision,
+  recordGradingSubmissionBatch,
+  recordIngestionEvent,
   recordProfessionalGradingOutcome,
   recordGradingSubmission,
   recordPortfolioValuationSnapshot,
   recordPurchaseLot,
   recordSale,
+  recordSoftwareModeEvent,
+  rollbackCollectionImport,
   remapCollectionPosition,
   revertIdentityCorrection,
   resendSignupConfirmation,
   setPurchaseMarketReference,
   sendPasswordReset,
   saveGradingScanReport,
+  saveActionCenterPreferences,
+  saveWebPushSubscription,
+  removeWebPushSubscription,
   saveGradingFeedback,
   saveGradingResearchConsent,
+  saveCollectionFolder,
+  saveCollectionCustomField,
+  saveCollectionGoal,
+  saveCollectionView,
   saveProfile,
+  saveImportMappingProfile,
   signInWithPassword,
   signOut,
   signUpWithPassword,
   splitCollectionPosition,
+  stageCollectionImportRows,
   updateGradingSubmission,
   updateGradingSessionIdentity,
   updateGradingSessionCaptureProgress,
@@ -139,14 +234,31 @@ import {
   updateAccountPassword,
   updatePosition,
   updateWatchlistEntry,
+  transitionActionItem,
+  undoCollectionOrganization,
+  uploadCollectionPositionAttachment,
   uploadGradingResearchCapture,
   uploadGradingOutcomeProof,
   uploadGradingReportThumbnail,
+  previewCollectionImport,
+  upsertActionCenterSnapshot,
   deleteGradingOutcomeProof,
   deleteGradingReportThumbnail,
 } from "./lib/supabase-data.js";
 
-const supabase = createAppSupabase();
+let nativeBootError = "";
+if (nativeBuild) {
+  try {
+    await initializeNative();
+  } catch {
+    nativeBootError =
+      "Mica could not start securely. Restart the app to retry.";
+  }
+}
+const supabase = nativeBootError ? null : createAppSupabase();
+let nativeAppActive = true;
+let activeCameraLifecycle = null;
+let nativePositionDraft = null;
 const UUID_PATTERN = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 let chartInstance = null;
 let chartMountVersion = 0;
@@ -161,9 +273,11 @@ let activeMotionCleanup = null;
 let activeCameraInputCleanup = null;
 let motionPreference = "auto";
 let targetAlertsEnabled = false;
-let workspaceMode = "unified";
+let workspaceMode = "collector";
 let uiTheme = "mica";
 let sessionLoadVersion = 0;
+let largeCollectionRequestVersion = 0;
+let pendingActionDestinationApplied = false;
 try {
   const savedMotion = localStorage.getItem("mica-motion-preference");
   if (["auto", "reduce", "full"].includes(savedMotion))
@@ -290,10 +404,24 @@ let catalog = [
 const state = {
   items: [],
   portfolioHistory: [],
-  portfolioHistoryMode: "return",
-  portfolioHistoryRange: "3m",
+  portfolioHistoryMode: "pnl",
+  portfolioHistoryCurrency: "USD",
+  portfolioHistoryRange: "1m",
   portfolioHistoryStatus: "idle",
   watchlist: [],
+  actionCenter: {
+    status: "idle",
+    items: [],
+    preferences: {
+      ...DEFAULT_NOTIFICATION_PREFERENCES,
+      thresholds: DEFAULT_ACTION_THRESHOLDS,
+    },
+    capabilities: {
+      inApp: "active",
+      email: "available_after_configuration",
+      webPush: "adapter_ready_requires_configuration",
+    },
+  },
   setCatalogs: new Map(),
   setCatalogLoading: new Set(),
   session: null,
@@ -302,16 +430,42 @@ const state = {
   ledgerView: "all",
   query: "",
   sort: "value-desc",
+  groupBy: "none",
   setFilter: "",
   conditionFilter: "",
   labelFilter: "",
+  collectionFilter: "",
+  locationFilter: "",
   languageFilter: "",
   graderFilter: "",
   gradeFilter: "",
   performanceFilter: "",
+  movementFilter: "",
+  coverageFilter: "",
+  minimumProfitLoss: "",
+  maximumProfitLoss: "",
+  purchaseDateFrom: "",
+  purchaseDateTo: "",
   acquisitionFilter: "",
   minimumValue: "",
   maximumValue: "",
+  organization: {
+    status: "idle",
+    folders: [],
+    savedViews: [],
+    goals: [],
+    goalEvents: [],
+    operations: [],
+    customFields: [],
+    summary: {},
+    attachments: new Map(),
+  },
+  largeInventory: {
+    active: false,
+    totalCount: 0,
+    nextCursor: null,
+    loading: false,
+  },
   bulkMode: false,
   bulkSelected: new Set(),
   visiblePositionIds: [],
@@ -319,6 +473,12 @@ const state = {
   visibleKey: "",
   detailId: null,
   detailCard: null,
+  detailSelectionKey: "",
+  detailRequestVersion: 0,
+  detailValuationContext: null,
+  detailPricing: null,
+  detailSales: null,
+  detailFx: null,
   detailReturnRoute: "scan",
   detailCanPop: false,
   lastFocus: null,
@@ -337,15 +497,19 @@ const state = {
     otherSellingCosts: 0,
     collectorGoal: "collecting",
     experienceLevel: "beginner",
+    softwareMode: "collector",
   },
   visionDestination: null,
   digitalGradeTargetId: null,
   pendingCardAdd: null,
+  intakeQueue: [],
   gradingReports: new Map(),
   gradingActivity: [],
   gradingActivityPreviews: new Map(),
   gradingCaptureDrafts: new Map(),
   gradingActivityStatus: "idle",
+  gradingCalibration: [],
+  gradingCalibrationStatus: "idle",
   gradingResearchConsent: false,
   gradingMode: "full",
   chartRange: "all",
@@ -375,6 +539,22 @@ const accountRequestIsCurrent = (ownerId, loadVersion) =>
   Boolean(ownerId) &&
   state.session?.user?.id === ownerId &&
   sessionLoadVersion === loadVersion;
+const emptyActionCenter = (status = "idle") => ({
+  status,
+  items: [],
+  preferences: {
+    ...DEFAULT_NOTIFICATION_PREFERENCES,
+    channels: { ...DEFAULT_NOTIFICATION_PREFERENCES.channels },
+    quietHours: { ...DEFAULT_NOTIFICATION_PREFERENCES.quietHours },
+    mutedKinds: [],
+    thresholds: { ...DEFAULT_ACTION_THRESHOLDS },
+  },
+  capabilities: {
+    inApp: "active",
+    email: "available_after_configuration",
+    webPush: "adapter_ready_requires_configuration",
+  },
+});
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 
@@ -394,10 +574,24 @@ const workflowDefault = (key) => {
     return "";
   }
 };
+const ingestionFailureReason = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+  if (!navigator.onLine) return "offline";
+  if (message.includes("dry check")) return "server_preview_mismatch";
+  if (message.includes("validation")) return "validation_failed";
+  if (message.includes("permission")) return "permission_denied";
+  if (message.includes("timeout") || message.includes("network"))
+    return "network_failure";
+  return "unexpected_failure";
+};
+const logIngestionEvent = (input) => {
+  if (!supabase || !state.session?.user?.id || !input?.sessionId) return;
+  void recordIngestionEvent(supabase, input).catch(() => {});
+};
 
 function collectionViewStorageKey() {
   const owner = state.session?.user?.id;
-  return owner ? `mica-collection-view-${owner}` : "";
+  return owner ? `mica-collection-view-${owner}-${workspaceMode}` : "";
 }
 
 function saveCollectionViewState() {
@@ -410,13 +604,22 @@ function saveCollectionViewState() {
         ledgerView: state.ledgerView,
         query: state.query,
         sort: state.sort,
+        groupBy: state.groupBy,
         setFilter: state.setFilter,
         conditionFilter: state.conditionFilter,
         labelFilter: state.labelFilter,
+        collectionFilter: state.collectionFilter,
+        locationFilter: state.locationFilter,
         languageFilter: state.languageFilter,
         graderFilter: state.graderFilter,
         gradeFilter: state.gradeFilter,
         performanceFilter: state.performanceFilter,
+        movementFilter: state.movementFilter,
+        coverageFilter: state.coverageFilter,
+        minimumProfitLoss: state.minimumProfitLoss,
+        maximumProfitLoss: state.maximumProfitLoss,
+        purchaseDateFrom: state.purchaseDateFrom,
+        purchaseDateTo: state.purchaseDateTo,
         acquisitionFilter: state.acquisitionFilter,
         minimumValue: state.minimumValue,
         maximumValue: state.maximumValue,
@@ -435,13 +638,22 @@ function restoreCollectionViewState() {
       "ledgerView",
       "query",
       "sort",
+      "groupBy",
       "setFilter",
       "conditionFilter",
       "labelFilter",
+      "collectionFilter",
+      "locationFilter",
       "languageFilter",
       "graderFilter",
       "gradeFilter",
       "performanceFilter",
+      "movementFilter",
+      "coverageFilter",
+      "minimumProfitLoss",
+      "maximumProfitLoss",
+      "purchaseDateFrom",
+      "purchaseDateTo",
       "acquisitionFilter",
       "minimumValue",
       "maximumValue",
@@ -466,6 +678,7 @@ const languageName = (code) =>
   ({
     en: "English",
     ja: "Japanese",
+    jp: "Japanese",
     fr: "French",
     de: "German",
     es: "Spanish",
@@ -475,20 +688,159 @@ const languageName = (code) =>
     id: "Indonesian",
     th: "Thai",
   })[String(code || "").toLowerCase()] || String(code || "English");
-const recommendedWorkspace = (preferences = state.preferences) =>
-  preferences?.experienceLevel === "professional"
-    ? "pro"
-    : preferences?.experienceLevel === "familiar"
-      ? "growth"
-      : "guided";
-function applyProfileDetailDefault() {
-  try {
-    if (localStorage.getItem("mica-detail-level-version") === "2") return;
-    applyWorkspaceMode(recommendedWorkspace());
-    localStorage.setItem("mica-detail-level-version", "2");
-  } catch {
-    applyWorkspaceMode(recommendedWorkspace());
-  }
+const identityFieldLabel = (value, unknown = "Unknown") => {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!normalized || normalized === "unknown") return unknown;
+  if (normalized === "none") return "None confirmed";
+  if (normalized === "firstedition") return "1st Edition";
+  return normalized
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+    .replace("Non Holo", "Non-holo")
+    .replace("First Edition", "1st Edition");
+};
+
+function selectedPrinting(item = {}) {
+  const option = selectVariantOption(
+    item,
+    item.variantId || item.collectibleId || item.variant,
+  );
+  const missing =
+    option.metadata.identityEvidence === "missing_detailed_variant";
+  const detailed =
+    option.metadata.identityEvidence === "tcgdex_detailed_variant";
+  const conflicting =
+    detailed &&
+    ["finish", "edition", "promoType", "language"].some(
+      (field) => item[field] && item[field] !== option[field],
+    );
+  return normalizeVariantOption(
+    {
+      ...option,
+      label: item.variant || option.label,
+      finish: missing
+        ? "unknown"
+        : detailed
+          ? option.finish
+          : item.finish || option.finish,
+      edition: missing
+        ? "unknown"
+        : detailed
+          ? option.edition
+          : item.edition || option.edition,
+      promoType: missing
+        ? "unknown"
+        : detailed
+          ? option.promoType
+          : item.promoType || option.promoType,
+      language: item.language || option.language,
+      status:
+        missing || conflicting || (detailed && option.status !== "exact")
+          ? "needs_review"
+          : item.identityStatus || option.status,
+      metadata: item.variantMetadata || option.metadata,
+    },
+    { language: item.language },
+  );
+}
+
+function detailIdentityKey(item = {}) {
+  const printing = selectedPrinting(item);
+  return [
+    item.collectibleId || printing.collectibleId || "",
+    item.variantId || printing.id || "",
+    item.catalogIdentityId || item.id || "",
+    item.name || "",
+    item.set || "",
+    item.number || "",
+    item.language || printing.language,
+    printing.finish,
+    printing.edition,
+    printing.promoType,
+  ]
+    .map((value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase(),
+    )
+    .join("|");
+}
+
+function valuationContextForItem(item = {}, { catalogPreview = false } = {}) {
+  const currency = item.currency || "USD";
+  if (item.cardState === "sealed" || item.productType)
+    return {
+      cardState: "sealed",
+      condition: "",
+      gradingCompany: "",
+      grade: "",
+      currency,
+    };
+  if (!catalogPreview && item.cardState === "graded")
+    return {
+      cardState: "graded",
+      condition: "",
+      gradingCompany: item.gradingCompany || item.grader || "",
+      grade: String(item.grade ?? ""),
+      gradeQualifier: item.gradeQualifier ?? null,
+      currency,
+    };
+  const normalizedCondition = normalizeRawCondition(
+    item.rawCondition || item.condition,
+  ).normalized;
+  return {
+    cardState: "raw",
+    condition:
+      catalogPreview || normalizedCondition === "unknown"
+        ? ""
+        : item.condition || "",
+    gradingCompany: "",
+    grade: "",
+    currency,
+  };
+}
+
+function detailContextKey(context = {}) {
+  return [
+    context.cardState || "raw",
+    context.condition || "",
+    context.gradingCompany || "",
+    context.grade ?? "",
+    context.gradeQualifier ?? "<unknown>",
+    context.currency || "USD",
+  ]
+    .map((value) => String(value).trim().toLowerCase())
+    .join("|");
+}
+
+function detailContextReady(context = {}) {
+  if (context.cardState === "sealed") return true;
+  if (context.cardState === "graded")
+    return Boolean(
+      context.gradingCompany && String(context.grade || "").trim(),
+    );
+  return Boolean(context.condition);
+}
+
+function beginDetailRequest(item, context = state.detailValuationContext) {
+  const guard = {
+    version: ++state.detailRequestVersion,
+    selectionKey: detailIdentityKey(item),
+    contextKey: detailContextKey(context),
+  };
+  return guard;
+}
+
+function detailRequestIsCurrent(guard) {
+  return Boolean(
+    guard &&
+    state.route === "detail" &&
+    state.detailRequestVersion === guard.version &&
+    state.detailSelectionKey === guard.selectionKey &&
+    detailContextKey(state.detailValuationContext) === guard.contextKey,
+  );
 }
 const normalizeIdentity = (value) =>
   String(value ?? "")
@@ -771,122 +1123,62 @@ function reportEvidenceCarouselMarkup({
 }
 
 function compactSubmissionDecision(item, prediction = {}, micaScore = {}) {
-  const predictedGrade =
-    prediction.validated === true &&
-    Number.isFinite(
-      Number(prediction.mostLikelyGrade ?? prediction.most_likely_grade),
-    )
-      ? Number(prediction.mostLikelyGrade ?? prediction.most_likely_grade)
-      : Number.isFinite(Number(micaScore.score))
-        ? Math.max(1, Math.min(10, Math.round(Number(micaScore.score))))
-        : null;
-  const rawValue = Number(item?.price);
-  const probabilityRows =
-    prediction.validated === true && Array.isArray(prediction.probabilities)
-      ? prediction.probabilities
-          .map((row) => ({
-            grade: Number(row.grade),
-            probability: Number(row.probability),
-          }))
-          .filter(
-            (row) =>
-              PSA_NUMERIC_LABELS.includes(row.grade) &&
-              Number.isFinite(row.probability) &&
-              row.probability > 0,
-          )
-      : [];
-  const pricedOutcomes = probabilityRows.map((row) => ({
-    ...row,
-    quote: item ? gradingQuote(item, "PSA", String(row.grade)) : null,
-  }));
-  const pricedProbability = pricedOutcomes.reduce(
-    (sum, row) => sum + (row.quote ? row.probability : 0),
-    0,
-  );
-  const expectedQuote =
-    probabilityRows.length && pricedProbability >= 0.98
-      ? {
-          amount: pricedOutcomes.reduce(
-            (sum, row) => sum + row.quote.amount * row.probability,
-            0,
-          ),
-          currency:
-            pricedOutcomes.find((row) => row.quote)?.quote.currency ||
-            item?.currency ||
-            "USD",
-        }
-      : null;
-  const usesProbabilityWeightedValue = Boolean(expectedQuote);
-  const quote =
-    expectedQuote ||
-    (item && predictedGrade != null
-      ? gradingQuote(item, "PSA", String(predictedGrade))
-      : null);
   const service = gradingServices.PSA[0];
-  const gradingCostMinor = gradingEstimate({
-    serviceFee: service?.fee,
-    quantity: 1,
+  const probabilities =
+    prediction.probabilities || prediction.grade_probabilities || [];
+  const scenario = gradingExpectedValueScenario({
+    prediction: {
+      ...prediction,
+      evidenceProfile:
+        prediction.evidenceProfile || prediction.evidence_profile || {},
+      probabilities,
+      stability: prediction.stability || micaScore.stability || {},
+    },
+    rawValue: item?.price,
+    gradedComparables: probabilities.map((row) => ({
+      grade: row.grade,
+      amount: item
+        ? gradingQuote(item, "PSA", String(row.grade))?.amount
+        : null,
+    })),
+    gradingFee: service?.fee,
     shipping: 0,
     insurance: 0,
+    marketplaceFeePercent: state.preferences.sellingFeePercent || 0,
+    otherSellingCosts: state.preferences.otherSellingCosts || 0,
+    currency: item?.currency || "USD",
   });
-  const financial =
-    Number.isFinite(rawValue) &&
-    rawValue > 0 &&
-    quote &&
-    gradingCostMinor != null
-      ? gradingDecision({
-          rawValue,
-          expectedGradedValue: quote.amount,
-          quantity: 1,
-          gradingCost: gradingCostMinor,
-        })
-      : null;
-  if (!financial || predictedGrade == null)
+  if (scenario.status !== "supported") {
+    const confidenceReasons = scenario.confidence.reasons.join(" ");
+    const missingMarket = scenario.missingInputs.some((input) =>
+      ["raw_value", "graded_comparables"].includes(input),
+    );
     return {
       answer: "Maybe",
       tone: "maybe",
-      reason:
-        "Mica is missing an exact raw value, matching graded sale value, or grading cost, so it cannot calculate a responsible return yet. Add the missing live market data before paying to submit.",
-      financial: { available: false, predictedGrade },
+      reason: confidenceReasons
+        ? `${confidenceReasons} Mica withholds a submit recommendation until the confidence standard passes.`
+        : missingMarket
+          ? "More raw and graded price data is needed to estimate a return."
+          : "Mica is missing a required fee or cost input, so it cannot calculate a responsible return yet.",
+      financial: { available: false, scenario },
     };
-  const gradeLabel =
-    prediction.validated === true
-      ? `predicted professional grade ${predictedGrade}`
-      : `digital grade ${Number(micaScore.score).toFixed(1)}`;
-  const rawLabel = money(rawValue, item.currency || "USD");
-  const gradedLabel = money(quote.amount, quote.currency || "USD");
-  const costLabel = money(gradingCostMinor / 100, "USD");
-  if (prediction.validated !== true)
-    return {
-      answer: "Maybe",
-      tone: "maybe",
-      reason: `Mica measured a ${gradeLabel}; the live raw value is ${rawLabel}, the exact PSA ${predictedGrade} value is ${gradedLabel}, and the base grading fee is ${costLabel}. Professional-grade odds are not validated yet, so inspect the card in hand before submitting.`,
-      financial: {
-        available: true,
-        predictedGrade,
-        valueAddedMinor: financial.valueAddedMinor,
-      },
-    };
-  if (financial.valueAddedMinor <= 0)
+  }
+  const rawLabel = money(scenario.inputs.rawValue, scenario.inputs.currency);
+  const grossLabel = money(scenario.expectedGross, scenario.inputs.currency);
+  const costLabel = money(scenario.submissionCosts, scenario.inputs.currency);
+  if (scenario.recommendation !== "consider")
     return {
       answer: "No",
       tone: "no",
-      reason: `Mica predicts ${gradeLabel}, but the ${gradedLabel} ${usesProbabilityWeightedValue ? "probability-weighted " : "most-likely-grade "}value minus the ${rawLabel} raw value and ${costLabel} base grading fee does not produce a gain. Shipping, insurance, and selling fees would reduce the result further.`,
-      financial: {
-        available: true,
-        predictedGrade,
-        valueAddedMinor: financial.valueAddedMinor,
-      },
+      reason: `The calibrated probability-weighted graded value is ${grossLabel}. After ${costLabel} in entered submission costs and the saved selling-cost assumptions, it does not exceed the ${rawLabel} ungraded value. Turnaround is shown but no time value or tax is invented.`,
+      financial: { available: true, scenario },
     };
   return {
     answer: "Yes",
     tone: "yes",
-    reason: `Mica predicts ${gradeLabel}; the ${gradedLabel} ${usesProbabilityWeightedValue ? "probability-weighted " : "most-likely-grade "}value exceeds the ${rawLabel} raw value plus the ${costLabel} base grading fee by ${money(financial.valueAddedMinor / 100, "USD")}. Confirm the visible defects in hand and add shipping, insurance, and selling fees before submitting.`,
-    financial: {
-      available: true,
-      predictedGrade,
-      valueAddedMinor: financial.valueAddedMinor,
-    },
+    reason: `The calibrated probability-weighted graded value is ${grossLabel}. After ${costLabel} in entered submission costs and the saved selling-cost assumptions, the expected lift over the ${rawLabel} ungraded value is ${money(scenario.expectedLift, scenario.inputs.currency)}. Confirm every defect, price, and fee in hand before paying.`,
+    financial: { available: true, scenario },
   };
 }
 
@@ -935,7 +1227,7 @@ function compactGradingReportMarkup({
   });
   const basisLabel = resolvedPregrade.validatedPsaProbabilities
     ? "Probability-weighted PSA outcome"
-    : "Visible-condition measurement";
+    : "Photo-based estimate";
   const outcomeLabel =
     prediction.validated === true && Number.isFinite(likelyGrade)
       ? `Most likely PSA result · PSA ${likelyGrade}`
@@ -1064,7 +1356,10 @@ function openPsaOutcomeLinkSheet(session, item) {
           path: existing.proof_storage_path,
         }).catch(() => {});
       closeSheet({ discardHistory: true });
-      await refreshGradingActivity();
+      await Promise.all([
+        refreshGradingActivity(),
+        refreshGradingCalibration(),
+      ]);
       toast("PSA return attached for independent review");
     } catch (error) {
       if (uploaded?.path)
@@ -1112,6 +1407,9 @@ function openGradingActivityReport(sessionId, loadedSession = null) {
     high: prediction.condition_high ?? reportSnapshot.micaConditionScore?.high,
   };
   const images = item.image ? [{ src: item.image, side: "front" }] : [];
+  const corrections = Array.isArray(session.corrections)
+    ? session.corrections
+    : [];
   const compactReport = compactGradingReportMarkup({
     item,
     images,
@@ -1138,10 +1436,25 @@ function openGradingActivityReport(sessionId, loadedSession = null) {
           : prediction.professional_prediction_status,
       validated: prediction.professional_prediction_status === "validated",
       mostLikelyGrade: prediction.most_likely_grade,
+      probabilities: prediction.grade_probabilities || [],
+      evidenceProfile: prediction.evidence_profile || {},
     },
   });
+  const correctionHistoryMarkup = corrections.length
+    ? `<details class="report-card-data grading-correction-history"><summary>User corrections · ${corrections.length}</summary><ol>${corrections
+        .map(
+          (correction) =>
+            `<li><strong>${esc(correction.correction_type.replaceAll("_", " "))}</strong><span>${esc(correction.reason)}</span><time>${esc(String(correction.created_at).slice(0, 10))}</time></li>`,
+        )
+        .join(
+          "",
+        )}</ol><p>Your original report and corrections are saved.</p></details>`
+    : "";
+  const correctionButton = session.collection_item_id
+    ? '<button class="secondary" id="correctSavedGradingReport" type="button">Correct inputs</button>'
+    : "";
   openSheet(
-    `<div class="saved-grade-report compact-report"><div class="grading-report-top"><div><span>Report ${esc(session.id.slice(0, 8).toUpperCase())}</span><strong>${esc(item.name)}</strong><small>${esc([item.set, item.number].filter(Boolean).join(" · ") || "Exact printing verified")} · ${esc(date || "date unavailable")}</small></div><button class="sheet-close" type="button" aria-label="Close report">×</button></div>${compactReport}<details class="report-card-data"><summary>Report details</summary><dl><div><dt>Language / variant</dt><dd>${esc([item.language, item.variant].filter(Boolean).join(" · ") || "Unavailable")}</dd></div><div><dt>Model bundle</dt><dd>${esc(prediction.model_bundle_version || session.model_bundle_version || "Mica grading")}</dd></div><div><dt>Photo retention</dt><dd>Private card-only thumbnail</dd></div><div><dt>Report type</dt><dd>Digital estimate, not an official grade</dd></div><div><dt>PSA return</dt><dd>${esc(session.outcomes?.find((outcome) => outcome.professional_grader === "PSA")?.returned_label || "Not attached")}</dd></div></dl></details><div class="sheet-actions saved-report-actions"><button class="secondary" id="shareSavedGradingReport" type="button">Share report</button><button class="secondary" id="attachPsaOutcome" type="button">${session.outcomes?.some((outcome) => outcome.professional_grader === "PSA") ? "Update PSA return" : "Attach PSA return"}</button><button class="primary sheet-close" type="button">Done</button></div></div>`,
+    `<div class="saved-grade-report compact-report"><div class="grading-report-top"><div><span>Report ${esc(session.id.slice(0, 8).toUpperCase())}</span><strong>${esc(item.name)}</strong><small>${esc([item.set, item.number].filter(Boolean).join(" · ") || "Exact printing verified")} · ${esc(date || "date unavailable")}</small></div><button class="sheet-close" type="button" aria-label="Close report">×</button></div>${compactReport}<details class="report-card-data"><summary>Report details</summary><dl><div><dt>Language / variant</dt><dd>${esc([item.language, item.variant].filter(Boolean).join(" · ") || "Unavailable")}</dd></div><div><dt>Model bundle</dt><dd>${esc(prediction.model_bundle_version || session.model_bundle_version || "Mica grading")}</dd></div><div><dt>Photo retention</dt><dd>Private card-only thumbnail</dd></div><div><dt>Report type</dt><dd>Digital estimate, not an official grade</dd></div><div><dt>PSA return</dt><dd>${esc(session.outcomes?.find((outcome) => outcome.professional_grader === "PSA")?.returned_label || "Not attached")}</dd></div></dl></details>${correctionHistoryMarkup}<div class="sheet-actions saved-report-actions"><button class="secondary" id="shareSavedGradingReport" type="button">Share report</button>${correctionButton}<button class="secondary" id="attachPsaOutcome" type="button">${session.outcomes?.some((outcome) => outcome.professional_grader === "PSA") ? "Update PSA return" : "Attach PSA return"}</button><button class="primary sheet-close" type="button">Done</button></div></div>`,
   );
   $("#bottomSheet").dataset.experience = "grading";
   $("#shareSavedGradingReport")?.addEventListener("click", async (event) => {
@@ -1175,6 +1488,110 @@ function openGradingActivityReport(sessionId, loadedSession = null) {
   $("#attachPsaOutcome")?.addEventListener("click", () =>
     openPsaOutcomeLinkSheet(session, item),
   );
+  $("#correctSavedGradingReport")?.addEventListener("click", () =>
+    openGradingCorrectionSheet(session, item),
+  );
+}
+
+function gradingCorrectionTargets(session, correctionType) {
+  const prediction = session.prediction || {};
+  if (correctionType === "defect")
+    return (session.evidence || []).map((entry, index) => ({
+      id: entry.id,
+      label: `${index + 1}. ${entry.defect_category || "finding"} · ${entry.severity || "unrated"}`,
+      original: {
+        category: entry.defect_category,
+        severity: entry.severity,
+        region: entry.region,
+        description: entry.description,
+      },
+    }));
+  if (correctionType === "subscore")
+    return (prediction.subscores || []).map((entry, index) => ({
+      id: String(index),
+      label: `${entry.category || `Area ${index + 1}`} · ${savedSubscoreRange(entry)}`,
+      original: entry,
+    }));
+  if (correctionType === "grade_range")
+    return [
+      {
+        id: "grade-range",
+        label: "Saved grade range and probability inputs",
+        original: {
+          low: prediction.condition_low,
+          high: prediction.condition_high,
+          probabilities: prediction.grade_probabilities || [],
+        },
+      },
+    ];
+  return [
+    {
+      id: "economics",
+      label: "Saved grading economics",
+      original: prediction.financial_snapshot || {},
+    },
+  ];
+}
+
+function openGradingCorrectionSheet(session, item, selectedEvidenceId = null) {
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Correct grading inputs</h2><p>${esc(item.name)} · the original report stays unchanged</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingCorrectionForm"><div class="form-grid"><div class="field"><label for="gradingCorrectionType">Input type</label><select id="gradingCorrectionType" name="correctionType"><option value="defect">Visible defect</option><option value="grade_range">Grade range or probability</option><option value="subscore">Condition subscore</option><option value="economics">Cost or value assumption</option></select></div><div class="field"><label for="gradingCorrectionTarget">Input to correct</label><select id="gradingCorrectionTarget" name="target"></select></div><div class="field full"><label for="gradingCorrectedValue">Corrected value</label><textarea id="gradingCorrectedValue" name="correctedValue" maxlength="2000" required placeholder="Enter the corrected category, severity, range, probability, fee, value, or timing assumption."></textarea></div><div class="field full"><label for="gradingCorrectionReason">Evidence for the correction</label><textarea id="gradingCorrectionReason" name="reason" maxlength="1000" required placeholder="Describe what you verified on the physical card, label, receipt, or listing."></textarea></div><p class="form-error" id="gradingCorrectionError" role="alert"></p></div><div class="info-copy"><p>Your original report is kept. Your correction stays private.</p></div><div class="sheet-actions"><button class="secondary sheet-close" type="button">Cancel</button><button class="primary" type="submit">Save correction</button></div></form>`,
+  );
+  const type = $("#gradingCorrectionType");
+  const target = $("#gradingCorrectionTarget");
+  const syncTargets = () => {
+    const targets = gradingCorrectionTargets(session, type.value);
+    target.innerHTML = targets.length
+      ? targets
+          .map(
+            (entry) =>
+              `<option value="${esc(entry.id)}" ${entry.id === selectedEvidenceId ? "selected" : ""}>${esc(entry.label)}</option>`,
+          )
+          .join("")
+      : '<option value="">No saved input of this type</option>';
+    target.disabled = !targets.length;
+  };
+  type.addEventListener("change", syncTargets);
+  syncTargets();
+  $("#gradingCorrectionForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.currentTarget));
+    const selected = gradingCorrectionTargets(
+      session,
+      data.correctionType,
+    ).find((entry) => entry.id === data.target);
+    const correction = normalizeGradingCorrection({
+      correctionType: data.correctionType,
+      originalValue: selected?.original,
+      correctedValue: { statement: data.correctedValue?.trim() },
+      reason: data.reason,
+    });
+    if (!selected || !correction || !data.correctedValue?.trim()) {
+      $("#gradingCorrectionError").textContent =
+        "Choose a saved input and enter both the corrected value and its evidence.";
+      return;
+    }
+    const submit = event.currentTarget.querySelector('[type="submit"]');
+    submit.disabled = true;
+    $("#gradingCorrectionError").textContent = "Saving correction…";
+    try {
+      await recordGradingInputCorrection(supabase, {
+        scanSessionId: session.id,
+        evidenceId: data.correctionType === "defect" ? selected.id : null,
+        ...correction,
+      });
+      closeSheet({ discardHistory: true });
+      const owned = state.items.find(
+        (candidate) => candidate.uid === session.collection_item_id,
+      );
+      if (owned) await loadOwnedGradingReports(owned);
+      toast("Correction saved beside the original report");
+    } catch (error) {
+      submit.disabled = false;
+      $("#gradingCorrectionError").textContent =
+        error.message || "The correction could not be saved.";
+    }
+  });
 }
 
 function continueGradingActivity(sessionId) {
@@ -1189,10 +1606,7 @@ function continueGradingActivity(sessionId) {
   const gradingMode = "full";
   state.gradingMode = "full";
   const draft = state.gradingCaptureDrafts.get(session.id) || [];
-  const nextIndex = Math.min(
-    fullDigitalGradeCaptureSteps.length - 1,
-    draft.length,
-  );
+  const nextIndex = nextMissingCaptureIndex(draft);
   if (
     !draft.length &&
     (session.capture_progress?.completedCaptureTypes || []).length
@@ -1285,6 +1699,10 @@ function recordPriceObservation(item, quote, providerHistory = []) {
   ).slice(-1000);
 }
 function itemValue(item) {
+  if (item.cardState === "graded" || item.gradingCompany) {
+    const estimate = portfolioUnitPrice(item);
+    return estimate === null ? null : estimate * Number(item.quantity || 0);
+  }
   return item.price == null ||
     !["live", "manual", "manual_override"].includes(item.pricingStatus)
     ? null
@@ -1301,7 +1719,17 @@ function itemPurchasePerformance(item, currentUnitPrice = item?.price) {
     currentUnitPrice === null ||
     currentUnitPrice === undefined ||
     !Number.isFinite(paid) ||
-    !Number.isFinite(current)
+    !Number.isFinite(current) ||
+    (item?.lots || []).some(
+      (lot) =>
+        Number(lot.quantityRemaining) > 0 &&
+        (lot.costBasisKnown === false ||
+          lot.currency !== (item.currency || "USD") ||
+          (toMinorUnits(lot.remainingCost) ??
+            (Number(lot.quantityRemaining) === Number(lot.quantityAcquired)
+              ? toMinorUnits(lot.totalCost)
+              : null)) === null),
+    )
   )
     return null;
   const change = current - paid;
@@ -1375,10 +1803,111 @@ function priceStatusText(item) {
   return "Matching market price unavailable";
 }
 
-function applyWorkspaceMode(_mode, { announce = false } = {}) {
-  workspaceMode = "unified";
-  document.body.dataset.workspace = "unified";
-  if (announce) toast("Advanced tools are available in Settings");
+function modeViewIsSaved(mode) {
+  const owner = state.session?.user?.id;
+  if (!owner) return false;
+  try {
+    return Boolean(
+      localStorage.getItem(`mica-collection-view-${owner}-${mode}`),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function restoreModeCollectionView(mode) {
+  if (modeViewIsSaved(mode)) return restoreCollectionViewState();
+  const defaults = modeCollectionDefault(mode);
+  state.ledgerView = defaults.ledgerView;
+  state.sort = defaults.sort;
+  state.groupBy = "none";
+  state.query = "";
+  state.setFilter = "";
+  state.conditionFilter = "";
+  state.labelFilter = "";
+  state.collectionFilter = "";
+  state.locationFilter = "";
+  state.languageFilter = "";
+  state.graderFilter = "";
+  state.gradeFilter = "";
+  state.performanceFilter = "";
+  state.movementFilter = "";
+  state.coverageFilter = "";
+  state.acquisitionFilter = "";
+  state.minimumValue = "";
+  state.maximumValue = "";
+  state.minimumProfitLoss = "";
+  state.maximumProfitLoss = "";
+  state.purchaseDateFrom = "";
+  state.purchaseDateTo = "";
+  return 0;
+}
+
+function applyWorkspaceMode(mode, { announce = false } = {}) {
+  workspaceMode = normalizeSoftwareMode(mode, state.preferences);
+  const config = softwareModeConfig(workspaceMode);
+  document.body.dataset.workspace = workspaceMode;
+  document.body.dataset.softwareMode = workspaceMode;
+  const select = $("#softwareModeSelect");
+  if (select) select.value = workspaceMode;
+  $$("[data-software-mode]").forEach((button) => {
+    const active = button.dataset.softwareMode === workspaceMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  $$("[data-sidebar-target]").forEach((button) =>
+    button.classList.toggle(
+      "mode-emphasis",
+      button.dataset.sidebarTarget === config.navigationTarget,
+    ),
+  );
+  renderSoftwareModeHome();
+  syncWorkspaceChrome();
+  if (announce) toast(`${config.label} mode is now your default`);
+}
+
+export async function switchSoftwareMode(
+  mode,
+  { source = "settings", persist = true, announce = true } = {},
+) {
+  const nextMode = normalizeSoftwareMode(mode, state.preferences);
+  const previousMode = workspaceMode;
+  if (nextMode === previousMode) {
+    applyWorkspaceMode(nextMode);
+    return true;
+  }
+  saveCollectionViewState();
+  const previousPreferences = state.preferences;
+  state.preferences = { ...state.preferences, softwareMode: nextMode };
+  applyWorkspaceMode(nextMode, { announce });
+  restoreModeCollectionView(nextMode);
+  syncTabs();
+  renderCollection();
+  renderDashboardHighlights();
+  routeTo("dashboard", { sidebarTarget: "dashboard" });
+  if (!persist || !state.session) return true;
+  try {
+    state.profile = await saveProfile(supabase, {
+      displayName: profileDisplayName(),
+      preferences: state.preferences,
+    });
+    state.preferences = state.profile.preferences;
+    void recordSoftwareModeEvent(supabase, {
+      fromMode: previousMode,
+      toMode: nextMode,
+      source,
+    }).catch(() => {});
+    return true;
+  } catch (error) {
+    state.preferences = previousPreferences;
+    applyWorkspaceMode(previousMode);
+    restoreModeCollectionView(previousMode);
+    syncTabs();
+    renderCollection();
+    renderDashboardHighlights();
+    toast(error.message || "Your mode could not be saved");
+    return false;
+  }
 }
 
 function applyUiTheme(_theme, { announce = false } = {}) {
@@ -1446,13 +1975,133 @@ function quotePricingFields(quote, card, item) {
 
 function selectPositionQuote(quotes, item) {
   const sealed = item.cardState === "sealed" || Boolean(item.productType);
-  if (!sealed && !item.gradingCompany && !item.condition) return null;
+  const rawCondition = normalizeRawCondition(
+    item.rawCondition || item.condition,
+  ).normalized;
+  if (
+    !sealed &&
+    !item.gradingCompany &&
+    (!item.condition || rawCondition === "unknown")
+  )
+    return null;
   return selectReferenceQuote(
     quotes,
     item.variant,
     item.currency || "USD",
     sealed ? {} : item,
   );
+}
+
+function marketDisplayName(value) {
+  return (
+    {
+      cardmarket: "Cardmarket",
+      ebay: "eBay sold",
+      pkmnprices: "PkmnPrices",
+      tcgdex: "TCGdex",
+      tcgplayer: "TCGplayer",
+    }[String(value || "").toLowerCase()] || String(value || "Unknown source")
+  );
+}
+
+export function priceProvenanceText(item) {
+  if (["manual", "manual_override"].includes(item?.pricingStatus))
+    return "Owner-entered value · no market source, freshness, or confidence";
+  const quote = selectPositionQuote(item?.quotes || [], item || {});
+  if (!quote) return priceStatusText(item || {});
+  const freshness = priceFreshness(quote);
+  const report = priceEvidence(
+    item.quotes || [],
+    item.variant,
+    item.currency || quote.currency || "USD",
+    item.cardState === "sealed"
+      ? {}
+      : item.gradingCompany
+        ? { gradingCompany: item.gradingCompany, grade: item.grade }
+        : { condition: item.condition || quote.condition || "" },
+  );
+  const market = marketDisplayName(quote.market || quote.provider);
+  const aggregator = marketDisplayName(
+    quote.aggregator || quote.quality?.aggregator || quote.provider,
+  );
+  const context =
+    item.cardState === "sealed"
+      ? "unopened"
+      : quote.gradingCompany
+        ? `${String(quote.gradingCompany).toUpperCase()} ${quote.grade}`
+        : quote.condition
+          ? conditionLabel(quote.condition)
+          : "wear not specified";
+  const timing =
+    freshness.status === "live"
+      ? `live ${friendlyObservedAt(freshness.observedAt)}`
+      : `stale reference ${friendlyObservedAt(freshness.observedAt)}`;
+  return `${market} via ${aggregator} · ${context} · ${timing} · ${report.label}`;
+}
+
+function itemWithPriceEvidence(item) {
+  const ownerEntered = ["manual", "manual_override"].includes(
+    item?.pricingStatus,
+  );
+  const quote = ownerEntered
+    ? null
+    : selectPositionQuote(item?.quotes || [], item || {});
+  const report = quote
+    ? priceEvidence(
+        item.quotes || [],
+        item.variant,
+        item.currency || quote.currency || "USD",
+        item.cardState === "sealed"
+          ? {}
+          : item.gradingCompany
+            ? { gradingCompany: item.gradingCompany, grade: item.grade }
+            : { condition: item.condition || quote.condition || "" },
+      )
+    : null;
+  return {
+    ...item,
+    referenceProvider: quote
+      ? marketDisplayName(quote.market || quote.provider)
+      : "",
+    referenceAggregator: quote
+      ? marketDisplayName(
+          quote.aggregator || quote.quality?.aggregator || quote.provider,
+        )
+      : "",
+    referenceObservedAt:
+      quote?.observedAt || quote?.retrievedAt || item?.pricingUpdatedAt || "",
+    referenceRetrievedAt: quote?.retrievedAt || "",
+    pricingConfidence: report?.label || "",
+    pricingConfidenceScore: report?.confidenceScore ?? null,
+  };
+}
+
+export function tradePricingSeed(card, tradeValuePercent = 90) {
+  const numericPrice = Number(card?.price);
+  const hasPrice =
+    card?.price !== null &&
+    card?.price !== undefined &&
+    card?.price !== "" &&
+    Number.isFinite(numericPrice) &&
+    numericPrice >= 0;
+  const matchingQuote = selectPositionQuote(card?.quotes || [], card || {});
+  const sourceStatus =
+    card?.pricingStatus ||
+    (matchingQuote ? priceFreshness(matchingQuote).status : "") ||
+    (hasPrice ? "manual" : "loading");
+  const pricingStatus = ["manual", "manual_override"].includes(sourceStatus)
+    ? "manual"
+    : sourceStatus;
+  const canPrefill = hasPrice && ["live", "manual"].includes(pricingStatus);
+  return {
+    canPrefill,
+    pricingStatus: canPrefill ? pricingStatus : "loading",
+    valuePerCard: canPrefill
+      ? (numericPrice * (Number(tradeValuePercent) / 100)).toFixed(2)
+      : "",
+    referencePrice: hasPrice ? numericPrice : null,
+    price: canPrefill ? numericPrice : null,
+  };
 }
 
 function renderQuoteRow(quote, label) {
@@ -1465,8 +2114,9 @@ function renderQuoteRow(quote, label) {
       "unknown",
   );
   const market = String(quote.market || quote.provider || "unknown");
-  const source = quote.providerUrl
-    ? `<a href="${esc(quote.providerUrl)}" target="_blank" rel="noreferrer">${esc(label)}</a>`
+  const sourceUrl = safeMarketSourceUrl(quote.providerUrl, market);
+  const source = sourceUrl
+    ? `<a href="${esc(sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(label)} source</a>`
     : `<strong>${esc(label)}</strong>`;
   return `<div class="price-source"><div>${source}<span>${esc(quote.finish)} · ${esc(quote.condition ? conditionLabel(quote.condition) : "Wear not specified")} · ${esc(quote.currency)}</span><span>${esc(market)} market via ${esc(aggregator)} · ${freshness.band === "live" ? "live" : freshness.band === "aging" ? "aging" : "stale"}</span><span>Price dated ${esc(friendlyObservedAt(freshness.observedAt))} · checked ${esc(friendlyObservedAt(quote.retrievedAt))}</span></div><div class="source-value"><b>${money(quote.amount, quote.currency)}</b><small>${esc(quote.attribution)}</small></div></div>`;
 }
@@ -1506,16 +2156,270 @@ function renderPriceEvidence(item, context) {
   return `<section class="price-confidence ${report.level}" aria-label="How reliable this price is"><div class="price-confidence-head"><div><span>How reliable is this price?</span><strong>${esc(report.label)}</strong></div><b>${Math.round(report.confidenceScore * 100)}% evidence confidence</b></div><p>${esc(report.summary)}</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>${esc(agreement)}</span><span>${esc(range)}</span><span>${esc(freshness)}</span><span>${report.liveSourceCount} live of ${report.sourceCount} matching market${report.sourceCount === 1 ? "" : "s"}</span></div></section>`;
 }
 
+const gradingComparisonDrafts = new Map();
+
+function gradingComparisonKey(item) {
+  return `${state.session?.user?.id || "guest"}:${item.uid || item.id || [item.name, item.set, item.number].join("|")}:${item.variantId || item.variant}:${item.language}`;
+}
+
+function gradingComparisonQuote(item, grade) {
+  const quotes = (item.quotes || []).filter(
+    (quote) =>
+      quote.priceType === "market" &&
+      Number.isFinite(quote.amount) &&
+      quote.amount >= 0 &&
+      priceFreshness(quote).status === "live" &&
+      (grade || (!quote.gradingCompany && quote.condition === item.condition)),
+  );
+  return grade
+    ? selectReferenceQuote(quotes, item.variant, "USD", {
+        gradingCompany: "PSA",
+        grade: String(grade),
+      })
+    : item.gradingCompany || !item.condition
+      ? null
+      : selectReferenceQuote(quotes, item.variant, "USD", {
+          condition: item.condition,
+        });
+}
+
+function renderGradingComparison(item) {
+  if (item.cardState === "sealed" || item.productType) return "";
+  const draft = gradingComparisonDrafts.get(gradingComparisonKey(item)) || {};
+  const rawQuote = gradingComparisonQuote(item, null);
+  const rawValue = draft.raw ?? currencyInputValue(rawQuote?.amount);
+  return `<details class="detail-tool-group" data-detail-tool="grading-comparison"><summary><span><strong>Compare grading outcomes</strong><small>PSA 8, 9 and 10 · after your costs</small></span><b>Compare</b></summary><div class="detail-tool-content"><section class="grading-comparison" aria-label="Grading outcome calculator"><p>Compare selling raw with three possible grades. These are scenarios, not predicted grades.</p><div class="form-grid"><div class="field"><label for="compareRaw">Raw sale value · USD</label><input id="compareRaw" data-grading-comparison="raw" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(rawValue)}" placeholder="Enter a value"><small id="compareRawSource">${draft.raw != null ? "Your estimate" : rawQuote ? esc(`${rawQuote.market || rawQuote.provider} · ${friendlyObservedAt(rawQuote.observedAt || rawQuote.retrievedAt)}`) : "No current matching raw price"}</small></div><div class="field"><label for="compareCost">Grading + shipping per card · USD</label><input id="compareCost" data-grading-comparison="cost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(draft.cost ?? "")}" placeholder="Enter all-in cost"></div><div class="field full"><label for="compareFee">Selling fee · %</label><input id="compareFee" data-grading-comparison="fee" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${esc(draft.fee ?? "")}" placeholder="Enter fee, or 0"><small>Same fee rate for raw and graded sales. Include grading, round-trip shipping and other fixed costs above.</small></div></div><div class="grading-outcomes">${[
+    8, 9, 10,
+  ]
+    .map((grade) => {
+      const quote = gradingComparisonQuote(item, grade);
+      return `<article class="grading-outcome"><label for="compareGrade${grade}">PSA ${grade}</label><div class="money-input"><span>$</span><input id="compareGrade${grade}" data-grading-comparison="grade${grade}" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(draft[`grade${grade}`] ?? currencyInputValue(quote?.amount))}" placeholder="No price yet"></div><small data-comparison-source="grade${grade}">${draft[`grade${grade}`] != null ? "Your estimate" : quote ? esc(`${quote.market || quote.provider} · ${friendlyObservedAt(quote.observedAt || quote.retrievedAt)}`) : "No current matching price"}</small><div data-comparison-result="${grade}"></div></article>`;
+    })
+    .join(
+      "",
+    )}</div><p class="chart-context" id="gradingComparisonStatus" role="status" aria-live="polite">Enter your costs and sale values to compare.</p></section></div></details>`;
+}
+
+function bindGradingComparison(item) {
+  const root = document.querySelector(".grading-comparison");
+  if (!root) return;
+  const key = gradingComparisonKey(item);
+  const fields = [...root.querySelectorAll("[data-grading-comparison]")];
+  const update = () => {
+    const values = Object.fromEntries(
+      fields.map((input) => [input.dataset.gradingComparison, input.value]),
+    );
+    let count = 0;
+    for (const grade of [8, 9, 10]) {
+      const result = compareGradingOutcome({
+        rawValue: values.raw,
+        gradedValue: values[`grade${grade}`],
+        gradingCost: values.cost,
+        sellingFeePercent: values.fee,
+      });
+      const output = root.querySelector(`[data-comparison-result="${grade}"]`);
+      output.innerHTML = result
+        ? `<strong class="${result.differenceMinor >= 0 ? "positive" : "negative"}">${result.differenceMinor >= 0 ? "+" : "−"}${money(Math.abs(result.differenceMinor) / 100)}</strong><span>vs selling raw</span><small>After entered costs: ${money(result.gradedNetMinor / 100)}<br>Break-even sale: ${money(result.breakEvenGradedMinor / 100)}</small>`
+        : "<strong>—</strong><span>Value and costs needed</span>";
+      if (result) count++;
+    }
+    root.querySelector("#gradingComparisonStatus").textContent = count
+      ? `${count} scenario${count === 1 ? "" : "s"} calculated. A higher grade is not guaranteed.`
+      : "Enter non-negative values and costs, and a fee below 100%. Missing prices stay blank.";
+  };
+  fields.forEach((input) =>
+    input.addEventListener("input", () => {
+      const draft = gradingComparisonDrafts.get(key) || {};
+      draft[input.dataset.gradingComparison] = input.value;
+      gradingComparisonDrafts.set(key, draft);
+      const source =
+        input.id === "compareRaw"
+          ? root.querySelector("#compareRawSource")
+          : root.querySelector(
+              `[data-comparison-source="${input.dataset.gradingComparison}"]`,
+            );
+      if (source) source.textContent = "Your estimate";
+      update();
+    }),
+  );
+  update();
+}
+
 function renderGradedPriceLadder(item) {
   if (item.cardState === "sealed") return "";
-  const rows = gradedPriceLadder(item.quotes, item.variant, "USD");
-  const ownedGrade = item.gradingCompany
-    ? `${String(item.gradingCompany).toUpperCase()}:${item.grade}`
-    : "";
-  const content = rows.length
-    ? `<div class="grade-ladder">${rows.map((row) => `<div class="grade-ladder-row${ownedGrade === `${row.grader}:${row.grade}` ? " current" : ""}"><div><strong>${esc(row.grader)} ${esc(row.grade)}</strong><span>${esc(row.priceType)} · ${esc(row.provider)}${row.observedAt ? ` · ${esc(String(row.observedAt).slice(0, 10))}` : ""}</span></div><b>${money(row.amount, row.currency)}</b></div>`).join("")}</div>`
-    : `<div class="pro-data-empty"><strong>Ready for professionally graded prices</strong><p>When PkmnPrices Pro is connected, matching PSA, BGS, and CGC prices will appear here. Mica will not use an ungraded price or another grade.</p></div>`;
-  return `<section class="detail-section advanced-workspace"><div class="detail-section-head"><h2>Prices by professional grade</h2><span>${rows.length ? `${rows.length} matching grade price${rows.length === 1 ? "" : "s"}` : "PkmnPrices-ready"}</span></div>${content}</section>`;
+  const rows = [...PSA_NUMERIC_LABELS]
+    .sort((a, b) => b - a)
+    .map((grade) => {
+      const currency = item.currency || "USD";
+      const evidence = item.psaPriceEvidence?.[`${grade}|${currency}`];
+      const summary = exactSoldValuation(
+        evidence?.sales || [],
+        exactSaleContext(item, {
+          gradingCompany: "PSA",
+          grade: String(grade),
+          gradeQualifier: "",
+          currency,
+        }),
+        {
+          validatedContext: evidence?.validatedContext,
+          retrievedAt: evidence?.retrievedAt,
+          hasMore: evidence?.hasMore,
+          providerStatus:
+            evidence?.status === "error" ? "error" : evidence?.status,
+        },
+      );
+      const status = evidence?.status;
+      const label =
+        status === "loading"
+          ? "Checking…"
+          : status === "error"
+            ? "Try again"
+            : "Check sales";
+      const note =
+        summary.distinctSaleCount && ["error", "unavailable"].includes(status)
+          ? "Couldn’t refresh. Previous sales shown."
+          : status === "error"
+            ? "Couldn’t check this grade."
+            : status === "unavailable"
+              ? "Sale evidence unavailable."
+              : status === "ready" && !summary.distinctSaleCount
+                ? "No usable matching sales returned."
+                : summary.distinctSaleCount
+                  ? `${summary.distinctSaleCount} eligible sale${summary.distinctSaleCount === 1 ? "" : "s"}${summary.estimate === null ? " · at least 3 needed" : summary.status === "stale" ? " · older sales" : ""}`
+                  : "Not checked";
+      return `<div class="grade-ladder-row"><div><strong>PSA ${grade}</strong><span>${esc(note)}</span>${summary.evidence.length ? `<details data-psa-sale-details="${grade}"><summary>View sale evidence</summary><ul>${summary.evidence.map((sale) => `<li><a href="${esc(sale.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(sale.soldAt.slice(0, 10))} · ${money(sale.amount, sale.currency)}${sale.outlierReview?.flagged ? " · unusual price excluded" : ""}</a></li>`).join("")}</ul></details>` : ""}</div><div><b>${summary.estimate === null ? "—" : money(summary.estimate, currency)}</b><button class="inline-retry" type="button" data-psa-price="${grade}" aria-disabled="${status === "loading"}" aria-label="${label} for PSA ${grade}">${label}</button></div></div>`;
+    })
+    .join("");
+  return `<section class="detail-section" id="psaPriceEvidence"><p class="chart-context">Each estimate needs at least three exact completed sales in ${esc(item.currency || "USD")} within 90 days. Other grades, labels and currencies stay separate.</p><div class="grade-ladder">${rows}</div></section>`;
+}
+
+async function fetchSaleEvidence(lookup) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(
+      `/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}`,
+      { headers: { Accept: "application/json" }, signal: controller.signal },
+    );
+    const payload = await response.json();
+    return { response, payload };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function loadPsaGradeEvidence(item, grade) {
+  if (!PSA_NUMERIC_LABELS.includes(Number(grade))) return;
+  const owner = state.session?.user?.id || "";
+  const version = sessionLoadVersion;
+  const key = item.uid || item.id;
+  const currency = item.currency || "USD";
+  const cacheKey = `${grade}|${currency}`;
+  const current = () =>
+    (state.session?.user?.id || "") === owner && sessionLoadVersion === version
+      ? item.uid
+        ? state.items.find((row) => row.uid === item.uid)
+        : state.detailCard?.id === item.id
+          ? state.detailCard
+          : null
+      : null;
+  const record = current();
+  if (!record || record.psaPriceEvidence?.[cacheKey]?.status === "loading")
+    return;
+  record.psaPriceEvidence ||= {};
+  const requestId = crypto.randomUUID();
+  const previousSales = record.psaPriceEvidence[cacheKey]?.sales || [];
+  const previous = record.psaPriceEvidence[cacheKey] || {};
+  record.psaPriceEvidence[cacheKey] = {
+    status: "loading",
+    requestId,
+    sales: previousSales,
+    validatedContext: previous.validatedContext || null,
+    retrievedAt: previous.retrievedAt || null,
+    hasMore: previous.hasMore || false,
+  };
+  const repaint = (card) => {
+    if (
+      state.route !== "detail" ||
+      state.detailId !== key ||
+      (state.detailValuationContext?.currency || "USD") !== currency
+    )
+      return;
+    const section = $("#psaPriceEvidence");
+    if (!section) return;
+    const focused = section.contains(document.activeElement)
+      ? document.activeElement.dataset.psaPrice
+      : null;
+    const openGrades = [
+      ...section.querySelectorAll("[data-psa-sale-details][open]"),
+    ].map((node) => node.dataset.psaSaleDetails);
+    section.outerHTML = renderGradedPriceLadder({ ...card, currency });
+    openGrades.forEach((value) => {
+      const node = $(`[data-psa-sale-details="${value}"]`);
+      if (node) node.open = true;
+    });
+    bindPsaGradeEvidence({ ...card, currency });
+    if (focused)
+      $(`[data-psa-price="${focused}"]`)?.focus({ preventScroll: true });
+  };
+  repaint(record);
+  const lookup = {
+    clientId: item.id,
+    pkmnpricesId: item.externalIds?.pkmnprices || "",
+    name: item.name,
+    set: item.set,
+    number: item.number,
+    language: item.language || "en",
+    variant: item.variant || "",
+    finish: selectedPrinting(item).finish,
+    edition: selectedPrinting(item).edition,
+    promoType: selectedPrinting(item).promoType,
+    currency: item.currency || "USD",
+    grader: "PSA",
+    grade: String(grade),
+    gradeQualifier: "",
+  };
+  let evidence;
+  try {
+    const { response, payload } = await fetchSaleEvidence(lookup);
+    evidence = response.ok
+      ? {
+          status: "ready",
+          sales: payload.sales || [],
+          validatedContext: payload.validatedContext || null,
+          retrievedAt: payload.retrievedAt || null,
+          hasMore: payload.hasMore === true,
+        }
+      : {
+          status: [403, 503].includes(response.status)
+            ? "unavailable"
+            : "error",
+          sales: previousSales,
+          validatedContext: previous.validatedContext || null,
+          retrievedAt: previous.retrievedAt || null,
+          hasMore: previous.hasMore || false,
+        };
+  } catch {
+    evidence = {
+      status: "error",
+      sales: previousSales,
+      validatedContext: previous.validatedContext || null,
+      retrievedAt: previous.retrievedAt || null,
+      hasMore: previous.hasMore || false,
+    };
+  }
+  const target = current();
+  if (target?.psaPriceEvidence?.[cacheKey]?.requestId !== requestId) return;
+  target.psaPriceEvidence[cacheKey] = evidence;
+  repaint(target);
+}
+
+function bindPsaGradeEvidence(item) {
+  $$("[data-psa-price]").forEach(
+    (button) =>
+      (button.onclick = () =>
+        void loadPsaGradeEvidence(item, button.dataset.psaPrice)),
+  );
 }
 
 function renderCardMetadata(item) {
@@ -1698,6 +2602,12 @@ function historyForItem(item) {
       series[0]
     )?.points || []
   );
+}
+
+function portfolioHistoryForItem(item) {
+  return item.cardState === "graded" || item.gradingCompany
+    ? (item.gradedValuations || []).filter((point) => point.contextValidated)
+    : historyForItem(item);
 }
 
 function purchaseMarketReference(item, lot) {
@@ -1903,117 +2813,168 @@ function renderEntryPoints(item, currentPrice = item.price) {
 }
 
 function renderInteractiveHistory(item, currentPrice = item.price) {
-  const history = historyForItem(item);
-  const entryPoints = renderEntryPoints(item, currentPrice);
-  if (item.historyStatus === "plan_required" && history.length < 2)
-    return `${entryPoints}<div class="unavailable-panel"><strong>Price history needs PkmnPrices Pro.</strong><br>Today’s matching price and your recorded purchases still work.</div>`;
-  if (history.length < 2)
-    return `${entryPoints}<div class="unavailable-panel">Mica needs prices from at least two days for this same ${item.gradingCompany ? `${esc(item.gradingCompany)} grade ${esc(item.grade)}` : esc(conditionLabel(item.condition))} card before it can draw a chart.</div>`;
-  const values = history.map((point) => point.amount);
-  const lows = history
-    .map((point) => Number(point.low))
-    .filter((value) => Number.isFinite(value) && value > 0);
-  const highs = history
-    .map((point) => Number(point.high))
-    .filter((value) => Number.isFinite(value) && value > 0);
-  const min = Math.min(...values, ...lows);
-  const max = Math.max(...values, ...highs);
-  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const last = history.at(-1);
-  const saleCount = history.reduce(
-    (sum, point) =>
-      sum + (Number(point.saleCount) || Number(point.quality?.saleCount) || 0),
-    0,
+  const model = cardPriceHistoryWindow(
+    item,
+    historyForItem(item),
+    state.chartRange,
   );
-  const context = item.gradingCompany
-    ? `${item.gradingCompany} grade ${item.grade}`
-    : conditionLabel(item.condition);
-  return `${entryPoints}<div class="history-summary"><div><span>Typical recorded price</span><strong>${money(average, last.currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(min, last.currency)}–${money(max, last.currency)}</strong></div><div><span>Days with prices</span><strong>${history.length}</strong></div>${saleCount ? `<div><span>Reported sales</span><strong>${saleCount}</strong></div>` : ""}</div>
-    <div class="history-controls" role="group" aria-label="Price history range">${[
-      ["1m", "1 month"],
-      ["3m", "3 months"],
-      ["6m", "6 months"],
-      ["1y", "1 year"],
-      ["all", "All"],
-    ]
-      .map(
-        ([value, label]) =>
-          `<button type="button" data-chart-range="${value}" aria-pressed="${String(state.chartRange === value)}">${label}</button>`,
-      )
-      .join("")}</div>
-    <p class="chart-context">Matching price line: ${esc(item.variant)} · ${esc(context)} · ${esc(last.currency)}. Each price source stays separate so unlike prices are never mixed.</p>
-    <div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} prices over time with the dates you bought this card"></canvas></div>`;
+  state.chartRange = model.range;
+  const focusedRange = document.activeElement?.dataset?.chartRange;
+  const itemKey = String(item.uid || item.id || "");
+  if (focusedRange)
+    queueMicrotask(() => {
+      const root = $("#cardPriceHistory");
+      if (root?.dataset.item === itemKey && state.route === "detail")
+        $(`[data-chart-range="${focusedRange}"]`, root)?.focus({
+          preventScroll: true,
+        });
+    });
+  const { summary, points, currency } = model;
+  const controls = [
+    ["1d", "1D", "1 day"],
+    ["1w", "1W", "1 week"],
+    ["1m", "1M", "1 month"],
+    ["3m", "3M", "3 months"],
+    ["1y", "1Y", "1 year"],
+    ["all", "All", "All available history"],
+  ]
+    .map(
+      ([value, label, name]) =>
+        `<button type="button" data-chart-range="${value}" aria-label="${name}" aria-pressed="${String(model.range === value)}">${label}</button>`,
+    )
+    .join("");
+  const context =
+    item.cardState === "sealed"
+      ? "Unopened"
+      : item.gradingCompany
+        ? `${item.gradingCompany} grade ${item.grade}`
+        : conditionLabel(item.condition);
+  const change =
+    summary.change === null
+      ? "—"
+      : `${summary.change >= 0 ? "+" : "−"}${money(Math.abs(summary.change), currency)}${summary.changePercent === null ? "" : ` (${summary.changePercent >= 0 ? "+" : ""}${summary.changePercent.toFixed(1)}%)`}`;
+  const emptyCopy =
+    model.range !== "all"
+      ? "No matching prices recorded in this range. Try a longer range."
+      : item.historyStatus === "plan_required"
+        ? "Historical prices are unavailable from the connected source."
+        : "No matching price history is available yet.";
+  const dateLabel = (x) =>
+    new Date(x).toLocaleString("en-US", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  const rows = points
+    .map(
+      (point) =>
+        `<tr><td>${esc(dateLabel(point.x))}</td><td>${esc(point.provider || "Recorded source")}</td><td>${money(point.amount, currency)}</td></tr>`,
+    )
+    .join("");
+  const purchases = model.purchases.length
+    ? `<p class="chart-purchases-note">${model.purchases.length} purchase${model.purchases.length === 1 ? "" : "s"} with a known date and amount in this range.</p>`
+    : "";
+  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}"><div class="history-controls" role="group" aria-label="Price history range">${controls}</div>${["partial", "unavailable", "error"].includes(item.historyStatus) && points.length ? '<p class="chart-context">Some historical prices could not be loaded. This chart shows the available records.</p>' : ""}
+    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. Lines leave gaps longer than two days.</p>${points.length === 1 ? '<p class="chart-context">One recorded price in this range. More prices are needed to show a trend.</p>' : ""}<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}</div>`;
 }
 
 async function mountPriceChart(item) {
   const version = ++chartMountVersion;
   chartInstance?.destroy();
   chartInstance = null;
-  const canvas = $("#positionChart");
-  if (!canvas) return;
-  const days = { "1m": 31, "3m": 93, "6m": 186, "1y": 366 }[state.chartRange];
-  const cutoff = days ? Date.now() - days * 86_400_000 : 0;
-  const history = historyForItem(item).filter(
-    (point) => new Date(point.recordedAt).getTime() >= cutoff,
+  const root = $("#cardPriceHistory");
+  if (!root) return;
+  // Bind before loading Chart.js, including empty ranges, so controls never wait
+  // on the chart download and an empty view can always recover.
+  $$("[data-chart-range]", root).forEach((button) => {
+    button.onclick = () => {
+      const range = button.dataset.chartRange;
+      const tableOpen = $(".history-values", root)?.open;
+      state.chartRange = range;
+      root.outerHTML = renderInteractiveHistory(item);
+      const next = $("#cardPriceHistory");
+      if (tableOpen && $(".history-values", next))
+        $(".history-values", next).open = true;
+      $(`[data-chart-range="${range}"]`, next)?.focus({
+        preventScroll: true,
+      });
+      void mountPriceChart(item);
+    };
+  });
+  const canvas = $("#positionChart", root);
+  if (!canvas || !canvas.closest('[data-detail-tool="prices"]')?.open) return;
+  const model = cardPriceHistoryWindow(
+    item,
+    historyForItem(item),
+    state.chartRange,
   );
-  const providers = [...new Set(history.map((point) => point.provider))];
+  const providers = [
+    ...new Set(
+      model.points.map((point) => point.provider || "Recorded source"),
+    ),
+  ];
   const colors = ["#1f4f43", "#9a6b2f", "#315f86", "#744f79"];
   const datasets = providers.map((provider, index) => ({
     label: provider,
-    data: history
-      .filter((point) => point.provider === provider)
-      .map((point) => ({
-        x: point.recordedAt.slice(0, 10),
-        y: point.amount,
-        point,
-      })),
+    data: model.points
+      .filter((point) => (point.provider || "Recorded source") === provider)
+      .map((point) => ({ x: point.x, y: point.amount, point })),
     borderColor: colors[index % colors.length],
     backgroundColor: colors[index % colors.length],
-    pointRadius: 2,
-    tension: 0.18,
-    spanGaps: true,
+    pointRadius: 3,
+    pointHoverRadius: 6,
+    tension: 0,
+    spanGaps: 2 * 86_400_000,
   }));
-  const purchases = (item.transactions || []).filter(
-    (transaction) => transaction.type === "purchase",
-  );
-  if (purchases.length)
+  if (model.purchases.length)
     datasets.push({
-      label: "When you bought it",
+      label: "Your purchases",
       type: "scatter",
-      data: purchases.map((transaction) => ({
-        x: transaction.date,
-        y: transaction.quantity
-          ? transaction.totalCost / transaction.quantity
-          : transaction.unitPrice,
-        transaction,
-      })),
+      data: model.purchases,
       pointRadius: 7,
       pointStyle: "triangle",
       backgroundColor: "#b14e43",
       borderColor: "#fff",
       borderWidth: 1,
     });
-  if (item.costBasis && item.quantity) {
-    const labels = [
-      ...new Set([
-        ...history.map((point) => point.recordedAt.slice(0, 10)),
-        ...purchases.map((point) => point.date),
-      ]),
-    ].sort();
+  if (model.basis !== null)
     datasets.push({
       label: "What you paid per card",
-      data: labels.map((date) => ({
-        x: date,
-        y: item.costBasis / item.quantity,
-      })),
+      data: [
+        { x: model.start, y: model.basis },
+        { x: model.end, y: model.basis },
+      ],
       borderColor: "#7a746a",
       borderDash: [5, 5],
       pointRadius: 0,
       borderWidth: 1,
     });
+  let Chart;
+  try {
+    ({ default: Chart } = await import("chart.js/auto"));
+  } catch {
+    if (version === chartMountVersion && canvas.isConnected) {
+      canvas.closest(".chart-wrap").innerHTML =
+        '<p class="unavailable-panel">The chart could not load. Recorded prices are available in the table below.</p>';
+      $(".history-values", root).open = true;
+    }
+    return;
   }
-  const { default: Chart } = await import("chart.js/auto");
   if (version !== chartMountVersion || !canvas.isConnected) return;
+  const dateLabel = (value, detailed = false) =>
+    new Date(Number(value)).toLocaleString("en-US", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+      ...(detailed
+        ? { year: "numeric", hour: "numeric", minute: "2-digit" }
+        : model.range === "1d"
+          ? { hour: "numeric" }
+          : {}),
+    });
   chartInstance = new Chart(canvas, {
     type: "line",
     data: { datasets },
@@ -2021,89 +2982,388 @@ async function mountPriceChart(item) {
       responsive: true,
       maintainAspectRatio: false,
       parsing: false,
+      animation: false,
       interaction: { mode: "nearest", intersect: false },
       plugins: {
-        legend: { display: true, labels: { usePointStyle: true, boxWidth: 8 } },
+        legend: {
+          display: true,
+          labels: { usePointStyle: true, boxWidth: 8, font: { size: 12 } },
+        },
         tooltip: {
           callbacks: {
+            title: (items) =>
+              items.length ? dateLabel(items[0].parsed.x, true) : "",
             label(context) {
               const transaction = context.raw?.transaction;
-              if (transaction) {
-                const noun = item.cardState === "sealed" ? "product" : "card";
-                return `Bought ${transaction.date}: ${money(transaction.totalCost, transaction.currency)} total · ${transaction.quantity} ${noun}${transaction.quantity === 1 ? "" : "s"}`;
-              }
-              const point = context.raw?.point;
-              const lines = [
-                `${context.dataset.label}: ${money(context.parsed.y, item.currency || "USD")}`,
-              ];
-              if (point?.low && point?.high)
-                lines.push(
-                  `Range ${money(point.low, point.currency)}–${money(point.high, point.currency)}`,
-                );
-              const count =
-                Number(point?.saleCount) ||
-                Number(point?.quality?.saleCount) ||
-                0;
-              if (count)
-                lines.push(`${count} reported sale${count === 1 ? "" : "s"}`);
-              return lines;
+              if (transaction)
+                return `Bought ${Number(transaction.quantity)} · ${money(transaction.totalCost, model.currency)} total`;
+              return `${context.dataset.label}: ${money(context.parsed.y, model.currency)}`;
             },
           },
         },
       },
       scales: {
         x: {
-          type: "category",
+          type: "linear",
+          min: model.start,
+          max: model.end,
           grid: { display: false },
-          ticks: { maxTicksLimit: 6 },
+          ticks: {
+            maxTicksLimit: 5,
+            maxRotation: 0,
+            callback: (value) => dateLabel(value),
+            font: { size: 12 },
+          },
         },
         y: {
-          ticks: { callback: (value) => money(value, item.currency || "USD") },
+          ticks: {
+            callback: (value) => money(value, model.currency),
+            font: { size: 12 },
+          },
           grid: { color: "rgba(60,70,65,.08)" },
         },
       },
     },
   });
-  $$("[data-chart-range]").forEach((button) =>
-    button.addEventListener("click", () => {
-      state.chartRange = button.dataset.chartRange;
-      renderDetail();
-    }),
-  );
 }
 
 function comparableSales(item) {
-  return (item.sales || []).filter((sale) =>
-    item.gradingCompany
-      ? sale.sourceUrl &&
-        sale.gradingCompany === item.gradingCompany &&
-        String(sale.grade) === String(item.grade)
-      : sale.sourceUrl && !sale.gradingCompany,
-  );
+  return (item.sales || []).filter((sale) => {
+    if (!safeMarketSourceUrl(sale.sourceUrl, "ebay") || sale.attribution !== "exact") return false;
+    const language = (value) => ({ en: "en", english: "en", ja: "ja", jp: "ja", japanese: "ja", de: "de", german: "de" })[String(value || "").trim().toLowerCase()] || "";
+    if (!language(sale.language) || language(sale.language) !== language(item.language))
+      return false;
+    if (
+      !sale.printing ||
+      finishForVariant(sale.printing) !== finishForVariant(item.variant)
+    )
+      return false;
+    if (String(sale.gradeQualifier || "") !== String(item.gradeQualifier || ""))
+      return false;
+    return item.gradingCompany
+      ? String(sale.gradingCompany || "").toUpperCase() ===
+          item.gradingCompany.toUpperCase() &&
+          String(sale.grade ?? "") === String(item.grade)
+      : !sale.gradingCompany && !sale.grade;
+  });
 }
 
 function renderSales(item) {
   if (item.salesStatus === "loading")
-    return `<div class="unavailable-panel">Checking recent sales for this exact card…</div>`;
+    return '<div class="unavailable-panel" role="status">Checking recent sold listings…</div>';
   const sales = comparableSales(item);
   if (!sales.length) {
     const copy =
-      item.salesStatus === "unconfigured"
-        ? "Recent sale prices are not connected yet. Cards that are merely listed for sale are not counted as completed sales."
-        : item.salesStatus === "plan_required"
-          ? "Recent sale prices are ready, but they need the PkmnPrices Pro plan."
-          : item.salesStatus === "error"
-            ? "Recent sales could not be checked. That does not mean the card has never sold."
-            : "No recent sales matched this exact card and condition. Mica will not use a different card as a substitute.";
+      item.salesStatus === "unconfigured" ||
+      item.salesStatus === "plan_required"
+        ? "Sold-listing evidence is not available yet."
+        : item.salesStatus === "error"
+          ? "Couldn’t check sold listings. Try again."
+          : item.salesStatus
+            ? "No recent listings matched this printing and grading context."
+            : "Open this section to check recent sold listings.";
     return `<div class="unavailable-panel">${copy}${item.salesStatus === "error" ? '<br><button class="inline-retry" id="retrySalesButton" type="button">Try sales again</button>' : ""}</div>`;
   }
-  return `<div class="sales-list">${sales
+  const newest = [...sales].sort((left, right) => String(right.soldAt).localeCompare(String(left.soldAt)))[0];
+  return `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(newest.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer">View last eBay sale · ${esc(newest.soldAt.slice(0, 10))} · ${money(newest.amount, newest.currency)} · individual listing</a><div class="sales-list">${sales
     .slice(0, 5)
     .map(
       (sale) =>
-        `<a class="sale-row" href="${esc(sale.sourceUrl)}" target="_blank" rel="noreferrer"><div><strong>${esc(sale.title)}</strong><span>${esc(sale.soldAt)} · ${esc(sale.gradingCompany ? `${sale.gradingCompany} grade ${sale.grade}` : "Ungraded")}</span>${sale.outlierReview?.flagged ? "<small>Unusual price · review the listing context</small>" : ""}</div><b>${money(sale.amount, sale.currency)}</b></a>`,
+        `<a class="sale-row" href="${esc(safeMarketSourceUrl(sale.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer"><div><strong>${esc(sale.title)}</strong><span>eBay individual sale · ${esc(sale.soldAt.slice(0, 10))} · ${esc(languageName(item.language))} · ${esc(sale.gradingCompany ? `${sale.gradingCompany} ${sale.grade}${sale.gradeQualifier ? ` · ${sale.gradeQualifier}` : ""}` : "Ungraded · condition not reported")}</span>${sale.outlierReview?.flagged ? "<small>Unusual price · review the listing context</small>" : ""}</div><b>${money(sale.amount, sale.currency)}</b></a>`,
     )
-    .join("")}</div>`;
+    .join(
+      "",
+    )}</div><p class="legal-copy">Source: eBay sold listings via PkmnPrices. Check each listing’s photos and description before comparing. ${item.gradingCompany ? "These individual sales are not a guaranteed value." : "Wear is not reported, so these sales do not establish a price for your card’s condition."}</p>`;
+}
+
+function exactSaleContext(item, context) {
+  const printing = selectedPrinting(item);
+  return {
+    canonicalId: item.id,
+    identityStatus: printing.status,
+    name: item.name,
+    set: item.set,
+    number: item.number,
+    language: item.language,
+    variant: item.variant,
+    finish: printing.finish,
+    edition: printing.edition,
+    promoType: printing.promoType,
+    grader: context.gradingCompany,
+    grade: context.grade,
+    qualifier: context.gradeQualifier,
+    currency: context.currency,
+  };
+}
+
+function soldValuationForItem(item) {
+  const evidence = item.exactSaleEvidence;
+  if (evidence?.salesStatus !== "live") {
+    const saved = (item.gradedValuations || [])
+      .filter(
+        (point) =>
+          point.contextValidated &&
+          point.current &&
+          Date.now() <= point.currentUntil,
+      )
+      .sort((left, right) =>
+        String(right.recordedAt).localeCompare(String(left.recordedAt)),
+      )[0];
+    return saved?.current || null;
+  }
+  const result = exactSoldValuation(
+    evidence.sales || [],
+    exactSaleContext(item, valuationContextForItem(item)),
+    {
+      validatedContext: evidence.validatedContext,
+      retrievedAt: evidence.retrievedAt,
+      hasMore: evidence.hasMore,
+    },
+  );
+  return result.status === "ready"
+    ? { ...result, contextValidated: true }
+    : null;
+}
+
+function portfolioItems() {
+  return state.items.map((item) =>
+    item.cardState === "graded" || item.gradingCompany
+      ? { ...item, soldValuation: soldValuationForItem(item) }
+      : item,
+  );
+}
+
+function portfolioUnitPrice(item) {
+  if (item.cardState === "graded" || item.gradingCompany)
+    return soldValuationForItem(item)?.estimate ?? null;
+  return item.pricingStatus === "live" ? item.price : null;
+}
+
+function savedSaleEvidenceForContext(item, context) {
+  const saved = item?.exactSaleEvidence;
+  const savedContextKey =
+    saved?.contextKey || detailContextKey(valuationContextForItem(item));
+  return saved && savedContextKey === detailContextKey(context) ? saved : null;
+}
+
+function renderExactSoldValue(item, context, sales) {
+  sales = sales || savedSaleEvidenceForContext(item, context);
+  const result = exactSoldValuation(
+    sales?.sales || [],
+    exactSaleContext(item, context),
+    {
+      validatedContext: sales?.validatedContext,
+      retrievedAt: sales?.retrievedAt,
+      hasMore: sales?.hasMore,
+      providerStatus: ["error", "unconfigured", "plan_required"].includes(
+        sales?.salesStatus,
+      )
+        ? "error"
+        : sales?.salesStatus,
+    },
+  );
+  const checked = Boolean(sales?.salesStatus);
+  const value =
+    result.estimate === null
+      ? "Estimate unavailable"
+      : money(result.estimate, result.currency);
+  const status = !checked
+    ? "Check completed sales for this exact card and grade."
+    : sales.salesStatus === "loading"
+      ? "Checking completed sales… previous evidence is shown if available."
+      : sales.salesStatus === "error"
+        ? "Couldn’t refresh. Previous evidence is shown if available."
+        : ["unconfigured", "plan_required"].includes(sales.salesStatus)
+          ? "Completed-sale access is unavailable."
+          : result.status === "unresolved_context"
+            ? "Confirm the printing, grade and label before valuing."
+            : result.status === "insufficient"
+              ? `${result.distinctSaleCount} eligible sale${result.distinctSaleCount === 1 ? "" : "s"} · at least 3 needed.`
+              : result.status === "stale"
+                ? "Older completed sales · refresh before relying on this estimate."
+                : `${result.distinctSaleCount} completed sales · ${result.confidence.level} evidence.`;
+  const button =
+    sales?.salesStatus === "loading"
+      ? ""
+      : `<button class="inline-retry" id="checkExactSalesButton" type="button">${!checked ? "Check sales" : ["error", "unconfigured", "plan_required"].includes(sales.salesStatus) ? "Try sales again" : "Refresh sales"}</button>`;
+  const otherCurrencies = new Set(
+    (sales?.sales || [])
+      .filter((row) => row.currency && row.currency !== result.currency)
+      .map((row) => row.currency),
+  );
+  const latestEbay = [...result.evidence]
+    .filter((row) => row.sourceMarket === "ebay" && safeMarketSourceUrl(row.sourceUrl, "ebay"))
+    .sort((left, right) => String(right.soldAt).localeCompare(String(left.soldAt)))[0];
+  const lastSoldLink = latestEbay
+    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer">View last eBay sale · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · excluded from estimate" : " · comparable"}</a>`
+    : "";
+  const upstream = Array.isArray(sales?.upstreamExclusions)
+    ? sales.upstreamExclusions
+    : [];
+  const upstreamSummary =
+    Number.isInteger(sales?.receivedCount) &&
+    Number.isInteger(sales?.acceptedCount) &&
+    Number.isInteger(sales?.excludedCount)
+      ? `<p>Provider screening: ${sales.receivedCount} received · ${sales.acceptedCount} accepted · ${sales.excludedCount} excluded before valuation.</p>`
+      : "";
+  const upstreamDetails = upstream.length
+    ? `<p>Provider exclusions: ${upstream.map((row) => `${esc(row.id || "unidentified provider row")} (${esc(String(row.reason || "unspecified").replaceAll("_", " "))})`).join("; ")}</p>`
+    : "";
+  const details =
+    result.evidence.length || result.excluded.length || upstreamSummary
+      ? `<details id="exactSaleEvidence"><summary>Sale evidence and exclusions</summary>${upstreamSummary}${upstreamDetails}<p>${result.distinctSaleCount} contributing sales · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}${result.newestSoldAt ? ` · newest sold ${esc(result.newestSoldAt.slice(0, 10))}` : ""}${result.newestRetrievedAt ? ` · retrieved ${esc(result.newestRetrievedAt.slice(0, 10))}` : ""}.</p>${result.estimate === null ? "" : `<p>Comparable sale range ${money(result.rangeLow, result.currency)}–${money(result.rangeHigh, result.currency)}. Median before outlier review ${money(result.medianBeforeOutliers, result.currency)}; after ${money(result.medianAfterOutliers, result.currency)}. This range is not a confidence interval.</p>`}${result.hasMore ? "<p>Limited recent sample; more provider pages were not fetched.</p>" : ""}${otherCurrencies.size ? `<p>${esc([...otherCurrencies].sort().join(", "))} sales are separate and did not enter this ${esc(result.currency)} estimate.</p>` : ""}<ul>${result.evidence.map((row) => `<li><a href="${esc(row.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(row.transactionKey)} · ${esc(row.soldAt.slice(0, 10))} · ${money(row.amount, row.currency)}</a>${row.outlierReview.flagged ? " · unusual price, excluded from estimate" : ""}</li>`).join("")}</ul>${result.excluded.length ? `<p>Valuation exclusions: ${result.excluded.map((row) => `${esc(row.id)} (${esc(row.reason.replaceAll("_", " "))})`).join("; ")}</p>` : ""}</details>`
+      : "";
+  const strength =
+    { limited: 1, stale: 1, moderate: 2, strong: 3 }[result.confidence.level] ||
+    0;
+  const fx = detailFxForResult(item, context, sales, result);
+  const target = result.currency === "USD" ? "EUR" : "USD";
+  const equivalent = fx?.enabled ? (fx.conversion?.amount ?? null) : null;
+  const fxLine =
+    result.estimate !== null &&
+    Number.isFinite(result.estimate) &&
+    result.estimate > 0
+      ? `<div class="exact-fx"><button class="inline-retry" id="toggleExactFxButton" type="button" aria-pressed="${fx?.enabled ? "true" : "false"}">${fx?.enabled ? "Hide equivalent" : `Show ${target} equivalent`}</button>${fx?.enabled ? (fx?.status === "loading" ? "<small>Checking ECB rate…</small>" : equivalent !== null ? `<small>About ${money(equivalent, target)} · ECB rate dated ${esc(fx.rate.effectiveDate)}</small><details><summary>Conversion details</summary><p>Converted from ${esc(result.currency)} completed-sale evidence. 1 EUR = ${esc(fx.rate.rate)} USD · <a href="https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html" target="_blank" rel="noopener noreferrer">European Central Bank reference rate</a>. Indicative only.</p></details>` : `<small>Equivalent unavailable · ${fx?.status === "stale" ? "ECB rate needs refresh" : "rate could not be checked"}.</small><button class="inline-retry" id="retryExactFxButton" type="button">Try rate again</button>`) : ""}</div>`
+      : "";
+  const recorded = (item.gradedValuations || []).filter(
+    (point) => point.contextValidated,
+  );
+  const history = recorded.length
+    ? `<details id="recordedSoldValuations"><summary>Recorded estimates</summary><ul>${recorded.map((point) => `<li>${esc(point.recordedAt.slice(0, 10))} · ${money(point.amount, point.currency)} · ${point.contributingEvidenceIds.length} completed sales via PkmnPrices</li>`).join("")}</ul><p>Recorded estimates retain their original evaluation date. They do not fill earlier gaps or establish a current price after becoming stale.</p></details>`
+    : "";
+  return `<section class="exact-sold-value" role="status"><span>Sold-derived estimate · ${esc(result.currency)}</span><strong>${value}</strong><small>${esc(status)}</small>${result.estimate === null ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${lastSoldLink}${fxLine}${button}${details}${history}</section>`;
+}
+
+let fxMidnightTimer = null;
+let lastValidatedFxRate = null;
+
+function clearDetailFx() {
+  state.detailFx = null;
+  clearTimeout(fxMidnightTimer);
+  fxMidnightTimer = null;
+}
+
+function scheduleFxMidnight() {
+  if (fxMidnightTimer || !state.detailFx?.enabled || state.route !== "detail")
+    return;
+  const delay = 86_400_000 - (Date.now() % 86_400_000) + 5;
+  fxMidnightTimer = setTimeout(() => {
+    fxMidnightTimer = null;
+    if (state.route === "detail" && state.detailFx?.enabled) renderDetail();
+  }, delay);
+}
+
+function detailFxForResult(item, context, sales, result) {
+  const fx = state.detailFx;
+  if (
+    !fx ||
+    fx.selectionKey !== detailIdentityKey(item) ||
+    fx.contextKey !== detailContextKey(context)
+  )
+    return null;
+  const nativeKey = JSON.stringify([
+    sales?.requestId || "",
+    result.ruleVersion,
+    result.status,
+    result.currency,
+    result.estimate,
+    result.contributingEvidenceIds,
+    sales?.retrievedAt || "",
+  ]);
+  if (fx.nativeKey !== nativeKey) {
+    fx.nativeKey = nativeKey;
+    fx.requestId = null;
+    fx.status =
+      fx.status === "available" && fx.rate && usableFxRate(fx.rate)
+        ? "available"
+        : "unavailable";
+  }
+  if (result.estimate === null) {
+    fx.enabled = false;
+    clearTimeout(fxMidnightTimer);
+    fxMidnightTimer = null;
+  }
+  if (fx.status === "available" && !usableFxRate(fx.rate)) fx.status = "stale";
+  if (fx.enabled && fx.status === "available" && result.estimate > 0) {
+    if (
+      fx.conversion?.nativeKey !== nativeKey ||
+      fx.conversion?.rateRef !== fx.rate.rateRef
+    ) {
+      const target = result.currency === "USD" ? "EUR" : "USD";
+      const amount = convertIndicative(
+        result.estimate,
+        result.currency,
+        target,
+        fx.rate,
+      );
+      fx.conversion =
+        amount === null
+          ? null
+          : {
+              nativeKey,
+              nativeAmount: result.estimate,
+              nativeCurrency: result.currency,
+              nativeEvaluatedAt: result.evaluatedAt,
+              amount,
+              currency: target,
+              rateRef: fx.rate.rateRef,
+            };
+    }
+  } else fx.conversion = null;
+  if (fx.enabled) scheduleFxMidnight();
+  return fx;
+}
+
+async function loadDetailFx() {
+  const fx = state.detailFx;
+  if (!fx?.enabled || fx.status === "loading") return;
+  const owner = state.session?.user?.id || "";
+  const sessionVersion = sessionLoadVersion;
+  const requestId = crypto.randomUUID();
+  const nativeKey = fx.nativeKey;
+  fx.requestId = requestId;
+  fx.status = "loading";
+  renderDetail();
+  try {
+    const response = await fetch("/api/fx", {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    const payload = await response.json();
+    if (
+      state.detailFx !== fx ||
+      !fx.enabled ||
+      fx.requestId !== requestId ||
+      fx.nativeKey !== nativeKey ||
+      state.route !== "detail" ||
+      state.session?.user?.id !== owner ||
+      sessionLoadVersion !== sessionVersion ||
+      state.detailSelectionKey !== fx.selectionKey ||
+      detailContextKey(state.detailValuationContext) !== fx.contextKey
+    )
+      return;
+    if (!response.ok || !usableFxRate(payload)) {
+      fx.status =
+        payload?.code === "rate_stale" || fxAgeDays(payload?.effectiveDate) > 4
+          ? "stale"
+          : "unavailable";
+    } else {
+      lastValidatedFxRate = payload;
+      fx.rate = payload;
+      fx.status = "available";
+    }
+  } catch {
+    if (
+      state.detailFx !== fx ||
+      fx.requestId !== requestId ||
+      !fx.enabled ||
+      fx.nativeKey !== nativeKey ||
+      state.route !== "detail"
+    )
+      return;
+    fx.status = "error";
+  }
+  renderDetail();
 }
 
 function gradingQuote(item, grader, grade) {
@@ -2314,6 +3574,95 @@ function bindGradingEstimator(item) {
   update();
 }
 
+function openBatchSubmissionSheet(plan) {
+  const today = localIsoDate();
+  const positions = plan.items
+    .map((entry) =>
+      state.items.find((item) => item.uid === entry.collectionItemId),
+    )
+    .filter(Boolean);
+  const latestAcquisition = positions
+    .flatMap((item) => item.lots || [])
+    .map((lot) => lot.acquiredAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1);
+  const idempotencyKey = crypto.randomUUID();
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Track grading batch</h2><p>${esc(plan.grader)} ${esc(plan.serviceLevel)} · ${plan.items.length} saved position${plan.items.length === 1 ? "" : "s"}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingBatchSubmissionForm"><div class="form-grid"><div class="field"><label for="gradingBatchSentDate">Date sent</label><input id="gradingBatchSentDate" name="submittedAt" type="date" min="${esc(latestAcquisition || "")}" max="${today}" value="${today}" required></div><div class="field"><label for="gradingBatchExpectedDate">Expected return <span class="optional-label">Optional</span></label><input id="gradingBatchExpectedDate" name="expectedReturnDate" type="date" min="${today}"></div><div class="field full"><label for="gradingBatchReference">Order number <span class="optional-label">Optional</span></label><input id="gradingBatchReference" name="submissionReference" maxlength="120" autocomplete="off"></div><p class="form-error" id="gradingBatchSubmissionError" role="alert"></p></div><div class="grading-batch-confirm"><strong>Included positions</strong><ul>${plan.items.map((entry) => `<li><span>${esc(entry.name)}</span><b>${entry.quantity} card${Number(entry.quantity) === 1 ? "" : "s"}</b></li>`).join("")}</ul><p>Estimated all-in batch cost: ${money(plan.estimatedTotalCost)}. This stays planning data until actual costs are entered on return.</p></div><div class="warning-panel"><strong>This is one atomic save.</strong><p>If any position is no longer eligible, none of the batch or submission records are created. Purchases and sales pause while these cards are away.</p></div><div class="sheet-actions"><button class="secondary sheet-close" type="button">Cancel</button><button class="primary" type="submit">Start tracking batch</button></div></form>`,
+  );
+  $("#gradingBatchSentDate").addEventListener("change", (event) => {
+    $("#gradingBatchExpectedDate").min = event.currentTarget.value || today;
+  });
+  $("#gradingBatchSubmissionForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.currentTarget));
+    if (
+      data.submittedAt > today ||
+      (latestAcquisition && data.submittedAt < latestAcquisition) ||
+      (data.expectedReturnDate && data.expectedReturnDate < data.submittedAt)
+    ) {
+      $("#gradingBatchSubmissionError").textContent =
+        "Use a sent date after every known purchase and an expected return after the sent date.";
+      return;
+    }
+    const submit = event.currentTarget.querySelector('[type="submit"]');
+    submit.disabled = true;
+    $("#gradingBatchSubmissionError").textContent =
+      "Saving the private batch and every linked position…";
+    const totalQuantity = plan.items.reduce(
+      (sum, entry) => sum + Number(entry.quantity),
+      0,
+    );
+    try {
+      await recordGradingSubmissionBatch(supabase, {
+        entries: plan.items.map((entry) => ({
+          collectionItemId: entry.collectionItemId,
+          scanSessionId: entry.scanSessionId,
+          estimatedTotalCost: (
+            (plan.estimatedTotalCost * Number(entry.quantity)) /
+            totalQuantity
+          ).toFixed(2),
+          economics: {
+            version: "mica-grading-ev-v1",
+            rawValue: Number(entry.rawValue),
+            expectedGradedValue: Number(entry.expectedGradedValue),
+            quantity: Number(entry.quantity),
+            valuesAreEstimates: true,
+          },
+          notes: `${plan.serviceLevel} service estimate from Mica`,
+        })),
+        submittedAt: data.submittedAt,
+        grader: plan.grader,
+        serviceLevel: plan.serviceLevel,
+        expectedReturnDate: data.expectedReturnDate,
+        submissionReference: data.submissionReference,
+        economicsSnapshot: {
+          version: plan.version,
+          estimatedTotalCost: plan.estimatedTotalCost,
+          shipping: plan.shipping,
+          insurance: plan.insurance,
+          rawValueTotal: plan.rawValueTotal,
+          expectedGradedValueTotal: plan.expectedGradedValueTotal,
+          valuesAreEstimates: true,
+        },
+        currency: "USD",
+        idempotencyKey,
+      });
+      closeSheet({ discardHistory: true });
+      await reloadPortfolio();
+      toast("Grading batch saved and every position is linked");
+    } catch (error) {
+      submit.disabled = false;
+      $("#gradingBatchSubmissionError").textContent = String(
+        error.message || "",
+      ).includes("active_submission_exists")
+        ? "One of these positions is already being graded. Refresh the batch and try again."
+        : error.message || "The batch could not be saved.";
+    }
+  });
+}
+
 function openBatchGradingPlanner(selectedIds = state.bulkSelected) {
   if (!requireAccountData()) return;
   const rawItems = state.items.filter(
@@ -2373,6 +3722,7 @@ function openBatchGradingPlanner(selectedIds = state.bulkSelected) {
     $$(".batch-grade-row").filter(
       (row) => $("[data-batch-selected]", row).checked,
     );
+  let latestBatchPlan = null;
   const syncExpected = () => {
     $$(".batch-grade-row").forEach((row) => {
       const item = rawItems[Number(row.dataset.batchIndex)];
@@ -2391,6 +3741,7 @@ function openBatchGradingPlanner(selectedIds = state.bulkSelected) {
     update();
   };
   const update = () => {
+    latestBatchPlan = null;
     const entry = gradingServices[grader.value][Number(service.value) || 0];
     const selected = selectedRows();
     const items = selected.map((row) => {
@@ -2401,6 +3752,9 @@ function openBatchGradingPlanner(selectedIds = state.bulkSelected) {
           ? item.cost
           : Number(item.costBasis) / owned;
       return {
+        collectionItemId: item.uid,
+        scanSessionId: item.digitalGrade?.reportId || null,
+        name: item.name,
         quantity: $("[data-batch-quantity]", row).value,
         availableQuantity: owned,
         rawValue: $("[data-batch-raw]", row).value,
@@ -2448,8 +3802,26 @@ function openBatchGradingPlanner(selectedIds = state.bulkSelected) {
       return;
     }
     const favorable = plan.valueAddedMinor >= 0;
+    const wholePositions = items.every(
+      (item) => Number(item.quantity) === Number(item.availableQuantity),
+    );
+    if (wholePositions)
+      latestBatchPlan = {
+        version: "mica-grading-batch-v1",
+        grader: grader.value,
+        serviceLevel: entry.name,
+        estimatedTotalCost: plan.gradingCostMinor / 100,
+        shipping: Number($("#batchShipping").value) || 0,
+        insurance: Number($("#batchInsurance").value) || 0,
+        rawValueTotal: plan.rawValueTotalMinor / 100,
+        expectedGradedValueTotal: plan.expectedGradedValueTotalMinor / 100,
+        items,
+      };
     $("#batchGradeOutput").innerHTML =
-      `<div class="decision-verdict ${favorable ? "positive" : "negative"}"><span>${favorable ? "Grading may be worth it" : "Keeping them ungraded may be better"}</span><strong>${favorable ? `The cards may be worth ${money(plan.valueAddedMinor / 100)} more after estimated costs.` : `After estimated costs, grading may leave you ${money(Math.abs(plan.valueAddedMinor) / 100)} worse off.`}</strong></div><div class="batch-grade-summary advanced-workspace"><div><span>Value now</span><strong>${money(plan.rawValueTotalMinor / 100)}</strong></div><div><span>Possible value after grading</span><strong>${money(plan.expectedGradedValueTotalMinor / 100)}</strong></div><div><span>Estimated grading cost</span><strong>${money(plan.gradingCostMinor / 100)}</strong></div><div><span>Average value needed to cover the cost</span><strong>${money(plan.breakEvenAverageMinor / 100)}</strong></div><div><span>Possible value gained by grading</span><strong>${plan.valueAddedMinor >= 0 ? "+" : ""}${money(plan.valueAddedMinor / 100)}</strong></div><div><span>Possible money gained after what you paid</span><strong>${plan.potentialProfitMinor === null ? "Add what you paid first" : `${plan.potentialProfitMinor >= 0 ? "+" : ""}${money(plan.potentialProfitMinor / 100)}`}</strong></div></div>`;
+      `<div class="decision-verdict ${favorable ? "positive" : "negative"}"><span>${favorable ? "Grading may be worth it" : "Keeping them ungraded may be better"}</span><strong>${favorable ? `The cards may be worth ${money(plan.valueAddedMinor / 100)} more after estimated costs.` : `After estimated costs, grading may leave you ${money(Math.abs(plan.valueAddedMinor) / 100)} worse off.`}</strong></div><div class="batch-grade-summary advanced-workspace"><div><span>Value now</span><strong>${money(plan.rawValueTotalMinor / 100)}</strong></div><div><span>Possible value after grading</span><strong>${money(plan.expectedGradedValueTotalMinor / 100)}</strong></div><div><span>Estimated grading cost</span><strong>${money(plan.gradingCostMinor / 100)}</strong></div><div><span>Average value needed to cover the cost</span><strong>${money(plan.breakEvenAverageMinor / 100)}</strong></div><div><span>Possible value gained by grading</span><strong>${plan.valueAddedMinor >= 0 ? "+" : ""}${money(plan.valueAddedMinor / 100)}</strong></div><div><span>Possible money gained after what you paid</span><strong>${plan.potentialProfitMinor === null ? "Add what you paid first" : `${plan.potentialProfitMinor >= 0 ? "+" : ""}${money(plan.potentialProfitMinor / 100)}`}</strong></div></div>${wholePositions ? '<button class="planner-record" id="saveGradingBatch" type="button">Save and track this batch</button>' : '<div class="unavailable-panel"><strong>Separate partial quantities first.</strong><br>A tracked batch must include each whole saved position so purchase and grading costs stay connected.</div>'}`;
+    $("#saveGradingBatch")?.addEventListener("click", () => {
+      if (latestBatchPlan) openBatchSubmissionSheet(latestBatchPlan);
+    });
   };
   const fillServices = () => {
     service.innerHTML = gradingServices[grader.value]
@@ -2474,11 +3846,64 @@ function openBatchGradingPlanner(selectedIds = state.bulkSelected) {
 }
 
 async function loadSales(item, force = false) {
-  if (item.salesStatus && !force) return;
-  item.salesStatus = "loading";
+  // Saved graded copies use one explicit server-validated refresh and write.
+  const savedGraded = Boolean(
+    item.uid &&
+    state.session?.access_token &&
+    (item.cardState === "graded" || item.gradingCompany),
+  );
+  if (savedGraded && !force) return;
+  const owner = state.session?.user?.id || "";
+  const sessionVersion = sessionLoadVersion;
+  const selectionKey = detailIdentityKey(item);
+  const context = {
+    cardState: item.cardState || "raw",
+    condition: item.condition || "",
+    gradingCompany: item.gradingCompany || "",
+    grade: item.grade || "",
+    gradeQualifier: item.gradeQualifier ?? null,
+    currency: item.currency || "USD",
+  };
+  const contextKey = detailContextKey(context);
+  const currentEvidence =
+    state.detailSales?.selectionKey === selectionKey &&
+    state.detailSales?.contextKey === contextKey
+      ? state.detailSales
+      : null;
+  if (
+    currentEvidence?.salesStatus === "loading" ||
+    (currentEvidence?.salesStatus && !force)
+  )
+    return;
+  const requestId = crypto.randomUUID();
+  const savedCopy = savedGraded
+    ? state.items.find((owned) => owned.uid === item.uid)
+    : null;
+  const savedEvidence =
+    savedCopy &&
+    detailIdentityKey(savedCopy) === selectionKey &&
+    detailContextKey(valuationContextForItem(savedCopy)) === contextKey
+      ? savedSaleEvidenceForContext(savedCopy, context)
+      : null;
+  const previous = currentEvidence || savedEvidence || null;
+  state.detailSales = {
+    selectionKey,
+    contextKey,
+    requestId,
+    salesStatus: "loading",
+    sales: previous?.sales || [],
+    validatedContext: previous?.validatedContext || null,
+    retrievedAt: previous?.retrievedAt || null,
+    hasMore: previous?.hasMore || false,
+    receivedCount: previous?.receivedCount ?? null,
+    acceptedCount: previous?.acceptedCount ?? null,
+    excludedCount: previous?.excludedCount ?? null,
+    upstreamExclusions: previous?.upstreamExclusions || [],
+  };
   if (
     state.route === "detail" &&
-    (state.detailId === item.uid || state.detailId === item.id)
+    state.detailSelectionKey === selectionKey &&
+    detailContextKey(state.detailValuationContext) === contextKey
   )
     renderDetail();
   const lookup = {
@@ -2488,40 +3913,119 @@ async function loadSales(item, force = false) {
     set: item.set,
     number: item.number,
     language: item.language || "en",
+    variant: item.variant || "",
+    finish: selectedPrinting(item).finish,
+    edition: selectedPrinting(item).edition,
+    promoType: selectedPrinting(item).promoType,
+    currency: item.currency || "USD",
     grader: item.gradingCompany || "",
-    grade: item.grade || "",
+    grade: item.gradingCompany ? String(item.grade || "") : "",
+    gradeQualifier: item.gradeQualifier || "",
   };
+  let result;
   try {
-    const response = await fetch(
-      `/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}`,
-      { headers: { Accept: "application/json" } },
-    );
-    const payload = await response.json().catch(() => ({}));
-    if (response.status === 503) {
-      item.salesStatus = "unconfigured";
-      item.sales = [];
-    } else if (
-      response.status === 403 &&
-      payload.code === "provider_plan_required"
-    ) {
-      item.salesStatus = "plan_required";
-      item.sales = [];
-    } else if (!response.ok) {
-      item.salesStatus = "error";
-      item.sales = [];
-    } else {
-      item.salesStatus = "live";
-      item.sales = payload.sales || [];
-    }
+    const durable = savedGraded;
+    const { response, payload } = durable
+      ? await (async () => {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 15000);
+          try {
+            const response = await fetch("/api/graded-valuation", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${state.session?.access_token || ""}`,
+              },
+              body: JSON.stringify({ positionId: item.uid }),
+              signal: controller.signal,
+            });
+            return { response, payload: await response.json() };
+          } finally {
+            clearTimeout(timeout);
+          }
+        })()
+      : await fetchSaleEvidence(lookup);
+    result =
+      response.status === 503
+        ? {
+            salesStatus: "unconfigured",
+            sales: previous?.sales || [],
+            validatedContext: previous?.validatedContext || null,
+            retrievedAt: previous?.retrievedAt || null,
+            hasMore: previous?.hasMore || false,
+            receivedCount: previous?.receivedCount ?? null,
+            acceptedCount: previous?.acceptedCount ?? null,
+            excludedCount: previous?.excludedCount ?? null,
+            upstreamExclusions: previous?.upstreamExclusions || [],
+          }
+        : response.status === 403 && payload.code === "provider_plan_required"
+          ? {
+              salesStatus: "plan_required",
+              sales: previous?.sales || [],
+              validatedContext: previous?.validatedContext || null,
+              retrievedAt: previous?.retrievedAt || null,
+              hasMore: previous?.hasMore || false,
+              receivedCount: previous?.receivedCount ?? null,
+              acceptedCount: previous?.acceptedCount ?? null,
+              excludedCount: previous?.excludedCount ?? null,
+              upstreamExclusions: previous?.upstreamExclusions || [],
+            }
+          : !response.ok
+            ? {
+                salesStatus: "error",
+                sales: previous?.sales || [],
+                validatedContext: previous?.validatedContext || null,
+                retrievedAt: previous?.retrievedAt || null,
+                hasMore: previous?.hasMore || false,
+                receivedCount: previous?.receivedCount ?? null,
+                acceptedCount: previous?.acceptedCount ?? null,
+                excludedCount: previous?.excludedCount ?? null,
+                upstreamExclusions: previous?.upstreamExclusions || [],
+              }
+            : {
+                salesStatus: "live",
+                sales: Array.isArray(payload.sales) ? payload.sales : [],
+                validatedContext: payload.validatedContext || null,
+                retrievedAt: payload.retrievedAt || null,
+                hasMore: payload.hasMore === true,
+                receivedCount: payload.receivedCount ?? null,
+                acceptedCount: payload.acceptedCount ?? null,
+                excludedCount: payload.excludedCount ?? null,
+                upstreamExclusions: Array.isArray(payload.upstreamExclusions)
+                  ? payload.upstreamExclusions
+                  : [],
+              };
   } catch {
-    item.salesStatus = "error";
-    item.sales = [];
+    result = {
+      salesStatus: "error",
+      sales: previous?.sales || [],
+      validatedContext: previous?.validatedContext || null,
+      retrievedAt: previous?.retrievedAt || null,
+      hasMore: previous?.hasMore || false,
+      receivedCount: previous?.receivedCount ?? null,
+      acceptedCount: previous?.acceptedCount ?? null,
+      excludedCount: previous?.excludedCount ?? null,
+      upstreamExclusions: previous?.upstreamExclusions || [],
+    };
   }
   if (
-    state.route === "detail" &&
-    (state.detailId === item.uid || state.detailId === item.id)
+    state.detailSales?.requestId !== requestId ||
+    (state.session?.user?.id || "") !== owner ||
+    sessionLoadVersion !== sessionVersion ||
+    state.detailSelectionKey !== selectionKey ||
+    detailContextKey(state.detailValuationContext) !== contextKey
   )
-    renderDetail();
+    return;
+  state.detailSales = {
+    selectionKey,
+    contextKey,
+    requestId,
+    ...result,
+  };
+  const owned = state.items.find((row) => row.uid === item.uid);
+  if (owned && (owned.cardState === "graded" || owned.gradingCompany))
+    owned.exactSaleEvidence = { ...result, selectionKey, contextKey };
+  if (state.route === "detail") renderDetail();
 }
 
 async function loadOffers(item, force = false) {
@@ -2540,7 +4044,7 @@ async function loadOffers(item, force = false) {
     set: item.set,
     number: item.number,
     language: item.language || "en",
-    condition: item.gradingCompany ? "" : item.condition || "Near Mint",
+    condition: item.gradingCompany ? "" : item.condition || "",
     variant: item.variant || "Normal",
   };
   try {
@@ -2581,6 +4085,7 @@ function routeTo(route, options = {}) {
     options.sidebarTarget = options.sidebarTarget || "dashboard";
   }
   const changed = state.route !== route;
+  if (route !== "detail") clearDetailFx();
   state.route = route;
   if (options.sidebarTarget) state.sidebarTarget = options.sidebarTarget;
   else if (route !== "detail")
@@ -2663,6 +4168,182 @@ const workspaceCopy = Object.freeze({
   ],
 });
 
+const PENDING_PROFILE_ACTION_KEY = "mica:pending-profile-action";
+const PENDING_PROFILE_ACTION_MAX_AGE = 86400000;
+
+function savePendingProfileAction(ownerId, action) {
+  if (!ownerId) return;
+  try {
+    sessionStorage.setItem(
+      PENDING_PROFILE_ACTION_KEY,
+      JSON.stringify({ ...action, ownerId, savedAt: Date.now() }),
+    );
+  } catch {}
+}
+
+function pendingProfileActionIsValid(action) {
+  if (
+    !action ||
+    typeof action !== "object" ||
+    !action.card ||
+    typeof action.card !== "object" ||
+    typeof action.card.name !== "string" ||
+    !action.card.name.trim()
+  )
+    return false;
+  if (action.action === "add")
+    return (
+      typeof action.idempotencyKey === "string" &&
+      Boolean(action.idempotencyKey) &&
+      action.prefill &&
+      typeof action.prefill === "object" &&
+      !Array.isArray(action.prefill)
+    );
+  if (action.action === "watch")
+    return (
+      action.valuationContext &&
+      typeof action.valuationContext === "object" &&
+      !Array.isArray(action.valuationContext) &&
+      ["raw", "graded", "sealed"].includes(action.valuationContext.cardState) &&
+      ["string", "number"].includes(typeof action.targetPrice) &&
+      typeof action.notes === "string"
+    );
+  return false;
+}
+
+function pendingProfileAction(activeOwnerId) {
+  try {
+    const action = JSON.parse(
+      sessionStorage.getItem(PENDING_PROFILE_ACTION_KEY) || "null",
+    );
+    const age = Date.now() - Number(action?.savedAt);
+    if (
+      !activeOwnerId ||
+      typeof action?.ownerId !== "string" ||
+      action.ownerId !== activeOwnerId ||
+      !Number.isFinite(age) ||
+      age < 0 ||
+      age >= PENDING_PROFILE_ACTION_MAX_AGE ||
+      !pendingProfileActionIsValid(action)
+    ) {
+      clearPendingProfileAction();
+      return null;
+    }
+    return action;
+  } catch {
+    clearPendingProfileAction();
+    return null;
+  }
+}
+
+function clearPendingProfileAction() {
+  try {
+    sessionStorage.removeItem(PENDING_PROFILE_ACTION_KEY);
+  } catch {}
+}
+
+function capturePendingProfileAction(ownerId = state.session?.user?.id || "") {
+  if (!ownerId) return;
+  const positionForm = $("#positionForm");
+  const positionIntent = positionForm?.profileIntent;
+  if (positionIntent) {
+    const data = Object.fromEntries(new FormData(positionForm).entries());
+    savePendingProfileAction(ownerId, {
+      action: "add",
+      card: positionIntent.card,
+      idempotencyKey: positionIntent.idempotencyKey,
+      prefill: {
+        cardState: data.cardState,
+        rawCondition: data.rawCondition || "unknown",
+        grader: data.grader || "",
+        grade: data.grade || "",
+        variantId: data.variantId || positionIntent.card.variantId,
+        variant: data.variant || positionIntent.card.variant,
+        quantity: data.quantity,
+        acquisitionMethod: data.acquisitionMethod,
+        totalAcquisitionCost: data.totalAcquisitionCost,
+        transactionDate: data.transactionDate,
+        acquisitionCostKnown: !$("#positionCostUnknown")?.checked,
+        acquisitionDateKnown: !$("#positionDateUnknown")?.checked,
+      },
+    });
+    return;
+  }
+  const watchForm = $("#watchlistForm");
+  const watchIntent = watchForm?.profileIntent;
+  if (!watchIntent) return;
+  const data = Object.fromEntries(new FormData(watchForm).entries());
+  const cardState = data.cardState || watchIntent.valuationContext.cardState;
+  const rawCondition = normalizeRawCondition(
+    data.rawCondition || watchIntent.valuationContext.condition,
+  ).normalized;
+  savePendingProfileAction(ownerId, {
+    action: "watch",
+    card: watchIntent.card,
+    existingWatchlistId: watchIntent.existingWatchlistId,
+    valuationContext:
+      cardState === "sealed"
+        ? { ...watchIntent.valuationContext, currency: watchIntent.currency }
+        : cardState === "graded"
+          ? {
+              cardState: "graded",
+              condition: "",
+              gradingCompany:
+                data.grader ||
+                watchIntent.valuationContext.gradingCompany ||
+                "",
+              grade: data.grade || watchIntent.valuationContext.grade || "",
+              currency: watchIntent.currency,
+            }
+          : {
+              cardState: "raw",
+              condition:
+                rawCondition === "unknown"
+                  ? ""
+                  : String(rawCondition)
+                      .split("_")
+                      .map((part) => part[0].toUpperCase() + part.slice(1))
+                      .join(" "),
+              gradingCompany: "",
+              grade: "",
+              currency: watchIntent.currency,
+            },
+    targetPrice: data.targetPrice,
+    notes: data.notes || "",
+  });
+}
+
+function restorePendingProfileAction() {
+  const action = pendingProfileAction(state.session?.user?.id || "");
+  if (!action) return false;
+  try {
+    if (action.action === "add") {
+      openAddWorkspace();
+      openPositionSheet(action.card, {
+        exactSelection: true,
+        profileIntent: true,
+        prefill: action.prefill,
+        idempotencyKey: action.idempotencyKey,
+      });
+    } else {
+      const existing = state.watchlist.find(
+        (item) => item.watchlistId === action.existingWatchlistId,
+      );
+      openWatchlistSheet(action.card, existing || null, {
+        valuationContext: action.valuationContext,
+        targetPrice: action.targetPrice,
+        notes: action.notes,
+        profileIntent: true,
+      });
+    }
+  } catch {
+    clearPendingProfileAction();
+    return false;
+  }
+  clearPendingProfileAction();
+  return true;
+}
+
 function syncWorkspaceChrome() {
   document.body.dataset.sidebarTarget = state.sidebarTarget;
   $$("[data-sidebar-target]").forEach((button) => {
@@ -2677,9 +4358,10 @@ function syncWorkspaceChrome() {
     }
   });
   if (state.route === "dashboard") {
-    if ($("#headerSection")) $("#headerSection").textContent = "Dashboard";
+    const config = softwareModeConfig(workspaceMode);
+    if ($("#headerSection")) $("#headerSection").textContent = config.homeLabel;
     if ($("#headerSubtitle"))
-      $("#headerSubtitle").textContent = "Your collection at a glance";
+      $("#headerSubtitle").textContent = config.description;
     return;
   }
   if (state.route !== "collection") return;
@@ -2687,8 +4369,8 @@ function syncWorkspaceChrome() {
   if ($("#headerSection")) $("#headerSection").textContent = copy[0];
   if ($("#headerSubtitle")) $("#headerSubtitle").textContent = copy[2];
   if ($("#collectionTitle")) $("#collectionTitle").textContent = copy[1];
-  if ($(".collection-subtitle"))
-    $(".collection-subtitle").textContent = copy[2];
+  if ($("#view-collection .collection-subtitle"))
+    $("#view-collection .collection-subtitle").textContent = copy[2];
 }
 
 export function openAddWorkspace({ camera = false } = {}) {
@@ -2697,9 +4379,11 @@ export function openAddWorkspace({ camera = false } = {}) {
     void openAutoCapture();
     return;
   }
-  requestAnimationFrame(() =>
-    $("#quickCardSearch")?.focus({ preventScroll: true }),
-  );
+  if (window.matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    requestAnimationFrame(() =>
+      $("#quickCardSearch")?.focus({ preventScroll: true }),
+    );
+  }
 }
 
 function openWorkspaceShortcut(target) {
@@ -2709,6 +4393,8 @@ function openWorkspaceShortcut(target) {
     state.conditionFilter = condition;
     state.setFilter = "";
     state.labelFilter = "";
+    state.collectionFilter = "";
+    state.locationFilter = "";
     syncTabs();
     renderCollection();
     saveCollectionViewState();
@@ -2722,7 +4408,10 @@ function openWorkspaceShortcut(target) {
     return;
   }
   if (target === "collection") {
-    collectionTarget("all");
+    routeTo("collection", { sidebarTarget: target });
+    syncTabs();
+    if (state.largeInventory.active) void refreshLargeCollectionPage();
+    else renderCollection();
     return;
   }
   if (target === "sets") return collectionTarget("sets");
@@ -2746,33 +4435,24 @@ function openWorkspaceShortcut(target) {
     );
     return;
   }
-  if (["analytics", "sales", "purchases", "seller"].includes(target)) {
-    if (["sales", "purchases"].includes(target) && workspaceMode === "guided")
-      applyWorkspaceMode("growth", { announce: true });
-    renderInsights();
-    void refreshMovementHistory();
+  if (target === "seller") return collectionTarget("for-sale");
+  if (["analytics", "sales", "purchases"].includes(target)) {
     routeTo("dashboard", { sidebarTarget: "dashboard" });
     const selector =
       target === "sales"
-        ? "#businessReportTitle"
+        ? "#dashboardBusinessPerformance"
         : target === "purchases"
-          ? "#recentActivity"
-          : target === "seller"
-            ? "#liquidationTitle"
-            : "#insightsData .insight-feature";
+          ? "#dashboardRecentActivity"
+          : "#portfolioHistory";
     requestAnimationFrame(() =>
       $(selector)?.scrollIntoView({ block: "start" }),
     );
     return;
   }
   if (target === "business") {
-    if (workspaceMode === "guided")
-      applyWorkspaceMode("growth", { announce: true });
-    renderInsights();
-    void refreshMovementHistory();
     routeTo("dashboard", { sidebarTarget: "dashboard" });
     requestAnimationFrame(() =>
-      $("#businessReportTitle")?.scrollIntoView({ block: "start" }),
+      $("#dashboardBusinessPerformance")?.scrollIntoView({ block: "start" }),
     );
     return;
   }
@@ -2795,28 +4475,50 @@ function watchContextLabel(item) {
     ? "Unopened product"
     : item.cardState === "graded"
       ? `${item.gradingCompany} grade ${item.grade}`
-      : item.condition
+      : item.condition &&
+          normalizeRawCondition(item.rawCondition || item.condition)
+            .normalized !== "unknown"
         ? conditionLabel(item.condition)
         : "Ungraded · wear not added";
 }
 
-function matchingWatchEntry(card) {
+function matchingWatchEntry(card, context = null) {
   if (!card) return null;
   if (card.watchlistId)
     return (
       state.watchlist.find((item) => item.watchlistId === card.watchlistId) ||
       card
     );
+  const matches = state.watchlist.filter(
+    (item) =>
+      detailIdentityKey(item) === detailIdentityKey(card) ||
+      sameCatalogPrinting(item, card),
+  );
+  if (!context) return matches.length === 1 ? matches[0] : null;
   return (
-    state.watchlist.find(
-      (item) =>
-        item.id === card.id && (!card.variant || item.variant === card.variant),
-    ) || null
+    matches.find((item) => {
+      if (item.cardState !== context.cardState) return false;
+      if (
+        String(item.currency || "USD").toUpperCase() !==
+        String(context.currency || card.currency || "USD").toUpperCase()
+      )
+        return false;
+      if (context.cardState === "graded")
+        return (
+          String(item.gradingCompany || "") ===
+            String(context.gradingCompany || "") &&
+          String(item.grade || "") === String(context.grade || "")
+        );
+      if (context.cardState === "raw")
+        return String(item.condition || "") === String(context.condition || "");
+      return true;
+    }) || null
   );
 }
 
 function openWatchlistDetail(item) {
   if (!item) return;
+  clearDetailFx();
   state.detailReturnRoute = "collection";
   state.detailCanPop = state.route !== "detail";
   state.detailId = `watch-${item.watchlistId}`;
@@ -2826,7 +4528,21 @@ function openWatchlistDetail(item) {
     quotes: item.quotes || [],
     pricingUpdatedAt: item.pricingUpdatedAt,
   };
+  state.detailSelectionKey = detailIdentityKey(item);
+  state.detailRequestVersion += 1;
+  state.detailPricing = null;
+  state.detailSales = null;
+  state.detailValuationContext = valuationContextForItem(item);
   routeTo("detail");
+  if (
+    item.cardState !== "sealed" &&
+    detailContextReady(state.detailValuationContext)
+  )
+    void loadCardPreviewPricing(
+      item,
+      state.detailValuationContext,
+      beginDetailRequest(item, state.detailValuationContext),
+    );
 }
 
 function renderWatchlistRows() {
@@ -2893,15 +4609,33 @@ function renderWatchlistRows() {
         ? result.change >= 0
         : result.change < 0;
     });
-  visible.sort((a, b) =>
-    state.sort === "name"
-      ? a.name.localeCompare(b.name)
-      : Number(b.currentPrice ?? -1) - Number(a.currentPrice ?? -1),
-  );
+  const updatedTime = (item) =>
+    [item.updatedAt, item.createdAt]
+      .map((value) => Date.parse(value))
+      .find(Number.isFinite) ?? 0;
+  visible.sort((a, b) => {
+    const byName = a.name.localeCompare(b.name);
+    if (state.sort === "name") return byName;
+    if (state.sort === "updated-desc")
+      return updatedTime(b) - updatedTime(a) || byName;
+    if (state.sort === "location")
+      return (
+        String(a.location || "").localeCompare(String(b.location || "")) ||
+        byName
+      );
+    return (
+      Number(b.currentPrice ?? -1) - Number(a.currentPrice ?? -1) || byName
+    );
+  });
   $("#resultCount").textContent =
     `${visible.length} watched item${visible.length === 1 ? "" : "s"}`;
   $("#sortButton").firstChild.textContent =
-    state.sort === "value-desc" ? "Most valuable first " : "Name, A to Z ";
+    {
+      "value-desc": "Most valuable first ",
+      name: "Name, A to Z ",
+      "updated-desc": "Recently updated ",
+      location: "Storage location ",
+    }[state.sort] || "Name, A to Z ";
   $("#cardLedger").innerHTML = visible
     .map((item) => {
       const hasTarget = item.targetPrice !== null;
@@ -2929,7 +4663,7 @@ function renderWatchlistRows() {
       return `<article class="ledger-row watch-row" tabindex="0" role="button" aria-label="Open watched ${esc(item.name)}" data-watch-id="${esc(item.watchlistId)}">
       <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${targetReached ? '<span class="target-hit">Buy target</span>' : ""}</div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span><div class="card-tags"><span class="micro-tag ${item.cardState === "graded" ? "graded" : ""}">${esc(watchContextLabel(item))}</span><span class="micro-tag">${esc(item.variant)}</span></div></div>
-      <div class="price-cell"><span class="row-value">${item.currentPrice === null ? "—" : money(item.currentPrice, item.currency)}</span><span class="row-unit">${hasTarget ? `Buy at ${money(item.targetPrice, item.currency)}` : "No target set"}</span><span class="row-move ${performance ? (performance.changeMinor > 0 ? "up" : performance.changeMinor < 0 ? "down" : "none") : targetReached ? "up" : "none"}">${esc(movement || targetStatus)}</span></div>
+      <div class="price-cell"><span class="row-value">${item.currentPrice === null ? "—" : money(item.currentPrice, item.currency)}</span><span class="row-unit">${hasTarget ? `Buy at ${money(item.targetPrice, item.currency)}` : "No target set"}</span><small class="price-provenance">${esc(priceProvenanceText({ ...item, price: item.currentPrice }))}</small><span class="row-move ${performance ? (performance.changeMinor > 0 ? "up" : performance.changeMinor < 0 ? "down" : "none") : targetReached ? "up" : "none"}">${esc(movement || targetStatus)}</span></div>
     </article>`;
     })
     .join("");
@@ -2941,7 +4675,6 @@ function renderWatchlistRows() {
   $("#collectionEmptyCopy").textContent = trulyEmpty
     ? "Find a card or unopened product and choose Watch. Mica can tell you when it reaches the price you want."
     : "Try clearing the search or changing your filters.";
-  $("#firstCardGuide").classList.add("hidden");
   $("#emptyAddCard").classList.toggle("hidden", !trulyEmpty);
   $("#emptyAddCard").textContent = trulyEmpty
     ? "Find an item to watch"
@@ -2984,7 +4717,10 @@ function setIdFor(item) {
 function collectionSetGroups() {
   const groups = new Map();
   for (const item of state.items.filter(
-    (item) => item.cardState !== "sealed" && Number(item.quantity) > 0,
+    (item) =>
+      item.cardState !== "sealed" &&
+      Number(item.quantity) > 0 &&
+      (!state.collectionFilter || item.collectionId === state.collectionFilter),
   )) {
     const language = item.language || "en";
     const setId = setIdFor(item);
@@ -3106,7 +4842,6 @@ function renderSetRows() {
   $("#collectionEmptyCopy").textContent = trulyEmpty
     ? "Add any card and Mica will automatically start its set progress."
     : "Try a different set name or clear the search.";
-  $("#firstCardGuide").classList.toggle("hidden", !trulyEmpty);
   $("#emptyAddCard").classList.toggle("hidden", !trulyEmpty);
   $("#emptyAddCard").textContent = "Add a card to start";
   $("#clearFilters").classList.toggle("hidden", trulyEmpty);
@@ -3127,7 +4862,7 @@ function setSheetMarkup(group) {
   const catalog = group.catalog;
   if (!catalog)
     return `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(group.name)}</h2><p>Set checklist</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="unavailable-panel"><strong>The exact checklist is temporarily unavailable.</strong><br>Your owned cards remain safe. Try this set again after the public catalog refreshes.</div>`;
-  return `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(catalog.name)}</h2><p>You have ${group.ownedCount} of ${catalog.totalCount} different cards · ${group.percent?.toFixed(1) || 0}% complete</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="set-sheet-progress"><span>Your progress</span><strong>${catalog.totalCount - group.ownedCount} cards left</strong><div class="set-progress-track"><i style="width:${group.percent || 0}%"></i></div></div><div class="set-share-action"><div><strong>Cards you still need</strong><span>Copy card names and the numbers printed at the bottom without sharing private collection data.</span></div><button id="copyMissingList" type="button" ${catalog.totalCount === group.ownedCount ? "disabled" : ""}>${catalog.totalCount === group.ownedCount ? "Set complete" : "Copy list"}</button></div><div class="set-check-tools"><label class="search-field"><span class="sr-only">Search this set</span><input id="setChecklistSearch" type="search" placeholder="Search this set"></label><label class="missing-toggle"><input id="missingOnly" type="checkbox" checked> Show only cards I need</label></div><div class="set-checklist" id="setChecklist" aria-live="polite"></div>`;
+  return `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(catalog.name)}</h2><p>You have ${group.ownedCount} of ${catalog.totalCount} different cards · ${group.percent?.toFixed(1) || 0}% complete</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="set-sheet-progress"><span>Your progress</span><strong>${catalog.totalCount - group.ownedCount} cards left</strong><div class="set-progress-track"><i style="width:${group.percent || 0}%"></i></div></div><div class="set-share-action"><div><strong>Cards you still need</strong><span>Copy card names and the numbers printed at the bottom without sharing private collection data.</span></div><div><button id="trackSetGoal" type="button">Track as goal</button><button id="copyMissingList" type="button" ${catalog.totalCount === group.ownedCount ? "disabled" : ""}>${catalog.totalCount === group.ownedCount ? "Set complete" : "Copy list"}</button></div></div><div class="set-check-tools"><label class="search-field"><span class="sr-only">Search this set</span><input id="setChecklistSearch" type="search" placeholder="Search this set"></label><label class="missing-toggle"><input id="missingOnly" type="checkbox" checked> Show only cards I need</label></div><div class="set-checklist" id="setChecklist" aria-live="polite"></div>`;
 }
 
 function bindSetSheet(group) {
@@ -3188,6 +4923,40 @@ function bindSetSheet(group) {
       toast("Copy is unavailable in this browser");
     }
   });
+  $("#trackSetGoal").addEventListener("click", async () => {
+    const button = $("#trackSetGoal");
+    button.disabled = true;
+    button.textContent = "Saving…";
+    try {
+      await saveCollectionGoal(supabase, {
+        name: `Complete ${group.catalog.name}`,
+        goalType: "checklist",
+        dimension: "set",
+        criteria: {
+          set: group.catalog.name,
+          language: group.language,
+        },
+        targets: group.catalog.cards.map((card) => ({
+          key:
+            card.externalIds?.tcgdex ||
+            `${group.language}:${group.setId}:${card.localId}`,
+          aliases: Object.values(card.externalIds || {}).filter(Boolean),
+          label: `${card.name} · ${card.localId}`,
+        })),
+        metadataStatus: "verified",
+        catalogSource: "TCGdex",
+        catalogVersion: String(group.catalog.updatedAt || "current"),
+        collectionId: state.collectionFilter || null,
+      });
+      closeSheet({ discardHistory: true });
+      await refreshCollectionOrganization();
+      toast("Exact set goal created");
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = "Track as goal";
+      toast(`Could not create goal: ${error.message || "Unknown error"}`);
+    }
+  });
 }
 
 async function openSetProgressSheet(group) {
@@ -3246,10 +5015,27 @@ function setBulkMode(enabled) {
   renderCollection();
 }
 
+function syncBulkSelectionRows() {
+  $$(".ledger-row.bulk-mode").forEach((row) => {
+    const selected = state.bulkSelected.has(row.dataset.id);
+    row.classList.toggle("selected", selected);
+    row.setAttribute("aria-checked", String(selected));
+    row.setAttribute(
+      "aria-label",
+      row
+        .getAttribute("aria-label")
+        .replace(/^(?:Select|Deselect) /, selected ? "Deselect " : "Select "),
+    );
+    const indicator = $(".bulk-select-indicator", row);
+    if (indicator) indicator.textContent = selected ? "✓" : "";
+  });
+  syncBulkControls();
+}
+
 function toggleBulkPosition(id) {
   if (state.bulkSelected.has(id)) state.bulkSelected.delete(id);
   else state.bulkSelected.add(id);
-  renderCollection();
+  syncBulkSelectionRows();
 }
 
 function openBulkOrganizeSheet() {
@@ -3260,17 +5046,61 @@ function openBulkOrganizeSheet() {
     toast("Select at least one saved card");
     return;
   }
+  const folders = state.organization.folders || [];
+  const customFields = state.organization.customFields || [];
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Organize ${selected.length} saved card${selected.length === 1 ? "" : "s"}</h2><p>Only the choices below will change. Card details, grade, what you paid, and purchase history stay the same.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="bulkOrganizeForm"><div class="form-grid"><div class="field"><label for="bulkLabelMode">Label</label><select id="bulkLabelMode" name="labelMode"><option value="keep">Keep current labels</option><option value="add">Add a label</option><option value="remove">Remove a label</option></select></div><div class="field" id="bulkLabelField" hidden><label for="bulkLabel">Label name</label><input id="bulkLabel" name="label" maxlength="40" placeholder="Trade binder"></div><div class="field"><label for="bulkLocationMode">Where they are stored</label><select id="bulkLocationMode" name="locationMode"><option value="keep">Keep current locations</option><option value="set">Use one location</option><option value="clear">Remove locations</option></select></div><div class="field" id="bulkLocationField" hidden><label for="bulkLocation">Location</label><input id="bulkLocation" name="location" maxlength="250" placeholder="Binder 2 · Shelf A"></div><div class="field full"><label for="bulkStatus">Keep these in your main collection?</label><select id="bulkStatus" name="status"><option value="keep">No change</option><option value="owned">Yes, keep them here</option><option value="archived">No, move them to archived</option></select><small>Cards for sale are reviewed one at a time so Mica never guesses a selling price.</small></div><p class="form-error" id="bulkOrganizeError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="bulkOrganizeCancel">Cancel</button><button class="primary" type="submit">Save changes</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Organize ${selected.length} saved card${selected.length === 1 ? "" : "s"}</h2><p>Preview the exact changes first. Card identity, grade, amount paid, and transaction history stay unchanged.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="bulkOrganizeForm"><div class="form-grid">${folders.length ? `<div class="field"><label for="bulkCollectionMode">Digital folder</label><select id="bulkCollectionMode" name="collectionMode"><option value="keep">Keep current folders</option><option value="set">Move to one folder</option></select></div><div class="field" id="bulkCollectionField" hidden><label for="bulkCollectionId">Folder</label><select id="bulkCollectionId" name="collectionId">${folders.map((folder) => `<option value="${esc(folder.id)}">${esc(folder.name)}</option>`).join("")}</select></div>` : '<input type="hidden" name="collectionMode" value="keep">'}<div class="field"><label for="bulkLabelMode">Label</label><select id="bulkLabelMode" name="labelMode"><option value="keep">Keep current labels</option><option value="add">Add a label</option><option value="remove">Remove a label</option></select></div><div class="field" id="bulkLabelField" hidden><label for="bulkLabel">Label name</label><input id="bulkLabel" name="label" maxlength="40" placeholder="Trade binder"></div><div class="field"><label for="bulkLocationMode">Where they are stored</label><select id="bulkLocationMode" name="locationMode"><option value="keep">Keep current locations</option><option value="set">Use one location</option><option value="clear">Remove locations</option></select></div><div class="field" id="bulkLocationField" hidden><label for="bulkLocation">Location</label><input id="bulkLocation" name="location" maxlength="250" placeholder="Binder 2 · Shelf A"></div>${customFields.length ? `<div class="field"><label for="bulkCustomFieldMode">Custom field</label><select id="bulkCustomFieldMode" name="customFieldMode"><option value="keep">Keep custom fields</option><option value="set">Set one field</option><option value="clear">Clear one field</option></select></div><div class="field" id="bulkCustomFieldField" hidden><label for="bulkCustomFieldKey">Field</label><select id="bulkCustomFieldKey" name="customFieldKey">${customFields.map((field) => `<option value="${esc(field.key)}">${esc(field.name)}</option>`).join("")}</select><input id="bulkCustomFieldValue" name="customFieldValue" maxlength="500" placeholder="Value"></div>` : '<input type="hidden" name="customFieldMode" value="keep">'}<div class="field full"><label for="bulkStatus">Keep these in your main collection?</label><select id="bulkStatus" name="status"><option value="keep">No change</option><option value="owned">Yes, keep them here</option><option value="archived">No, move them to archived</option></select><small>Cards for sale are reviewed one at a time so Mica never guesses a selling price.</small></div><div class="bulk-change-preview full" id="bulkChangePreview" aria-live="polite"><strong>No changes selected</strong><span>Choose one or more organization changes, then preview them.</span></div><p class="form-error" id="bulkOrganizeError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="bulkOrganizeCancel">Cancel</button><button class="primary" type="submit">Preview changes</button></div></form>`,
   );
   const labelMode = $("#bulkLabelMode");
   const locationMode = $("#bulkLocationMode");
+  const collectionMode = $("#bulkCollectionMode");
+  const customFieldMode = $("#bulkCustomFieldMode");
+  const customFieldKey = $("#bulkCustomFieldKey");
+  const customFieldValue = $("#bulkCustomFieldValue");
+  let approvedFingerprint = "";
+  const syncCustomFieldValue = () => {
+    if (!customFieldValue || !customFieldKey) return;
+    const definition = customFields.find(
+      (field) => field.key === customFieldKey.value,
+    );
+    customFieldValue.type = ["number", "date"].includes(definition?.value_type)
+      ? definition.value_type
+      : "text";
+    customFieldValue.placeholder =
+      definition?.value_type === "boolean"
+        ? "Yes or no"
+        : definition?.value_type === "number"
+          ? "Number"
+          : definition?.value_type === "date"
+            ? "YYYY-MM-DD"
+            : "Value";
+  };
   const syncFields = () => {
     $("#bulkLabelField").hidden = labelMode.value === "keep";
     $("#bulkLocationField").hidden = locationMode.value !== "set";
+    if ($("#bulkCollectionField"))
+      $("#bulkCollectionField").hidden = collectionMode.value !== "set";
+    if ($("#bulkCustomFieldField")) {
+      $("#bulkCustomFieldField").hidden = customFieldMode.value === "keep";
+      $("#bulkCustomFieldValue").hidden = customFieldMode.value === "clear";
+    }
+    syncCustomFieldValue();
+    approvedFingerprint = "";
+    $("#bulkOrganizeForm").querySelector('[type="submit"]').textContent =
+      "Preview changes";
   };
   labelMode.addEventListener("change", syncFields);
   locationMode.addEventListener("change", syncFields);
+  collectionMode?.addEventListener("change", syncFields);
+  customFieldMode?.addEventListener("change", syncFields);
+  customFieldKey?.addEventListener("change", syncFields);
+  $$("input,select", $("#bulkOrganizeForm")).forEach((input) =>
+    input.addEventListener("input", () => {
+      approvedFingerprint = "";
+      $("#bulkOrganizeForm").querySelector('[type="submit"]').textContent =
+        "Preview changes";
+    }),
+  );
   syncFields();
   $("#bulkOrganizeCancel").addEventListener("click", closeSheet);
   $("#bulkOrganizeForm").addEventListener("submit", async (event) => {
@@ -3279,13 +5109,51 @@ function openBulkOrganizeSheet() {
     const data = Object.fromEntries(
       new FormData(event.currentTarget).entries(),
     );
-    submit.disabled = true;
-    $("#bulkOrganizeError").textContent = "Saving securely…";
+    let parsedCustomFieldValue = data.customFieldValue;
+    if (data.customFieldMode === "set") {
+      const definition = customFields.find(
+        (field) => field.key === data.customFieldKey,
+      );
+      if (definition?.value_type === "number") {
+        parsedCustomFieldValue = Number(data.customFieldValue);
+        if (!Number.isFinite(parsedCustomFieldValue)) {
+          $("#bulkOrganizeError").textContent = "Enter a valid number.";
+          return;
+        }
+      } else if (definition?.value_type === "boolean") {
+        const value = String(data.customFieldValue).trim().toLowerCase();
+        if (!["yes", "no", "true", "false"].includes(value)) {
+          $("#bulkOrganizeError").textContent = "Enter yes or no.";
+          return;
+        }
+        parsedCustomFieldValue = ["yes", "true"].includes(value);
+      }
+    }
+    const input = {
+      ids: selected.map((item) => item.uid),
+      ...data,
+      customFieldValue:
+        data.customFieldMode === "set" ? parsedCustomFieldValue : null,
+    };
     try {
-      await bulkOrganizePositions(supabase, {
-        ids: selected.map((item) => item.uid),
-        ...data,
-      });
+      const preview = previewBulkOrganization(selected, input);
+      const fingerprint = JSON.stringify(input);
+      if (approvedFingerprint !== fingerprint) {
+        approvedFingerprint = fingerprint;
+        const fields = new Set();
+        preview.changed.forEach(({ before, after }) => {
+          for (const key of Object.keys(before))
+            if (JSON.stringify(before[key]) !== JSON.stringify(after[key]))
+              fields.add(key);
+        });
+        $("#bulkChangePreview").innerHTML =
+          `<strong>${preview.count} saved entr${preview.count === 1 ? "y" : "ies"} will change</strong><span>${[...fields].map((field) => ({ collectionId: "digital folder", tags: "labels", location: "physical location", status: "collection status", customFields: "custom fields" })[field] || field).join(" · ")}. You can undo this operation until any affected item is edited again.</span>`;
+        submit.textContent = "Confirm changes";
+        return;
+      }
+      submit.disabled = true;
+      $("#bulkOrganizeError").textContent = "Saving one atomic change…";
+      await bulkOrganizePositions(supabase, input);
       closeSheet({ discardHistory: true });
       await reloadPortfolio();
       state.bulkSelected = new Set(
@@ -3314,19 +5182,11 @@ function openSelectedShareSheet() {
     toast("Select at least one saved card");
     return;
   }
-  const defaultMode = workspaceMode === "guided" ? "showcase" : "asking";
+  const defaultMode = workspaceMode === "collector" ? "showcase" : "asking";
   openSheet(
     `<div class="sheet-heading"><div><h2 id="sheetTitle">Share selected cards</h2><p>${selected.length} saved card${selected.length === 1 ? "" : "s"} selected · preview exactly what will be shared</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="field"><label for="selectedShareMode">What should the list show?</label><select id="selectedShareMode"><option value="showcase" ${defaultMode === "showcase" ? "selected" : ""}>Card list · no prices</option><option value="asking" ${defaultMode === "asking" ? "selected" : ""}>For sale · my selling prices</option><option value="market">Price check · today’s matching prices</option></select><small>Missing prices stay blank. Mica never uses the price of a different card, wear level, or grade.</small></div>${selected.some((item) => item.gradingCompany && item.certificationNumber) ? '<label class="share-performance"><input id="selectedShareCertifications" type="checkbox"> Include graded-card certification numbers</label>' : ""}<div class="share-list-status" id="selectedShareStatus" aria-live="polite"></div><pre class="share-preview" id="selectedSharePreview"></pre><div class="simple-note"><strong>Your private details stay private.</strong><br>What you paid, money gained, purchase dates, notes, storage, account details, and purchase or sale history are never included. Certification numbers are excluded unless you choose to include them.</div><div class="sheet-actions share-list-actions"><button class="secondary" id="downloadSelectedList" type="button">Download spreadsheet</button><button class="secondary" id="copySelectedList" type="button">Copy list</button>${navigator.share ? '<button class="primary" id="nativeShareSelectedList" type="button">Share…</button>' : ""}</div>`,
   );
-  const shareRows = selected.map((item) => {
-    const quote = selectPositionQuote(item.quotes, item);
-    return {
-      ...item,
-      referenceProvider: quote?.provider || "",
-      referenceObservedAt:
-        quote?.observedAt || quote?.retrievedAt || item.pricingUpdatedAt || "",
-    };
-  });
+  const shareRows = selected.map(itemWithPriceEvidence);
   const create = () =>
     selectedInventoryShare(shareRows, {
       mode: $("#selectedShareMode").value,
@@ -3390,18 +5250,20 @@ function destroyPortfolioHistoryChart() {
 }
 
 function portfolioHistoryRangePoints(points, range) {
-  if (range === "all" || points.length < 3) return points;
-  const latestTime = new Date(`${points.at(-1).date}T00:00:00Z`).getTime();
+  if (range === "all") return points;
+  const latestTime = Date.now();
   if (!Number.isFinite(latestTime)) return points;
   const latestDate = new Date(latestTime);
   const cutoff =
     range === "ytd"
       ? Date.UTC(latestDate.getUTCFullYear(), 0, 1)
-      : latestTime - ({ "1m": 31, "3m": 93 }[range] || 93) * 86_400_000;
+      : latestTime -
+        ({ "1w": 7, "1m": 31, "3m": 93, "6m": 186, "1y": 366 }[range] || 31) *
+          86_400_000;
   const filtered = points.filter(
     (point) => new Date(`${point.date}T00:00:00Z`).getTime() >= cutoff,
   );
-  return filtered.length >= 2 ? filtered : points.slice(-2);
+  return filtered;
 }
 
 function shortPortfolioDate(value, includeYear = false) {
@@ -3420,6 +5282,9 @@ async function mountPortfolioHistoryChart({
   values,
   currency,
   marketMode,
+  pnlMode = false,
+  partialValues = null,
+  coverageMode = false,
 }) {
   const version = ++portfolioChartMountVersion;
   portfolioChartInstance?.destroy();
@@ -3434,7 +5299,7 @@ async function mountPortfolioHistoryChart({
   const line = styles.getPropertyValue("--line").trim() || "#1b2735";
   const paper = styles.getPropertyValue("--paper").trim() || "#0d151f";
   const ink = styles.getPropertyValue("--ink").trim() || "#f7f8fc";
-  const firstValue = values[0];
+  const firstValue = values.find((value) => value !== null) ?? 0;
   const compactCurrency = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
@@ -3466,9 +5331,11 @@ async function mountPortfolioHistoryChart({
       labels: points.map((point) => point.date),
       datasets: [
         {
-          label: marketMode
-            ? "Price change without purchases or sales"
-            : "Collection value",
+          label: pnlMode
+            ? "Known unrealized profit or loss"
+            : marketMode
+              ? "Price change without purchases or sales"
+              : "Collection value",
           data: values,
           borderColor: accent,
           borderWidth: 2.25,
@@ -3487,13 +5354,30 @@ async function mountPortfolioHistoryChart({
             return gradient;
           },
           fill: true,
-          tension: 0.28,
-          pointRadius: 0,
+          tension: pnlMode ? 0 : 0.28,
+          pointRadius: coverageMode ? 3 : 0,
           pointHoverRadius: 5,
           pointHoverBackgroundColor: accent,
           pointHoverBorderColor: paper,
           pointHoverBorderWidth: 2,
         },
+        ...(partialValues
+          ? [
+              {
+                label: pnlMode
+                  ? "Partial known profit or loss"
+                  : "Partial known value",
+                data: partialValues,
+                showLine: false,
+                fill: false,
+                pointStyle: "rectRot",
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                pointBackgroundColor: muted,
+                pointBorderColor: paper,
+              },
+            ]
+          : []),
       ],
     },
     options: {
@@ -3519,8 +5403,15 @@ async function mountPortfolioHistoryChart({
             label(context) {
               const value = Number(context.parsed.y);
               const delta = value - firstValue;
+              if (coverageMode) {
+                const point = points[context.dataIndex];
+                return [
+                  `${context.datasetIndex ? "Partial known" : "Known"} ${pnlMode ? "P/L" : "value"}: ${money(value, currency)}`,
+                  `${point.comparableUnits} comparable · ${point.missingUnits} missing price · ${point.unknownBasisUnits} unknown cost · ${point.unknownMembershipUnits} unknown date · ${point.unknownRealizedSales} unknown sale`,
+                ];
+              }
               return [
-                `${marketMode ? "Market move" : "Value"}: ${money(value, currency)}`,
+                `${marketMode ? "Price change" : "Value"}: ${money(value, currency)}`,
                 `Selected range: ${delta >= 0 ? "+" : ""}${money(delta, currency)}`,
               ];
             },
@@ -3566,21 +5457,133 @@ async function mountPortfolioHistoryChart({
 function renderPortfolioHistory() {
   const root = $("#portfolioHistory");
   if (!root) return;
+  const ranges = [
+    ["1w", "1 week"],
+    ["1m", "1 month"],
+    ["6m", "6 months"],
+    ["1y", "1 year"],
+  ];
+  const rangeControls = () =>
+    ranges
+      .map(
+        ([value, label]) =>
+          `<button type="button" data-portfolio-history-range="${value}" aria-pressed="${String(state.portfolioHistoryRange === value)}">${label}</button>`,
+      )
+      .join("");
+  const bindControls = () => {
+    $$("[data-portfolio-history-mode]", root).forEach((button) =>
+      button.addEventListener("click", () => {
+        state.portfolioHistoryMode = button.dataset.portfolioHistoryMode;
+        renderPortfolioHistory();
+      }),
+    );
+    $$("[data-portfolio-history-range]", root).forEach((button) =>
+      button.addEventListener("click", () => {
+        state.portfolioHistoryRange = button.dataset.portfolioHistoryRange;
+        renderPortfolioHistory();
+      }),
+    );
+    $("[data-portfolio-history-retry]", root)?.addEventListener(
+      "click",
+      () => void retryPortfolioHistory(),
+    );
+    $$("[data-portfolio-history-currency]", root).forEach((button) =>
+      button.addEventListener("click", () => {
+        state.portfolioHistoryCurrency =
+          button.dataset.portfolioHistoryCurrency;
+        renderPortfolioHistory();
+      }),
+    );
+  };
+  const currencies = [
+    ...new Set(
+      state.items.map((item) => String(item.currency || "USD").toUpperCase()),
+    ),
+  ].filter((value) => value === "USD" || value === "EUR");
+  if (!currencies.includes(state.portfolioHistoryCurrency))
+    state.portfolioHistoryCurrency = currencies[0] || "USD";
+  const currency = state.portfolioHistoryCurrency;
+  const currencyControl =
+    currencies.length > 1
+      ? `<div class="portfolio-history-toggle" role="group" aria-label="History currency">${currencies.map((value) => `<button type="button" data-portfolio-history-currency="${value}" aria-pressed="${String(currency === value)}">${value}</button>`).join("")}</div>`
+      : "";
+  const controls = `<div class="portfolio-history-toggle" role="group" aria-label="Portfolio chart view"><button type="button" data-portfolio-history-mode="pnl" aria-pressed="${String(state.portfolioHistoryMode === "pnl")}">P/L</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(state.portfolioHistoryMode === "value")}">Value</button><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(state.portfolioHistoryMode === "return")}">Reference price change</button></div>${currencyControl}<div class="portfolio-chart-ranges" role="group" aria-label="Time shown on chart">${rangeControls()}</div>`;
+  if (
+    state.portfolioHistoryMode === "pnl" ||
+    state.portfolioHistoryMode === "value"
+  ) {
+    const pnlMode = state.portfolioHistoryMode === "pnl";
+    const matched = portfolioItems().map((item) => ({
+      ...item,
+      matchedHistory: portfolioHistoryForItem(item),
+    }));
+    const points = portfolioHistoryRangePoints(
+      portfolioProfitLossHistory(matched, currency),
+      state.portfolioHistoryRange,
+    );
+    const latest = points.at(-1);
+    const value = (point) =>
+      pnlMode ? point.unrealizedMinor : point.valueMinor;
+    const available = (point) =>
+      pnlMode
+        ? point.comparableUnits > 0 || point.knownZeroActive
+        : point.pricedUnits > 0 || point.knownZeroActive;
+    const coverage = (point) =>
+      `${point.comparableUnits} comparable · ${point.missingUnits} missing price · ${point.unknownBasisUnits} unknown cost · ${point.unknownMembershipUnits} unknown date · ${point.unknownRealizedSales} unknown sale`;
+    destroyPortfolioHistoryChart();
+    const empty =
+      state.portfolioHistoryStatus === "error"
+        ? "History could not refresh"
+        : state.portfolioHistoryStatus === "loading"
+          ? "Loading recorded history"
+          : "No recorded history in this range";
+    const metrics = latest
+      ? pnlMode
+        ? `<div><span>Known unrealized P/L</span><strong>${latest.comparableUnits ? money(latest.unrealizedMinor / 100, currency) : latest.knownZeroActive ? money(0, currency) : "—"}${latest.unrealizedPercent === null ? "" : ` (${latest.unrealizedPercent.toFixed(1)}%)`}</strong></div><div><span>Known realized P/L</span><strong>${latest.knownRealizedSales ? money(latest.realizedMinor / 100, currency) : "—"}</strong></div>`
+        : `<div><span>Known value</span><strong>${latest.pricedUnits || latest.knownZeroActive ? money(latest.valueMinor / 100, currency) : "—"}</strong></div><div><span>Priced copies</span><strong>${latest.pricedUnits}</strong></div>`
+      : "";
+    root.innerHTML = `<div class="portfolio-history-head"><strong>${pnlMode ? "Portfolio profit or loss" : "Portfolio value"} · ${currency}</strong></div>${controls}${latest ? `<div class="portfolio-history-metrics">${metrics}<div><span>Coverage on ${esc(latest.date)}</span><strong>${coverage(latest)}</strong></div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="${pnlMode ? "Known unrealized profit or loss" : "Known value"} by recorded date in ${currency}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${points.map((point) => `${point.date}: ${available(point) ? money(value(point) / 100, currency) : "unavailable"}${point.historyComplete ? "" : " partial"}; ${coverage(point)}`).join("; ")}</p><p class="portfolio-history-note">Round dots have complete coverage; diamonds show partial known amounts without a connecting line. No price is filled in for an unobserved date. Other currencies stay separate.</p>` : `<div class="portfolio-history-empty"><strong>${empty}</strong><span>${state.portfolioHistoryStatus === "error" ? "Your saved records are unchanged." : "Try a longer range or wait for recorded evidence."}</span>${state.portfolioHistoryStatus === "error" ? '<button type="button" data-portfolio-history-retry>Try again</button>' : ""}</div>`}`;
+    bindControls();
+    if (points.length > 1 && points.some(available))
+      requestAnimationFrame(
+        () =>
+          void mountPortfolioHistoryChart({
+            points,
+            values: points.map((point) =>
+              available(point) && point.historyComplete
+                ? value(point) / 100
+                : null,
+            ),
+            partialValues: points.map((point) =>
+              available(point) && !point.historyComplete
+                ? value(point) / 100
+                : null,
+            ),
+            currency,
+            marketMode: false,
+            pnlMode,
+            coverageMode: true,
+          }),
+      );
+    return;
+  }
   const history = marketAdjustedPortfolioHistory(
     state.portfolioHistory,
     portfolioTransactions(),
-    "USD",
+    currency,
   );
   if (!history.points.length) {
     destroyPortfolioHistoryChart();
     const failed = state.portfolioHistoryStatus === "error";
-    root.innerHTML = `<div class="portfolio-history-empty"><strong>${failed ? "Performance history is temporarily unavailable" : "Tracking starts today"}</strong><span>${failed ? "Your collection and ledger are unchanged. Mica will retry after the next live price refresh." : "After current prices load, Mica saves today’s starting value. Your first real trend appears after another daily valuation."}</span></div>`;
+    root.innerHTML = `${controls}<div class="portfolio-history-empty"><strong>${failed ? "Performance history is temporarily unavailable" : "Tracking starts today"}</strong><span>${failed ? "Your collection and ledger are unchanged." : "After current prices load, Mica saves today’s starting value. Your first real trend appears after another daily valuation."}</span>${failed ? '<button type="button" data-portfolio-history-retry>Try again</button>' : ""}</div>`;
+    bindControls();
     return;
   }
   const baseline = history.points[0];
   if (history.points.length === 1) {
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><div><strong>Value tracking started</strong><span>${esc(baseline.date)} · prices for the same card version and condition</span></div></div><div class="portfolio-history-metrics"><div><span>Starting value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Cards with current prices</span><strong>${baseline.freshItems} of ${baseline.pricedItems}</strong></div><div><span>Missing prices</span><strong>${baseline.unpricedItems}</strong></div></div><p class="portfolio-history-note"><strong>Why there is no line yet:</strong> Mica needs a value from another day. Buying more cards will count as money you added, not as profit.</p>`;
+    root.innerHTML = `${controls}<div class="portfolio-history-head"><div><strong>Value tracking started</strong><span>${esc(baseline.date)} · prices for the same card version and condition</span></div></div><div class="portfolio-history-metrics"><div><span>Starting value</span><strong>${money(baseline.totalMinor / 100, history.currency)}</strong></div><div><span>Cards with current prices</span><strong>${baseline.freshItems} of ${baseline.pricedItems}</strong></div><div><span>Missing prices</span><strong>${baseline.unpricedItems}</strong></div></div><p class="portfolio-history-note"><strong>Why there is no line yet:</strong> Mica needs a value from another day. Buying more cards will count as money you added, not as profit.</p>`;
+    bindControls();
     return;
   }
   const marketRequested = state.portfolioHistoryMode === "return";
@@ -3595,6 +5598,12 @@ function renderPortfolioHistory() {
     compatible,
     state.portfolioHistoryRange,
   );
+  if (!plotted.length) {
+    destroyPortfolioHistoryChart();
+    root.innerHTML = `${controls}<div class="portfolio-history-empty"><strong>No recorded history in this range</strong><span>Choose a longer range.</span></div>`;
+    bindControls();
+    return;
+  }
   const values = plotted.map((point) =>
     marketMode ? point.marketChangeMinor / 100 : point.totalMinor / 100,
   );
@@ -3607,20 +5616,6 @@ function renderPortfolioHistory() {
   const rangeCashFlow =
     (rangeLatest.netContributionMinor - rangeBaseline.netContributionMinor) /
     100;
-  const ranges = [
-    ["1m", "1 month"],
-    ["3m", "3 months"],
-    ["ytd", "This year"],
-  ];
-  const rangeButtons = ranges
-    .map(([value, label]) => {
-      const redundant =
-        value !== "all" &&
-        portfolioHistoryRangePoints(compatible, value).length ===
-          compatible.length;
-      return `<button type="button" data-portfolio-history-range="${value}" aria-pressed="${String(state.portfolioHistoryRange === value)}" ${redundant ? 'disabled title="No additional history in this range yet"' : ""}>${label}</button>`;
-    })
-    .join("");
   const historyMetrics = marketMode
     ? `<div><span>Price change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "Up " : "Down "}${money(Math.abs(rangeChange), history.currency)}</strong></div><div><span>Percent change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div><div><span>Money you added or removed</span><strong>${rangeCashFlow >= 0 ? "+" : ""}${money(rangeCashFlow, history.currency)}</strong></div>`
     : `<div><span>Value now</span><strong>${money(rangeLatest.totalMinor / 100, history.currency)}</strong></div><div><span>Change during this time</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangeChange >= 0 ? "Up " : "Down "}${money(Math.abs(rangeChange), history.currency)}</strong></div><div><span>Percent change</span><strong class="${rangeChange >= 0 ? "positive" : "negative"}">${rangePercent === null ? "—" : `${rangePercent >= 0 ? "+" : ""}${rangePercent.toFixed(1)}%`}</strong></div>`;
@@ -3629,19 +5624,8 @@ function renderPortfolioHistory() {
     : marketMode && !marketAvailable
       ? '<p class="portfolio-history-note"><strong>Price-only percentage is hidden.</strong> At least one day has a missing price or purchase amount, so Mica will not guess.</p>'
       : `<p class="portfolio-history-note"><strong>${marketMode ? "Buying more cards is not profit." : "This line includes cards you bought or sold."}</strong> ${marketMode ? "Mica removes recorded buying, selling, and grading money to show price change only." : "Choose Price change to remove money added or taken out."}</p>`;
-  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio performance</strong><span>${shortPortfolioDate(plotted[0].date, true)}–${shortPortfolioDate(plotted.at(-1).date, true)}</span></div><div class="portfolio-history-toggle" role="group" aria-label="Choose what the value chart shows"><button type="button" data-portfolio-history-mode="return" aria-pressed="${String(marketMode)}" ${marketSeriesAvailable ? "" : "disabled"}>Price change</button><button type="button" data-portfolio-history-mode="value" aria-pressed="${String(!marketMode)}">Total value</button></div></div><div class="portfolio-history-metrics">${historyMetrics}</div><div class="portfolio-chart-toolbar"><div class="portfolio-chart-ranges" role="group" aria-label="Time shown on chart">${rangeButtons}</div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Interactive ${marketMode ? "price change" : "collection value"} chart from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${plotted.map((point, index) => `${shortPortfolioDate(point.date, true)}: ${money(values[index], history.currency)}`).join("; ")}</p><div class="portfolio-chart-foot"><span>Hover or tap for the date and value</span></div>${historyNote}`;
-  $$("[data-portfolio-history-mode]", root).forEach((button) =>
-    button.addEventListener("click", () => {
-      state.portfolioHistoryMode = button.dataset.portfolioHistoryMode;
-      renderPortfolioHistory();
-    }),
-  );
-  $$("[data-portfolio-history-range]", root).forEach((button) =>
-    button.addEventListener("click", () => {
-      state.portfolioHistoryRange = button.dataset.portfolioHistoryRange;
-      renderPortfolioHistory();
-    }),
-  );
+  root.innerHTML = `<div class="portfolio-history-head"><div><strong>Portfolio performance</strong><span>${shortPortfolioDate(plotted[0].date, true)}–${shortPortfolioDate(plotted.at(-1).date, true)}</span></div></div>${controls}<div class="portfolio-history-metrics">${historyMetrics}</div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Interactive ${marketMode ? "price change" : "collection value"} chart from ${esc(plotted[0].date)} to ${esc(plotted.at(-1).date)}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${plotted.map((point, index) => `${shortPortfolioDate(point.date, true)}: ${money(values[index], history.currency)}`).join("; ")}</p><div class="portfolio-chart-foot"><span>Hover or tap for the date and value</span></div>${historyNote}`;
+  bindControls();
   requestAnimationFrame(
     () =>
       void mountPortfolioHistoryChart({
@@ -3653,6 +5637,24 @@ function renderPortfolioHistory() {
   );
 }
 
+async function retryPortfolioHistory() {
+  const ownerId = state.session?.user?.id;
+  const loadVersion = sessionLoadVersion;
+  if (!ownerId) return;
+  state.portfolioHistoryStatus = "loading";
+  renderPortfolioHistory();
+  try {
+    const history = await loadPortfolioValuationHistory(supabase, ownerId);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    state.portfolioHistory = history;
+    state.portfolioHistoryStatus = "ready";
+  } catch {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    state.portfolioHistoryStatus = "error";
+  }
+  renderPortfolioHistory();
+}
+
 async function capturePortfolioValuation() {
   if (
     !state.session ||
@@ -3662,26 +5664,41 @@ async function capturePortfolioValuation() {
     return;
   const ownerId = state.session.user.id;
   const loadVersion = sessionLoadVersion;
-  const totals = calculateTotals(state.items, { currency: "USD" });
-  const coverage = portfolioPriceCoverage(state.items, { currency: "USD" });
-  if (!totals.priced) return;
-  const freshItems = state.items.reduce(
-    (sum, item) =>
-      sum +
-      (item.price != null && item.pricingStatus === "live"
-        ? Number(item.quantity || 0)
-        : 0),
-    0,
-  );
+  const currencies = [
+    ...new Set(
+      state.items.map((item) => String(item.currency || "USD").toUpperCase()),
+    ),
+  ];
   state.portfolioHistoryStatus = "saving";
   try {
-    await recordPortfolioValuationSnapshot(supabase, {
-      total: totals.value,
-      currency: "USD",
-      pricedItems: totals.priced,
-      unpricedItems: totals.unpriced,
-      freshItems: coverage.liveAutomaticUnits || freshItems,
-    });
+    for (const currency of currencies) {
+      // Existing snapshots have no exact-sold provenance fields; persist only
+      // the reference-supported raw/sealed subset until an additive schema is reviewed.
+      const summary = portfolioProfitLoss(
+        state.items.filter(
+          (item) => item.cardState !== "graded" && !item.gradingCompany,
+        ),
+        currency,
+      );
+      if (!summary.pricedUnits) continue;
+      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+      await recordPortfolioValuationSnapshot(supabase, {
+        total: summary.valueMinor / 100,
+        currency,
+        pricedItems: summary.pricedUnits,
+        unpricedItems:
+          summary.missingUnits +
+          state.items
+            .filter(
+              (item) =>
+                (item.cardState === "graded" || item.gradingCompany) &&
+                String(item.currency || "USD").toUpperCase() === currency,
+            )
+            .reduce((count, item) => count + Number(item.quantity || 0), 0),
+        freshItems: summary.pricedUnits,
+      });
+    }
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     const history = await loadPortfolioValuationHistory(supabase, ownerId);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.portfolioHistory = history;
@@ -3694,14 +5711,343 @@ async function capturePortfolioValuation() {
   renderPortfolioHistory();
 }
 
+function softwareModeMetrics(mode) {
+  if (state.largeInventory.active) {
+    const summary = state.organization.summary || {};
+    if (mode === "collector")
+      return [
+        {
+          label: "Items you own",
+          value: Number(summary.quantity || 0).toLocaleString(),
+          detail: "Including cards without a price.",
+          target: "collection",
+        },
+        {
+          label: "Set checklists",
+          value: "Explore sets",
+          detail: "Find the cards you still need.",
+          target: "sets",
+        },
+        {
+          label: "Digital folders",
+          value: Number(summary.folderCount || 0).toLocaleString(),
+          detail: "Keep your collection organized.",
+          target: "collection",
+        },
+        {
+          label: "Watched items",
+          value: state.watchlist.length.toLocaleString(),
+          detail: "Revisit cards you want next.",
+          target: "alerts",
+        },
+      ];
+    return [
+      {
+        label: "Owned inventory",
+        value: `${Number(summary.quantity || 0).toLocaleString()} units`,
+        detail: `${Number(summary.positionCount || 0).toLocaleString()} entries`,
+        target: "collection",
+      },
+      {
+        label: "Digital folders",
+        value: Number(summary.folderCount || 0).toLocaleString(),
+        detail: "Browse your folders.",
+        target: "collection",
+      },
+      {
+        label: "Missing locations",
+        value: Number(summary.missingLocationCount || 0).toLocaleString(),
+        detail: "Add a binder, box, case, shelf, page, or display location.",
+        target: "collection",
+      },
+      {
+        label: "Loaded view",
+        value: `${state.items.length.toLocaleString()} entries`,
+        detail: "Search or filter to find more.",
+        target: "collection",
+      },
+    ];
+  }
+  const liveItems = state.items.filter((item) => item.status !== "sold");
+  const units = liveItems.reduce(
+    (sum, item) => sum + Number(item.quantity || 0),
+    0,
+  );
+  const knownBasisUnits = liveItems.reduce(
+    (sum, item) =>
+      sum +
+      (item.costBasis === null || item.costBasis === undefined
+        ? 0
+        : Number(item.quantity || 0)),
+    0,
+  );
+  const valued = liveItems
+    .map((item) => ({ item, value: itemValue(item) }))
+    .filter((entry) => entry.value !== null);
+  const totalValue = valued.reduce((sum, entry) => sum + entry.value, 0);
+  const largestValue = valued.reduce(
+    (largest, entry) => Math.max(largest, entry.value),
+    0,
+  );
+  const setCount = new Set(liveItems.map((item) => item.set).filter(Boolean))
+    .size;
+  const gradingCandidates = liveItems.reduce(
+    (sum, item) =>
+      sum +
+      (!item.gradingCompany && item.cardState !== "sealed" && item.digitalGrade
+        ? Number(item.quantity || 0)
+        : 0),
+    0,
+  );
+  const listed = liveItems.reduce(
+    (sum, item) =>
+      sum + (item.status === "listed" ? Number(item.quantity || 0) : 0),
+    0,
+  );
+  const aging = liveItems.reduce(
+    (sum, item) =>
+      sum +
+      ((holdingDays(item.purchaseDate) || 0) > 90
+        ? Number(item.quantity || 0)
+        : 0),
+    0,
+  );
+  const soldTransactions = state.items.reduce(
+    (sum, item) =>
+      sum +
+      (item.transactions || []).filter(
+        (transaction) => transaction.type === "sale",
+      ).length,
+    0,
+  );
+  const coverage = portfolioPriceCoverage(state.items, { currency: "USD" });
+  if (mode === "investor")
+    return [
+      {
+        label: "Purchase costs recorded",
+        value: `${knownBasisUnits.toLocaleString()} / ${units.toLocaleString()} units`,
+        detail: "Only recorded purchase amounts are included.",
+        target: "portfolio",
+      },
+      {
+        label: "Fresh prices",
+        value: `${coverage.automaticCoveragePercent.toFixed(0)}%`,
+        detail: "Stale and missing prices stay excluded.",
+        target: "analytics",
+      },
+      {
+        label: "Largest holding",
+        value: totalValue
+          ? `${((largestValue / totalValue) * 100).toFixed(0)}%`
+          : "Unavailable",
+        detail: "Share of priced cards.",
+        target: "collection",
+      },
+      {
+        label: "Watched items",
+        value: state.watchlist.length.toLocaleString(),
+        detail: "Follow your price targets.",
+        target: "alerts",
+      },
+    ];
+  if (mode === "seller")
+    return [
+      {
+        label: "Listed inventory",
+        value: `${listed.toLocaleString()} units`,
+        detail: "Items currently marked for sale.",
+        target: "seller",
+      },
+      {
+        label: "Inventory over 90 days",
+        value: `${aging.toLocaleString()} units`,
+        detail: "Based only on recorded acquisition dates.",
+        target: "collection",
+      },
+      {
+        label: "Recorded sales",
+        value: soldTransactions.toLocaleString(),
+        detail: "Your completed sales.",
+        target: "sales",
+      },
+      {
+        label: "Default selling fee",
+        value: `${Number(state.preferences.sellingFeePercent || 0).toFixed(1)}%`,
+        detail: "Editable for every transaction.",
+        target: "settings",
+      },
+    ];
+  return [
+    {
+      label: "Items you own",
+      value: units.toLocaleString(),
+      detail: "Including cards without a price.",
+      target: "collection",
+    },
+    {
+      label: "Set progress",
+      value: `${setCount.toLocaleString()} set${setCount === 1 ? "" : "s"}`,
+      detail: "Open exact checklists and missing cards.",
+      target: "sets",
+    },
+    {
+      label: "Digitally graded",
+      value: `${gradingCandidates.toLocaleString()} units`,
+      detail: "Ungraded cards with a saved digital estimate.",
+      target: "graded",
+    },
+    {
+      label: "Watched items",
+      value: state.watchlist.length.toLocaleString(),
+      detail: "Revisit cards you want next.",
+      target: "alerts",
+    },
+  ];
+}
+
+function renderSoftwareModeHome() {
+  const root = $("#softwareModeHome");
+  if (!root) return;
+  const config = softwareModeConfig(workspaceMode);
+  if (root.parentElement !== $("#view-dashboard"))
+    $("#view-dashboard").insertBefore(root, $(".dashboard-owned-tools"));
+  const collector = workspaceMode === "collector";
+  const moneyDetails = $("#dashboardMoneyDetails");
+  if (moneyDetails) {
+    const chart = $("#portfolioHistory");
+    const dashboardKpis = $("#view-dashboard > .dashboard-kpis");
+    if (chart && dashboardKpis && chart.parentElement !== $("#view-dashboard"))
+      $("#view-dashboard").insertBefore(chart, dashboardKpis);
+    const detail = $(".portfolio-detail-panel");
+    if (detail && detail.parentElement !== moneyDetails)
+      moneyDetails.append(detail);
+    const emptyGrid = $(".dashboard-analytics-grid");
+    if (emptyGrid) emptyGrid.hidden = true;
+    if (moneyDetails.dataset.mode !== workspaceMode)
+      moneyDetails.open = !collector;
+    moneyDetails.dataset.mode = workspaceMode;
+    const kpis = $(".dashboard-kpis");
+    const accounting = $("#dashboardAccountingKpis");
+    for (const id of ["gradedOwnedCount", "sealedOwnedCount"]) {
+      const card = $(`#${id}`)?.closest("article");
+      if (card) (collector ? accounting : kpis).append(card);
+    }
+    const ownedKpi = $("#ownedCount")?.closest("article");
+    if (ownedKpi) ownedKpi.hidden = collector;
+    if (
+      collector &&
+      !state.largeInventory.active &&
+      state.items.some(
+        (item) => item.status !== "sold" && Number(item.quantity) > 0,
+      ) &&
+      !state.items.some(
+        (item) => item.status !== "sold" && itemValue(item) != null,
+      )
+    )
+      $("#portfolioValue").textContent = "—";
+    const dashboard = $("#view-dashboard");
+    if (collector) dashboard.append(moneyDetails);
+    else dashboard.insertBefore(moneyDetails, root);
+  }
+  if ($("#dashboardHighestTitle"))
+    $("#dashboardHighestTitle").textContent = collector
+      ? "Your cards"
+      : "Highest-value cards";
+  const metrics = softwareModeMetrics(workspaceMode);
+  if ($("#dashboardModeLabel"))
+    $("#dashboardModeLabel").textContent = config.homeLabel;
+  if ($("#dashboardEyebrow"))
+    $("#dashboardEyebrow").textContent = config.eyebrow;
+  if ($("#dashboardTitle")) $("#dashboardTitle").textContent = config.title;
+  if ($("#dashboardSubtitle"))
+    $("#dashboardSubtitle").textContent = config.description;
+  if ($("#portfolioToplineLabel"))
+    $("#portfolioToplineLabel").textContent =
+      workspaceMode === "seller"
+        ? "Known USD inventory value"
+        : workspaceMode === "investor"
+          ? "Known USD portfolio value"
+          : "Known USD collection value";
+  root.innerHTML = `<div class="mode-home-grid">${metrics
+    .map(
+      (metric) =>
+        `<button type="button" data-mode-action="${esc(metric.target)}"><span>${esc(metric.label)}</span><strong>${esc(metric.value)}</strong><small>${esc(metric.detail)}</small><b aria-hidden="true">→</b></button>`,
+    )
+    .join("")}</div>`;
+  if (collector && state.organization.goals.length) {
+    const goals = state.organization.goals.slice(0, 3);
+    root.insertAdjacentHTML(
+      "beforeend",
+      `<div class="collector-goal-progress">${goals
+        .map((goal) => {
+          const progress =
+            state.largeInventory.active && !goal.progress?.status
+              ? {}
+              : goalProgressForDisplay(goal);
+          const ready =
+            progress.percent != null &&
+            progress.current != null &&
+            progress.target != null &&
+            Number.isFinite(Number(progress.percent)) &&
+            Number.isFinite(Number(progress.current)) &&
+            Number.isFinite(Number(progress.target));
+          return `<button type="button" data-home-goal="${esc(goal.id)}"><strong>${esc(goal.name)}</strong><span>${ready ? `${Number(progress.current).toLocaleString()} of ${Number(progress.target).toLocaleString()} · ${Math.round(Number(progress.percent))}%` : "Open checklist"}</span></button>`;
+        })
+        .join("")}</div>`,
+    );
+    $$("[data-home-goal]", root).forEach((button) =>
+      button.addEventListener("click", () =>
+        openCollectionGoalSheet(button.dataset.homeGoal),
+      ),
+    );
+  }
+  $$("[data-mode-action]", root).forEach((button) =>
+    button.addEventListener("click", () =>
+      openWorkspaceShortcut(button.dataset.modeAction),
+    ),
+  );
+  const ownedTools = $(".dashboard-owned-tools");
+  const highest = $("#dashboardHighestCards")?.closest("section");
+  const activity = $("#dashboardRecentActivity")?.closest("section");
+  const business = $("#dashboardBusinessPerformance")?.closest("section");
+  const order =
+    workspaceMode === "seller"
+      ? [business, activity, highest]
+      : workspaceMode === "investor"
+        ? [highest, business, activity]
+        : [highest, activity, business];
+  if (ownedTools && highest && activity && business) {
+    order.forEach((section) => ownedTools.append(section));
+    if (collector && moneyDetails) {
+      moneyDetails.append(business);
+      ownedTools.insertBefore(root, activity);
+    }
+  }
+}
+
 function renderDashboardHighlights() {
   const highest = $("#dashboardHighestCards");
   const activity = $("#dashboardRecentActivity");
   const business = $("#dashboardBusinessPerformance");
   if (!highest || !activity || !business) return;
+  const collector = workspaceMode === "collector";
+  if (state.largeInventory.active && !collector) {
+    const notice =
+      '<div class="compact-empty"><strong>Use a narrowed collection view</strong><span>Mica does not estimate whole-account totals from one server page. Historical reports remain available.</span></div>';
+    highest.innerHTML = notice;
+    activity.innerHTML = notice;
+    business.innerHTML = notice;
+    renderSoftwareModeHome();
+    return;
+  }
   const ranked = state.items
-    .filter((item) => item.status !== "sold" && itemValue(item) != null)
-    .sort((left, right) => itemValue(right) - itemValue(left))
+    .filter(
+      (item) =>
+        item.status !== "sold" &&
+        Number(item.quantity) > 0 &&
+        (collector || itemValue(item) != null),
+    )
+    .sort((left, right) => (collector ? 0 : itemValue(right) - itemValue(left)))
     .slice(0, 5);
   highest.innerHTML = ranked.length
     ? ranked
@@ -3711,11 +6057,18 @@ function renderDashboardHighlights() {
           return `<button class="dashboard-card-row" type="button" data-detail="${esc(item.uid)}">
             <img src="${esc(item.thumb || item.image)}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="" />
             <span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number || "Number unavailable")}</small></span>
-            <span><strong>${money(itemValue(item), item.currency)}</strong><small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${change == null ? "Performance unavailable" : `${change >= 0 ? "+" : ""}${money(change, item.currency)}`}</small></span>
+            <span>${collector ? `<strong>${Number(item.quantity).toLocaleString()} owned</strong><small>${esc(item.variant || "Version not recorded")}</small>` : `<strong>${money(itemValue(item), item.currency)}</strong><small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${change == null ? "Performance unavailable" : `${change >= 0 ? "+" : ""}${money(change, item.currency)}`}</small><small class="price-provenance">${esc(priceProvenanceText(item))}</small>`}</span>
           </button>`;
         })
         .join("")
-    : '<div class="compact-empty"><strong>No valued cards yet</strong><span>Current values appear after an exact price is available.</span></div>';
+    : collector
+      ? '<div class="compact-empty"><strong>Your collection starts here</strong><span>Find a card to add it to your library.</span></div>'
+      : '<div class="compact-empty"><strong>No valued cards yet</strong><span>Current values appear after an exact price is available.</span></div>';
+  if (collector && state.largeInventory.active)
+    highest.insertAdjacentHTML(
+      "afterbegin",
+      '<p class="collector-preview-note">From your loaded collection view</p>',
+    );
   const methodLabels = {
     direct_purchase: "Direct purchase",
     paid_pack: "Paid pack",
@@ -3750,7 +6103,7 @@ function renderDashboardHighlights() {
               : transaction.totalCost;
           return `<button class="activity-row" type="button" data-detail="${esc(item.uid)}">
             <span><strong>${esc(item.name)}</strong><small>${esc(action)}</small></span>
-            <span><strong>${amount == null ? "Amount unavailable" : money(amount, transaction.currency)}</strong><small>${transaction.date || "Date unavailable"}</small></span>
+            <span>${collector ? `<strong>${transaction.type === "sale" ? "Sold" : "Added"}</strong><small>${Number(transaction.quantity || 0) > 0 ? `${Number(transaction.quantity).toLocaleString()} copies` : "View card"}</small>` : `<strong>${amount == null ? "Amount unavailable" : money(amount, transaction.currency)}</strong><small>${transaction.date || "Date unavailable"}</small>`}</span>
           </button>`;
         })
         .join("")
@@ -3761,13 +6114,561 @@ function renderDashboardHighlights() {
     to: period.to,
     currency: "USD",
   });
-  business.innerHTML =
-    summary && summary.transactionCount
+  business.innerHTML = state.largeInventory.active
+    ? '<div class="compact-empty"><strong>View collection reports</strong><span>Whole-collection totals are not calculated from this loaded view.</span></div>'
+    : summary && summary.transactionCount
       ? `<div><span>Money from sales</span><strong>${money(summary.netSalesMinor / 100)}</strong></div><div><span>Money spent</span><strong>${money(summary.acquisitionSpendMinor / 100)}</strong></div><div><span>Profit from sold cards</span><strong>${summary.realizedCoverage ? `${summary.realizedProfitMinor >= 0 ? "+" : "−"}${money(Math.abs(summary.realizedProfitMinor) / 100)}` : "Paid amounts needed"}</strong></div><div><span>Cards sold</span><strong>${summary.unitsSold}</strong></div>`
       : '<div class="compact-empty"><strong>No sales activity in the last 90 days</strong><span>Purchases and sales will be summarized here without repeating Collection tools.</span></div>';
+  for (const container of [highest, activity])
+    container.querySelectorAll("[data-detail]").forEach((button) =>
+      button.addEventListener("click", () => {
+        const item = state.items.find(
+          (candidate) => candidate.uid === button.getAttribute("data-detail"),
+        );
+        if (item) openCardDetail(item, true);
+      }),
+    );
+  renderSoftwareModeHome();
+}
+
+function currentOrganizationView() {
+  return normalizeSavedView({
+    ledgerView: state.ledgerView,
+    query: state.query,
+    sort: state.sort,
+    groupBy: state.groupBy,
+    collectionId: state.collectionFilter,
+    setFilter: state.setFilter,
+    conditionFilter: state.conditionFilter,
+    labelFilter: state.labelFilter,
+    locationFilter: state.locationFilter,
+    languageFilter: state.languageFilter,
+    graderFilter: state.graderFilter,
+    gradeFilter: state.gradeFilter,
+    minimumValue: state.minimumValue,
+    maximumValue: state.maximumValue,
+  });
+}
+
+function applyOrganizationView(view = {}) {
+  const config = normalizeSavedView(view);
+  state.ledgerView = config.ledgerView || "all";
+  state.query = config.query;
+  state.sort = config.sort;
+  state.groupBy = config.groupBy;
+  state.collectionFilter = config.collectionId;
+  state.setFilter = config.set;
+  state.conditionFilter = config.condition;
+  state.labelFilter = config.label;
+  state.locationFilter = config.location;
+  state.languageFilter = config.language;
+  state.graderFilter = config.grader;
+  state.gradeFilter = config.grade;
+  state.minimumValue = config.minimumValue;
+  state.maximumValue = config.maximumValue;
+  if ($("#collectionSearch")) $("#collectionSearch").value = state.query;
+  syncTabs();
+  if (state.largeInventory.active) void refreshLargeCollectionPage();
+  else renderCollection();
+  saveCollectionViewState();
+}
+
+function goalProgressForDisplay(goal) {
+  const saved = goal.progress || {};
+  if (saved.status) return saved;
+  return calculateCollectionGoal(goal, state.items);
+}
+
+function renderCollectionOrganization() {
+  const root = $("#collectionOrganization");
+  if (!root) return;
+  root.hidden = state.ledgerView === "watchlist";
+  if (root.hidden) return;
+  const organization = state.organization;
+  const activeFolder = organization.folders.find(
+    (folder) => folder.id === state.collectionFilter,
+  );
+  $("#collectionOrganizationContext").textContent = activeFolder
+    ? activeFolder.name
+    : state.collectionFilter
+      ? "Filtered collection"
+      : "All folders";
+  const summary = organization.summary || {};
+  const positions = Number(summary.positionCount ?? state.items.length);
+  const missingLocations = Number(
+    summary.missingLocationCount ??
+      state.items.filter((item) => !item.location).length,
+  );
+  const status = $("#collectionOrganizationStatus");
+  if (organization.status === "loading")
+    status.textContent = "Loading folders, saved views, and goals…";
+  else if (organization.status === "error")
+    status.textContent =
+      "Organization tools are temporarily unavailable. Your collection is unchanged.";
+  else
+    status.textContent = `${positions.toLocaleString()} saved entr${positions === 1 ? "y" : "ies"} · ${missingLocations.toLocaleString()} missing a physical location · ${organization.folders.length.toLocaleString()} digital folder${organization.folders.length === 1 ? "" : "s"}`;
+
+  const folderButtons = [
+    `<button type="button" data-organization-folder="" aria-pressed="${String(!state.collectionFilter)}">All folders</button>`,
+    ...organization.folders.map(
+      (folder) =>
+        `<button type="button" data-organization-folder="${esc(folder.id)}" aria-pressed="${String(state.collectionFilter === folder.id)}">${esc(folder.name)}</button>`,
+    ),
+  ];
+  const viewButtons = organization.savedViews.map(
+    (view) =>
+      `<button type="button" data-saved-collection-view="${esc(view.id)}">${esc(view.name)}</button>`,
+  );
+  const undoable = organization.operations.find(
+    (operation) =>
+      operation.operation_type === "bulk_edit" && !operation.undone_at,
+  );
+  const operationButtons = undoable
+    ? [
+        `<button class="undo-organization" type="button" data-undo-organization="${esc(undoable.id)}">Undo last bulk change</button>`,
+      ]
+    : [];
+  $("#collectionSavedViews").innerHTML = [
+    ...folderButtons,
+    ...viewButtons,
+    ...operationButtons,
+  ].join("");
+  $("#collectionGoals").innerHTML = organization.goals.length
+    ? organization.goals
+        .slice(0, 4)
+        .map((goal) => {
+          const progress = goalProgressForDisplay(goal);
+          const percent = Number(progress.percent);
+          const ready = Number.isFinite(percent);
+          return `<button type="button" data-collection-goal="${esc(goal.id)}"><span><strong>${esc(goal.name)}</strong><small>${ready ? `${Number(progress.current).toLocaleString()} of ${Number(progress.target).toLocaleString()} · ${percent.toFixed(percent < 10 ? 1 : 0)}%` : progress.status === "unsupported" ? "Catalog metadata unsupported" : "Waiting for verified metadata"}</small></span><i aria-hidden="true"><b style="width:${ready ? Math.max(0, Math.min(100, percent)) : 0}%"></b></i><em>${progress.complete ? "Complete" : "Open"}</em></button>`;
+        })
+        .join("")
+    : '<div class="organization-empty"><strong>No goals yet</strong><span>Track an exact set checklist or a quantity based on collection data.</span><button type="button" id="createFirstCollectionGoal">Create goal</button></div>';
+  $$("[data-organization-folder]", root).forEach((button) =>
+    button.addEventListener("click", () => {
+      state.collectionFilter = button.dataset.organizationFolder;
+      if (state.largeInventory.active) void refreshLargeCollectionPage();
+      else renderCollection();
+      saveCollectionViewState();
+    }),
+  );
+  $$("[data-saved-collection-view]", root).forEach((button) =>
+    button.addEventListener("click", () => {
+      const view = organization.savedViews.find(
+        (candidate) => candidate.id === button.dataset.savedCollectionView,
+      );
+      if (view) applyOrganizationView(view.configuration);
+    }),
+  );
+  $$("[data-collection-goal]", root).forEach((button) =>
+    button.addEventListener("click", () =>
+      openCollectionGoalSheet(button.dataset.collectionGoal),
+    ),
+  );
+  $("[data-undo-organization]", root)?.addEventListener(
+    "click",
+    async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const restored = await undoCollectionOrganization(
+          supabase,
+          button.dataset.undoOrganization,
+        );
+        await reloadPortfolio();
+        toast(`${restored} saved entr${restored === 1 ? "y" : "ies"} restored`);
+      } catch (error) {
+        button.disabled = false;
+        toast(`Could not undo: ${error.message || "Unknown error"}`);
+      }
+    },
+  );
+  $("#createFirstCollectionGoal")?.addEventListener(
+    "click",
+    openCreateCollectionGoalSheet,
+  );
+}
+
+const LARGE_INVENTORY_THRESHOLD = 10_000;
+const LARGE_INVENTORY_PAGE_SIZE = 100;
+const LARGE_INVENTORY_RENDER_LIMIT = 1_000;
+
+function applyLoadedOrganization(organization) {
+  state.organization = {
+    ...organization,
+    status: "ready",
+    attachments: state.organization.attachments || new Map(),
+  };
+  const folderNames = new Map(
+    organization.folders.map((folder) => [folder.id, folder.name]),
+  );
+  state.items = state.items.map((item) => ({
+    ...item,
+    folderName: folderNames.get(item.collectionId) || "",
+  }));
+}
+
+function largeInventoryQueryInput(cursor = null) {
+  const filters = {};
+  if (state.collectionFilter) filters.collectionId = state.collectionFilter;
+  if (state.setFilter) filters.set = state.setFilter;
+  if (state.languageFilter) filters.language = state.languageFilter;
+  if (state.locationFilter) filters.location = state.locationFilter;
+  if (state.graderFilter) filters.grader = state.graderFilter;
+  if (state.gradeFilter) filters.grade = state.gradeFilter;
+  const labels = [state.labelFilter];
+  if (state.ledgerView === "favorites") labels.push("Favorites");
+  if (labels.filter(Boolean).length) filters.labels = labels.filter(Boolean);
+  if (state.ledgerView === "for-sale") filters.status = "listed";
+  if (state.ledgerView === "graded") filters.graded = true;
+  if (state.conditionFilter === "Graded") filters.graded = true;
+  else if (state.conditionFilter === "Raw") filters.graded = false;
+  else if (state.conditionFilter === "Sealed") filters.cardState = "sealed";
+  else if (state.conditionFilter) {
+    filters.rawCondition = String(state.conditionFilter)
+      .trim()
+      .toLowerCase()
+      .replaceAll(" ", "_");
+  }
+  const sort = ["name", "updated-desc", "location"].includes(state.sort)
+    ? state.sort
+    : "name";
+  return {
+    query: state.query,
+    filters,
+    sort,
+    limit: LARGE_INVENTORY_PAGE_SIZE,
+    cursor,
+  };
+}
+
+function attachFolderNames(items) {
+  const folderNames = new Map(
+    state.organization.folders.map((folder) => [folder.id, folder.name]),
+  );
+  return items.map((item) => ({
+    ...item,
+    folderName: folderNames.get(item.collectionId) || "",
+  }));
+}
+
+async function loadCollectionInventory(ownerId, organization) {
+  const totalCount = Number(
+    organization.summary?.allPositionCount ??
+      organization.summary?.positionCount ??
+      0,
+  );
+  if (totalCount <= LARGE_INVENTORY_THRESHOLD) {
+    return {
+      items: await loadPortfolio(supabase, ownerId),
+      largeInventory: {
+        active: false,
+        totalCount,
+        nextCursor: null,
+        loading: false,
+      },
+    };
+  }
+  if (!["name", "updated-desc", "location"].includes(state.sort))
+    state.sort = "name";
+  if (["sets", "unpriced"].includes(state.ledgerView)) state.ledgerView = "all";
+  state.performanceFilter = "";
+  state.movementFilter = "";
+  state.coverageFilter = "";
+  state.acquisitionFilter = "";
+  state.minimumValue = "";
+  state.maximumValue = "";
+  state.minimumProfitLoss = "";
+  state.maximumProfitLoss = "";
+  state.purchaseDateFrom = "";
+  state.purchaseDateTo = "";
+  const page = await loadCollectionSearchPage(
+    supabase,
+    largeInventoryQueryInput(),
+  );
+  return {
+    items: attachFolderNames(page.positions),
+    largeInventory: {
+      active: true,
+      totalCount: page.totalCount,
+      nextCursor: page.nextCursor,
+      loading: false,
+    },
+  };
+}
+
+async function refreshLargeCollectionPage({ append = false } = {}) {
+  if (!state.largeInventory.active || (append && state.largeInventory.loading))
+    return;
+  if (append && !state.largeInventory.nextCursor) return;
+  if (append && state.items.length >= LARGE_INVENTORY_RENDER_LIMIT) {
+    toast("Narrow this view to keep the large collection fast");
+    return;
+  }
+  const ownerId = state.session?.user?.id;
+  const loadVersion = sessionLoadVersion;
+  if (!ownerId) return;
+  const requestVersion = ++largeCollectionRequestVersion;
+  state.largeInventory.loading = true;
+  renderCollection();
+  try {
+    const page = await loadCollectionSearchPage(
+      supabase,
+      largeInventoryQueryInput(append ? state.largeInventory.nextCursor : null),
+    );
+    if (
+      !accountRequestIsCurrent(ownerId, loadVersion) ||
+      requestVersion !== largeCollectionRequestVersion
+    )
+      return;
+    const loaded = attachFolderNames(page.positions);
+    state.items = append
+      ? [
+          ...new Map(
+            [...state.items, ...loaded].map((item) => [item.uid, item]),
+          ).values(),
+        ]
+      : loaded;
+    state.largeInventory.totalCount =
+      page.totalCount ?? state.largeInventory.totalCount;
+    state.largeInventory.nextCursor = page.nextCursor;
+    state.largeInventory.loading = false;
+    state.visibleLimit = state.items.length;
+    renderCollection();
+    await refreshLivePricing();
+  } catch (error) {
+    if (
+      !accountRequestIsCurrent(ownerId, loadVersion) ||
+      requestVersion !== largeCollectionRequestVersion
+    )
+      return;
+    state.largeInventory.loading = false;
+    renderCollection();
+    toast(
+      `Could not load this collection page: ${error.message || "Unknown error"}`,
+    );
+  }
+}
+
+async function refreshCollectionOrganization() {
+  if (!state.session?.user?.id) return;
+  const ownerId = state.session.user.id;
+  const loadVersion = sessionLoadVersion;
+  state.organization.status = "loading";
+  renderCollectionOrganization();
+  try {
+    const organization = await loadCollectionOrganization(supabase, ownerId);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    applyLoadedOrganization(organization);
+  } catch (error) {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    state.organization.status = "error";
+    console.warn("[collection-organization] unavailable", {
+      name: error?.name || "Error",
+    });
+  }
+  renderCollectionOrganization();
+}
+
+function openSaveCollectionViewSheet() {
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Save this collection view</h2><p>Save the current folder, search, filters, and sort. Cards are not copied or moved.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saveCollectionViewForm"><div class="field"><label for="savedCollectionViewName">View name</label><input id="savedCollectionViewName" name="name" maxlength="100" required placeholder="Trade binder · English holos"></div><p class="form-error" id="savedCollectionViewError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="savedCollectionViewCancel" type="button">Cancel</button><button class="primary" type="submit">Save view</button></div></form>`,
+  );
+  $("#savedCollectionViewCancel").addEventListener("click", closeSheet);
+  $("#saveCollectionViewForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = event.currentTarget.querySelector('[type="submit"]');
+    button.disabled = true;
+    try {
+      await saveCollectionView(supabase, {
+        name: new FormData(event.currentTarget).get("name"),
+        collectionId: state.collectionFilter || null,
+        configuration: currentOrganizationView(),
+      });
+      closeSheet({ discardHistory: true });
+      await refreshCollectionOrganization();
+      toast("Collection view saved");
+    } catch (error) {
+      button.disabled = false;
+      $("#savedCollectionViewError").textContent =
+        error.message || "This view could not be saved.";
+    }
+  });
+}
+
+function organizationDimensionValues(dimension) {
+  const valueFor = (item) => {
+    if (dimension === "condition")
+      return item.gradingCompany
+        ? `${item.gradingCompany} ${item.grade}`
+        : item.rawCondition || item.condition;
+    if (dimension === "finish") return item.variant;
+    if (dimension === "character") return item.character || item.name;
+    if (dimension === "subset") return item.subset || item.set;
+    return item[dimension];
+  };
+  return [
+    ...new Set(
+      state.items
+        .map(valueFor)
+        .filter((value) => value !== null && value !== undefined)
+        .map((value) => String(value).trim())
+        .filter(Boolean),
+    ),
+  ].sort((left, right) => left.localeCompare(right));
+}
+
+function openCreateCollectionGoalSheet() {
+  const options = [
+    ["set", "Set"],
+    ["subset", "Subset"],
+    ["artist", "Artist"],
+    ["character", "Character"],
+    ["rarity", "Rarity"],
+    ["language", "Language"],
+    ["finish", "Finish"],
+    ["condition", "Condition or grade"],
+  ];
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Create a collection goal</h2><p>Progress is recalculated from owned cards. Unknown metadata is never counted as complete.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="collectionGoalForm"><div class="form-grid"><div class="field"><label for="collectionGoalName">Goal name</label><input id="collectionGoalName" name="name" maxlength="120" required placeholder="50 English cards"></div><div class="field"><label for="collectionGoalTarget">Target quantity</label><input id="collectionGoalTarget" name="targetCount" type="number" min="1" max="1000000" value="10" required></div><div class="field"><label for="collectionGoalDimension">Measure by</label><select id="collectionGoalDimension" name="dimension">${options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></div><div class="field"><label for="collectionGoalValue">Only count</label><select id="collectionGoalValue" name="value"></select></div><p class="form-error" id="collectionGoalError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" id="collectionGoalCancel" type="button">Cancel</button><button class="primary" type="submit">Create goal</button></div></form>`,
+  );
+  const syncValues = () => {
+    const dimension = $("#collectionGoalDimension").value;
+    const values = organizationDimensionValues(dimension);
+    $("#collectionGoalValue").innerHTML = values.length
+      ? values
+          .map(
+            (value) =>
+              `<option value="${esc(value)}">${esc(dimension === "language" ? languageName(value) : value)}</option>`,
+          )
+          .join("")
+      : '<option value="">Metadata unavailable</option>';
+    $("#collectionGoalValue").disabled = !values.length;
+  };
+  $("#collectionGoalDimension").addEventListener("change", syncValues);
+  syncValues();
+  $("#collectionGoalCancel").addEventListener("click", closeSheet);
+  $("#collectionGoalForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(
+      new FormData(event.currentTarget).entries(),
+    );
+    const button = event.currentTarget.querySelector('[type="submit"]');
+    if (!data.value) {
+      $("#collectionGoalError").textContent =
+        "This metadata is unavailable, so Mica cannot create a dependable goal.";
+      return;
+    }
+    button.disabled = true;
+    try {
+      await saveCollectionGoal(supabase, {
+        name: data.name,
+        goalType: "quantity",
+        dimension: data.dimension,
+        criteria: { [data.dimension]: data.value },
+        targetCount: Number(data.targetCount),
+        metadataStatus: "verified",
+        catalogSource: "owned_collection",
+        catalogVersion: "mica-organization-v1",
+        collectionId: state.collectionFilter || null,
+      });
+      closeSheet({ discardHistory: true });
+      await refreshCollectionOrganization();
+      toast("Collection goal created");
+    } catch (error) {
+      button.disabled = false;
+      $("#collectionGoalError").textContent =
+        error.message || "This goal could not be created.";
+    }
+  });
+}
+
+function openCollectionGoalSheet(goalId) {
+  const goal = state.organization.goals.find((item) => item.id === goalId);
+  if (!goal) return;
+  const progress = goalProgressForDisplay(goal);
+  const missing = Array.isArray(progress.missing) ? progress.missing : [];
+  const events = state.organization.goalEvents.filter(
+    (event) => event.goal_id === goal.id,
+  );
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(goal.name)}</h2><p>${progress.status === "ready" ? `${Number(progress.current).toLocaleString()} of ${Number(progress.target).toLocaleString()} · ${Number(progress.percent).toFixed(1)}%` : "Progress unavailable until the catalog metadata is verified"}</p></div><button class="sheet-close" aria-label="Close">×</button></div>${
+      missing.length
+        ? `<section class="goal-missing-list"><strong>Exact variants still missing</strong><ol>${missing
+            .slice(0, 200)
+            .map((target) => `<li>${esc(target.label || target.key)}</li>`)
+            .join(
+              "",
+            )}</ol>${missing.length > 200 ? `<p>${missing.length - 200} more remain.</p>` : ""}</section>`
+        : `<div class="simple-note"><strong>${progress.complete ? "Goal complete" : "No exact missing-card list for this quantity goal."}</strong><br>${progress.complete ? "Completion is recorded automatically when owned data changes." : "Progress still recalculates from the collection."}</div>`
+    }<details class="goal-history"><summary>Completion history</summary>${events.length ? `<ol>${events.map((event) => `<li><strong>${esc(event.event_type)}</strong><time>${esc(String(event.occurred_at).slice(0, 10))}</time></li>`).join("")}</ol>` : "<p>No transitions recorded yet.</p>"}</details><div class="sheet-actions"><button class="danger-action" id="archiveCollectionGoal" type="button">Archive goal</button><button class="primary" id="closeCollectionGoal" type="button">Done</button></div>`,
+  );
+  $("#closeCollectionGoal").addEventListener("click", closeSheet);
+  $("#archiveCollectionGoal").addEventListener("click", async () => {
+    $("#archiveCollectionGoal").disabled = true;
+    try {
+      await archiveCollectionGoal(supabase, goal.id);
+      closeSheet({ discardHistory: true });
+      await refreshCollectionOrganization();
+      toast("Goal archived");
+    } catch (error) {
+      $("#archiveCollectionGoal").disabled = false;
+      toast(`Could not archive goal: ${error.message || "Unknown error"}`);
+    }
+  });
+}
+
+function openManageCollectionOrganizationSheet() {
+  const organization = state.organization;
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Collection organization</h2><p>Folders hold cards, labels describe them, physical locations tell you where to look, and views save a query.</p></div><button class="sheet-close" aria-label="Close">×</button></div><section class="organization-manager"><div><h3>Digital folders</h3>${organization.folders.map((folder) => `<span>${esc(folder.name)}</span>`).join("") || "<p>No folders loaded.</p>"}</div><form id="collectionFolderForm"><div class="field"><label for="collectionFolderName">New folder name</label><input id="collectionFolderName" name="name" maxlength="100" required placeholder="Trade binder"></div><div class="field"><label for="collectionFolderDescription">Description <span class="optional-label">Optional</span></label><input id="collectionFolderDescription" name="description" maxlength="500" placeholder="Cards available to trade"></div><p class="form-error" id="collectionFolderError" role="alert"></p><button class="secondary" type="submit">Create folder</button></form><div><h3>Custom item fields</h3>${organization.customFields.map((field) => `<span>${esc(field.name)} · ${esc(field.value_type)}</span>`).join("") || "<p>No custom fields yet.</p>"}</div><form id="collectionCustomFieldForm"><div class="field"><label for="collectionCustomFieldName">New field name</label><input id="collectionCustomFieldName" name="name" maxlength="80" required placeholder="Insurance policy"></div><div class="field"><label for="collectionCustomFieldType">Value type</label><select id="collectionCustomFieldType" name="valueType"><option value="text">Text</option><option value="number">Number</option><option value="date">Date</option><option value="boolean">Yes / no</option></select></div><p class="form-error" id="collectionCustomFieldError" role="alert"></p><button class="secondary" type="submit">Create field</button></form></section><div class="sheet-actions"><button class="secondary" id="createCollectionGoal" type="button">Create goal</button><button class="primary" id="organizationManagerDone" type="button">Done</button></div>`,
+  );
+  $("#organizationManagerDone").addEventListener("click", closeSheet);
+  $("#createCollectionGoal").addEventListener("click", () => {
+    closeSheet({ discardHistory: true });
+    openCreateCollectionGoalSheet();
+  });
+  $("#collectionFolderForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(
+      new FormData(event.currentTarget).entries(),
+    );
+    const button = event.currentTarget.querySelector('[type="submit"]');
+    button.disabled = true;
+    try {
+      await saveCollectionFolder(supabase, data);
+      closeSheet({ discardHistory: true });
+      await refreshCollectionOrganization();
+      toast("Digital folder created");
+    } catch (error) {
+      button.disabled = false;
+      $("#collectionFolderError").textContent = error.message;
+    }
+  });
+  $("#collectionCustomFieldForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(
+      new FormData(event.currentTarget).entries(),
+    );
+    const button = event.currentTarget.querySelector('[type="submit"]');
+    button.disabled = true;
+    try {
+      await saveCollectionCustomField(supabase, {
+        ...data,
+        key: data.name,
+      });
+      closeSheet({ discardHistory: true });
+      await refreshCollectionOrganization();
+      toast("Custom field created");
+    } catch (error) {
+      button.disabled = false;
+      $("#collectionCustomFieldError").textContent = error.message;
+    }
+  });
 }
 
 function renderCollection() {
+  renderCollectionOrganization();
   $("#filterButton").classList.remove("hidden");
   const sellerDesk = $("#sellerDesk");
   sellerDesk.classList.toggle("hidden", state.ledgerView !== "for-sale");
@@ -3808,7 +6709,6 @@ function renderCollection() {
       : navigator.onLine
         ? "Your saved data was not changed. Check your connection and try again."
         : "You’re offline. For privacy, the installed shell does not keep a readable copy of your collection on this device. Reconnect to load it.";
-    $("#firstCardGuide").classList.add("hidden");
     $("#emptyAddCard").classList.remove("hidden");
     $("#emptyAddCard").disabled = state.accountLoading;
     $("#emptyAddCard").textContent = state.accountLoading
@@ -3834,22 +6734,13 @@ function renderCollection() {
     state.items.length === 0 && state.ledgerView === "all",
   );
   const totals = calculateTotals(state.items, { currency: "USD" });
+  const valuedItems = portfolioItems();
+  const profitLoss = portfolioProfitLoss(valuedItems, "USD");
+  const euroProfitLoss = portfolioProfitLoss(valuedItems, "EUR");
   const priceCoverage = portfolioPriceCoverage(state.items, {
     currency: "USD",
   });
-  const gain = totals.comparableValue - totals.comparableCost;
-  const soldPositions = state.items.filter((item) =>
-    (item.transactions || []).some(
-      (transaction) => transaction.type === "sale",
-    ),
-  );
-  const knownRealized = soldPositions.filter(
-    (item) => item.realizedGain != null,
-  );
-  const realized = knownRealized.reduce(
-    (sum, item) => sum + Number(item.realizedGain),
-    0,
-  );
+  const gain = profitLoss.unrealizedMinor / 100;
   const rawCount = state.items
     .filter((item) => item.cardState !== "sealed" && !item.gradingCompany)
     .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
@@ -3859,59 +6750,63 @@ function renderCollection() {
   const sealedCount = state.items
     .filter((item) => item.cardState === "sealed")
     .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-  const portfolioReturn =
-    totals.comparableCost > 0 ? (gain / totals.comparableCost) * 100 : null;
-  $("#portfolioValue").textContent = money(totals.value);
+  const portfolioReturn = profitLoss.unrealizedPercent;
+  $("#portfolioToplineLabel").textContent = "Known USD collection value";
+  $("#portfolioValue").textContent = profitLoss.pricedUnits
+    ? money(profitLoss.valueMinor / 100, "USD")
+    : "—";
   $("#costBasis").textContent = totals.costKnown ? money(totals.cost) : "—";
-  $("#unrealized").textContent = totals.gainCoverage
-    ? `${gain >= 0 ? "Up " : "Down "}${money(Math.abs(gain))}${portfolioReturn === null ? "" : ` (${portfolioReturn >= 0 ? "+" : ""}${portfolioReturn.toFixed(1)}%)`}`
+  $("#unrealized").textContent = profitLoss.comparableUnits
+    ? `${profitLoss.unrealizedMinor >= 0 ? "Up " : "Down "}${money(Math.abs(profitLoss.unrealizedMinor) / 100)}${profitLoss.unrealizedPercent === null ? "" : ` (${profitLoss.unrealizedPercent >= 0 ? "+" : ""}${profitLoss.unrealizedPercent.toFixed(1)}%)`}`
     : "—";
   $("#gainLabel").textContent =
-    totals.gainCoverage === totals.quantity
+    profitLoss.comparableUnits === totals.quantity
       ? "Change in value"
       : "Known change in value";
   $("#ownedCount").textContent = totals.quantity.toLocaleString();
   $("#gradedOwnedCount").textContent = totals.costKnown
     ? money(totals.cost)
     : "Not fully recorded";
-  $("#sealedOwnedCount").textContent = totals.gainCoverage
+  $("#sealedOwnedCount").textContent = profitLoss.comparableUnits
     ? `${gain >= 0 ? "+" : "−"}${money(Math.abs(gain))}`
     : "Not available";
   $("#gradedShare").textContent = totals.unknownCost
     ? `${totals.unknownCost} card${totals.unknownCost === 1 ? "" : "s"} missing paid amount`
     : "Cash still invested";
-  $("#sealedShare").textContent = totals.gainCoverage
-    ? `${totals.gainCoverage} of ${totals.quantity} cards included`
+  $("#sealedShare").textContent = profitLoss.comparableUnits
+    ? `${profitLoss.comparableUnits} of ${totals.quantity} cards included`
     : "Add paid amounts and matching prices";
   $("#portfolioReturn").textContent =
-    portfolioReturn === null
+    profitLoss.unrealizedPercent === null
       ? "—"
-      : `${portfolioReturn >= 0 ? "+" : ""}${portfolioReturn.toFixed(1)}%`;
-  $("#realizedGain").textContent = knownRealized.length
-    ? `${realized >= 0 ? "+" : ""}${money(realized)}`
+      : `${profitLoss.unrealizedPercent >= 0 ? "+" : ""}${profitLoss.unrealizedPercent.toFixed(1)}%`;
+  $("#realizedGain").textContent = profitLoss.knownRealizedSales
+    ? `${profitLoss.realizedMinor >= 0 ? "+" : ""}${money(profitLoss.realizedMinor / 100)}`
     : "—";
-  $("#realizedGain").title =
-    soldPositions.length - knownRealized.length
-      ? `${soldPositions.length - knownRealized.length} sold entr${soldPositions.length - knownRealized.length === 1 ? "y has" : "ies have"} no purchase cost`
-      : "Profit from completed sales with a recorded purchase cost";
+  $("#realizedGain").title = profitLoss.unknownRealizedSales
+    ? `${profitLoss.unknownRealizedSales} sale${profitLoss.unknownRealizedSales === 1 ? " has" : "s have"} unavailable net proceeds or allocated cost`
+    : "Profit from completed sales with a recorded purchase cost";
   const hasProviderPricing = ["live", "partial"].includes(state.pricingStatus);
   $("#freshCoverage").textContent =
     `${priceCoverage.automaticCoveragePercent.toFixed(0)}% automatic price coverage · ${priceCoverage.liveAutomaticUnits.toLocaleString()} of ${priceCoverage.totalUnits.toLocaleString()} units`;
-  const partial = priceCoverage.unpricedUnits
-    ? ` · ${priceCoverage.unpricedUnits} unpriced unit${priceCoverage.unpricedUnits === 1 ? "" : "s"} excluded`
+  const partial = profitLoss.missingUnits
+    ? ` · ${profitLoss.missingUnits} unpriced USD unit${profitLoss.missingUnits === 1 ? "" : "s"} excluded`
     : "";
   const costCoverage = totals.unknownCost
     ? ` · ${totals.unknownCost} missing purchase cost`
     : "";
-  $("#portfolioChange").textContent = totals.gainCoverage
-    ? `${gain >= 0 ? "Up" : "Down"} ${money(Math.abs(gain))}${portfolioReturn === null ? "" : ` (${portfolioReturn >= 0 ? "+" : ""}${portfolioReturn.toFixed(1)}%)`} since purchase${partial}${costCoverage}`
-    : hasProviderPricing
-      ? `Prices for the same card version and condition${partial}${costCoverage}`
-      : `Add what you paid to see profit${partial}${costCoverage}`;
+  $("#portfolioChange").textContent =
+    workspaceMode === "collector"
+      ? `Known exact-context USD value${partial}${euroProfitLoss.pricedUnits ? ` · EUR value ${money(euroProfitLoss.valueMinor / 100, "EUR")} separate` : ""}.`
+      : profitLoss.comparableUnits
+        ? `${gain >= 0 ? "Up" : "Down"} ${money(Math.abs(gain))}${portfolioReturn === null ? "" : ` (${portfolioReturn >= 0 ? "+" : ""}${portfolioReturn.toFixed(1)}%)`} since purchase${partial}${costCoverage}`
+        : hasProviderPricing
+          ? `Prices for the same card version and condition${partial}${costCoverage}`
+          : `Add what you paid to see profit${partial}${costCoverage}`;
   $("#valuationNote").firstChild.textContent =
-    totals.gainCoverage === totals.quantity
+    profitLoss.comparableUnits === totals.quantity
       ? "Based on matching market prices and what was paid. "
-      : `Change in value uses ${totals.gainCoverage} of ${totals.quantity} cards that have both a current price and the amount paid. `;
+      : `Change in value uses ${profitLoss.comparableUnits} of ${totals.quantity} cards that have both a current price and the amount paid. `;
   const coverageParts = [
     `${priceCoverage.automaticCoveragePercent.toFixed(0)}% live automatic coverage`,
     `${priceCoverage.categories.strong.units} strong`,
@@ -3930,6 +6825,10 @@ function renderCollection() {
       `${priceCoverage.categories.manual_override.units} owner-entered`,
     );
   if (excludedUnits) coverageParts.push(`${excludedUnits} excluded`);
+  if (euroProfitLoss.pricedUnits || euroProfitLoss.missingUnits)
+    coverageParts.push(
+      `EUR separate: ${euroProfitLoss.pricedUnits ? money(euroProfitLoss.valueMinor / 100, "EUR") : "value unavailable"}, ${euroProfitLoss.missingUnits} missing price`,
+    );
   $("#valuationCoverage").textContent = `${coverageParts.join(" · ")}. `;
   $("#allCount").textContent = totals.quantity.toLocaleString();
   $("#rawCount").textContent = rawCount.toLocaleString();
@@ -3986,6 +6885,41 @@ function renderCollection() {
   }
   renderPortfolioHistory();
   renderDashboardHighlights();
+  if (state.largeInventory.active) {
+    const summary = state.organization.summary || {};
+    const totalPositions = Number(summary.positionCount || 0);
+    const totalQuantity = Number(summary.quantity || 0);
+    $("#portfolioValue").textContent = "Paged inventory";
+    $("#costBasis").textContent = "Use reports";
+    $("#unrealized").textContent = "—";
+    $("#gainLabel").textContent = "Whole-account change";
+    $("#ownedCount").textContent = totalQuantity.toLocaleString();
+    $("#gradedOwnedCount").textContent = "Not estimated from one page";
+    $("#sealedOwnedCount").textContent = "Not estimated from one page";
+    $("#gradedShare").textContent =
+      `${totalPositions.toLocaleString()} saved entries`;
+    $("#sealedShare").textContent = "Server-backed inventory mode";
+    $("#portfolioReturn").textContent = "—";
+    $("#realizedGain").textContent = "Use reports";
+    $("#freshCoverage").textContent =
+      `${state.items.length.toLocaleString()} loaded entries · whole-account pricing coverage is not estimated from a page`;
+    $("#portfolioChange").textContent =
+      "Narrow the server-backed collection view for item-level values.";
+    $("#valuationNote").firstChild.textContent =
+      "Whole-account totals are withheld in paged inventory mode. ";
+    $("#valuationCoverage").textContent =
+      "Saved daily reports remain the source for historical whole-account value. ";
+    $("#allCount").textContent = totalQuantity.toLocaleString();
+    $("#rawCount").textContent = "—";
+    $("#gradedCount").textContent = "—";
+    $("#sealedCount").textContent = "—";
+    $("#favoritesCount").textContent = "—";
+    $("#forSaleCount").textContent = "—";
+    $("#setCount").textContent =
+      state.organization.goals.length.toLocaleString();
+    $(".status-label").innerHTML =
+      `<i></i> ${state.largeInventory.loading ? "Loading server page…" : `${state.items.length.toLocaleString()} detailed entries loaded`}`;
+  }
   if (state.ledgerView === "watchlist") {
     state.bulkMode = false;
     state.bulkSelected.clear();
@@ -4008,9 +6942,24 @@ function renderCollection() {
   if (state.ledgerView === "for-sale") {
     const readiness = listingReadiness(state.items);
     const gap = readiness.askingValueMinor - readiness.marketValueMinor;
-    sellerDesk.innerHTML = `<div class="seller-desk-head"><div><span>Cards for sale</span><strong>${readiness.units} item${readiness.units === 1 ? "" : "s"} listed</strong></div><b>${readiness.needsReview ? `${readiness.needsReview} need review` : "Ready"}</b></div><div class="seller-desk-grid"><div><span>Total price you are asking</span><strong>${money(readiness.askingValueMinor / 100)}</strong></div><div><span>Total matching price</span><strong>${readiness.pricedPositions ? money(readiness.marketValueMinor / 100) : "Unavailable"}</strong></div><div><span>Difference</span><strong>${readiness.pricedPositions ? `${gap >= 0 ? "Above by " : "Below by "}${money(Math.abs(gap) / 100)}` : "—"}</strong></div><div><span>Missing details</span><strong>${readiness.missingAsk} price · ${readiness.missingVenue} place to sell</strong></div></div><p>Mica asks you to check a listing when its price differs from the matching price by 10% or more, details are missing, or its price has not been checked in 7 days.</p>`;
+    sellerDesk.innerHTML = `<div class="seller-desk-head"><div><span>Cards for sale</span><strong>${readiness.units} item${readiness.units === 1 ? "" : "s"} listed</strong></div><b>${readiness.needsReview ? `${readiness.needsReview} need review` : "Ready"}</b></div><div class="seller-desk-grid"><div><span>Total price you are asking</span><strong>${money(readiness.askingValueMinor / 100)}</strong></div><div><span>Total matching price</span><strong>${readiness.pricedPositions ? money(readiness.marketValueMinor / 100) : "Unavailable"}</strong></div><div><span>Difference</span><strong>${readiness.pricedPositions ? `${gap >= 0 ? "Above by " : "Below by "}${money(Math.abs(gap) / 100)}` : "—"}</strong></div><div><span>Missing details</span><strong>${readiness.missingAsk} price · ${readiness.missingVenue} place to sell</strong></div></div><p>Mica asks you to check a listing when its price differs from the matching price by 10% or more, details are missing, or its price has not been checked in 7 days.</p><p class="price-provenance">${priceCoverage.automaticCoveragePercent.toFixed(0)}% live automatic coverage across the library · ${priceCoverage.categories.strong.units} strong · ${priceCoverage.categories.moderate.units} moderate · ${priceCoverage.categories.limited.units} limited.</p>`;
   }
-  let visible = state.items.filter((item) => matchesSearch(item, state.query));
+  let visible = filterCollectionOrganization(state.items, {
+    query: state.query,
+    sort: state.sort,
+    collectionId: state.collectionFilter,
+    set: state.setFilter,
+    condition: ["Raw", "Graded", "Sealed"].includes(state.conditionFilter)
+      ? ""
+      : state.conditionFilter,
+    label: state.labelFilter,
+    location: state.locationFilter,
+    language: state.languageFilter,
+    grader: state.graderFilter,
+    grade: state.gradeFilter,
+    minimumValue: state.minimumValue,
+    maximumValue: state.maximumValue,
+  });
   if (state.ledgerView === "favorites")
     visible = visible.filter((item) =>
       (item.tags || []).some(
@@ -4023,14 +6972,6 @@ function renderCollection() {
     visible = visible.filter((item) => item.price == null);
   if (state.ledgerView === "for-sale")
     visible = visible.filter((item) => item.status === "listed");
-  if (state.setFilter)
-    visible = visible.filter((item) => item.set === state.setFilter);
-  if (state.labelFilter)
-    visible = visible.filter((item) =>
-      (item.tags || []).some(
-        (tag) => String(tag).toLowerCase() === state.labelFilter.toLowerCase(),
-      ),
-    );
   if (state.conditionFilter === "Raw")
     visible = visible.filter(
       (item) =>
@@ -4048,23 +6989,95 @@ function renderCollection() {
     visible = visible.filter(
       (item) => item.condition === state.conditionFilter,
     );
-  visible.sort((a, b) =>
-    state.sort === "value-desc"
-      ? (itemValue(b) ?? -1) - (itemValue(a) ?? -1)
-      : a.name.localeCompare(b.name),
-  );
+  if (state.performanceFilter)
+    visible = visible.filter((item) => {
+      const result = itemPurchasePerformance(item, portfolioUnitPrice(item));
+      if (state.performanceFilter === "unknown") return !result;
+      if (!result) return false;
+      return state.performanceFilter === "gain"
+        ? result.change > 0
+        : result.change < 0;
+    });
+  if (state.coverageFilter)
+    visible = visible.filter((item) =>
+      state.coverageFilter === "stale"
+        ? item.pricingStatus === "stale"
+        : item.pricingStatus !== "live" && item.pricingStatus !== "stale",
+    );
+  if (state.movementFilter)
+    visible = visible.filter((item) => {
+      const byDay = new Map(
+        portfolioHistoryForItem(item).map((point) => [
+          String(point.recordedAt).slice(0, 10),
+          Number(point.amount),
+        ]),
+      );
+      const values = [...byDay.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([, value]) => value);
+      if (values.length < 2) return false;
+      const change = values.at(-1) - values.at(-2);
+      return state.movementFilter === "rising"
+        ? change > 0
+        : state.movementFilter === "falling"
+          ? change < 0
+          : change === 0;
+    });
+  if (state.minimumProfitLoss !== "" || state.maximumProfitLoss !== "")
+    visible = visible.filter((item) => {
+      const result = itemPurchasePerformance(item, portfolioUnitPrice(item));
+      return (
+        result &&
+        (state.minimumProfitLoss === "" ||
+          result.change >= Number(state.minimumProfitLoss)) &&
+        (state.maximumProfitLoss === "" ||
+          result.change <= Number(state.maximumProfitLoss))
+      );
+    });
+  if (state.purchaseDateFrom || state.purchaseDateTo)
+    visible = visible.filter(
+      (item) =>
+        item.purchaseDate &&
+        (!state.purchaseDateFrom ||
+          item.purchaseDate >= state.purchaseDateFrom) &&
+        (!state.purchaseDateTo || item.purchaseDate <= state.purchaseDateTo),
+    );
+  if (state.acquisitionFilter)
+    visible = visible.filter((item) => {
+      const methods = [
+        ...new Set(
+          (item.lots || [])
+            .filter((lot) => lot.quantityRemaining > 0)
+            .map((lot) => lot.acquisitionMethod)
+            .filter(Boolean),
+        ),
+      ];
+      return state.acquisitionFilter === "mixed"
+        ? methods.length > 1
+        : methods.includes(state.acquisitionFilter);
+    });
+  visible = sortCollectionOrganization(visible, state.sort);
   const visibleKey = JSON.stringify([
     state.sidebarTarget,
     state.ledgerView,
     state.query,
     state.sort,
+    state.groupBy,
     state.setFilter,
     state.conditionFilter,
     state.labelFilter,
+    state.collectionFilter,
+    state.locationFilter,
     state.languageFilter,
     state.graderFilter,
     state.gradeFilter,
     state.performanceFilter,
+    state.movementFilter,
+    state.coverageFilter,
+    state.minimumProfitLoss,
+    state.maximumProfitLoss,
+    state.purchaseDateFrom,
+    state.purchaseDateTo,
     state.acquisitionFilter,
     state.minimumValue,
     state.maximumValue,
@@ -4073,7 +7086,16 @@ function renderCollection() {
     state.visibleKey = visibleKey;
     state.visibleLimit = 100;
   }
-  const windowed = collectionWindow(visible, state.visibleLimit);
+  const windowed = state.largeInventory.active
+    ? {
+        displayed: visible,
+        total: state.largeInventory.totalCount,
+        remaining: Math.max(
+          0,
+          state.largeInventory.totalCount - state.items.length,
+        ),
+      }
+    : collectionWindow(visible, state.visibleLimit);
   const displayed = windowed.displayed;
   state.visiblePositionIds = displayed.map((item) => item.uid);
   const visibleCopies = visible.reduce(
@@ -4081,111 +7103,158 @@ function renderCollection() {
     0,
   );
   const groupedLabel = `${windowed.total} saved entr${windowed.total === 1 ? "y" : "ies"} · ${visibleCopies} card${visibleCopies === 1 ? "" : "s"}`;
-  $("#resultCount").textContent = windowed.remaining
-    ? `Showing ${displayed.length} of ${windowed.total} saved entries · ${visibleCopies} cards total`
-    : groupedLabel;
+  $("#resultCount").textContent = state.largeInventory.active
+    ? state.largeInventory.loading
+      ? "Loading matching inventory…"
+      : `Showing ${displayed.length.toLocaleString()} of ${windowed.total.toLocaleString()} matching saved entries`
+    : windowed.remaining
+      ? `Showing ${displayed.length} of ${windowed.total} saved entries · ${visibleCopies} cards total`
+      : groupedLabel;
   const remaining = windowed.remaining;
-  $("#loadMorePositions").hidden = remaining <= 0;
+  $("#loadMorePositions").hidden = state.largeInventory.active
+    ? !state.largeInventory.nextCursor
+    : remaining <= 0;
+  $("#loadMorePositions").disabled = state.largeInventory.loading;
   $("#loadMorePositions").textContent =
-    `Show ${Math.min(100, remaining)} more · ${remaining} remaining`;
+    state.largeInventory.active &&
+    state.items.length >= LARGE_INVENTORY_RENDER_LIMIT
+      ? "Narrow filters to continue"
+      : `${state.largeInventory.loading ? "Loading" : "Show"} ${Math.min(100, remaining)} more · ${remaining.toLocaleString()} remaining`;
   $("#sortButton").firstChild.textContent =
-    state.sort === "value-desc" ? "Most valuable first " : "Name, A to Z ";
-  $("#cardLedger").innerHTML = displayed
-    .map((item) => {
-      const total = itemValue(item);
-      const canDigitalGrade =
-        item.cardState !== "sealed" &&
-        !item.gradingCompany &&
-        item.status === "owned";
-      const dgNumber = digitalGradeNumber(item);
-      const purchasePerformance = itemPurchasePerformance(item);
-      const moveClass = purchasePerformance
-        ? purchasePerformance.change > 0
-          ? "up"
-          : purchasePerformance.change < 0
-            ? "down"
-            : "none"
-        : "none";
-      const movementLabel = purchasePerformance
-        ? `${purchaseChangeText(purchasePerformance, item.currency)} since purchase`
-        : item.price == null
-          ? priceStatusText(item)
-          : "Add what you paid to see profit";
-      const listing = listingReadiness([item]);
-      const listingTag =
-        item.status === "listed"
-          ? listing.needsReview
-            ? "Listing review"
-            : item.askingPrice === null
-              ? "Listed"
-              : `Listed · ${money(item.askingPrice)}`
-          : null;
-      const statusTag = item.activeGradingSubmission
-        ? `At ${item.activeGradingSubmission.grader}`
-        : item.status === "archived"
-          ? "Archived"
-          : null;
-      const remainingAcquisitionMethods = [
-        ...new Set(
-          (item.lots || [])
-            .filter((lot) => Number(lot.quantityRemaining) > 0)
-            .map((lot) => lot.acquisitionMethod)
-            .filter(Boolean),
-        ),
-      ];
-      const acquisitionLabels = {
-        direct_purchase: "Bought directly",
-        paid_pack: "Paid pack",
-        free_pack: "Free pack",
-        trade: "Trade",
-        gift: "Gift",
-        prize: "Prize",
-        free_card: "Free card",
-        unknown: "How acquired not recorded",
-      };
-      const acquisitionLabel =
-        remainingAcquisitionMethods.length > 1
-          ? "Mixed"
-          : acquisitionLabels[remainingAcquisitionMethods[0]] || null;
-      const tags = [
-        item.cardState === "sealed"
-          ? "Unopened"
-          : item.gradingCompany
-            ? `${item.gradingCompany} grade ${item.grade}`
-            : item.digitalGrade
-              ? `DG ${dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`}`
-              : "Ungraded",
-        acquisitionLabel,
-        listingTag || statusTag,
-        ...(item.tags || []).slice(
-          0,
-          listingTag || statusTag || acquisitionLabel ? 0 : 1,
-        ),
-      ].filter(Boolean);
-      const selected = state.bulkSelected.has(item.uid);
-      const favorite = (item.tags || []).some(
-        (tag) => String(tag).toLowerCase() === "favorites",
-      );
-      return `<article class="ledger-row${state.bulkMode ? " bulk-mode" : ""}${selected ? " selected" : ""}" ${state.bulkMode ? `tabindex="0" role="checkbox" aria-checked="${selected}" aria-label="${selected ? "Deselect" : "Select"} ${esc(item.name)}, ${total == null ? "price unavailable" : money(total)}"` : `aria-label="${esc(item.name)}, ${total == null ? "price unavailable" : money(total)}${purchasePerformance ? `, ${esc(purchaseChangeText(purchasePerformance, item.currency))} since purchase` : ""}"`} data-id="${esc(item.uid)}">
+    {
+      "value-desc": "Most valuable first ",
+      name: "Name, A to Z ",
+      "updated-desc": "Recently updated ",
+      location: "Storage location ",
+    }[state.sort] || "Name, A to Z ";
+  const copyGroups = new Map();
+  const displayedRows = [];
+  const groupedCopyKeys = new Set();
+  for (const candidate of displayed) {
+    const copyKey = state.bulkMode ? null : gradedCopyContextKey(candidate);
+    if (!copyKey) {
+      displayedRows.push(candidate);
+      continue;
+    }
+    if (groupedCopyKeys.has(copyKey)) continue;
+    groupedCopyKeys.add(copyKey);
+    const group = gradedCopyGroup(displayed, candidate);
+    const representative =
+      group.copies.find((copy) => Number(copy.quantity) === 1) ||
+      group.copies[0];
+    displayedRows.push(representative);
+    copyGroups.set(representative.uid, group);
+  }
+  const itemMarkup = (item) => {
+    const copyGroup = copyGroups.get(item.uid) || null;
+    const activeCopies = copyGroup?.activeCount ?? Number(item.quantity || 0);
+    const soldCopies = copyGroup
+      ? copyGroup.copies.length - copyGroup.activeCount
+      : 0;
+    const total = itemValue(item);
+    const canDigitalGrade =
+      item.cardState !== "sealed" &&
+      !item.gradingCompany &&
+      item.status === "owned";
+    const dgNumber = digitalGradeNumber(item);
+    const purchasePerformance = itemPurchasePerformance(item);
+    const moveClass = purchasePerformance
+      ? purchasePerformance.change > 0
+        ? "up"
+        : purchasePerformance.change < 0
+          ? "down"
+          : "none"
+      : "none";
+    const movementLabel = purchasePerformance
+      ? `${purchaseChangeText(purchasePerformance, item.currency)} since purchase`
+      : item.price == null
+        ? priceStatusText(item)
+        : "Add what you paid to see profit";
+    const listing = listingReadiness([item]);
+    const listingTag =
+      item.status === "listed"
+        ? listing.needsReview
+          ? "Listing review"
+          : item.askingPrice === null
+            ? "Listed"
+            : `Listed · ${money(item.askingPrice)}`
+        : null;
+    const statusTag = item.activeGradingSubmission
+      ? `At ${item.activeGradingSubmission.grader}`
+      : item.status === "archived"
+        ? "Archived"
+        : null;
+    const remainingAcquisitionMethods = [
+      ...new Set(
+        (item.lots || [])
+          .filter((lot) => Number(lot.quantityRemaining) > 0)
+          .map((lot) => lot.acquisitionMethod)
+          .filter(Boolean),
+      ),
+    ];
+    const acquisitionLabels = {
+      direct_purchase: "Bought directly",
+      paid_pack: "Paid pack",
+      free_pack: "Free pack",
+      trade: "Trade",
+      gift: "Gift",
+      prize: "Prize",
+      free_card: "Free card",
+      unknown: "How acquired not recorded",
+    };
+    const acquisitionLabel =
+      remainingAcquisitionMethods.length > 1
+        ? "Mixed"
+        : acquisitionLabels[remainingAcquisitionMethods[0]] || null;
+    const tags = [
+      item.cardState === "sealed"
+        ? "Unopened"
+        : item.gradingCompany
+          ? `${item.gradingCompany} grade ${item.grade}`
+          : item.digitalGrade
+            ? `DG ${dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`}`
+            : "Ungraded",
+      acquisitionLabel,
+      copyGroup?.copies.length > 1
+        ? `${activeCopies} active${soldCopies ? `/${soldCopies} sold` : ""}`
+        : null,
+      listingTag || statusTag,
+      ...(item.tags || []).slice(
+        0,
+        listingTag || statusTag || acquisitionLabel ? 0 : 1,
+      ),
+    ].filter(Boolean);
+    const selected = state.bulkSelected.has(item.uid);
+    const favorite = (item.tags || []).some(
+      (tag) => String(tag).toLowerCase() === "favorites",
+    );
+    return `<article class="ledger-row${state.bulkMode ? " bulk-mode" : ""}${selected ? " selected" : ""}" ${state.bulkMode ? `tabindex="0" role="checkbox" aria-checked="${selected}" aria-label="${selected ? "Deselect" : "Select"} ${esc(item.name)}, ${total == null ? "price unavailable" : money(total)}"` : `aria-label="Open ${activeCopies} active ${esc(item.name)} ${activeCopies === 1 ? "copy" : "copies"}${soldCopies ? ` and ${soldCopies} sold` : ""}"`} data-id="${esc(item.uid)}">
       ${state.bulkMode ? `<span class="bulk-select-indicator" aria-hidden="true">${selected ? "✓" : ""}</span>` : ""}
       ${state.bulkMode ? "" : `<button class="ledger-open-overlay" type="button" data-open-position="${esc(item.uid)}" aria-label="Open ${esc(item.name)} details"></button>`}
       ${state.bulkMode ? "" : `<button class="ledger-favorite${favorite ? " selected" : ""}" type="button" data-toggle-favorite="${esc(item.uid)}" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button>`}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
-      <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${Number(item.quantity) || 0}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="position-price-grid compact" aria-label="Position value and amount paid"><span><small>Position value</small><strong>${total == null ? "—" : money(total, item.currency)}</strong></span><span><small>Paid</small><strong>${item.costBasis == null ? "—" : money(item.costBasis, item.currency)}</strong></span></div>
-      <div class="price-cell"><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}">${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
+      <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${activeCopies}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
+      <div class="position-price-grid compact" aria-label="Copy value and purchase amounts"><span><small>${copyGroup?.copies.length > 1 ? "Price each" : "Position value"}</small><strong>${total == null ? "—" : money(copyGroup?.copies.length > 1 ? Number(item.price) : total, item.currency)}</strong></span><span><small>Paid</small><strong>${copyGroup?.copies.length > 1 ? "Varies by copy" : item.costBasis == null ? "—" : money(item.costBasis, item.currency)}</strong></span></div>
+      <div class="price-cell"><span class="row-unit price-provenance">${esc(priceProvenanceText(item))}</span><span class="row-move ${moveClass}">${esc(movementLabel)}</span></div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}">${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
     </article>`;
-    })
+  };
+  const groups = groupCollectionOrganization(displayedRows, state.groupBy);
+  $("#cardLedger").innerHTML = groups
+    .map(
+      (group) =>
+        `${state.groupBy === "none" ? "" : `<h3 class="collection-group-heading"><span>${esc(group.label)}</span><small>${group.items.length.toLocaleString()} saved entr${group.items.length === 1 ? "y" : "ies"}</small></h3>`}${group.items.map(itemMarkup).join("")}`,
+    )
     .join("");
   $("#collectionEmpty").classList.toggle("hidden", visible.length > 0);
-  const trulyEmpty = state.items.length === 0;
+  const trulyEmpty = state.largeInventory.active
+    ? Number(state.organization.summary?.positionCount || 0) === 0
+    : state.items.length === 0;
   $("#collectionEmptyTitle").textContent = trulyEmpty
     ? "Your library is empty"
     : "No items match this view";
   $("#collectionEmptyCopy").textContent = trulyEmpty
     ? "Start with one card or unopened product. Mica only asks for the details that apply."
     : "Try clearing the search or changing your filters.";
-  $("#firstCardGuide").classList.toggle("hidden", !trulyEmpty);
   $("#emptyAddCard").classList.toggle("hidden", !trulyEmpty);
   $("#emptyAddCard").textContent = "Add your first item";
   $("#clearFilters").classList.toggle("hidden", trulyEmpty);
@@ -4194,13 +7263,21 @@ function renderCollection() {
     (state.setFilter ? 1 : 0) +
     (state.conditionFilter ? 1 : 0) +
     (state.labelFilter ? 1 : 0) +
+    (state.collectionFilter ? 1 : 0) +
+    (state.locationFilter ? 1 : 0) +
     (state.languageFilter ? 1 : 0) +
     (state.graderFilter ? 1 : 0) +
     (state.gradeFilter ? 1 : 0) +
     (state.performanceFilter ? 1 : 0) +
+    (state.movementFilter ? 1 : 0) +
+    (state.coverageFilter ? 1 : 0) +
     (state.acquisitionFilter ? 1 : 0) +
     (state.minimumValue !== "" ? 1 : 0) +
-    (state.maximumValue !== "" ? 1 : 0);
+    (state.maximumValue !== "" ? 1 : 0) +
+    (state.minimumProfitLoss !== "" ? 1 : 0) +
+    (state.maximumProfitLoss !== "" ? 1 : 0) +
+    (state.purchaseDateFrom ? 1 : 0) +
+    (state.purchaseDateTo ? 1 : 0);
   $("#filterLabel").textContent = activeFilterCount
     ? `Filter · ${activeFilterCount}`
     : "Filter";
@@ -4228,7 +7305,9 @@ function renderCollection() {
       const item = state.items.find(
         (candidate) => candidate.uid === button.dataset.addPurchase,
       );
-      if (item) openPurchaseLotSheet(item);
+      if (!item) return;
+      if (item.cardState === "graded") openAnotherPhysicalCopy(item);
+      else openPurchaseLotSheet(item);
     }),
   );
   $$("[data-digital-grade]").forEach((button) =>
@@ -4251,22 +7330,99 @@ function renderCollection() {
   );
 }
 
+function openAnotherPhysicalCopy(item) {
+  openPositionSheet(item, {
+    exactSelection: true,
+    prefill: {
+      cardState: "graded",
+      grader: item.gradingCompany,
+      grade: item.grade,
+      gradeQualifier: item.gradeQualifier,
+      quantity: 1,
+      variantId: item.variantId,
+      variant: item.variant,
+      acquisitionCostKnown: false,
+      acquisitionDateKnown: false,
+    },
+  });
+}
+
 function openCardDetail(card, preferOwned = false) {
   if (!card) return;
-  const owned = preferOwned
-    ? card
-    : state.items.find((item) => sameCatalogCard(item, card));
+  clearDetailFx();
+  // Catalog research stays a catalog profile. Collection entry points opt in
+  // to an owned position so a same-printing copy cannot silently replace the
+  // selected search result's state, condition, or grade.
+  const owned = preferOwned ? card : null;
   if (state.route !== "detail") state.detailReturnRoute = state.route;
   state.detailCanPop = state.route !== "detail";
   state.detailId = owned?.uid || card.id;
   state.detailCard = owned || card;
+  state.detailSelectionKey = detailIdentityKey(owned || card);
+  state.detailRequestVersion += 1;
+  state.detailPricing = null;
+  state.detailSales = null;
+  state.detailValuationContext = valuationContextForItem(owned || card, {
+    catalogPreview: !owned,
+  });
   routeTo("detail");
-  if ((owned || card).cardState === "sealed")
+  if ((owned || card).cardState === "sealed") {
     void loadSealedDetailPricing(owned || card);
-  else if (owned) {
-    void loadOwnedDetailPricing(owned);
+    if (owned) void loadOwnedCollectionAttachments(owned);
+  } else if (owned) {
+    void loadOwnedDetailPricing(
+      owned,
+      beginDetailRequest(owned, state.detailValuationContext),
+    );
     void loadOwnedGradingReports(owned);
-  } else void loadCardPreviewPricing(card);
+    void loadOwnedCollectionAttachments(owned);
+  } else if (detailContextReady(state.detailValuationContext))
+    void loadCardPreviewPricing(
+      card,
+      state.detailValuationContext,
+      beginDetailRequest(card, state.detailValuationContext),
+    );
+}
+
+async function loadOwnedCollectionAttachments(item) {
+  if (!item?.uid) return;
+  const current = state.organization.attachments.get(item.uid);
+  if (current?.status === "loading") return;
+  state.organization.attachments.set(item.uid, {
+    status: "loading",
+    items: current?.items || [],
+  });
+  if (state.route === "detail" && state.detailId === item.uid) renderDetail();
+  try {
+    const attachments = await loadCollectionPositionAttachments(
+      supabase,
+      item.uid,
+    );
+    state.organization.attachments.set(item.uid, {
+      status: "ready",
+      items: attachments,
+    });
+  } catch {
+    state.organization.attachments.set(item.uid, {
+      status: "error",
+      items: current?.items || [],
+    });
+  }
+  if (state.route === "detail" && state.detailId === item.uid) renderDetail();
+}
+
+function collectionAttachmentMarkup(item) {
+  const stateForItem = state.organization.attachments.get(item.uid) || {
+    status: "loading",
+    items: [],
+  };
+  const rows = stateForItem.items
+    .map(
+      (attachment) =>
+        `<li><span><strong>${esc(attachment.filename)}</strong><small>${attachment.kind === "photo" ? "Private photo" : "Private PDF"} · ${(Number(attachment.byte_size) / 1024).toFixed(0)} KB · ${esc(String(attachment.created_at).slice(0, 10))}</small></span><button type="button" data-open-collection-attachment="${esc(attachment.id)}">Open</button><button type="button" data-delete-collection-attachment="${esc(attachment.id)}" aria-label="Delete ${esc(attachment.filename)}">Delete</button></li>`,
+    )
+    .join("");
+  return `<details class="detail-tool-group collection-attachments" data-detail-tool="attachments"><summary><span><strong>Photos &amp; documents</strong><small>Private item evidence and records</small></span><b>Open</b></summary><div class="detail-tool-content"><div class="attachment-upload"><label for="collectionAttachmentInput">Add a private photo or PDF</label><input id="collectionAttachmentInput" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><small>10 MB maximum. Files stay in owner-only storage and are omitted from public sharing.</small><p class="form-error" id="collectionAttachmentError" role="alert"></p></div>${stateForItem.status === "loading" && !rows ? '<div class="searching-cards"><i></i><span>Loading private files…</span></div>' : stateForItem.status === "error" && !rows ? '<div class="unavailable-panel">Private files could not be loaded. Your collection is unchanged.</div>' : rows ? `<ul class="attachment-list">${rows}</ul>` : '<div class="compact-empty"><strong>No files attached</strong><span>Add an ownership photo, receipt, or insurance document.</span></div>'}</div></details>`;
 }
 
 async function loadOwnedGradingReports(item) {
@@ -4580,6 +7736,114 @@ async function shareGradingReportImage(input) {
   return "downloaded";
 }
 
+const GRADING_LIFECYCLE_SEQUENCE = Object.freeze([
+  "candidate",
+  "capture_incomplete",
+  "analyzed",
+  "selected",
+  "submitted",
+  "received",
+  "grading",
+  "shipped",
+  "returned",
+]);
+
+function gradingLifecycleMarkup(item) {
+  const reports = state.gradingReports.get(item.uid) || [];
+  const lifecycleState = deriveGradingLifecycle({
+    item,
+    reports,
+    lifecycleEvents: item.gradingLifecycleEvents,
+  });
+  const latestReport = reports[0];
+  const confidenceStandard = latestReport?.prediction
+    ? evaluateGradingConfidence({
+        ...latestReport.prediction,
+        evidenceProfile: latestReport.prediction.evidence_profile || {},
+      })
+    : null;
+  const latestSubmission = item.gradingSubmissions?.[0];
+  const returnedTransaction = [...(item.transactions || [])]
+    .reverse()
+    .find((transaction) => transaction.type === "grading_return");
+  const history = latestSubmission?.statusHistory || [];
+  const currentIndex = GRADING_LIFECYCLE_SEQUENCE.indexOf(lifecycleState);
+  const observedStates = new Set(
+    (item.gradingLifecycleEvents || []).map((event) => event.state),
+  );
+  if (latestReport)
+    observedStates.add(
+      ["capturing", "failed"].includes(latestReport.workflow_status)
+        ? "capture_incomplete"
+        : "analyzed",
+    );
+  if (latestSubmission)
+    observedStates.add(
+      latestSubmission.status === "assembly"
+        ? "grading"
+        : latestSubmission.status === "cancelled"
+          ? "rejected"
+          : latestSubmission.status,
+    );
+  if (returnedTransaction) observedStates.add("returned");
+  const completedThrough = Math.max(
+    currentIndex,
+    ...[...observedStates].map((stage) =>
+      GRADING_LIFECYCLE_SEQUENCE.indexOf(stage),
+    ),
+  );
+  const sequence = GRADING_LIFECYCLE_SEQUENCE.map((stage, index) => ({
+    stage,
+    status:
+      index < completedThrough
+        ? "complete"
+        : index === currentIndex && currentIndex >= 0
+          ? "current"
+          : currentIndex === -1 && index === completedThrough
+            ? "complete"
+            : "pending",
+  }));
+  const finalStates = ["held", "listed", "traded", "sold", "rejected"];
+  const corrections = (reports || []).flatMap(
+    (report) => report.corrections || [],
+  );
+  const canDecide =
+    item.cardState === "raw" &&
+    !item.activeGradingSubmission &&
+    [
+      "candidate",
+      "capture_incomplete",
+      "analyzed",
+      "selected",
+      "rejected",
+    ].includes(lifecycleState);
+  const canSelect =
+    canDecide &&
+    Boolean(latestReport || item.digitalGrade) &&
+    !["candidate", "capture_incomplete"].includes(lifecycleState);
+  const reportLabel = latestReport
+    ? `Report ${latestReport.id.slice(0, 8).toUpperCase()}`
+    : item.digitalGrade
+      ? "Saved evidence estimate"
+      : "Not analyzed";
+  const submissionLabel = latestSubmission
+    ? `${latestSubmission.grader} · ${latestSubmission.status}${latestSubmission.batchId ? " · batch linked" : ""}`
+    : "Not submitted";
+  const returnLabel = returnedTransaction
+    ? `${returnedTransaction.gradingCompany || item.gradingCompany} ${returnedTransaction.grade || item.grade}`
+    : item.gradingCompany
+      ? `${item.gradingCompany} ${item.grade}`
+      : "Not returned";
+  return `<section class="detail-section grading-lifecycle" aria-labelledby="gradingLifecycleTitle"><div class="detail-section-head"><h2 id="gradingLifecycleTitle">Grading-to-sale lifecycle</h2><span>${esc(gradingLifecycleLabel(lifecycleState))}</span></div><ol class="grading-lifecycle-track">${sequence
+    .map(
+      ({ stage, status }) =>
+        `<li class="${status}"><i aria-hidden="true"></i><span>${esc(gradingLifecycleLabel(stage))}</span></li>`,
+    )
+    .join(
+      "",
+    )}<li class="${finalStates.includes(lifecycleState) ? "current" : "pending"}"><i aria-hidden="true"></i><span>${esc(finalStates.includes(lifecycleState) ? gradingLifecycleLabel(lifecycleState) : "Final disposition")}</span></li></ol><div class="grading-lifecycle-summary"><div><span>Photo evidence</span><strong>${esc(reportLabel)}</strong><small>${confidenceStandard ? `${confidenceStandard.approved ? "Confidence standard passed" : "Recommendation withheld"} · ` : ""}${corrections.length} correction${corrections.length === 1 ? "" : "s"} recorded</small></div><div><span>Submission</span><strong>${esc(submissionLabel)}</strong><small>Costs remain editable estimates</small></div><div><span>Professional return</span><strong>${esc(returnLabel)}</strong><small>${esc(item.certificationNumber || "Certification not recorded")}</small></div><div><span>Current disposition</span><strong>${esc(gradingLifecycleLabel(lifecycleState))}</strong><small>${item.price == null ? "Updated value unavailable" : `${money(item.price, item.currency)} matching value`}</small></div></div>${history.length ? `<details class="grading-status-history"><summary>Submission status history</summary><ol>${history.map((event) => `<li><span>${esc(gradingLifecycleLabel(event.status === "assembly" ? "grading" : event.status === "cancelled" ? "rejected" : event.status))}</span><time>${esc(event.occurredOn)}</time></li>`).join("")}</ol></details>` : ""}${canDecide ? `<div class="sheet-actions grading-decision-actions"><button class="secondary" type="button" data-grading-lifecycle-decision="rejected">Keep ungraded</button>${canSelect ? '<button class="secondary" type="button" data-grading-lifecycle-decision="selected">Mark for submission</button>' : ""}</div>` : ""}<p class="legal-copy">Photo estimates are not professional grades.</p></section>`;
+}
+
 function gradingReportHistoryMarkup(item) {
   const reports = state.gradingReports.get(item.uid);
   if (!reports)
@@ -4592,7 +7856,10 @@ function gradingReportHistoryMarkup(item) {
   const scoreLabel =
     score.status === "estimate" ? Number(score.score).toFixed(1) : "—";
   const confidence = Math.round(Number(prediction.confidence || 0) * 100);
-  return `<section class="collection-grade-summary"><div><span>Mica pregrade</span><strong>${esc(scoreLabel)}</strong><small>${confidence}% evidence confidence · ${reports.length} saved report${reports.length === 1 ? "" : "s"}</small></div><button class="primary" type="button" data-open-card-grade-report="${esc(latest.id)}">View full report</button></section>`;
+  const correctionCount = reports.flatMap(
+    (report) => report.corrections || [],
+  ).length;
+  return `<section class="collection-grade-summary"><div><span>Mica pregrade</span><strong>${esc(scoreLabel)}</strong><small>${confidence}% evidence confidence · ${reports.length} saved report${reports.length === 1 ? "" : "s"} · ${correctionCount} correction${correctionCount === 1 ? "" : "s"}</small></div><button class="primary" type="button" data-open-card-grade-report="${esc(latest.id)}">View full report</button></section>`;
 }
 
 async function loadSealedDetailPricing(item) {
@@ -4608,6 +7875,13 @@ async function loadSealedDetailPricing(item) {
     const payload = await response.json();
     const product = payload.product;
     if (!product) return;
+    if (!sealedProductMatches(item, product)) {
+      const unavailable = { ...item, price: null, referencePrice: null, quotes: [], pricingStatus: "missing", pricingReason: "provider_identity_mismatch" };
+      if (item.uid) state.items = state.items.map((candidate) => candidate.uid === item.uid ? unavailable : candidate);
+      if (state.detailId === item.uid || state.detailId === item.id) state.detailCard = unavailable;
+      if (state.route === "detail") renderDetail();
+      return;
+    }
     const quote = selectReferenceQuote(
       product.quotes,
       "Sealed product",
@@ -4643,7 +7917,13 @@ async function loadSealedDetailPricing(item) {
   } catch {}
 }
 
-async function loadCardPreviewPricing(card) {
+async function loadCardPreviewPricing(
+  card,
+  context = state.detailValuationContext,
+  guard = beginDetailRequest(card, context),
+) {
+  if (!detailContextReady(context)) return;
+  const printing = selectedPrinting(card);
   const lookup = [
     {
       clientId: card.id,
@@ -4653,6 +7933,11 @@ async function loadCardPreviewPricing(card) {
       set: card.set,
       number: card.number,
       language: card.language || "en",
+      variant: card.variant || "",
+      condition: context.cardState === "raw" ? context.condition || "" : "",
+      grader:
+        context.cardState === "graded" ? context.gradingCompany || "" : "",
+      grade: context.cardState === "graded" ? String(context.grade || "") : "",
     },
   ];
   try {
@@ -4661,37 +7946,56 @@ async function loadCardPreviewPricing(card) {
       { headers: { Accept: "application/json" } },
     );
     if (!response.ok) {
-      if (state.detailId !== card.id) return;
-      state.detailCard = {
-        ...card,
-        pricingStatus:
-          card.price == null
-            ? response.status === 429
-              ? "rate_limited"
-              : "error"
-            : card.pricingStatus,
+      if (!detailRequestIsCurrent(guard)) return;
+      state.detailPricing = {
+        selectionKey: guard.selectionKey,
+        contextKey: guard.contextKey,
+        pricingStatus: response.status === 429 ? "rate_limited" : "error",
         historyStatus: card.historyStatus || "unavailable",
       };
-      renderDetail();
+      renderDetailPreservingValuationFocus();
       return;
     }
     const payload = await response.json();
     const priced = payload.cards?.[0];
-    if (!priced || state.detailId !== card.id) return;
-    const quote = selectReferenceQuote(priced.quotes, card.variant, "USD", {
-      condition: "Near Mint",
-    });
+    if (!detailRequestIsCurrent(guard)) return;
+    if (!priced) {
+      state.detailPricing = {
+        selectionKey: guard.selectionKey,
+        contextKey: guard.contextKey,
+        pricingStatus: "missing",
+        historyStatus: card.historyStatus || "unavailable",
+      };
+      renderDetailPreservingValuationFocus();
+      return;
+    }
+    const pricingContext =
+      context.cardState === "graded"
+        ? {
+            gradingCompany: context.gradingCompany,
+            grade: String(context.grade),
+            finish: printing.finish,
+            edition: printing.edition,
+          }
+        : {
+            condition: context.condition,
+            finish: printing.finish,
+            edition: printing.edition,
+          };
+    const quote = selectReferenceQuote(
+      priced.quotes,
+      card.variant,
+      context.currency || card.currency || "USD",
+      pricingContext,
+    );
     const pricing = quotePricingFields(quote, priced, {
       ...card,
-      condition: "Near Mint",
-      cardState: "raw",
+      ...pricingContext,
+      cardState: context.cardState,
     });
-    const updated = {
-      ...card,
-      externalIds: {
-        ...(card.externalIds || {}),
-        ...(priced.externalIds || {}),
-      },
+    state.detailPricing = {
+      selectionKey: guard.selectionKey,
+      contextKey: guard.contextKey,
       metadata: priced.metadata || card.metadata || null,
       priceCapabilities: priced.capabilities || null,
       ...pricing,
@@ -4699,21 +8003,37 @@ async function loadCardPreviewPricing(card) {
       priceHistory: recordPriceObservation(card, quote, priced.history || []),
       historyStatus: priced.historyStatus || null,
     };
-    catalog = catalog.map((item) => (item.id === card.id ? updated : item));
-    state.detailCard = updated;
-    renderDetail();
+    const identityUpdate = {
+      externalIds: {
+        ...(card.externalIds || {}),
+        ...(priced.externalIds || {}),
+      },
+      metadata: priced.metadata || card.metadata || null,
+      priceCapabilities: priced.capabilities || null,
+    };
+    catalog = catalog.map((item) =>
+      detailIdentityKey(item) === guard.selectionKey
+        ? { ...item, ...identityUpdate }
+        : item,
+    );
+    state.detailCard = { ...state.detailCard, ...identityUpdate };
+    renderDetailPreservingValuationFocus();
   } catch {
-    if (state.detailId !== card.id) return;
-    state.detailCard = {
-      ...card,
-      pricingStatus: card.price == null ? "error" : card.pricingStatus,
+    if (!detailRequestIsCurrent(guard)) return;
+    state.detailPricing = {
+      selectionKey: guard.selectionKey,
+      contextKey: guard.contextKey,
+      pricingStatus: "error",
       historyStatus: card.historyStatus || "unavailable",
     };
-    renderDetail();
+    renderDetailPreservingValuationFocus();
   }
 }
 
-async function loadOwnedDetailPricing(item) {
+async function loadOwnedDetailPricing(
+  item,
+  guard = beginDetailRequest(item, valuationContextForItem(item)),
+) {
   const lookup = [
     {
       clientId: item.id,
@@ -4725,6 +8045,8 @@ async function loadOwnedDetailPricing(item) {
       set: item.set,
       number: item.number,
       language: item.language || "en",
+      variant: item.variant || "",
+      condition: item.gradingCompany ? "" : item.condition || "",
     },
   ];
   try {
@@ -4735,7 +8057,7 @@ async function loadOwnedDetailPricing(item) {
     if (!response.ok) return;
     const payload = await response.json();
     const priced = payload.cards?.[0];
-    if (!priced || state.detailId !== item.uid) return;
+    if (!priced || !detailRequestIsCurrent(guard)) return;
     const quote = selectPositionQuote(priced.quotes, item);
     const pricing = quotePricingFields(quote, priced, item);
     const pricedItem = {
@@ -4951,7 +8273,10 @@ function renderOwnedDetailLegacy() {
   if (!item) return routeTo("collection");
   const total = itemValue(item);
   const tcgQuote = selectReferenceQuote(item.quotes, item.variant, "USD", item);
-  const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
+  const cardmarketQuote =
+    sealed || context.cardState === "raw"
+      ? selectCardmarketReference(item.quotes, item.variant)
+      : null;
   const sourceRows =
     item.price == null
       ? `<div class="unavailable-panel"><strong>${item.gradingCompany ? "A matching graded price is not connected yet." : "A matching price is not available for this printing yet."}</strong><br>Your card stays in the collection and is excluded from estimated totals. Mica will not substitute a raw, different-grade, or different-printing value.</div>`
@@ -5028,64 +8353,300 @@ function renderCertificationVerification(item) {
   return `<section class="detail-section certification-trust" aria-labelledby="certificationTrustTitle"><div class="detail-section-head"><h2 id="certificationTrustTitle">Check the graded card</h2><span>Official grading-company record</span></div><div class="certification-record"><div><span>${esc(lookup.graderName)} certification</span><strong>${esc(lookup.certification)}</strong><small>${formatNote}</small></div><button id="copyCertificationButton" type="button">Copy number</button>${lookupAction}</div>${multipleCopyNote}<ol class="certification-checklist"><li>Confirm the official record shows the same card and grade.</li><li>Compare the label, barcode, card details, and official photos when available.</li><li>Check the physical case for signs it was opened or changed.</li></ol><p class="certification-disclaimer">Mica opens the official record but cannot prove the card or case is authentic. A matching database record does not remove counterfeit risk.</p></section>`;
 }
 
+function valuationContextLabel(context = {}) {
+  if (context.cardState === "sealed") return "Unopened product";
+  if (context.cardState === "graded")
+    return context.gradingCompany && context.grade
+      ? `${context.gradingCompany} ${context.grade}${context.gradeQualifier ? ` · ${context.gradeQualifier}` : ""}`
+      : "Graded · choose company and grade";
+  return context.condition
+    ? `Raw · ${conditionLabel(context.condition)}`
+    : "Raw · condition unknown";
+}
+
+function detailValuationMarkup(item, owned, watched, context) {
+  if (item.cardState === "sealed" || item.productType) return "";
+  const raw = context.cardState !== "graded";
+  const savedContext = owned
+    ? `<small>Saved copy: ${esc(watchContextLabel(owned))}. Research does not edit it.</small>`
+    : watched
+      ? `<small>Saved watch: ${esc(watchContextLabel(watched))} until you update it.</small>`
+      : "<small>Choose what to value. Unknown condition stays unpriced.</small>";
+  const conditions = [
+    ["", "Condition not chosen"],
+    ["Near Mint", "Like new (Near Mint)"],
+    ["Lightly Played", "Light wear (Lightly Played)"],
+    ["Moderately Played", "Noticeable wear (Moderately Played)"],
+    ["Heavily Played", "Heavy wear (Heavily Played)"],
+    ["Damaged", "Damaged"],
+  ];
+  return `<section class="valuation-context" aria-labelledby="valuationContextTitle"><div><span>Value context</span><strong id="valuationContextTitle">${esc(valuationContextLabel(context))}</strong>${savedContext}</div><div class="valuation-context-controls"><label>State<select id="detailValuationState"><option value="raw" ${raw ? "selected" : ""}>Raw · ungraded</option><option value="graded" ${raw ? "" : "selected"}>Professionally graded</option></select></label><label class="raw-valuation-context" ${raw ? "" : "hidden"}>Condition<select id="detailValuationCondition">${conditions.map(([value, label]) => `<option value="${esc(value)}" ${value === context.condition ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label><label class="graded-valuation-context" ${raw ? "hidden" : ""}>Company<select id="detailValuationGrader"><option value="">Choose company</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((grader) => `<option ${grader === context.gradingCompany ? "selected" : ""}>${grader}</option>`).join("")}</select></label><label class="graded-valuation-context" ${raw ? "hidden" : ""}>Grade<input id="detailValuationGrade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(context.grade || "")}" placeholder="10"></label><label class="graded-valuation-context" ${raw ? "hidden" : ""}>Label / qualifier<input id="detailValuationQualifier" type="text" value="${esc(context.gradeQualifier ?? "")}" placeholder="None"></label><label>Currency<select id="detailValuationCurrency"><option value="USD" ${context.currency === "USD" ? "selected" : ""}>USD</option><option value="EUR" ${context.currency === "EUR" ? "selected" : ""}>EUR</option></select></label></div></section>`;
+}
+
+function bindDetailValuationControls(item) {
+  const stateControl = $("#detailValuationState");
+  if (!stateControl) return;
+  const apply = (focusId) => {
+    clearDetailFx();
+    const cardState = stateControl.value;
+    state.detailValuationContext =
+      cardState === "graded"
+        ? {
+            cardState,
+            condition: "",
+            gradingCompany: $("#detailValuationGrader")?.value || "",
+            grade: $("#detailValuationGrade")?.value || "",
+            gradeQualifier: $("#detailValuationQualifier")?.value.trim() || "",
+            currency: $("#detailValuationCurrency")?.value || "USD",
+          }
+        : {
+            cardState: "raw",
+            condition: $("#detailValuationCondition")?.value || "",
+            gradingCompany: "",
+            grade: "",
+            gradeQualifier: null,
+            currency: $("#detailValuationCurrency")?.value || "USD",
+          };
+    state.detailRequestVersion += 1;
+    state.detailPricing = null;
+    state.detailSales = null;
+    renderDetail();
+    restoreDetailValuationFocus(focusId);
+    if (!detailContextReady(state.detailValuationContext)) return;
+    const guard = beginDetailRequest(item, state.detailValuationContext);
+    void loadCardPreviewPricing(item, state.detailValuationContext, guard);
+  };
+  stateControl.addEventListener("change", () => apply("#detailValuationState"));
+  $("#detailValuationCondition")?.addEventListener("change", () =>
+    apply("#detailValuationCondition"),
+  );
+  $("#detailValuationGrader")?.addEventListener("change", () =>
+    apply("#detailValuationGrader"),
+  );
+  $("#detailValuationGrade")?.addEventListener("change", () =>
+    apply("#detailValuationGrade"),
+  );
+  $("#detailValuationQualifier")?.addEventListener("change", () =>
+    apply("#detailValuationQualifier"),
+  );
+  $("#detailValuationCurrency")?.addEventListener("change", () =>
+    apply("#detailValuationCurrency"),
+  );
+}
+
+let detailValuationFocusVersion = 0;
+
+function restoreDetailValuationFocus(focusId) {
+  const version = ++detailValuationFocusVersion;
+  requestAnimationFrame(() => {
+    if (version !== detailValuationFocusVersion) return;
+    const control = $(focusId);
+    if (!control) return;
+    if (
+      document.activeElement !== document.body &&
+      document.activeElement !== document.documentElement &&
+      document.activeElement?.tagName !== "MAIN" &&
+      document.activeElement !== control
+    )
+      return;
+    control.focus({ preventScroll: true });
+    const stickyAction = $(".detail-sticky-action");
+    if (!stickyAction) return;
+    const controlBounds = control.getBoundingClientRect();
+    const stickyBounds = stickyAction.getBoundingClientRect();
+    const overlap = controlBounds.bottom - stickyBounds.top;
+    if (overlap > 0) window.scrollBy({ top: overlap + 12, behavior: "auto" });
+  });
+}
+
+function renderDetailPreservingValuationFocus() {
+  const focusedId = document.activeElement?.id || "";
+  const preserveFocus = focusedId.startsWith("detailValuation");
+  renderDetail();
+  if (preserveFocus) restoreDetailValuationFocus(`#${focusedId}`);
+}
+
 function renderDetail() {
   const owned =
     state.items.find((candidate) => candidate.uid === state.detailId) || null;
-  const item =
+  const baseItem =
     owned ||
     state.detailCard ||
     catalog.find((candidate) => candidate.id === state.detailId);
-  if (!item) return routeTo("scan");
+  if (!baseItem) return routeTo("scan");
+  if (!state.detailSelectionKey)
+    state.detailSelectionKey = detailIdentityKey(baseItem);
+  if (!state.detailValuationContext)
+    state.detailValuationContext = valuationContextForItem(baseItem, {
+      catalogPreview: !owned,
+    });
+  const context = state.detailValuationContext;
+  const pricing =
+    state.detailPricing?.selectionKey === detailIdentityKey(baseItem) &&
+    state.detailPricing?.contextKey === detailContextKey(context)
+      ? state.detailPricing
+      : null;
+  const sales =
+    state.detailSales?.selectionKey === detailIdentityKey(baseItem) &&
+    state.detailSales?.contextKey === detailContextKey(context)
+      ? state.detailSales
+      : null;
+  const item = {
+    ...baseItem,
+    ...(pricing || {}),
+    ...(sales || {}),
+  };
+  const savedContextMatches = Boolean(
+    owned &&
+    detailContextKey(valuationContextForItem(owned)) ===
+      detailContextKey(context),
+  );
+  const valuationEvidence =
+    pricing ||
+    (savedContextMatches ||
+    baseItem.cardState === "sealed" ||
+    baseItem.productType
+      ? baseItem
+      : null);
+  const valuationItem = {
+    ...baseItem,
+    price: null,
+    referencePrice: null,
+    pricingStatus: detailContextReady(context) ? "loading" : "context_required",
+    pricingReason: null,
+    pricingUpdatedAt: null,
+    quotes: [],
+    priceHistory: [],
+    historyStatus: "unavailable",
+    ...(valuationEvidence || {}),
+    ...(sales || {}),
+    cardState: context.cardState,
+    condition: context.cardState === "raw" ? context.condition : "",
+    gradingCompany:
+      context.cardState === "graded" ? context.gradingCompany : "",
+    grade: context.cardState === "graded" ? context.grade : "",
+    gradeQualifier:
+      context.cardState === "graded" ? context.gradeQualifier : null,
+    currency: context.currency || baseItem.currency || "USD",
+  };
+  const detailRoot = $("#detailContent");
+  const detailKey = String(item.uid || item.id || state.detailId);
+  const openTools =
+    detailRoot.dataset.itemKey === detailKey
+      ? new Set(
+          [
+            ...detailRoot.querySelectorAll("details[data-detail-tool][open]"),
+          ].map((tool) => tool.dataset.detailTool),
+        )
+      : new Set();
+  detailRoot.dataset.itemKey = detailKey;
   const dgNumber = digitalGradeNumber(item);
   const sealed = item.cardState === "sealed" || Boolean(item.productType);
-  const watched = matchingWatchEntry(item);
+  const printing = selectedPrinting(item);
+  const watched = matchingWatchEntry(item, context);
   const conditionContext = sealed
     ? {}
-    : owned || watched || { condition: "", gradingCompany: "", grade: "" };
+    : context.cardState === "graded"
+      ? {
+          gradingCompany: context.gradingCompany,
+          grade: context.grade,
+          finish: printing.finish,
+          edition: printing.edition,
+        }
+      : {
+          condition: context.condition,
+          finish: printing.finish,
+          edition: printing.edition,
+        };
   const tcgQuote =
-    owned && !sealed && !item.gradingCompany && !item.condition
+    !sealed && !detailContextReady(context)
       ? null
       : selectReferenceQuote(
-          item.quotes,
-          item.variant,
-          "USD",
+          valuationItem.quotes,
+          valuationItem.variant,
+          context.currency || valuationItem.currency || "USD",
           conditionContext,
         );
-  const cardmarketQuote = selectCardmarketReference(item.quotes, item.variant);
+  const cardmarketQuote = selectCardmarketReference(
+    valuationItem.quotes,
+    valuationItem.variant,
+  );
   const providerPricingStatus =
-    item.pricingStatus ||
-    (state.pricingStatus === "error"
-      ? "error"
-      : item.price != null
-        ? "preview"
-        : "loading");
+    !sealed && !detailContextReady(context)
+      ? "context_required"
+      : valuationItem.pricingStatus || "loading";
   const pricingStatus = providerPricingStatus;
+  const terminalPricingMissing = [
+    "missing",
+    "unavailable",
+    "unsupported",
+  ].includes(pricingStatus);
   const valuationPrice =
-    pricingStatus === "live" ? (item.price ?? tcgQuote?.amount ?? null) : null;
-  const displayPrice = ["live", "stale"].includes(pricingStatus)
-    ? (valuationPrice ?? item.referencePrice ?? tcgQuote?.amount ?? null)
-    : null;
-  const marketLabel =
     pricingStatus === "live"
-      ? "Price today"
-      : pricingStatus === "stale"
-        ? "Older matching price"
-        : "Price today";
+      ? (valuationItem.price ?? tcgQuote?.amount ?? null)
+      : null;
+  const displayPrice = ["live", "stale"].includes(pricingStatus)
+    ? (valuationPrice ??
+      valuationItem.referencePrice ??
+      tcgQuote?.amount ??
+      null)
+    : null;
+  const provenance =
+    providerPricingStatus === "context_required"
+      ? "Choose a condition or professional grade to match evidence"
+      : priceProvenanceText(valuationItem);
+  const marketLabel =
+    context.cardState === "graded"
+      ? "Provider market index"
+      : pricingStatus === "live"
+        ? "Price today"
+        : pricingStatus === "stale"
+          ? "Older matching price"
+          : "Price today";
   const statusCopy =
     pricingStatus === "live"
-      ? `Updated ${esc(friendlyObservedAt(item.pricingUpdatedAt))}`
+      ? `Updated ${esc(friendlyObservedAt(valuationItem.pricingUpdatedAt))}`
       : pricingStatus === "stale"
-        ? `Last price from ${esc(friendlyObservedAt(item.pricingUpdatedAt))} · needs refresh`
+        ? `Last price from ${esc(friendlyObservedAt(valuationItem.pricingUpdatedAt))} · needs refresh`
         : pricingStatus === "error"
           ? "Could not check a live price"
           : pricingStatus === "rate_limited"
             ? "Price source is busy · try again shortly"
-            : pricingStatus === "unavailable"
-              ? "No price found for this card version"
-              : "Checking this card version";
+            : pricingStatus === "context_required"
+              ? context.cardState === "graded"
+                ? "Choose a grading company and grade"
+                : "Choose the raw card's condition"
+              : terminalPricingMissing
+                ? pricingStatus === "unsupported"
+                  ? "Pricing is not supported for this card version"
+                  : "No matching price found for this card version"
+                : "Checking this card version";
   const sourceRows = ["live", "stale"].includes(pricingStatus)
     ? `${renderQuoteRow(tcgQuote, sealed ? "TCGplayer sealed market" : tcgQuote?.provider === "justtcg" ? "JustTCG market" : "TCGplayer market")}${renderQuoteRow(cardmarketQuote, sealed ? "Cardmarket sealed market" : "Cardmarket")}`
-    : `<div class="unavailable-panel">${pricingStatus === "unavailable" ? (item.gradingCompany ? "A price for this exact grading company and grade is not connected yet. Mica did not use an ungraded price or another grade." : "No price is available for this card version and wear level yet. Mica did not use a different card.") : pricingStatus === "rate_limited" ? "The price source is busy. Mica is not guessing a value." : pricingStatus === "error" ? "The price source could not be reached. Mica is not guessing a value." : "Loading the latest matching price…"}${["error", "rate_limited"].includes(pricingStatus) ? '<br><button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</div>`;
+    : `<div class="unavailable-panel">${pricingStatus === "context_required" ? "Choose a condition or professional grade to see only compatible price evidence." : terminalPricingMissing ? (pricingStatus === "unsupported" ? "Pricing is not supported for this card version." : context.cardState === "graded" ? "A price for this exact grading company and grade is not connected yet. Mica did not use an ungraded price or another grade." : "No price is available for this card version and wear level yet. Mica did not use graded evidence or a different card.") : pricingStatus === "rate_limited" ? "The price source is busy. Mica is not guessing a value." : pricingStatus === "error" ? "The price source could not be reached. Mica is not guessing a value." : "Loading the latest matching price…"}</div>`;
+  const ownedValuationPrice = owned ? portfolioUnitPrice(owned) : null;
+  const ownedSold = owned?.gradingCompany ? soldValuationForItem(owned) : null;
+  const ownedProvenance = owned?.gradingCompany
+    ? ownedSold
+      ? `${ownedSold.distinctSaleCount} completed sales · newest ${ownedSold.newestSoldAt.slice(0, 10)}`
+      : "Matching completed-sale estimate unavailable"
+    : owned
+      ? priceProvenanceText(owned)
+      : "";
+  const copyGroup = owned ? gradedCopyGroup(state.items, owned) : null;
+  const physicalCopy = Boolean(copyGroup);
+  const copyStatus = Number(item.quantity) === 1 ? "Active" : "Sold";
+  const copyAcquisitionCost =
+    Number(item.quantity) === 0
+      ? (item.allocatedSoldCost ?? null)
+      : (item.costBasis ?? null);
+  if (physicalCopy && copyAcquisitionCost != null) {
+    item.costBasis = copyAcquisitionCost;
+    item.cost = copyAcquisitionCost;
+  }
+  const copyNavigation = copyGroup
+    ? `<section class="copy-navigation" aria-labelledby="copyNavigationTitle"><div class="copy-navigation-head"><div><span>Physical copies</span><strong id="copyNavigationTitle">Copy ${copyGroup.selectedIndex + 1} of ${copyGroup.copies.length}</strong><small>${copyGroup.activeCount} active · ${copyGroup.copies.length - copyGroup.activeCount} sold · swipe to switch</small></div><div><button type="button" id="previousCopyButton" aria-label="Previous physical copy" ${copyGroup.copies.length < 2 ? "disabled" : ""}>←</button><button type="button" id="nextCopyButton" aria-label="Next physical copy" ${copyGroup.copies.length < 2 ? "disabled" : ""}>→</button></div></div><div class="copy-navigation-strip" role="list" aria-label="Copies in this graded context">${copyGroup.copies.map((copy, index) => `<button type="button" role="listitem" data-copy-id="${esc(copy.uid)}" aria-current="${copy.uid === item.uid ? "true" : "false"}"><strong>Copy ${index + 1}</strong><span>${Number(copy.quantity) === 1 ? "Active" : "Sold"}${copy.certificationNumber ? ` · cert ${esc(copy.certificationNumber)}` : " · no cert"}</span></button>`).join("")}</div><div class="copy-facts"><div><span>Status</span><strong>${copyStatus}</strong></div><div><span>Certificate</span><strong>${esc(item.certificationNumber || "Not recorded")}</strong></div><div><span>Grade</span><strong>${esc(`${item.gradingCompany} ${item.grade}${item.gradeQualifier ? ` · ${item.gradeQualifier}` : ""}`)}</strong></div><div><span>Record source</span><strong>${item.gradeClaimSource === "official" ? "Official provider" : "User entered · not provider verified"}</strong></div><div><span>Acquired</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div></div></section>`
+    : "";
   const backLabel =
     {
       collection: "My library",
@@ -5107,16 +8668,16 @@ function renderDetail() {
     ? `<section class="detail-section grading-submission-status"><div class="detail-section-head"><h2>Cards sent for grading</h2><span>${esc(activeSubmission.grader)} · ${esc(gradingStatusLabel)}</span></div><div class="position-summary"><div><span>Cards away</span><strong>${activeSubmission.quantity}</strong></div><div><span>Date sent</span><strong>${esc(activeSubmission.submittedAt)}</strong></div><div><span>Last update</span><strong>${esc(activeSubmission.statusUpdatedAt)}</strong></div><div><span>Expected back</span><strong>${esc(activeSubmission.expectedReturnDate || "Not estimated")}</strong></div><div><span>Order number</span><strong>${esc(activeSubmission.submissionReference || "Not added")}</strong></div><div><span>Estimated cost</span><strong>${activeSubmission.estimatedTotalCost === null ? "Not estimated" : money(activeSubmission.estimatedTotalCost, item.currency)}</strong></div></div><p class="legal-copy">You update this status yourself; it is not connected to ${esc(activeSubmission.grader)}. Mica adds grading cost only after you enter the amount you actually paid.</p><div class="sheet-actions"><button class="secondary" id="updateGradingSubmissionButton" type="button">Update status</button><button class="primary" id="recordGradingResultButton" type="button">Add returned grade</button></div></section>`
     : "";
   const ownedSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>×${item.quantity}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}` : item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Ungraded"}</strong><span>${item.purchaseDate ? `Acquired ${esc(item.purchaseDate)}` : "Acquisition date not added"}${item.cost !== null && item.cost !== undefined ? ` · ${money(item.cost)} each` : " · Amount paid not recorded"}</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="purchase-notes"><strong>Purchase notes</strong><p>${esc(item.notes)}</p></div>` : ""}${!sealed && !item.gradingCompany && item.status === "owned" && !activeSubmission ? '<button class="position-new-state" id="startGradingSubmissionButton" type="button">Send to professional grading</button><button class="position-new-state" id="recordGradingResultButton" type="button">Record a grade already returned</button>' : ""}${sealed ? "" : '<button class="position-new-state" id="correctPositionMatchButton" type="button">Choose a different card version</button><button class="position-new-state" id="identityHistoryButton" type="button">Identity correction history</button>'}<button class="record-remove" id="removeCopyButton" type="button">Remove this saved entry</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>${physicalCopy ? "Selected physical copy" : "Your copy"}</h2><span>${physicalCopy ? copyStatus : `×${item.quantity}`}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} ${esc(item.grade)}${item.gradeQualifier ? ` · ${esc(item.gradeQualifier)}` : ""}` : item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Ungraded"}</strong><span>${item.purchaseDate ? `Acquired ${esc(item.purchaseDate)}` : "Acquisition date not added"}${item.cost !== null && item.cost !== undefined ? ` · ${money(item.cost)} each` : " · Amount paid not recorded"}${item.certificationNumber ? ` · cert ${esc(item.certificationNumber)}` : ""}</span></div><b>${physicalCopy ? copyStatus : `×${item.quantity}`}</b></div>${item.notes ? `<div class="purchase-notes"><strong>Purchase notes</strong><p>${esc(item.notes)}</p></div>` : ""}${!sealed && !item.gradingCompany && item.status === "owned" && !activeSubmission ? '<button class="position-new-state" id="startGradingSubmissionButton" type="button">Send to professional grading</button><button class="position-new-state" id="recordGradingResultButton" type="button">Record a grade already returned</button>' : ""}${sealed ? "" : '<button class="position-new-state" id="correctPositionMatchButton" type="button">Choose a different card version</button><button class="position-new-state" id="identityHistoryButton" type="button">Identity correction history</button>'}<button class="record-remove" id="removeCopyButton" type="button">Remove this saved entry</button></section>`
     : "";
   const performance = owned
     ? positionPerformance({
         quantityOwned: item.quantity,
         remainingCostBasisMinor:
-          item.costBasis == null
+          owned.costBasis == null
             ? null
-            : Math.round(Number(item.costBasis) * 100),
-        currentUnitPrice: valuationPrice,
+            : Math.round(Number(owned.costBasis) * 100),
+        currentUnitPrice: ownedValuationPrice,
         netSaleProceedsMinor:
           item.netSaleProceeds == null
             ? null
@@ -5133,13 +8694,13 @@ function renderDetail() {
       (lot) => !lot.costBasisKnown || !lot.acquisitionDateKnown,
     ) || null;
   const positionSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Market price when bought</span><strong>${item.marketPriceAtPurchase == null ? "Waiting for matching history" : `${money(item.marketPriceAtPurchase, item.currency)} each`}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>Current market price</span><strong>${valuationPrice === null ? "Unavailable" : `${money(valuationPrice, item.currency)} each`}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>Profit or loss</span><strong>${performance.unrealizedGainMinor === null ? "Needs the amount you paid and a current market price" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${money(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Current price source</span><strong>${esc(tcgQuote?.provider || "Unavailable")}</strong></div><div><span>Purchase-date source</span><strong>${esc(item.marketPriceAtPurchaseProvider || "Waiting for provider history")}</strong></div></div>${pricingStatus === "stale" && displayPrice !== null ? `<div class="warning-panel"><strong>Older evidence is shown for reference only.</strong><p>${money(displayPrice, item.currency)} is outside the live freshness window, so it is excluded from current value and profit.</p></div>` : ""}${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}<div class="sheet-actions"><button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button><button class="secondary" id="recordSaleButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Record sale</button></div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Market price when bought</span><strong>${item.marketPriceAtPurchase == null ? "Waiting for matching history" : `${money(item.marketPriceAtPurchase, item.currency)} each`}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>${item.gradingCompany ? "Current sold-derived estimate" : "Current market price"}</span><strong>${ownedValuationPrice === null ? "Unavailable" : `${money(ownedValuationPrice, item.currency)} each`}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : money(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>${Number(item.quantity) === 0 ? "Realized profit or loss" : "Profit or loss"}</span><strong>${Number(item.quantity) === 0 ? (performance.realizedGainMinor === null ? "Needs compatible sale and purchase currencies" : `${performance.realizedGainMinor >= 0 ? "Up " : "Down "}${money(Math.abs(performance.realizedGainMinor) / 100, item.currency)}`) : performance.unrealizedGainMinor === null ? "Needs the amount you paid and a current market price" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${money(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Current price evidence</span><strong>${esc(ownedProvenance)}</strong></div><div><span>Purchase-date source</span><strong>${esc(item.marketPriceAtPurchaseProvider || "Waiting for provider history")}</strong></div></div>${owned?.pricingStatus === "stale" && owned.referencePrice != null ? `<div class="warning-panel"><strong>Older evidence is shown for reference only.</strong><p>${money(owned.referencePrice, item.currency)} is outside the live freshness window, so it is excluded from current value and profit.</p></div>` : ""}${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}${item.cardState === "graded" && Number(item.quantity) > 1 ? '<div class="warning-panel"><strong>Separate this legacy graded entry before selling.</strong><p>Mica will not choose an arbitrary purchase lot or invent physical-copy details.</p></div>' : ""}<div class="sheet-actions">${physicalCopy ? '<button class="secondary" id="addPhysicalCopyButton" type="button">Add another copy</button>' : `<button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button>`}${(Number(item.quantity) === 1 || sealed) && !activeSubmission ? '<button class="secondary" id="recordSaleButton" type="button">Record sale</button>' : ""}</div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
     : "";
   const favorite =
     owned &&
     (item.tags || []).some((tag) => String(tag).toLowerCase() === "favorites");
   const action = owned
-    ? `<div class="owned-banner"><div><span>${item.status === "listed" ? "Listed for sale" : "In your collection"}</span><strong>${item.quantity} owned · ${valuationPrice == null ? "Current price unavailable" : `${money(valuationPrice)} each`}</strong></div><div class="owned-actions"><button class="favorite-heart${favorite ? " selected" : ""}" id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>${!sealed && !item.gradingCompany && item.status === "owned" ? `<section class="detail-digital-grade"><div><span>${item.digitalGrade ? "Digital grade" : "Ungraded card"}</span><strong>${item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Check condition before you submit"}</strong><small>${item.digitalGrade ? "Your latest photo estimate" : "Four guided views · one uninterrupted grader"}</small></div><button id="detailDigitalGradeButton" type="button">${item.digitalGrade ? "Regrade" : "Digital grade"}</button></section>` : ""}`
+    ? `<div class="owned-banner"><div><span>${Number(item.quantity) === 0 ? "Sold copy" : item.status === "listed" ? "Listed for sale" : "In your collection"}</span><strong>${physicalCopy ? `${copyGroup.activeCount} active ${copyGroup.activeCount === 1 ? "copy" : "copies"}` : `${item.quantity} owned`} · ${ownedValuationPrice == null ? "Current price unavailable" : `${money(ownedValuationPrice)} each`}</strong></div><div class="owned-actions"><button class="favorite-heart${favorite ? " selected" : ""}" id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>${copyNavigation}${!sealed && !item.gradingCompany && item.status === "owned" ? `<section class="detail-digital-grade"><div><span>${item.digitalGrade ? "Digital grade" : "Ungraded card"}</span><strong>${item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Check condition before you submit"}</strong><small>${item.digitalGrade ? "Your latest photo estimate" : "Four guided views · one uninterrupted grader"}</small></div><button id="detailDigitalGradeButton" type="button">${item.digitalGrade ? "Regrade" : "Digital grade"}</button></section>` : ""}`
     : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched ? "Edit Watch" : sealed ? "Watch product" : "Watch card"}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
   const watchedPerformance = watched
     ? watchPerformance({
@@ -5150,34 +8711,64 @@ function renderDetail() {
   const watchedMovement = watchedPerformance
     ? ` · ${watchedPerformance.changeMinor >= 0 ? "up " : "down "}${money(Math.abs(watchedPerformance.changeMinor) / 100, watched.currency)} since you started watching`
     : "";
+  const watchedProvenance = watched
+    ? priceProvenanceText({
+        ...item,
+        cardState: watched.cardState || item.cardState,
+        condition: watched.condition || item.condition,
+        gradingCompany: watched.gradingCompany || item.gradingCompany,
+        grade: watched.grade ?? item.grade,
+        price: watched.currentPrice,
+        pricingStatus: watched.pricingStatus || item.pricingStatus,
+        pricingUpdatedAt:
+          watched.pricingUpdatedAt || item.pricingUpdatedAt || null,
+      })
+    : "";
   const watchedSection =
     watched && !owned
-      ? `<section class="watch-banner"><div><span>You’re watching this · ${esc(watchContextLabel(watched))}</span><strong>${watched.targetPrice === null ? "No target price set" : `Tell me at ${money(watched.targetPrice, watched.currency)}`}</strong><small>${watched.currentPrice === null ? "Matching price unavailable" : `Matching price now ${money(watched.currentPrice, watched.currency)}${esc(watchedMovement)}`}</small></div><button id="editWatchButton" type="button">Edit alert</button></section>`
+      ? `<section class="watch-banner"><div><span>You’re watching this · ${esc(watchContextLabel(watched))}</span><strong>${watched.targetPrice === null ? "No target price set" : `Tell me at ${money(watched.targetPrice, watched.currency)}`}</strong><small>${watched.currentPrice === null ? "Matching price unavailable" : `Matching price now ${money(watched.currentPrice, watched.currency)}${esc(watchedMovement)}`}</small><small class="price-provenance">${esc(watchedProvenance)}</small></div><button id="editWatchButton" type="button">Edit alert</button></section>`
       : "";
   const listingSection =
     owned && item.status === "listed"
-      ? `<section class="detail-section listing-status advanced-workspace"><div class="detail-section-head"><h2>Currently listed for sale</h2><span>Price checked ${esc(item.priceReviewedAt || "not yet")}</span></div><div class="position-summary"><div><span>Your price per card</span><strong>${item.askingPrice === null ? "Missing" : money(item.askingPrice, item.currency)}</strong></div><div><span>Matching price today</span><strong>${valuationPrice === null ? "Unavailable" : money(valuationPrice, item.currency)}</strong></div><div><span>Where it is listed</span><strong>${esc(item.listingVenue || "Missing")}</strong></div><div><span>Listed on</span><strong>${esc(item.listedAt || "Not recorded")}</strong></div></div><button class="planner-record" id="manageListingButton" type="button">Review or update sale listing</button></section>`
+      ? `<section class="detail-section listing-status advanced-workspace"><div class="detail-section-head"><h2>Currently listed for sale</h2><span>Price checked ${esc(item.priceReviewedAt || "not yet")}</span></div><div class="position-summary"><div><span>Your price per card</span><strong>${item.askingPrice === null ? "Missing" : money(item.askingPrice, item.currency)}</strong></div><div><span>Matching price today</span><strong>${valuationPrice === null ? "Unavailable" : money(valuationPrice, item.currency)}</strong></div><div><span>Market evidence</span><strong>${esc(provenance)}</strong></div><div><span>Where it is listed</span><strong>${esc(item.listingVenue || "Missing")}</strong></div><div><span>Listed on</span><strong>${esc(item.listedAt || "Not recorded")}</strong></div></div><button class="planner-record" id="manageListingButton" type="button">Review or update sale listing</button></section>`
       : "";
   const productType = String(item.productType || "sealed product")
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const identityNeedsReview =
+    !sealed &&
+    (printing.status !== "exact" ||
+      [printing.finish, printing.edition, printing.promoType].includes(
+        "unknown",
+      ));
   const detailMeta = sealed
-    ? `<div><span>Product type</span><strong>${esc(productType)}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div class="advanced-workspace"><span>Catalog ID</span><strong>${esc(item.externalIds?.pkmnpricesSealed || "—")}</strong></div><div><span>Package</span><strong>Unopened</strong></div>`
-    : `<div><span>Card version</span><strong>${esc(item.variant || "Not available")}</strong></div><div><span>Language</span><strong>${esc(languageName(item.language))}</strong></div><div><span>Release date</span><strong>${esc(item.release || "Not available")}</strong></div><div><span>Artist</span><strong>${esc(item.artist || "Not available")}</strong></div>`;
+    ? `<div><span>Product type</span><strong>${esc(productType)}</strong></div><div><span>Language</span><strong>${esc(item.language ? languageName(item.language) : "Unconfirmed")}</strong></div><div><span>Package variant</span><strong>${esc(item.sealedVariant || "Unconfirmed")}</strong></div><div><span>Region</span><strong>${esc(item.sealedRegion || "Unconfirmed")}</strong></div><div class="advanced-workspace"><span>Catalog ID</span><strong>${esc(item.externalIds?.pkmnpricesSealed || "—")}</strong></div>`
+    : `<div><span>Language</span><strong>${esc(item.language ? languageName(item.language) : "Unknown")}</strong></div><div><span>Variant</span><strong>${esc(identityFieldLabel(item.variant))}</strong></div>`;
+  const identityDetails = sealed
+    ? ""
+    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Unknown fields stay unassigned until the printing is confirmed.</p>" : ""}</details>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name)}</h1><p class="detail-set">${esc(item.set)}${item.number ? ` · card ${esc(item.number)}` : ""}</p><div class="detail-meta">${detailMeta}</div></div></div>
-    <section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : money(displayPrice)}</strong><small>${statusCopy}</small></section>
+    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name || "Printed name unknown")}</h1><p class="detail-set">${esc(item.set || "Set unknown")}${sealed ? "" : item.number ? ` · card ${esc(item.number)}` : " · collector number unknown"}</p><div class="detail-meta">${detailMeta}</div>${identityDetails}</div></div>
+    ${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : ""}<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : money(displayPrice, context.currency || valuationItem.currency || "USD")}</strong><small>${statusCopy}</small><small class="price-provenance">${esc(provenance)}</small>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button">View recent eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>
+    ${detailValuationMarkup(item, owned, watched, context)}
     ${watchedSection}
     ${action}
     ${listingSection}
     ${gradingSubmissionSection}
-    <section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>Provider-recorded prices</span></div>${renderInteractiveHistory(item, displayPrice)}</section>
-    ${renderCardMetadata(item) ? `<details class="detail-tool-group"><summary><span><strong>Card information</strong><small>Character, artist, moves, and set details</small></span><b>Open details</b></summary><div class="detail-tool-content">${renderCardMetadata(item)}</div></details>` : ""}
-    ${owned && !sealed && !item.gradingCompany ? `<details class="detail-tool-group" open><summary><span><strong>Digital grading reports</strong><small>Evidence, uncertainty, and scan history</small></span><b>Open</b></summary><div class="detail-tool-content">${gradingReportHistoryMarkup(item)}</div></details>` : ""}
-    ${owned ? `<details class="detail-tool-group"><summary><span><strong>Purchases &amp; notes</strong><small>What you paid, activity, and copies</small></span><b>Open</b></summary><div class="detail-tool-content">${positionSection}${ownedSection}</div></details>` : ""}
+    <details class="detail-tool-group" data-detail-tool="prices"><summary><span><strong>Price details</strong><small>Matching sources and price history</small></span><b>Details</b></summary><div class="detail-tool-content"><section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>Provider-recorded prices</span></div>${renderInteractiveHistory(valuationItem, displayPrice)}</section>${!sealed ? `<details data-detail-tool="grade-prices"><summary>Compare PSA grades</summary>${renderGradedPriceLadder(valuationItem)}</details>` : ""}${!sealed ? `<details id="marketProofDetails" data-detail-tool="sales"><summary>Recent sold listings</summary><section class="detail-section" aria-label="Recent sold listings">${renderSales(valuationItem)}</section></details>` : ""}</div></details>
+    ${renderGradingComparison(valuationItem)}
+    ${renderCardMetadata(item) ? `<details class="detail-tool-group" data-detail-tool="card"><summary><span><strong>Card information</strong><small>Character, artist, moves, and set details</small></span><b>Open details</b></summary><div class="detail-tool-content">${renderCardMetadata(item)}</div></details>` : ""}
+    ${owned && !sealed ? `<details class="detail-tool-group" data-detail-tool="grading"><summary><span><strong>Grading history</strong><small>Photo estimates, reports, and professional grades</small></span><b>Details</b></summary><div class="detail-tool-content">${gradingLifecycleMarkup(item)}${!item.gradingCompany ? gradingReportHistoryMarkup(item) : ""}</div></details>` : ""}
+    ${owned ? `<details class="detail-tool-group" data-detail-tool="purchases"><summary><span><strong>Purchases, sales &amp; notes</strong><small>What you paid, activity, and copies</small></span><b>Open</b></summary><div class="detail-tool-content">${positionSection}${ownedSection}</div></details>` : ""}
+    ${owned ? collectionAttachmentMarkup(item) : ""}
     <p class="legal-copy">Prices are estimates, not guaranteed sale amounts. ${sealed ? "The box and seal" : "Wear on the card"} can change what someone will pay.</p>`;
+  bindDetailValuationControls(baseItem);
+  bindGradingComparison(valuationItem);
+  detailRoot.querySelectorAll("details[data-detail-tool]").forEach((tool) => {
+    tool.open = openTools.has(tool.dataset.detailTool);
+  });
   $("#detailBack").addEventListener("click", () =>
     state.detailCanPop
       ? history.back()
@@ -5200,17 +8791,195 @@ function renderDetail() {
   $("#manageListingButton")?.addEventListener("click", () =>
     openPositionEditSheet(item),
   );
+  $("#collectionAttachmentInput")?.addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    input.disabled = true;
+    $("#collectionAttachmentError").textContent = "Saving private file…";
+    try {
+      await uploadCollectionPositionAttachment(supabase, {
+        positionId: item.uid,
+        file,
+      });
+      state.organization.attachments.delete(item.uid);
+      await loadOwnedCollectionAttachments(item);
+      toast("Private file attached");
+    } catch (error) {
+      const validationMessages = [
+        "Use a JPG, PNG, WebP, or PDF file.",
+        "Files must be 10 MB or smaller.",
+      ];
+      $("#collectionAttachmentError").textContent = validationMessages.includes(
+        error?.message,
+      )
+        ? error.message
+        : "This file could not be saved. Choose it again to retry.";
+    } finally {
+      input.disabled = false;
+      input.value = "";
+    }
+  });
+  $$("[data-open-collection-attachment]").forEach((button) =>
+    button.addEventListener("click", async () => {
+      const attachment = state.organization.attachments
+        .get(item.uid)
+        ?.items.find(
+          (candidate) =>
+            candidate.id === button.dataset.openCollectionAttachment,
+        );
+      if (!attachment) return;
+      button.disabled = true;
+      try {
+        const url = await createCollectionAttachmentDownloadUrl(
+          supabase,
+          attachment.storage_path,
+        );
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch (error) {
+        toast("This file could not be opened. Try again.");
+      } finally {
+        button.disabled = false;
+      }
+    }),
+  );
+  $$("[data-delete-collection-attachment]").forEach((button) =>
+    button.addEventListener("click", async () => {
+      const attachment = state.organization.attachments
+        .get(item.uid)
+        ?.items.find(
+          (candidate) =>
+            candidate.id === button.dataset.deleteCollectionAttachment,
+        );
+      if (!attachment) return;
+      button.disabled = true;
+      try {
+        await deleteCollectionPositionAttachment(supabase, attachment);
+        state.organization.attachments.delete(item.uid);
+        await loadOwnedCollectionAttachments(item);
+        toast("Private file deleted");
+      } catch (error) {
+        button.disabled = false;
+        toast(
+          "Could not confirm the file was deleted. Refresh before trying again.",
+        );
+      }
+    }),
+  );
+  $$("[data-grading-lifecycle-decision]").forEach((button) =>
+    button.addEventListener("click", async () => {
+      const decision = button.dataset.gradingLifecycleDecision;
+      const report = state.gradingReports.get(item.uid)?.[0];
+      button.disabled = true;
+      try {
+        await recordGradingLifecycleDecision(supabase, {
+          collectionItemId: item.uid,
+          state: decision,
+          scanSessionId: report?.id || item.digitalGrade?.reportId || null,
+          reason:
+            decision === "selected"
+              ? "Selected after reviewing the visible evidence and submission assumptions."
+              : "Kept ungraded after reviewing the visible evidence and submission assumptions.",
+        });
+        await reloadPortfolio(item.uid);
+        toast(
+          decision === "selected"
+            ? "Marked for submission"
+            : "Decision saved · card remains ungraded",
+        );
+      } catch (error) {
+        button.disabled = false;
+        toast(
+          String(error.message || "").includes("grading_report_required")
+            ? "Complete a grading report before selecting this card"
+            : "That lifecycle decision could not be saved",
+        );
+      }
+    }),
+  );
+  const openCopy = (copyId) => {
+    const copy = copyGroup?.copies.find(
+      (candidate) => candidate.uid === copyId,
+    );
+    if (!copy) return;
+    clearDetailFx();
+    state.detailId = copy.uid;
+    state.detailCard = copy;
+    state.detailSelectionKey = detailIdentityKey(copy);
+    state.detailValuationContext = valuationContextForItem(copy);
+    state.detailPricing = null;
+    state.detailSales = null;
+    renderDetail();
+    requestAnimationFrame(() =>
+      $(`[data-copy-id="${copy.uid}"]`)?.focus({ preventScroll: true }),
+    );
+  };
+  $("#previousCopyButton")?.addEventListener("click", () =>
+    openCopy(
+      copyGroup.copies[
+        (copyGroup.selectedIndex - 1 + copyGroup.copies.length) %
+          copyGroup.copies.length
+      ].uid,
+    ),
+  );
+  $("#nextCopyButton")?.addEventListener("click", () =>
+    openCopy(
+      copyGroup.copies[(copyGroup.selectedIndex + 1) % copyGroup.copies.length]
+        .uid,
+    ),
+  );
+  $$("[data-copy-id]").forEach((button) =>
+    button.addEventListener("click", () => openCopy(button.dataset.copyId)),
+  );
+  const copySwipeArea = $(".copy-facts");
+  let copyTouch = null;
+  copySwipeArea?.addEventListener("touchstart", (event) => {
+    copyTouch = event.touches.length === 1
+      ? { x: event.touches[0].clientX, y: event.touches[0].clientY }
+      : null;
+  }, { passive: true });
+  copySwipeArea?.addEventListener("touchend", (event) => {
+    if (!copyTouch || event.changedTouches.length !== 1) return;
+    const dx = event.changedTouches[0].clientX - copyTouch.x;
+    const dy = event.changedTouches[0].clientY - copyTouch.y;
+    copyTouch = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    openCopy(copyGroup.copies[(copyGroup.selectedIndex + (dx < 0 ? 1 : copyGroup.copies.length - 1)) % copyGroup.copies.length].uid);
+  }, { passive: true });
+  copySwipeArea?.addEventListener("touchcancel", () => { copyTouch = null; });
   $("#duplicateCopyButton")?.addEventListener("click", () =>
-    openPurchaseLotSheet(item),
+    item.cardState === "graded"
+      ? openAnotherPhysicalCopy(item)
+      : openPurchaseLotSheet(item),
+  );
+  $("#addPhysicalCopyButton")?.addEventListener("click", () =>
+    openAnotherPhysicalCopy(item),
   );
   $("#addLibraryButton")?.addEventListener("click", () =>
-    openPositionSheet(item),
+    openPositionSheet(baseItem, {
+      exactSelection: true,
+      profileIntent: true,
+      prefill: {
+        cardState: context.cardState,
+        rawCondition:
+          context.cardState === "raw"
+            ? normalizeRawCondition(context.condition).normalized
+            : null,
+        grader: context.cardState === "graded" ? context.gradingCompany : "",
+        grade: context.cardState === "graded" ? context.grade : "",
+        variantId: baseItem.variantId,
+        variant: baseItem.variant,
+      },
+    }),
   );
   $("#watchCardButton")?.addEventListener("click", () =>
-    openWatchlistSheet(item, watched),
+    openWatchlistSheet(baseItem, watched, {
+      valuationContext: context,
+      profileIntent: true,
+    }),
   );
   $("#editWatchButton")?.addEventListener("click", () =>
-    openWatchlistSheet(item, watched),
+    openWatchlistSheet(item, watched, { profileIntent: true }),
   );
   $("#favoriteCopyButton")?.addEventListener(
     "click",
@@ -5339,42 +9108,156 @@ function renderDetail() {
     openPositionSheet(item),
   );
   $("#retryPricingButton")?.addEventListener("click", () => {
-    if (owned) void refreshLivePricing();
-    else {
-      state.detailCard = { ...item, pricingStatus: "loading", price: null };
-      renderDetail();
-      void loadCardPreviewPricing(item);
-    }
+    state.detailPricing = {
+      selectionKey: state.detailSelectionKey,
+      contextKey: detailContextKey(context),
+      pricingStatus: "loading",
+      price: null,
+      referencePrice: null,
+    };
+    renderDetail();
+    void loadCardPreviewPricing(
+      baseItem,
+      context,
+      beginDetailRequest(baseItem, context),
+    );
   });
   $("#retrySalesButton")?.addEventListener(
     "click",
     () => void loadSales(item, true),
   );
+  $("#checkExactSalesButton")?.addEventListener(
+    "click",
+    () => void loadSales(valuationItem, true),
+  );
+  $("#toggleExactFxButton")?.addEventListener("click", () => {
+    if (state.detailFx?.enabled) {
+      clearDetailFx();
+      renderDetail();
+      return;
+    }
+    state.detailFx = {
+      selectionKey: detailIdentityKey(baseItem),
+      contextKey: detailContextKey(context),
+      enabled: true,
+      status: "unavailable",
+      nativeKey: null,
+      requestId: null,
+      rate: null,
+    };
+    renderDetail();
+    void loadDetailFx();
+  });
+  $("#retryExactFxButton")?.addEventListener(
+    "click",
+    () => void loadDetailFx(),
+  );
   $("#retryOffersButton")?.addEventListener(
     "click",
     () => void loadOffers(item, true),
   );
-  mountPriceChart(item);
+  bindPsaGradeEvidence(valuationItem);
+  mountPriceChart(valuationItem);
+  $('[data-detail-tool="prices"]')?.addEventListener("toggle", () => {
+    void mountPriceChart(valuationItem);
+  });
+  let focusRecentSales = false;
+  $("#openRecentSalesButton")?.addEventListener("click", () => {
+    const prices = $('[data-detail-tool="prices"]');
+    const salesDetails = $("#marketProofDetails");
+    prices.open = true;
+    focusRecentSales = true;
+    salesDetails.open = true;
+  });
   $("#marketProofDetails")?.addEventListener("toggle", (event) => {
     item.marketProofOpen = event.currentTarget.open;
     if (!sealed && event.currentTarget.open) {
-      void loadSales(item);
-      void loadOffers(item);
+      const restoreFocus = focusRecentSales;
+      focusRecentSales = false;
+      void loadSales(valuationItem).finally(() => {
+        if (restoreFocus && state.detailSelectionKey === detailIdentityKey(item))
+          $("#marketProofDetails > summary")?.focus();
+      });
     }
   });
 }
 
-function identitySnapshot(card, variant) {
-  return collectibleIdentitySnapshot(card, variant);
+function identitySnapshot(card, variant, ingestion = null) {
+  const identity = collectibleIdentitySnapshot(card, variant);
+  if (!ingestion) return identity;
+  const { identity: ignoredIdentity, ...audit } = ingestion;
+  return { ...identity, ingestion: audit };
 }
 
-function openSealedSearch() {
+function sealedPhotoCandidateMatches(hint, product) {
+  const same = (left, right) => !left || (right && normalizeIdentity(left) === normalizeIdentity(right));
+  return same(hint.name, product.name) && same(hint.set, product.set) &&
+    same(hint.language, product.language) && same(hint.productType, product.productType) &&
+    same(hint.sealedRegion, product.sealedRegion) && same(hint.sealedVariant, product.sealedVariant);
+}
+
+function openSealedSearch(defaults = {}) {
+  let photoFile = defaults.photoFile || null;
+  let photoCandidate = defaults.photoCandidate || null;
+  let photoVersion = 0;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find unopened products</h2><p>Search the PkmnPrices product list.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search unopened products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option></select></div></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search unopened products</strong><span>Try a set name plus booster box, Elite Trainer Box, tin, bundle, or collection.</span></div></div><p class="legal-copy">Product details and prices come from PkmnPrices. Confirm the exact product and language before adding it.</p>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find unopened products</h2><p>Search the PkmnPrices product list.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search unopened products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="de">German</option></select></div></div><div class="sealed-photo-check"><label for="sealedPhoto">Compare a box photo <span class="optional-label">Optional</span></label><input id="sealedPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"><img id="sealedPhotoPreview" alt="Selected unopened product photo for visual comparison" hidden><small>The photo suggests printed details. Confirm an exact product or correct it manually; the private photo is saved only after you save the product.</small></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search unopened products</strong><span>Try a set name plus booster box, Elite Trainer Box, tin, bundle, or collection.</span></div></div><p class="legal-copy">Product details and prices come from PkmnPrices. Confirm the exact product and language before adding it.</p><div class="sheet-actions"><button class="secondary" id="manualSealedEntry" type="button">Enter product manually</button></div>`,
   );
   const input = $("#sealedQuery");
   const language = $("#sealedLanguage");
+  input.value = defaults.name || "";
+  const preferredLanguage = defaults.language === "jp" ? "ja" : defaults.language;
+  language.value = ["en", "ja", "de"].includes(preferredLanguage) ? preferredLanguage : "en";
   const results = $("#sealedResults");
+  $("#sealedPhoto").addEventListener("change", async (event) => {
+    const version = ++photoVersion;
+    requestId += 1;
+    photoCandidate = null;
+    const file = event.currentTarget.files?.[0];
+    const preview = $("#sealedPhotoPreview");
+    preview.hidden = true;
+    if (!file || !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 8_000_000) {
+      photoFile = null;
+      photoCandidate = null;
+      if (file) toast("Choose an image smaller than 8 MB.");
+      return;
+    }
+    photoFile = file;
+    preview.src = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+    preview.hidden = !preview.src;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      const scale = Math.min(1, 1200 / Math.max(bitmap.width, bitmap.height));
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
+      if (dataUrl.length > 1_800_000) throw new Error("Photo is too large to analyze.");
+      const previousQuery = input.value;
+      results.innerHTML = '<div class="searching-cards" role="status">Reading printed package details…</div>';
+      const payload = await requestVisionAnalysis("sealed", [{ dataUrl }], [], { requestId: crypto.randomUUID() });
+      if (version !== photoVersion || !input.isConnected || input.value !== previousQuery) return;
+      photoCandidate = payload.analysis?.candidate || null;
+      if (!photoCandidate?.name) {
+        results.innerHTML = '<div class="find-empty">Product name unreadable. Search or enter it manually.</div>';
+        return;
+      }
+      input.value = photoCandidate.name;
+      if ([...language.options].some((option) => option.value === photoCandidate.language)) language.value = photoCandidate.language;
+      results.innerHTML = '<div class="find-empty">Photo suggestion only. Confirm the exact product below.</div>';
+      void search();
+    } catch (error) {
+      if (version === photoVersion && input.isConnected)
+        results.innerHTML = `<div class="find-empty">${esc(error.message || "Photo recognition unavailable.")} Search or enter printed details manually.</div>`;
+    }
+  });
   let timer;
   let requestId = 0;
   let products = [];
@@ -5423,6 +9306,11 @@ function openSealedSearch() {
             if (!response.ok || !payload.product)
               throw new Error(payload.error || "Product unavailable");
             const product = payload.product;
+            const selected = products.find((candidate) => candidate.id === product.id);
+            if (!sealedProductMatches(selected, product))
+              throw new Error("Product details changed or language could not be confirmed. Search again or enter it manually.");
+            if (photoCandidate && !sealedPhotoCandidateMatches(photoCandidate, product))
+              throw new Error("The catalog product conflicts with visible photo details. Correct the product manually or search again.");
             const quote = selectReferenceQuote(
               product.quotes,
               product.variant,
@@ -5436,7 +9324,7 @@ function openSealedSearch() {
               priceCapabilities: product.capabilities || null,
             };
             closeSheet({ discardHistory: true });
-            openCardDetail(detailed);
+            openSealedPositionSheet(detailed, { ingestionChannel: photoFile ? "upload" : "search", photoFile });
           } catch (error) {
             button.disabled = false;
             button.querySelector("b").textContent = "Retry";
@@ -5453,20 +9341,90 @@ function openSealedSearch() {
     clearTimeout(timer);
     timer = setTimeout(search, 250);
   };
-  input.addEventListener("input", schedule);
-  language.addEventListener("change", search);
+  input.addEventListener("input", () => { photoVersion += 1; photoCandidate = null; schedule(); });
+  language.addEventListener("change", () => { photoVersion += 1; photoCandidate = null; void search(); });
+  $("#manualSealedEntry").addEventListener("click", () =>
+    openManualSealedEntry({ ...(photoCandidate || {}), name: input.value, language: photoCandidate?.language || language.value, photoFile }),
+  );
+  if (input.value.trim().length >= 2) void search();
   input.focus();
 }
 
-function openSealedPositionSheet(product) {
-  const today = localIsoDate();
+export function openManualSealedEntry(defaults = {}) {
+  const languages = [
+    "en",
+    "ja",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "pt",
+    "zh-tw",
+    "id",
+    "th",
+  ];
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Add unopened product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field full acquisition-field"><label for="sealedTotalCost">Total paid</label><div class="money-input"><span>$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Include the item, tax, shipping, and fees in one total.</small><label class="field-choice"><input id="sealedCostUnknown" type="checkbox"> I don't know what I paid</label></div><details class="full intake-more"><summary id="sealedMoreSummary">More purchase details · 1 product · ${today}</summary><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">When did you buy it?</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required><label class="field-choice"><input id="sealedDateUnknown" type="checkbox"> I don't know the date</label></div><div class="field full"><label for="sealedLocation">Where is it stored? <span class="optional-label">Optional</span></label><input id="sealedLocation" name="location" maxlength="250" placeholder="Closet shelf · Bin 2"></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Condition of the box, source, or reminder…"></textarea></div></div></details><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><p class="unknown-basis-note" id="sealedUnknownBasisNote" hidden>Value tracking still works, but Mica cannot show money gained until you add what you paid.</p><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Enter unopened product</h2><p>Use this when provider search is unavailable or has no exact match.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="manualSealedForm"><div class="form-grid"><div class="field full"><label for="manualSealedName">Exact product name</label><input id="manualSealedName" name="name" maxlength="200" value="${esc(defaults.name || "")}" placeholder="Crown Zenith Elite Trainer Box" required></div><div class="field"><label for="manualSealedSet">Set or product line</label><input id="manualSealedSet" name="set" maxlength="160" value="${esc(defaults.set || "")}" placeholder="Crown Zenith" required></div><div class="field"><label for="manualSealedType">Product type</label><select id="manualSealedType" name="productType"><option value="booster_box">Booster box</option><option value="elite_trainer_box">Elite Trainer Box</option><option value="booster_bundle">Booster bundle</option><option value="collection">Collection / box</option><option value="tin">Tin</option><option value="deck">Deck</option><option value="pack">Booster pack</option><option value="other">Other unopened product</option></select></div><div class="field full"><label for="manualSealedLanguage">Printed language</label><select id="manualSealedLanguage" name="language">${languages.map((code) => `<option value="${code}" ${code === (defaults.language === "jp" ? "ja" : defaults.language || "en") ? "selected" : ""}>${esc(languageName(code))}</option>`).join("")}</select></div><div class="field"><label for="manualSealedRegion">Region <span class="optional-label">Optional</span></label><input id="manualSealedRegion" name="sealedRegion" maxlength="80" value="${esc(defaults.sealedRegion || "")}" placeholder="Only if printed on the box"></div><div class="field"><label for="manualSealedVariant">Package variant <span class="optional-label">Optional</span></label><input id="manualSealedVariant" name="sealedVariant" maxlength="120" value="${esc(defaults.sealedVariant || "")}" placeholder="Pokemon Center, special edition…"></div></div><div class="simple-note"><strong>Manual identity stays marked for review.</strong><br>Mica will not attach provider prices until an exact product mapping is confirmed.</div><p class="form-error" id="manualSealedError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="manualSealedCancel" type="button">Cancel</button><button class="primary" type="submit">Continue</button></div></form>`,
   );
+  if (defaults.productType && [...$("#manualSealedType").options].some((option) => option.value === defaults.productType))
+    $("#manualSealedType").value = defaults.productType;
+  $("#manualSealedCancel").addEventListener("click", () => openSealedSearch({ name: defaults.name, language: defaults.language }));
+  $("#manualSealedForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(
+      new FormData(event.currentTarget).entries(),
+    );
+    if (!data.name.trim() || !data.set.trim()) {
+      $("#manualSealedError").textContent =
+        "Enter the exact product name and its set or product line.";
+      return;
+    }
+    const product = {
+      id: `manual-sealed:${normalizeIdentity(`${data.language}-${data.set}-${data.name}-${data.productType}-${data.sealedRegion || ""}-${data.sealedVariant || ""}`)}`,
+      name: data.name.trim(),
+      set: data.set.trim(),
+      language: data.language,
+      variant: "Sealed product",
+      productType: data.productType,
+      sealedRegion: data.sealedRegion.trim() || null,
+      sealedVariant: data.sealedVariant.trim() || null,
+      cardState: "sealed",
+      identityStatus: "needs_review",
+      externalIds: {},
+      quotes: [],
+      price: null,
+      pricingStatus: "missing",
+    };
+    openSealedPositionSheet(product, { ingestionChannel: defaults.photoFile ? "upload" : "manual", photoFile: defaults.photoFile });
+  });
+}
+
+function openSealedPositionSheet(product, options = {}) {
+  const today = localIsoDate();
+  let idempotencyKey = crypto.randomUUID();
+  let lastAttemptPayload = "";
+  let priorAttemptFailed = false;
+  const ingestion = createIngestionEnvelope({
+    channel: options.ingestionChannel || "search",
+    item: product,
+    variant: "Sealed product",
+    candidateStatus: product.identityStatus,
+    source: product.externalIds?.pkmnpricesSealed ? "pkmnprices" : "manual",
+  });
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm unopened product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="simple-note"><strong>${esc(languageName(product.language))} · ${esc(String(product.productType || "type unknown").replaceAll("_", " "))}</strong><br>Package variant: ${esc(product.sealedVariant || "not confirmed")} · Region: ${esc(product.sealedRegion || "not confirmed")}. ${product.externalIds?.pkmnpricesSealed ? "Provider candidate; check the box before saving." : "Manual identity; provider prices remain unavailable."}</div><div class="sheet-actions"><button class="secondary" id="sealedChangeProduct" type="button">Search another product</button><button class="secondary" id="sealedEnterManual" type="button">Correct details manually</button><button class="secondary" id="sealedViewProduct" type="button">View product details</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field full acquisition-field"><label for="sealedTotalCost">Total paid</label><div class="money-input"><span id="sealedCurrencyMark">$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Include the item, tax, shipping, and fees in one total.</small><label for="sealedCurrency">Currency</label><select id="sealedCurrency" name="currency"><option value="USD">USD</option><option value="EUR">EUR</option></select><label class="field-choice"><input id="sealedCostUnknown" type="checkbox"> I don't know what I paid</label></div><details class="full intake-more"><summary id="sealedMoreSummary">More purchase details · 1 product · ${today}</summary><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">When did you buy it?</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required><label class="field-choice"><input id="sealedDateUnknown" type="checkbox"> I don't know the date</label></div><div class="field full"><label for="sealedLocation">Where is it stored? <span class="optional-label">Optional</span></label><input id="sealedLocation" name="location" maxlength="250" placeholder="Closet shelf · Bin 2"></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Condition of the box, source, or reminder…"></textarea></div></div></details><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><p class="unknown-basis-note" id="sealedUnknownBasisNote" hidden>Value tracking still works, but Mica cannot show money gained until you add what you paid.</p><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
+  );
+  $("#sealedChangeProduct").addEventListener("click", () => openSealedSearch({ name: product.name, language: product.language, photoFile: options.photoFile }));
+  $("#sealedEnterManual").addEventListener("click", () => openManualSealedEntry({ ...product, photoFile: options.photoFile }));
+  $("#sealedViewProduct").addEventListener("click", () => {
+    closeSheet({ discardHistory: true });
+    openCardDetail(product);
+  });
   const form = $("#sealedPositionForm");
   const values = () => Object.fromEntries(new FormData(form).entries());
   const update = () => {
     const input = values();
+    $("#sealedCurrencyMark").textContent = input.currency === "EUR" ? "€" : "$";
     const costUnknown = $("#sealedCostUnknown").checked;
     const dateUnknown = $("#sealedDateUnknown").checked;
     const breakdown = costUnknown
@@ -5477,7 +9435,7 @@ function openSealedPositionSheet(product) {
       ? "Not recorded"
       : breakdown === null
         ? "Enter an amount"
-        : money(breakdown.totalMinor / 100);
+        : money(breakdown.totalMinor / 100, input.currency);
     $("#sealedCostSummary").textContent =
       `Total for ${count || 0} product${count === 1 ? "" : "s"}`;
     $("#sealedMoreSummary").textContent =
@@ -5494,6 +9452,7 @@ function openSealedPositionSheet(product) {
     update();
   };
   form.addEventListener("input", update);
+  $("#sealedCurrency").addEventListener("change", update);
   $("#sealedCostUnknown").addEventListener("change", syncKnownFacts);
   $("#sealedDateUnknown").addEventListener("change", syncKnownFacts);
   $("#sealedPositionCancel").addEventListener("click", closeSheet);
@@ -5519,14 +9478,22 @@ function openSealedPositionSheet(product) {
       return;
     }
     const submits = $$('button[type="submit"]', form);
+    const attemptPayload = JSON.stringify({ data, acquisitionCostKnown, acquisitionDateKnown, breakdown });
+    if (priorAttemptFailed && attemptPayload !== lastAttemptPayload) idempotencyKey = crypto.randomUUID();
+    lastAttemptPayload = attemptPayload;
     submits.forEach((button) => (button.disabled = true));
     $("#sealedPositionError").textContent = "Saving securely…";
     let itemId;
+    let locationSaved = true;
     try {
       itemId = await createPosition(supabase, {
         ...breakdown,
         identity: {
-          ...identitySnapshot(product, "Sealed product"),
+          ...identitySnapshot(
+            product,
+            "Sealed product",
+            confirmIngestionEnvelope(ingestion),
+          ),
           acquisitionCostKnown,
           acquisitionDateKnown,
         },
@@ -5539,13 +9506,26 @@ function openSealedPositionSheet(product) {
         certificationNumber: null,
         quantity: Number(data.quantity),
         transactionDate: data.transactionDate,
-        currency: "USD",
+        currency: data.currency,
         notes: data.notes || null,
-        idempotencyKey: crypto.randomUUID(),
+        idempotencyKey,
       });
-      if (data.location)
-        await updatePosition(supabase, itemId, { location: data.location });
+      if (options.photoFile) {
+        try {
+          await uploadCollectionPositionAttachment(supabase, { positionId: itemId, file: options.photoFile, caption: "Unopened product identification photo" });
+        } catch {
+          toast("Product saved; attach the photo from its library detail.");
+        }
+      }
+      if (data.location) {
+        try {
+          await updatePosition(supabase, itemId, { location: data.location });
+        } catch {
+          locationSaved = false;
+        }
+      }
     } catch (error) {
+      priorAttemptFailed = true;
       submits.forEach((button) => (button.disabled = false));
       $("#sealedPositionError").textContent =
         `Could not add this product: ${error.message || "Unknown error"}`;
@@ -5554,14 +9534,14 @@ function openSealedPositionSheet(product) {
     closeSheet({ discardHistory: true });
     if (continueAdding) {
       openSealedSearch();
-      toast("Saved · find the next sealed product");
+      toast(locationSaved ? "Saved · find the next sealed product" : "Product saved · add its location from the library");
       try {
         await reloadPortfolio();
       } catch {
         toast("Saved · library refresh will retry automatically");
       }
     } else {
-      toast("Sealed product added to your library");
+      toast(locationSaved ? "Sealed product added to your library" : "Product saved · add its location from the library");
       try {
         await reloadPortfolio(itemId);
       } catch {
@@ -5574,24 +9554,35 @@ function openSealedPositionSheet(product) {
 
 function openWatchlistSheet(card, existing = null, defaults = {}) {
   const sealed = card.cardState === "sealed" || Boolean(card.productType);
-  const variants =
-    Array.isArray(card.variants) && card.variants.length
-      ? card.variants
-      : [card.variant || "Unknown"];
+  const requestedContext =
+    defaults.valuationContext ||
+    valuationContextForItem(card, {
+      catalogPreview: !existing,
+    });
+  const requestedCurrency =
+    existing?.currency || requestedContext.currency || card.currency || "USD";
+  const requestedCurrencyMark =
+    money(0, requestedCurrency).replace(/[\d.,\s]/g, "") || requestedCurrency;
   const context = existing
     ? `<div class="simple-note"><strong>${esc(existing.variant)} · ${esc(watchContextLabel(existing))}</strong><br>Mica always checks this same card version and wear level or grade so your alert stays accurate.</div>`
     : sealed
       ? `<input type="hidden" name="cardState" value="sealed"><input type="hidden" name="variant" value="${esc(card.variant || "Unopened product")}"><div class="simple-note"><strong>Unopened product · ${esc(languageName(card.language || "en"))}</strong><br>Mica will track this exact product and will not substitute a card or another unopened product.</div>`
-      : `<div class="form-grid">
-      <div class="field full"><label for="watchVariant">Card version</label><select id="watchVariant" name="variant" required>${variants.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join("")}</select></div>
-      <div class="field"><label for="watchState">Is it sealed in a case by a professional grading company?</label><select id="watchState" name="cardState"><option value="raw">No · ungraded card</option><option value="graded">Yes · professionally graded</option></select></div>
-      <div class="field raw-watch"><label for="watchCondition">How much wear does it have?</label><select id="watchCondition" name="rawCondition"><option value="near_mint">Like new (Near Mint)</option><option value="lightly_played">Light wear (Lightly Played)</option><option value="moderately_played">Noticeable wear (Moderately Played)</option><option value="heavily_played">Heavy wear (Heavily Played)</option><option value="damaged">Damaged</option></select></div>
-      <div class="field graded-watch" hidden><label for="watchGrader">Grading company</label><select id="watchGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option>${value}</option>`).join("")}</select></div>
-      <div class="field graded-watch" hidden><label for="watchGrade">Grade</label><input id="watchGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" placeholder="10"></div>
+      : `<input type="hidden" name="variant" value="${esc(card.variant || "Unknown")}"><div class="simple-note"><strong>${esc(card.variant || "Unknown version")} · ${esc(languageName(card.language || ""))}</strong><br>This exact printing stays selected for the watch.</div><div class="form-grid">
+      <div class="field"><label for="watchState">Card type</label><select id="watchState" name="cardState"><option value="raw" ${requestedContext.cardState !== "graded" ? "selected" : ""}>Raw · ungraded</option><option value="graded" ${requestedContext.cardState === "graded" ? "selected" : ""}>Professionally graded</option></select></div>
+      <div class="field raw-watch"><label for="watchCondition">How much wear does it have?</label><select id="watchCondition" name="rawCondition"><option value="unknown">Not sure yet</option><option value="near_mint" ${normalizeRawCondition(requestedContext.condition).normalized === "near_mint" ? "selected" : ""}>Like new (Near Mint)</option><option value="lightly_played" ${normalizeRawCondition(requestedContext.condition).normalized === "lightly_played" ? "selected" : ""}>Light wear (Lightly Played)</option><option value="moderately_played" ${normalizeRawCondition(requestedContext.condition).normalized === "moderately_played" ? "selected" : ""}>Noticeable wear (Moderately Played)</option><option value="heavily_played" ${normalizeRawCondition(requestedContext.condition).normalized === "heavily_played" ? "selected" : ""}>Heavy wear (Heavily Played)</option><option value="damaged" ${normalizeRawCondition(requestedContext.condition).normalized === "damaged" ? "selected" : ""}>Damaged</option></select></div>
+      <div class="field graded-watch" hidden><label for="watchGrader">Grading company</label><select id="watchGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === requestedContext.gradingCompany ? "selected" : ""}>${value}</option>`).join("")}</select></div>
+      <div class="field graded-watch" hidden><label for="watchGrade">Grade</label><input id="watchGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(requestedContext.grade || "")}" placeholder="10"></div>
     </div>`;
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${existing ? "Edit price alert" : sealed ? "Watch this product" : "Watch this card"}</h2><p>${esc(card.name)} · ${esc(card.set)}${card.number ? ` ${esc(card.number)}` : ""}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
-    <form id="watchlistForm">${context}<div class="field acquisition-field"><label for="watchTarget">Tell me when the price reaches <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="watchTarget" name="targetPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${defaults.targetPrice ?? existing?.targetPrice ?? ""}" placeholder="Leave blank to just follow it"></div><small>Mica will flag this exact ${sealed ? "product" : "card"} when its matching price is at or below this amount.</small></div><div class="field"><label for="watchNotes">Notes <span class="optional-label">Optional</span></label><textarea id="watchNotes" name="notes" maxlength="2000" placeholder="Why you want it, preferred seller, trade idea…">${esc(existing?.notes || "")}</textarea></div><p class="form-error" id="watchError" role="alert"></p><div class="sheet-actions">${existing ? '<button class="danger-action" id="deleteWatchButton" type="button">Remove</button>' : '<button class="secondary" id="watchCancel" type="button">Cancel</button>'}<button class="primary" type="submit">${existing ? "Save alert" : sealed ? "Watch this product" : "Watch this card"}</button></div></form>`);
+    <form id="watchlistForm">${context}<div class="field acquisition-field"><label for="watchTarget">Tell me when the price reaches <span class="optional-label">Optional</span></label><div class="money-input"><span>${esc(requestedCurrencyMark)}</span><input id="watchTarget" name="targetPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${defaults.targetPrice ?? existing?.targetPrice ?? ""}" placeholder="Leave blank to just follow it"></div><small>Mica will flag this exact ${sealed ? "product" : "card"} when its matching price is at or below this amount.</small></div><div class="field"><label for="watchNotes">Notes <span class="optional-label">Optional</span></label><textarea id="watchNotes" name="notes" maxlength="2000" placeholder="Why you want it, preferred seller, trade idea…">${esc(existing?.notes || defaults.notes || "")}</textarea></div><p class="form-error" id="watchError" role="alert"></p><div class="sheet-actions">${existing ? '<button class="danger-action" id="deleteWatchButton" type="button">Remove</button>' : '<button class="secondary" id="watchCancel" type="button">Cancel</button>'}<button class="primary" type="submit">${existing ? "Save alert" : sealed ? "Watch this product" : "Watch this card"}</button></div></form>`);
   const form = $("#watchlistForm");
+  if (defaults.profileIntent)
+    form.profileIntent = {
+      card: queuedCatalogCard(card),
+      existingWatchlistId: existing?.watchlistId || null,
+      currency: requestedCurrency,
+      valuationContext: requestedContext,
+    };
   const syncState = () => {
     if (existing || sealed) return;
     const graded = $("#watchState").value === "graded";
@@ -5678,7 +9669,7 @@ function openWatchlistSheet(card, existing = null, defaults = {}) {
           throw new Error("Choose a grading company and a grade from 1 to 10.");
         }
         const condition =
-          cardState === "raw"
+          cardState === "raw" && rawCondition !== "unknown"
             ? String(data.rawCondition)
                 .split("_")
                 .map((part) => part[0].toUpperCase() + part.slice(1))
@@ -5686,14 +9677,21 @@ function openWatchlistSheet(card, existing = null, defaults = {}) {
             : cardState === "graded"
               ? "Graded"
               : null;
-        const quote = selectReferenceQuote(
-          card.quotes,
-          data.variant,
-          "USD",
-          condition
-            ? { condition, gradingCompany: grader || "", grade: grade || "" }
-            : {},
-        );
+        const quote =
+          condition || grader
+            ? selectReferenceQuote(
+                card.quotes,
+                data.variant,
+                requestedCurrency,
+                condition
+                  ? {
+                      condition,
+                      gradingCompany: grader || "",
+                      grade: grade || "",
+                    }
+                  : { gradingCompany: grader || "", grade: grade || "" },
+              )
+            : null;
         const pricing = quotePricingFields(quote, card, {
           ...card,
           cardState,
@@ -5704,14 +9702,17 @@ function openWatchlistSheet(card, existing = null, defaults = {}) {
         const added = await createWatchlistEntry(supabase, {
           userId: state.session.user.id,
           cardId: cardState === "sealed" ? null : card.cardId || null,
-          identity: identitySnapshot(card, data.variant),
+          identity: identitySnapshot(
+            card,
+            card.variantId || card.collectibleId || data.variant,
+          ),
           cardState,
           rawCondition,
           grader,
           grade,
           targetPrice,
           startingMarketPrice: pricing.price,
-          currency: "USD",
+          currency: requestedCurrency,
           notes: data.notes,
         });
         state.watchlist.unshift({
@@ -5747,30 +9748,165 @@ function openWatchlistSheet(card, existing = null, defaults = {}) {
 async function saveCardAddDraft(
   draft,
   visionAnalysis = null,
-  { closeAfterSave = true, focusAfterSave = true } = {},
+  {
+    closeAfterSave = true,
+    focusAfterSave = draft.focusAfterSave ?? true,
+    refreshAfterSave = true,
+    notifyAfterSave = true,
+  } = {},
 ) {
-  const { card, input, acquisitionCostKnown, acquisitionDateKnown } = draft;
-  const itemId = await createPosition(supabase, {
-    ...input,
-    identity: {
-      ...identitySnapshot(card, input.variantId || input.variant),
+  if (nativeBuild && !draft.queueEntryKey) {
+    const pending = nativePositionDraft?.pending;
+    if (pending?.idempotencyKey === draft.idempotencyKey)
+      draft = { ...draft, ...pending };
+    const {
+      card,
+      input,
       acquisitionCostKnown,
       acquisitionDateKnown,
-      acquisitionContext:
-        input.acquisitionMethod === "trade"
-          ? { note: "Exchanged-card value is recorded in Trades." }
-          : {},
-    },
-    cardId: card.cardId || null,
-    variantId:
-      input.variantId && UUID_PATTERN.test(input.variantId)
-        ? input.variantId
-        : card.variantId && UUID_PATTERN.test(card.variantId)
-          ? card.variantId
+      idempotencyKey,
+      ingestion,
+    } = draft;
+    nativePositionDraft = {
+      card: queuedCatalogCard(card),
+      idempotencyKey,
+      pending: {
+        card: queuedCatalogCard(card),
+        input,
+        acquisitionCostKnown,
+        acquisitionDateKnown,
+        idempotencyKey,
+        ingestion,
+      },
+    };
+    await nativeRuntime().writeDraft(
+      state.session.user.id,
+      JSON.stringify(nativePositionDraft),
+      "position-draft",
+    );
+  }
+  const ownerId = state.session?.user?.id || "";
+  const loadVersion = sessionLoadVersion;
+  if (draft.queueEntryKey) {
+    const entry = state.intakeQueue.find(
+      (candidate) => candidate.key === draft.queueEntryKey,
+    );
+    if (!entry || ownerId !== draft.queueOwner)
+      throw new Error("Queue owner changed");
+    const newPending = !entry.pending;
+    if (newPending)
+      entry.pending = {
+        card: queuedCatalogCard(draft.card),
+        input: draft.input,
+        acquisitionCostKnown: draft.acquisitionCostKnown,
+        acquisitionDateKnown: draft.acquisitionDateKnown,
+        idempotencyKey: draft.idempotencyKey,
+        ingestion: draft.ingestion,
+        focusAfterSave: draft.focusAfterSave,
+        visionAnalysis: visionAnalysis
+          ? {
+              estimatedGradeLow: visionAnalysis.estimatedGradeLow,
+              scanSessionId: visionAnalysis.scanSessionId,
+            }
           : null,
-    idempotencyKey: draft.idempotencyKey,
-    currency: "USD",
-  });
+      };
+    entry.quantity = Number(entry.pending.input.quantity);
+    if (!(await persistIntakeQueue())) {
+      if (newPending) delete entry.pending;
+      throw new Error("Queue storage unavailable");
+    }
+    // An uncertain request must be replayed unchanged, including its identity.
+    draft = { ...draft, ...entry.pending };
+    visionAnalysis = entry.pending.visionAnalysis;
+  }
+  const { card, input, acquisitionCostKnown, acquisitionDateKnown } = draft;
+  let itemId;
+  try {
+    itemId = await createPosition(supabase, {
+      ...input,
+      identity: {
+        ...identitySnapshot(
+          card,
+          input.variantId || input.variant,
+          draft.ingestion,
+        ),
+        acquisitionCostKnown,
+        acquisitionDateKnown,
+        acquisitionContext:
+          input.acquisitionMethod === "trade"
+            ? { note: "Exchanged-card value is recorded in Trades." }
+            : {},
+        gradeQualifier:
+          input.cardState === "graded"
+            ? String(input.gradeQualifier || "").trim()
+            : "",
+        gradeClaimSource: input.cardState === "graded" ? "user" : "",
+      },
+      cardId: card.cardId || null,
+      variantId:
+        input.variantId && UUID_PATTERN.test(input.variantId)
+          ? input.variantId
+          : card.variantId && UUID_PATTERN.test(card.variantId)
+            ? card.variantId
+            : null,
+      idempotencyKey: draft.idempotencyKey,
+      currency: "USD",
+    });
+  } catch (error) {
+    // PostgreSQL rejects these statements before a position can commit.
+    // Unknown transport/server failures must retain the immutable request.
+    if (
+      draft.queueEntryKey &&
+      ["22023", "23514", "23502", "22P02", "42501"].includes(error.code) &&
+      state.session?.user?.id === ownerId
+    ) {
+      const entry = state.intakeQueue.find(
+        (candidate) => candidate.key === draft.queueEntryKey,
+      );
+      if (entry) {
+        const pending = entry.pending;
+        delete entry.pending;
+        entry.editDraft = pending;
+        if (!(await persistIntakeQueue())) {
+          entry.pending = pending;
+          delete entry.editDraft;
+        }
+      }
+    }
+    if (
+      nativeBuild && !draft.queueEntryKey &&
+      ["22023", "23514", "23502", "22P02", "42501"].includes(error.code) &&
+      state.session?.user?.id === ownerId &&
+      nativePositionDraft?.idempotencyKey === draft.idempotencyKey
+    ) {
+      const retained = nativePositionDraft;
+      nativePositionDraft = {
+        card: retained.card, idempotencyKey: retained.idempotencyKey,
+        prefill: { ...draft.input, acquisitionCostKnown: draft.acquisitionCostKnown,
+          acquisitionDateKnown: draft.acquisitionDateKnown },
+      };
+      try {
+        await nativeRuntime().writeDraft(ownerId, JSON.stringify(nativePositionDraft), "position-draft");
+      } catch { nativePositionDraft = retained; }
+    }
+    throw error;
+  }
+  if (
+    (state.session?.user?.id || "") !== ownerId ||
+    sessionLoadVersion !== loadVersion
+  )
+    return { itemId, staleSession: true };
+  if (
+    nativeBuild &&
+    nativePositionDraft?.idempotencyKey === draft.idempotencyKey
+  ) {
+    nativePositionDraft = null;
+    await nativeRuntime()
+      .clearDraft(ownerId, "position-draft")
+      .catch(() =>
+        toast("Copy saved. Interrupted-work cleanup will retry after restart."),
+      );
+  }
   let digitalGradeWarning = false;
   if (input.cardState === "raw" && visionAnalysis?.estimatedGradeLow != null) {
     try {
@@ -5783,53 +9919,86 @@ async function saveCardAddDraft(
       digitalGradeWarning = true;
     }
   }
+  if (
+    (state.session?.user?.id || "") !== ownerId ||
+    sessionLoadVersion !== loadVersion
+  )
+    return { itemId, staleSession: true };
   state.pendingCardAdd = null;
   if (closeAfterSave) closeSheet({ discardHistory: true });
-  toast(
-    digitalGradeWarning
-      ? "Card saved · digital grade can be retried"
-      : visionAnalysis
-        ? "Card and digital grade saved"
-        : "Added to your collection",
-  );
+  if (notifyAfterSave)
+    toast(
+      digitalGradeWarning
+        ? "Card saved · digital grade can be retried"
+        : visionAnalysis
+          ? "Card and digital grade saved"
+          : "Added to your collection",
+    );
+  let refreshPending = false;
+  const focusId = focusAfterSave ? itemId : null;
   try {
-    await reloadPortfolio(focusAfterSave ? itemId : null);
+    if (refreshAfterSave)
+      await reloadPortfolio(focusId, { backgroundPricing: true });
   } catch {
-    if (focusAfterSave) routeTo("collection");
-    toast("Saved · collection refresh will retry automatically");
+    refreshPending = true;
   }
-  return { itemId, digitalGradeWarning };
-}
-
-function openNewCardGradingDecision(draft) {
-  state.pendingCardAdd = draft;
-  openSheet(
-    `<div class="new-card-grade-choice"><button class="sheet-close" aria-label="Close">×</button><span class="digital-grader-mark" aria-hidden="true">DG</span><p class="eyebrow">One useful choice</p><h2 id="sheetTitle">Would you like to digitally grade this card?</h2><p>${esc(draft.card.name)} can be graded before it enters your library, so its first saved record already includes the DG result.</p><div class="new-card-grade-benefits"><span><b>01</b> Guided photos</span><span><b>02</b> Independent sub-grades</span><span><b>03</b> Defect evidence</span></div><div class="sheet-actions"><button class="secondary" id="addWithoutDigitalGrade" type="button">Add without grading</button><button class="primary" id="gradeBeforeAdding" type="button">Grade now</button></div></div>`,
-  );
-  $("#addWithoutDigitalGrade").addEventListener("click", async (event) => {
-    const button = event.currentTarget;
-    button.disabled = true;
-    button.textContent = "Adding card…";
-    try {
-      await saveCardAddDraft(draft);
-    } catch (error) {
-      button.disabled = false;
-      button.textContent = "Try adding again";
-      toast(error.message || "The card could not be added");
-    }
+  if (
+    (state.session?.user?.id || "") !== ownerId ||
+    sessionLoadVersion !== loadVersion
+  )
+    return { itemId, staleSession: true };
+  logIngestionEvent({
+    sessionId: draft.ingestion?.sessionId,
+    channel: draft.ingestion?.channel || "manual",
+    stage: "committed",
+    outcome: "success",
+    metadata: {
+      candidateStatus: draft.ingestion?.candidateStatus || "unknown",
+    },
   });
-  $("#gradeBeforeAdding").addEventListener("click", () =>
-    beginDigitalGrading(null, "full"),
-  );
+  if (typeof draft.afterSave === "function")
+    await draft.afterSave({ itemId, digitalGradeWarning, refreshPending });
+  if (refreshPending)
+    showSavedCollectionRefresh(
+      focusId,
+      "Card added to your collection",
+      draft.afterRefresh,
+    );
+  return { itemId, digitalGradeWarning, refreshPending };
 }
 
 export function openPositionSheet(card, options = {}) {
+  if (nativeBuild && !options.queueEntryKey && nativePositionDraft?.pending &&
+      options.idempotencyKey !== nativePositionDraft.idempotencyKey) {
+    const pending = nativePositionDraft;
+    const existing = state.intakeQueue.find((entry) => entry.operationId === pending.idempotencyKey);
+    const entry = existing || {
+      key: `${intakeQueueKey(pending.card)}|${pending.idempotencyKey}`,
+      card: pending.card,
+      quantity: Number(pending.pending.input.quantity),
+      operationId: pending.idempotencyKey,
+      pending: pending.pending,
+    };
+    if (!existing) state.intakeQueue.push(entry);
+    renderIntakeQueueBar();
+    void persistIntakeQueue();
+    openPendingQueuedCard(entry);
+    return;
+  }
   if (card.cardState === "sealed" || card.productType) {
     openSealedPositionSheet(card);
     return;
   }
   const today = localIsoDate();
-  const variantOptions = (
+  const ingestion = createIngestionEnvelope({
+    channel: options.ingestionChannel || "manual",
+    item: card,
+    variant: options.prefill?.variantId || card.variantId || card.variant,
+    candidateStatus: card.identityStatus,
+    matchConfidence: options.ingestionConfidence,
+    source: card.imageProvider || card.provider || "catalog",
+  });
+  let variantOptions = (
     Array.isArray(card.variantOptions) && card.variantOptions.length
       ? card.variantOptions
       : [card.variant || "Unknown"]
@@ -5841,41 +10010,62 @@ export function openPositionSheet(card, options = {}) {
     { ...card, variantOptions },
     prefill.variantId || card.variantId || prefill.variant || card.variant,
   );
-  const variantDifferences = variantDifferenceFields(variantOptions);
+  if (options.exactSelection) variantOptions = [initialVariant];
   const variantControl =
     variantOptions.length > 1
-      ? `<div class="field full"><label for="positionVariantChoice">Exact card version</label><select id="positionVariantChoice" name="variantChoice" required>${variantOptions
+      ? `<fieldset class="field full position-versions" id="positionVariantChoice"><legend>Exact card version</legend><div>${variantOptions
           .map(
             (variant) =>
-              `<option value="${esc(variant.id || variant.label)}" ${variant.id === initialVariant.id ? "selected" : ""}>${esc(variantOptionSummary(variant))}</option>`,
+              `<label><input type="radio" name="variantChoice" value="${esc(variant.id || variant.label)}" ${(variant.id || variant.label) === (initialVariant.id || initialVariant.label) ? "checked" : ""} required><span>${esc(variantOptionSummary(variant))}</span></label>`,
           )
           .join(
             "",
-          )}</select><small>These matches differ by ${esc(variantDifferences.join(", ") || "catalog identity")}. Confirm the printing shown on your card.</small></div>`
-      : `<div class="simple-note full"><strong>${esc(variantOptionSummary(initialVariant))}</strong><br>This version was selected from your search. Confirm it matches the printed card.</div>`;
+          )}</div><small>Confirm the printing shown on your card.</small></fieldset>`
+      : `<div class="simple-note full"><strong>${esc(variantOptionSummary(initialVariant))}</strong><br>Check this matches your card.</div>`;
   const initialState = prefill.cardState === "graded" ? "graded" : "raw";
   const initialQuantity = Number(prefill.quantity) > 0 ? prefill.quantity : 1;
-  const initialDate = prefill.transactionDate || today;
+  const initialDate =
+    prefill.acquisitionDateKnown === false ? "" : prefill.transactionDate || "";
   const initialTotal = prefill.totalAcquisitionCost ?? "";
-  const idempotencyKey = crypto.randomUUID();
+  const idempotencyKey = options.idempotencyKey || crypto.randomUUID();
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to your library</h2><p>${esc(card.name)} · ${esc(card.set)} ${esc(card.number)} · ${esc(languageName(card.language || "en"))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="positionForm"><div class="form-grid">
       <input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant.label)}"><input id="positionVariantId" name="variantId" type="hidden" value="${esc(initialVariant.id || "")}">${variantControl}
-      <div class="field"><label for="positionState">Is it sealed in a case by a professional grading company?</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>No · ungraded card</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Yes · professionally graded</option></select></div>
-      <input id="positionCondition" name="rawCondition" type="hidden" value="">
-      <div class="simple-note raw-position"><strong>${options.visionAnalysis ? `Mica pregrade: ${esc(options.visionAnalysis.gradeRange || "unavailable")}` : "Ungraded card"}</strong><br>${options.visionAnalysis ? "This one-decimal pregrade remains separate from a professional PSA return." : "Save the card now. Digital grading is available from its Collection row."}</div>
+      <div class="field"><label for="positionState">Card type</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>Raw · ungraded</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Professionally graded</option></select></div>
+      <div class="field"><label for="positionQuantity" id="positionQuantityLabel">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(initialQuantity)}" required><small id="positionQuantityHelp">Each graded slab is saved as its own copy.</small></div>
+      <div class="field raw-position"><label for="positionCondition">Condition</label><select id="positionCondition" name="rawCondition"><option value="unknown" ${!prefill.rawCondition || prefill.rawCondition === "unknown" ? "selected" : ""}>Not sure yet</option><option value="near_mint" ${prefill.rawCondition === "near_mint" ? "selected" : ""}>Like new (Near Mint)</option><option value="lightly_played" ${prefill.rawCondition === "lightly_played" ? "selected" : ""}>Light wear (Lightly Played)</option><option value="moderately_played" ${prefill.rawCondition === "moderately_played" ? "selected" : ""}>Noticeable wear (Moderately Played)</option><option value="heavily_played" ${prefill.rawCondition === "heavily_played" ? "selected" : ""}>Heavy wear (Heavily Played)</option><option value="damaged" ${prefill.rawCondition === "damaged" ? "selected" : ""}>Damaged</option></select><small>Unknown stays unknown; Mica will not value it as Near Mint.</small></div>
+      ${options.visionAnalysis ? `<div class="simple-note raw-position"><strong>Mica pregrade: ${esc(options.visionAnalysis.gradeRange || "unavailable")}</strong><br>Photo estimate · not a professional grade.</div>` : ""}
       <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === prefill.grader ? "selected" : ""}>${value}</option>`).join("")}</select></div>
       <div class="field graded-position" hidden><label for="positionGrade">Grade</label><input id="positionGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(prefill.grade || "")}" placeholder="10"></div>
+      <div class="field graded-position" hidden><label for="positionQualifier">Qualifier or label <span class="optional-label">Optional</span></label><input id="positionQualifier" name="gradeQualifier" maxlength="80" value="${esc(prefill.gradeQualifier || "")}" placeholder="OC, qualified, black label…"></div>
+      <div class="field graded-position full" hidden><label for="positionCertification">Certification number <span class="optional-label">Optional</span></label><input id="positionCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(prefill.certificationNumber || "")}"><small>Saved exactly as entered, including leading zeros. Until official provider access is connected, this is a user-entered claim.</small></div>
       ${options.visionAnalysis ? `<div class="vision-prefill-note full"><strong>AI suggestion · confirm before saving</strong><span>${options.visionAnalysis.mode === "grade" ? `Mica pregrade ${esc(options.visionAnalysis.gradeRange || "unavailable")} · ` : ""}${esc(conditionLabel(options.visionAnalysis.condition))} · ${esc(confidenceLabel(options.visionAnalysis.confidence))}. This is not an official grade or condition guarantee.</span></div>` : ""}
+      <details class="full intake-more" id="positionPurchaseDetails"><summary id="positionMoreSummary">Purchase details · optional</summary><div class="form-grid">
       <div class="field full"><label for="positionAcquisitionMethod">How did you get it?</label><select id="positionAcquisitionMethod" name="acquisitionMethod"><option value="direct_purchase">Bought the card</option><option value="paid_pack">Opened from a pack you bought</option><option value="free_pack">Opened from a free pack</option><option value="trade">Trade</option><option value="gift">Gift</option><option value="prize">Prize</option><option value="free_card">Free card</option><option value="unknown">I’m not sure</option></select></div>
-      <div class="field full acquisition-field" id="positionPaidField"><label for="positionTotalCost">Total paid</label><div class="money-input"><span>$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="0.00" required></div><small id="positionPaidHelp">Include tax, shipping, and fees in one total.</small><label class="field-choice"><input id="positionCostUnknown" type="checkbox"> I don't know what I paid</label></div>
-      <details class="full intake-more"><summary id="positionMoreSummary">More purchase details · ${initialQuantity} card${Number(initialQuantity) === 1 ? "" : "s"} · ${initialDate}</summary><div class="form-grid"><div class="field"><label for="positionQuantity">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(initialQuantity)}" required></div><div class="field"><label for="positionDate">When did you buy it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}" required><label class="field-choice"><input id="positionDateUnknown" type="checkbox"> I don't know the date</label></div></div></details>
+      <div class="field full acquisition-field" id="positionPaidField"><label for="positionTotalCost">Total paid</label><div class="money-input"><span>$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="Not recorded"></div><small id="positionPaidHelp">Include tax, shipping, and fees in one total.</small><label class="field-choice"><input id="positionCostUnknown" type="checkbox"> I don't know what I paid</label></div>
+      <div class="field full"><label for="positionDate">When did you get it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}"><label class="field-choice"><input id="positionDateUnknown" type="checkbox"> I don't know the date</label></div></div></details>
       <p class="form-error" id="positionError" role="alert"></p>
-    </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>The card is still saved and valued, but Mica cannot show money gained until you add what you paid.</p>
-    <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Save card</button></div></form>`);
+    </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>Add the missing purchase details later to see profit or loss.</p>
+    <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Add card</button>${!options.visionAnalysis ? '<button class="secondary raw-position" type="submit" id="positionGradeFirst">Grade first</button>' : ""}</div></form>`);
   const form = $("#positionForm");
+  if (
+    typeof __MICA_INTERNAL_CERTIFICATES__ !== "undefined" &&
+    __MICA_INTERNAL_CERTIFICATES__
+  )
+    form.internalCertificateCard = card;
+  if (options.profileIntent)
+    form.profileIntent = {
+      card: queuedCatalogCard(card),
+      idempotencyKey,
+    };
+  $("#positionAcquisitionMethod").value =
+    prefill.acquisitionMethod ||
+    (initialTotal !== "" ? "direct_purchase" : "unknown");
+  $("#positionCostUnknown").checked = prefill.acquisitionCostKnown === false;
+  $("#positionDateUnknown").checked = prefill.acquisitionDateKnown === false;
   const syncVariant = () => {
-    const choice = $("#positionVariantChoice")?.value || initialVariant.id;
+    const choice =
+      $("#positionVariantChoice input:checked")?.value || initialVariant.id;
     const selected = selectVariantOption({ ...card, variantOptions }, choice);
     $("#positionVariant").value = selected.label;
     $("#positionVariantId").value = selected.id || "";
@@ -5890,6 +10080,15 @@ export function openPositionSheet(card, options = {}) {
     $("#positionCondition").disabled = graded;
     $("#positionGrader").disabled = !graded;
     $("#positionGrade").disabled = !graded;
+    $("#positionQualifier").disabled = !graded;
+    $("#positionCertification").disabled = !graded;
+    $("#positionQuantity").readOnly = graded;
+    $("#positionQuantity").max = graded ? "1" : "99999";
+    if (graded) $("#positionQuantity").value = "1";
+    $("#positionQuantityLabel").textContent = graded
+      ? "Physical copies"
+      : "How many cards?";
+    $("#positionQuantityHelp").hidden = !graded;
   };
   const values = () => {
     const data = new FormData(form);
@@ -5897,8 +10096,11 @@ export function openPositionSheet(card, options = {}) {
   };
   const updateTotal = () => {
     const input = values();
-    const costUnknown = $("#positionCostUnknown").checked;
-    const dateUnknown = $("#positionDateUnknown").checked;
+    const costUnknown =
+      $("#positionCostUnknown").checked ||
+      !$("#positionTotalCost").value.trim();
+    const dateUnknown =
+      $("#positionDateUnknown").checked || !$("#positionDate").value;
     const breakdown = costUnknown
       ? acquisitionFromTotal(0, input.quantity)
       : acquisitionFromTotal(input.totalAcquisitionCost, input.quantity);
@@ -5911,9 +10113,13 @@ export function openPositionSheet(card, options = {}) {
     $("#positionCostSummary").textContent =
       `Total for ${count || 0} card${count === 1 ? "" : "s"}`;
     $("#positionMoreSummary").textContent =
-      `Purchase details · ${count || 0} card${count === 1 ? "" : "s"} · ${dateUnknown ? "date not recorded" : input.transactionDate || today}`;
-    $("#positionUnknownBasisNote").hidden = !costUnknown && !dateUnknown;
+      costUnknown && dateUnknown
+        ? "Purchase details · optional"
+        : "Purchase details · recorded";
+    $("#positionUnknownBasisNote").hidden = true;
+    $(".position-total", form).hidden = costUnknown;
   };
+  let amountBeforeFree = null;
   const syncKnownFacts = () => {
     const method = $("#positionAcquisitionMethod").value;
     const free = ["free_pack", "gift", "prize", "free_card"].includes(method);
@@ -5922,8 +10128,13 @@ export function openPositionSheet(card, options = {}) {
     const dateUnknown = $("#positionDateUnknown").checked;
     $("#positionPaidField").hidden = free;
     if (free) {
+      if (amountBeforeFree === null)
+        amountBeforeFree = $("#positionTotalCost").value;
       $("#positionTotalCost").value = "0.00";
       $("#positionCostUnknown").checked = false;
+    } else if (amountBeforeFree !== null) {
+      $("#positionTotalCost").value = amountBeforeFree;
+      amountBeforeFree = null;
     }
     $("#positionPaidField label[for='positionTotalCost']").textContent = trade
       ? "Cash you added"
@@ -5932,9 +10143,9 @@ export function openPositionSheet(card, options = {}) {
       ? "Only enter cash added. The cards exchanged stay in the trade context."
       : "Include tax, shipping, and fees in one total.";
     $("#positionTotalCost").disabled = free || costUnknown;
-    $("#positionTotalCost").required = !free && !costUnknown;
+    $("#positionTotalCost").required = false;
     $("#positionDate").disabled = dateUnknown;
-    $("#positionDate").required = !dateUnknown;
+    $("#positionDate").required = false;
     updateTotal();
   };
   $("#positionState").addEventListener("change", () => {
@@ -5946,18 +10157,69 @@ export function openPositionSheet(card, options = {}) {
   $("#positionCostUnknown").addEventListener("change", syncKnownFacts);
   $("#positionDateUnknown").addEventListener("change", syncKnownFacts);
   $("#positionAcquisitionMethod").addEventListener("change", syncKnownFacts);
-  $("#positionCancel").addEventListener("click", closeSheet);
+  $("#positionCancel").textContent = options.onCancel
+    ? "Back to queue"
+    : "Cancel";
+  $("#positionCancel").addEventListener(
+    "click",
+    options.onCancel || closeSheet,
+  );
   syncState();
   syncVariant();
   syncKnownFacts();
+  if (nativeBuild && !options.queueEntryKey) {
+    const owner = state.session?.user?.id;
+    const keepDraft = () => {
+      if (
+        !owner ||
+        owner !== state.session?.user?.id ||
+        nativePositionDraft?.pending?.idempotencyKey === idempotencyKey
+      )
+        return;
+      nativePositionDraft = {
+        card: queuedCatalogCard(card),
+        idempotencyKey,
+        prefill: {
+          ...values(),
+          acquisitionCostKnown: !$("#positionCostUnknown").checked,
+          acquisitionDateKnown: !$("#positionDateUnknown").checked,
+        },
+      };
+      void nativeRuntime()
+        .writeDraft(
+          owner,
+          JSON.stringify(nativePositionDraft),
+          "position-draft",
+        )
+        .catch(() =>
+          toast(
+            "Your details are kept in this session only. Restart recovery is unavailable.",
+          ),
+        );
+    };
+    form.addEventListener("input", keepDraft);
+    form.addEventListener("change", keepDraft);
+    keepDraft();
+    $("#positionCancel").addEventListener("click", () => {
+      if (nativePositionDraft?.pending) return;
+      nativePositionDraft = null;
+      void nativeRuntime()
+        .clearDraft(owner, "position-draft")
+        .catch(() => toast("Interrupted-work cleanup could not finish."));
+    });
+  }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const formInput = values();
     const free = ["free_pack", "gift", "prize", "free_card"].includes(
       formInput.acquisitionMethod,
     );
-    const acquisitionCostKnown = free || !$("#positionCostUnknown").checked;
-    const acquisitionDateKnown = !$("#positionDateUnknown").checked;
+    const acquisitionCostKnown =
+      free ||
+      (!$("#positionCostUnknown").checked &&
+        Boolean(formInput.totalAcquisitionCost?.trim()));
+    const acquisitionDateKnown =
+      !$("#positionDateUnknown").checked && Boolean(formInput.transactionDate);
     formInput.transactionDate = formInput.transactionDate || today;
     if (free) formInput.totalAcquisitionCost = "0.00";
     const breakdown = acquisitionFromTotal(
@@ -5989,23 +10251,111 @@ export function openPositionSheet(card, options = {}) {
     const draft = {
       card,
       input,
+      queueEntryKey: options.queueEntryKey,
+      queueOwner: options.queueOwner,
       acquisitionCostKnown,
       acquisitionDateKnown,
       idempotencyKey,
+      ingestion: confirmIngestionEnvelope(ingestion),
+      afterSave: options.afterSave,
+      afterRefresh: options.afterRefresh,
+      focusAfterSave:
+        options.focusAfterSave ?? options.ingestionChannel !== "search",
     };
-    $("#positionError").textContent =
-      input.cardState === "raw" && !options.visionAnalysis
-        ? "Ready to add"
-        : "Saving securely…";
+    $("#positionError").textContent = "";
+    const submit =
+      event.submitter || form.querySelector('button[type="submit"]');
+    const submitLabel = submit.textContent;
+    submit.textContent =
+      submit.id === "positionGradeFirst" ? "Opening camera…" : "Adding…";
     try {
-      if (input.cardState === "raw" && !options.visionAnalysis)
-        openNewCardGradingDecision(draft);
-      else await saveCardAddDraft(draft, options.visionAnalysis || null);
+      if (
+        event.submitter?.id === "positionGradeFirst" &&
+        input.cardState === "raw"
+      ) {
+        state.pendingCardAdd = draft;
+        await beginDigitalGrading(null, "full");
+      } else {
+        if (
+          typeof __MICA_INTERNAL_CERTIFICATES__ !== "undefined" &&
+          __MICA_INTERNAL_CERTIFICATES__ &&
+          (form.internalFixtureSave || options.internalFixtureSave)
+        )
+          await (form.internalFixtureSave || options.internalFixtureSave)(
+            draft,
+          );
+        else await saveCardAddDraft(draft, options.visionAnalysis || null);
+      }
     } catch (error) {
-      $("#positionError").textContent = error.message?.includes("future")
-        ? "Acquisition dates cannot be later than today."
-        : `Could not add this card: ${error.message || "Unknown error"}`;
-      submits.forEach((button) => (button.disabled = false));
+      const queued = state.intakeQueue.find(
+        (entry) => entry.key === options.queueEntryKey,
+      );
+      if (form.isConnected && queued?.pending) {
+        openPendingQueuedCard(queued);
+        return;
+      }
+      if (form.isConnected)
+        if (error.message?.includes("duplicate_active_certificate:")) {
+          const existingCopyId = error.message.match(
+            /duplicate_active_certificate:([0-9a-f-]{36})/i,
+          )?.[1];
+          form.querySelector("#positionError").innerHTML =
+            `That certification number is already on an active ${esc(input.grader)} copy in your collection.${existingCopyId ? ` <button class="inline-retry" id="openExistingCertifiedCopy" type="button">Open existing copy</button>` : ""}`;
+          $("#openExistingCertifiedCopy")?.addEventListener("click", () => {
+            const existing = state.items.find(
+              (item) => item.uid === existingCopyId,
+            );
+            if (existing) {
+              closeSheet({ discardHistory: true });
+              openCardDetail(existing, true);
+            } else void reloadPortfolio(existingCopyId);
+          });
+        } else
+          form.querySelector("#positionError").textContent =
+            error.message?.includes("future")
+              ? "Acquisition dates cannot be later than today."
+              : error.message === "Queue storage unavailable"
+                ? "Device storage is unavailable. Your details are still here. Free some space and retry."
+                : "Couldn’t add this card. Your details are still here—please try again.";
+    } finally {
+      if (form.isConnected) {
+        submits.forEach((button) => (button.disabled = false));
+        submit.textContent = submitLabel;
+      }
+    }
+  });
+}
+
+async function finishSavedCollectionChange(focusId, successMessage) {
+  closeSheet({ discardHistory: true });
+  try {
+    await reloadPortfolio(focusId);
+    toast(successMessage);
+  } catch {
+    showSavedCollectionRefresh(focusId, successMessage);
+  }
+}
+
+function showSavedCollectionRefresh(focusId, successMessage, onRefreshed) {
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Change saved</h2><p>${esc(successMessage)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><p class="form-error" id="savedChangeRefreshError" role="alert">Your change is saved. Refresh to see the updated collection.</p><div class="sheet-actions"><button class="primary" id="retrySavedChangeRefresh" type="button">Refresh collection</button></div>`,
+  );
+  const button = $("#retrySavedChangeRefresh");
+  const errorNode = $("#savedChangeRefreshError");
+  button.addEventListener("click", async () => {
+    if (button.disabled) return;
+    button.disabled = true;
+    errorNode.textContent = "Refreshing collection…";
+    try {
+      await reloadPortfolio(focusId);
+      closeSheet({ discardHistory: true });
+      toast(successMessage);
+      if (typeof onRefreshed === "function") await onRefreshed();
+    } catch {
+      errorNode.textContent =
+        "Your change is saved. Couldn’t refresh the collection—please try again.";
+    } finally {
+      button.disabled = false;
     }
   });
 }
@@ -6116,6 +10466,7 @@ function openPurchaseLotSheet(item, defaults = {}) {
       return;
     }
     const submit = form.querySelector('[type="submit"]');
+    if (submit.disabled) return;
     submit.disabled = true;
     $("#purchaseLotError").textContent = "Saving purchase…";
     try {
@@ -6127,13 +10478,11 @@ function openPurchaseLotSheet(item, defaults = {}) {
         acquisitionCostKnown,
         acquisitionDateKnown,
       });
-      closeSheet({ discardHistory: true });
-      await reloadPortfolio(item.uid);
-      toast("Purchase saved");
+      await finishSavedCollectionChange(item.uid, "Purchase saved");
     } catch (error) {
       $("#purchaseLotError").textContent = error.message?.includes("future")
         ? "Acquisition dates cannot be later than today."
-        : `Could not save this purchase: ${error.message || "Unknown error"}`;
+        : "Couldn’t save this purchase. Your details are still here—please try again.";
       submit.disabled = false;
     }
   });
@@ -6179,6 +10528,7 @@ function openCompletePurchaseHistorySheet(item, lot) {
         return;
       }
       const submit = event.currentTarget.querySelector('[type="submit"]');
+      if (submit.disabled) return;
       submit.disabled = true;
       $("#completePurchaseHistoryError").textContent =
         "Updating purchase history…";
@@ -6188,9 +10538,7 @@ function openCompletePurchaseHistorySheet(item, lot) {
           totalAcquisitionCost,
           acquiredAt,
         });
-        closeSheet({ discardHistory: true });
-        await reloadPortfolio(item.uid);
-        toast("Purchase history updated");
+        await finishSavedCollectionChange(item.uid, "Purchase history updated");
       } catch (error) {
         const message = String(error.message || "");
         $("#completePurchaseHistoryError").textContent = message.includes(
@@ -6199,7 +10547,7 @@ function openCompletePurchaseHistorySheet(item, lot) {
           ? "This purchase was already updated. Refresh and try again."
           : message.includes("future")
             ? "Acquisition dates cannot be later than today."
-            : `Could not update this purchase: ${message || "Unknown error"}`;
+            : "Couldn’t update this purchase. Your details are still here—please try again.";
         submit.disabled = false;
       }
     },
@@ -6292,6 +10640,7 @@ function openGradingSubmissionSheet(item, submission = null, defaults = {}) {
       data.grader = grader;
       data.estimatedTotalCost = estimate;
     }
+    if (submit.disabled) return;
     submit.disabled = true;
     $("#gradingSubmissionError").textContent = editing
       ? "Updating the private timeline…"
@@ -6308,9 +10657,8 @@ function openGradingSubmissionSheet(item, submission = null, defaults = {}) {
           collectionItemId: item.uid,
           idempotencyKey: crypto.randomUUID(),
         });
-      closeSheet({ discardHistory: true });
-      await reloadPortfolio(item.uid);
-      toast(
+      await finishSavedCollectionChange(
+        item.uid,
         editing
           ? data.status === "cancelled"
             ? "Submission cancelled · inventory unlocked"
@@ -6329,7 +10677,7 @@ function openGradingSubmissionSheet(item, submission = null, defaults = {}) {
             ? "Only an owned raw position can start a submission."
             : message.includes("before_acquisition")
               ? "The submission date cannot be before a known purchase."
-              : `Could not save the submission: ${message || "Unknown error"}`;
+              : "Couldn’t save the submission. Your details are still here—please try again.";
       submit.disabled = false;
     }
   });
@@ -6363,6 +10711,7 @@ function openSeparateCopiesSheet(item) {
       return;
     }
     const submit = event.currentTarget.querySelector('[type="submit"]');
+    if (submit.disabled) return;
     submit.disabled = true;
     $("#separateCopiesError").textContent =
       "Moving the original purchase details with these cards…";
@@ -6373,9 +10722,8 @@ function openSeparateCopiesSheet(item) {
         lotOrder: data.lotOrder,
         idempotencyKey,
       });
-      closeSheet({ discardHistory: true });
-      await reloadPortfolio(newPositionId);
-      toast(
+      await finishSavedCollectionChange(
+        newPositionId,
         activeSubmission
           ? "Copies separated · record each returned grade separately"
           : "Copies separated · original purchase details preserved",
@@ -6394,7 +10742,7 @@ function openSeparateCopiesSheet(item) {
               ? "Complete every missing purchase amount and date before separating copies."
               : message.includes("grading_submission_quantity_mismatch")
                 ? "The grading record no longer matches this saved entry. Refresh before retrying."
-                : `Could not separate copies: ${message || "Unknown error"}`;
+                : "Couldn’t separate these copies. Please try again.";
       submit.disabled = false;
     }
   });
@@ -6468,6 +10816,7 @@ function openGradingResultSheet(item) {
       return;
     }
     const submit = event.currentTarget.querySelector('[type="submit"]');
+    if (submit.disabled) return;
     submit.disabled = true;
     $("#gradingResultError").textContent =
       "Preserving the purchase history and updating the card…";
@@ -6524,9 +10873,8 @@ function openGradingResultSheet(item) {
           });
         }
       }
-      closeSheet({ discardHistory: true });
-      await reloadPortfolio(item.uid);
-      toast(
+      await finishSavedCollectionChange(
+        item.uid,
         proofAttached
           ? "Returned grade recorded · private proof attached for review"
           : outcomeLinked
@@ -6547,7 +10895,7 @@ function openGradingResultSheet(item) {
               ? "Return this card to your main collection before recording grading."
               : message.includes("grading_before_acquisition")
                 ? "The grading date cannot be before a known purchase date."
-                : `Could not record the graded result: ${message || "Unknown error"}`;
+                : "Couldn’t save this grade. Your details are still here—please try again.";
       submit.disabled = false;
     }
   });
@@ -6555,13 +10903,21 @@ function openGradingResultSheet(item) {
 
 function openSaleSheet(item, defaults = {}) {
   const today = localIsoDate();
+  const idempotencyKey = defaults.idempotencyKey || crypto.randomUUID();
+  const gradedCopy = item.cardState === "graded" && Number(item.quantity) === 1;
+  const saleContext = item.gradingCompany
+    ? `${item.gradingCompany} grade ${item.grade}${item.gradeQualifier ? ` · ${item.gradeQualifier}` : ""}`
+    : conditionLabel(item.condition);
+  const selectedCopyContext = gradedCopy
+    ? `selected copy${item.certificationNumber ? ` · cert ${item.certificationNumber}` : ""}`
+    : `${item.quantity} owned`;
   const suggestedUnitPrice = defaults.unitPrice ?? item.askingPrice ?? "";
   const suggestedMarketplace =
     defaults.marketplace ??
     item.listingVenue ??
     workflowDefault("sale-marketplace");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Record a sale</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))} · ${item.quantity} owned</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saleForm"><div class="form-grid"><div class="field"><label for="saleQuantity">How many did you sell?</label><input id="saleQuantity" name="quantity" type="number" min="1" max="${item.quantity}" step="1" value="${esc(defaults.quantity || 1)}" required></div><div class="field"><label for="saleDate">When did you sell them?</label><input id="saleDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div><div class="field"><label for="salePrice">Selling price for each</label><input id="salePrice" name="unitPrice" type="number" min="0" step="0.01" value="${esc(suggestedUnitPrice)}" required>${item.askingPrice != null && defaults.unitPrice == null ? "<small>Filled from this card’s sale listing.</small>" : ""}</div><div class="field"><label for="saleFees">Selling site fees</label><input id="saleFees" name="marketplaceFees" type="number" min="0" step="0.01" value="${esc(defaults.marketplaceFees ?? "0.00")}"></div><div class="field"><label for="saleShipping">Shipping you paid</label><input id="saleShipping" name="shipping" type="number" min="0" step="0.01" value="${esc(defaults.shipping ?? "0.00")}"></div><div class="field"><label for="saleOther">Other selling costs</label><input id="saleOther" name="otherCosts" type="number" min="0" step="0.01" value="${esc(defaults.otherCosts ?? "0.00")}"></div><div class="field full"><label for="saleMarketplace">Where did you sell it?</label><input id="saleMarketplace" name="marketplace" value="${esc(suggestedMarketplace)}" placeholder="eBay, TCGplayer, card show…"></div><div class="field full"><label for="saleNotes">Notes <span class="optional-label">Optional</span></label><textarea id="saleNotes" name="notes">${esc(defaults.notes || "")}</textarea></div><p class="form-error" id="saleError" role="alert"></p></div><div class="simple-note"><strong>Mica uses your oldest recorded purchase first.</strong><br>This keeps the amount you made from the sale consistent and leaves a clear history.</div><div class="sheet-actions"><button class="secondary" type="button" id="saleCancel">Cancel</button><button class="primary" type="submit">Record sale</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Record a sale</h2><p>${esc(item.name)} · ${esc(saleContext)} · ${esc(selectedCopyContext)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saleForm"><div class="form-grid">${gradedCopy ? '<input name="quantity" type="hidden" value="1"><div class="field"><span class="field-label">Physical copy</span><strong>1 selected copy</strong></div>' : `<div class="field"><label for="saleQuantity">How many did you sell?</label><input id="saleQuantity" name="quantity" type="number" min="1" max="${item.quantity}" step="1" value="${esc(defaults.quantity || 1)}" required></div>`}<div class="field"><label for="saleDate">When did you sell it?</label><input id="saleDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div><div class="field"><label for="salePrice">Selling price for each</label><input id="salePrice" name="unitPrice" type="number" min="0" step="0.01" value="${esc(suggestedUnitPrice)}" required>${item.askingPrice != null && defaults.unitPrice == null ? "<small>Filled from this card’s sale listing.</small>" : ""}</div><div class="field"><label for="saleCurrency">Currency</label><input id="saleCurrency" name="currency" value="${esc(item.currency || "USD")}" readonly aria-readonly="true"><small>Must match this copy’s purchase currency.</small></div><div class="field"><label for="saleFees">Selling site fees</label><input id="saleFees" name="marketplaceFees" type="number" min="0" step="0.01" value="${esc(defaults.marketplaceFees ?? "0.00")}"></div><div class="field"><label for="saleShipping">Shipping you paid</label><input id="saleShipping" name="shipping" type="number" min="0" step="0.01" value="${esc(defaults.shipping ?? "0.00")}"></div><div class="field"><label for="saleOther">Other selling costs</label><input id="saleOther" name="otherCosts" type="number" min="0" step="0.01" value="${esc(defaults.otherCosts ?? "0.00")}"></div><div class="field full"><label for="saleMarketplace">Where did you sell it?</label><input id="saleMarketplace" name="marketplace" value="${esc(suggestedMarketplace)}" placeholder="eBay, TCGplayer, card show…"></div><div class="field full"><label for="saleNotes">Notes <span class="optional-label">Optional</span></label><textarea id="saleNotes" name="notes">${esc(defaults.notes || "")}</textarea></div><p class="form-error" id="saleError" role="alert"></p></div><div class="simple-note"><strong>${gradedCopy ? "Only this selected physical copy will be sold." : "Mica uses your oldest recorded purchase first."}</strong><br>${gradedCopy ? "Its certificate, acquisition, and sale history remain available with the sold copy." : "This keeps the amount you made from the sale consistent and leaves a clear history."}</div><div class="sheet-actions"><button class="secondary" type="button" id="saleCancel">Cancel</button><button class="primary" type="submit">Record sale</button></div></form>`,
   );
   $("#saleCancel").addEventListener("click", closeSheet);
   $("#saleForm").addEventListener("submit", async (event) => {
@@ -6585,34 +10941,51 @@ function openSaleSheet(item, defaults = {}) {
       return;
     }
     const submit = event.currentTarget.querySelector('[type="submit"]');
+    if (submit.disabled) return;
     submit.disabled = true;
     try {
       await recordSale(supabase, {
         ...data,
         collectionItemId: item.uid,
+        cardState: item.cardState,
         quantity,
-        idempotencyKey: crypto.randomUUID(),
-        currency: item.currency || "USD",
+        idempotencyKey,
+        currency: data.currency,
       });
       rememberWorkflowDefault("sale-marketplace", data.marketplace);
-      closeSheet({ discardHistory: true });
-      await reloadPortfolio(item.uid);
-      toast("Sale recorded · oldest purchase used first");
+      await finishSavedCollectionChange(
+        item.uid,
+        gradedCopy
+          ? "Selected copy sold · other copies unchanged"
+          : "Sale recorded · oldest purchase used first",
+      );
     } catch (error) {
-      $("#saleError").textContent =
-        `Could not record sale: ${error.message || "Unknown error"}`;
+      $("#saleError").textContent = String(error.message || "").includes(
+        "currency_mismatch",
+      )
+        ? "Sale currency must match this copy’s purchase currency. No conversion was made."
+        : String(error.message || "").includes("graded_copy_sale_unavailable")
+          ? "This graded entry is not an individual active copy. Separate or correct it before selling."
+          : "Couldn’t record this sale. Your details are still here—please try again.";
       submit.disabled = false;
     }
   });
 }
-
-async function reloadPortfolio(focusId = null) {
+async function reloadPortfolio(
+  focusId = null,
+  { backgroundPricing = false } = {},
+) {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
   if (!ownerId) return;
-  const items = await loadPortfolio(supabase, ownerId);
+  const organization = await loadCollectionOrganization(supabase, ownerId);
   if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-  state.items = items;
+  applyLoadedOrganization(organization);
+  const inventory = await loadCollectionInventory(ownerId, organization);
+  if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+  state.items = inventory.items;
+  state.largeInventory = inventory.largeInventory;
+  applyLoadedOrganization(organization);
   state.movementStatus = "idle";
   renderCollection();
   renderInsights();
@@ -6622,7 +10995,14 @@ async function reloadPortfolio(focusId = null) {
     state.detailReturnRoute = "collection";
     routeTo("detail");
   }
+  document.dispatchEvent(new Event("mica:collection-updated"));
+  if (backgroundPricing) {
+    void refreshLivePricing().catch(() => {});
+    void refreshActionCenter().catch(() => {});
+    return;
+  }
   await refreshLivePricing();
+  await refreshActionCenter();
 }
 
 async function toggleFavorite(item) {
@@ -6711,8 +11091,28 @@ function openPositionEditSheet(item) {
   const statusHelp = atGrader
     ? "This card stays in your collection while it is at the grading company. Record its return or cancel the grading record before listing or archiving it."
     : "Choose Listed for sale to add selling details. Recording a completed sale is a separate step.";
+  const folderOptions = (state.organization.folders || [])
+    .map(
+      (folder) =>
+        `<option value="${esc(folder.id)}" ${folder.id === item.collectionId ? "selected" : ""}>${esc(folder.name)}</option>`,
+    )
+    .join("");
+  const customFieldInputs = (state.organization.customFields || [])
+    .map((field) => {
+      const value = item.customFields?.[field.key];
+      if (field.value_type === "boolean")
+        return `<div class="field"><label for="custom_${esc(field.key)}">${esc(field.name)}</label><select id="custom_${esc(field.key)}" name="custom_${esc(field.key)}"><option value="">Not set</option><option value="true" ${value === true ? "selected" : ""}>Yes</option><option value="false" ${value === false ? "selected" : ""}>No</option></select></div>`;
+      const type =
+        field.value_type === "number"
+          ? "number"
+          : field.value_type === "date"
+            ? "date"
+            : "text";
+      return `<div class="field"><label for="custom_${esc(field.key)}">${esc(field.name)}</label><input id="custom_${esc(field.key)}" name="custom_${esc(field.key)}" type="${type}" maxlength="500" value="${esc(value ?? "")}"></div>`;
+    })
+    .join("");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Edit card details</h2><p>${esc(item.name)} · purchases and sales stay unchanged</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editStatus">What are you doing with it?</label><select id="editStatus" name="status">${statusOptions}</select><small>${statusHelp}</small></div><div class="listing-edit-fields full" id="listingEditFields"><div class="form-grid"><div class="field"><label for="editAskingPrice">Your selling price for each</label><div class="money-input"><span>$</span><input id="editAskingPrice" name="askingPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(suggestedAsk)}" placeholder="0.00"></div>${item.askingPrice == null && suggestedAsk !== "" ? "<small>Suggested from today’s matching price. Confirm it before listing.</small>" : ""}</div><div class="field"><label for="editListedAt">When did you list it?</label><input id="editListedAt" name="listedAt" type="date" max="${today}" value="${esc(item.listedAt || today)}"></div><div class="field full"><label for="editListingVenue">Where is it listed?</label><input id="editListingVenue" name="listingVenue" maxlength="100" value="${esc(suggestedVenue)}" placeholder="eBay, TCGplayer, card show table…">${!item.listingVenue && suggestedVenue ? "<small>Filled from your last listing. Change it if needed.</small>" : ""}</div></div><p>Mica compares your selling price with today’s matching price and asks you to check it again after 7 days.</p></div>${item.gradingCompany ? `<div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(item.certificationNumber || "")}"><small>Use the number printed on this ${esc(item.gradingCompany)} graded case. You can check it on the grading company’s official website after saving.</small></div>` : ""}<div class="field full"><label for="editLocation">Where is it stored?</label><input id="editLocation" name="location" maxlength="250" value="${esc(item.location || "")}" placeholder="Binder 1 · Page 4"></div><div class="field full"><label for="editTags">Labels <span class="optional-label">Optional</span></label><input id="editTags" name="tags" maxlength="500" value="${esc(labels.join(", "))}" placeholder="Trade binder, Grade next, Show case"><small>Separate labels with commas. Favorites is managed from the card page.</small></div><div class="field full"><label for="editNotes">Notes <span class="optional-label">Optional</span></label><textarea id="editNotes" name="notes" maxlength="10000">${esc(item.notes || "")}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Edit card details</h2><p>${esc(item.name)} · purchases and sales stay unchanged</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="positionEditForm"><div class="form-grid"><div class="field full"><label for="editStatus">What are you doing with it?</label><select id="editStatus" name="status">${statusOptions}</select><small>${statusHelp}</small></div><div class="listing-edit-fields full" id="listingEditFields"><div class="form-grid"><div class="field"><label for="editAskingPrice">Your selling price for each</label><div class="money-input"><span>$</span><input id="editAskingPrice" name="askingPrice" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(suggestedAsk)}" placeholder="0.00"></div>${item.askingPrice == null && suggestedAsk !== "" ? "<small>Suggested from today’s matching price. Confirm it before listing.</small>" : ""}</div><div class="field"><label for="editListedAt">When did you list it?</label><input id="editListedAt" name="listedAt" type="date" max="${today}" value="${esc(item.listedAt || today)}"></div><div class="field full"><label for="editListingVenue">Where is it listed?</label><input id="editListingVenue" name="listingVenue" maxlength="100" value="${esc(suggestedVenue)}" placeholder="eBay, TCGplayer, card show table…">${!item.listingVenue && suggestedVenue ? "<small>Filled from your last listing. Change it if needed.</small>" : ""}</div></div><p>Mica compares your selling price with today’s matching price and asks you to check it again after 7 days.</p></div>${item.gradingCompany ? `<div class="field full"><label for="editCertification">Certification number</label><input id="editCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(item.certificationNumber || "")}"><small>Use the number printed on this ${esc(item.gradingCompany)} graded case. You can check it on the grading company’s official website after saving.</small></div>` : ""}${folderOptions ? `<div class="field full"><label for="editCollectionFolder">Digital folder</label><select id="editCollectionFolder" name="collectionId">${folderOptions}</select><small>A saved item belongs to one digital folder. Labels can span folders.</small></div>` : ""}<div class="field full"><label for="editLocation">Where is it stored?</label><input id="editLocation" name="location" maxlength="250" value="${esc(item.location || "")}" placeholder="Room · Shelf · Binder · Page"></div><div class="field full"><label for="editTags">Labels <span class="optional-label">Optional</span></label><input id="editTags" name="tags" maxlength="500" value="${esc(labels.join(", "))}" placeholder="Trade binder, Grade next, Show case"><small>Separate labels with commas. Favorites is managed from the card page.</small></div>${customFieldInputs}<div class="field full"><label for="editNotes">Notes <span class="optional-label">Optional</span></label><textarea id="editNotes" name="notes" maxlength="10000">${esc(item.notes || "")}</textarea></div><p class="form-error" id="editError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="editCancel">Cancel</button><button class="primary" type="submit">Save details</button></div></form>`,
   );
   const syncListing = () => {
     const listed = $("#editStatus").value === "listed";
@@ -6760,6 +11160,20 @@ function openPositionEditSheet(item) {
     }
     if (favorite) tags.unshift("Favorites");
     delete data.tags;
+    const customFields = normalizeCustomFields(
+      Object.fromEntries(
+        (state.organization.customFields || []).flatMap((field) => {
+          const value = data[`custom_${field.key}`];
+          delete data[`custom_${field.key}`];
+          if (value === "") return [];
+          if (field.value_type === "boolean")
+            return [[field.key, value === "true"]];
+          if (field.value_type === "number")
+            return [[field.key, Number(value)]];
+          return [[field.key, value]];
+        }),
+      ),
+    );
     const listing = data.status === "listed";
     const submit = event.currentTarget.querySelector('[type="submit"]');
     submit.disabled = true;
@@ -6767,6 +11181,8 @@ function openPositionEditSheet(item) {
       await updatePosition(supabase, item.uid, {
         ...data,
         tags,
+        collectionId: data.collectionId || item.collectionId,
+        customFields,
         askingPrice: listing ? data.askingPrice : null,
         listingVenue: listing ? data.listingVenue : null,
         listedAt: listing ? data.listedAt || today : null,
@@ -6863,7 +11279,7 @@ function openRemapPositionSheet(item) {
   let requestId = 0;
   let timer;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Choose a different card version</h2><p>Only the matched card changes. Purchases, sales, grade, wear, and number owned stay the same.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="remapPositionForm"><div class="form-grid"><label class="search-field full"><span class="sr-only">Search for the correct card</span><input id="remapQuery" type="search" value="${esc(`${item.name} ${item.number || ""}`.trim())}" placeholder="Card name and bottom number" autocomplete="off"></label><div class="field full"><label for="remapLanguage">Language on the card</label><select id="remapLanguage">${["en", "ja"].map((code) => `<option value="${code}" ${code === (item.language || "en") ? "selected" : ""}>${esc(languageName(code))}</option>`).join("")}</select></div></div><div class="manual-results" id="remapResults" aria-live="polite"></div><div class="simple-note" id="remapChoice" hidden></div><p class="form-error" id="remapError" role="alert"></p><div class="warning-panel"><strong>Your purchase and sale history stays with the card.</strong><p>Only the matched card version changes. Old prices are cleared, and the collection value chart restarts so the correction is not shown as a real price change.</p></div><div class="sheet-actions"><button class="secondary" id="remapCancel" type="button">Cancel</button><button class="primary" id="remapSave" type="submit" disabled>Use selected card</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Choose a different card version</h2><p>Only the matched card changes. Purchases, sales, grade, wear, and number owned stay the same.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="remapPositionForm"><div class="form-grid"><label class="search-field full"><span class="sr-only">Search for the correct card</span><input id="remapQuery" type="search" value="${esc(`${item.name} ${item.number || ""}`.trim())}" placeholder="Card name and bottom number" autocomplete="off"></label><div class="field full"><label for="remapLanguage">Language on the card</label><select id="remapLanguage">${["en", "fr", "de", "es", "it", "pt", "ja", "zh-tw", "id", "th"].map((code) => `<option value="${code}" ${code === (item.language || "en") ? "selected" : ""}>${esc(languageName(code))}</option>`).join("")}</select></div></div><div class="manual-results" id="remapResults" aria-live="polite"></div><div class="simple-note" id="remapChoice" hidden></div><p class="form-error" id="remapError" role="alert"></p><div class="warning-panel"><strong>Your purchase and sale history stays with the card.</strong><p>Only the matched card version changes. Old prices are cleared, and the collection value chart restarts so the correction is not shown as a real price change.</p></div><div class="sheet-actions"><button class="secondary" id="remapCancel" type="button">Cancel</button><button class="primary" id="remapSave" type="submit" disabled>Use selected card</button></div></form>`,
   );
   const renderResults = (cards) => {
     selected = null;
@@ -7069,72 +11485,137 @@ function openFilterSheet() {
         .map(String),
     ),
   ].sort((left, right) => Number(right) - Number(left));
+  const folders = state.organization.folders || [];
+  const locations = [
+    ...new Set(source.map((item) => item.location).filter(Boolean)),
+  ].sort((left, right) => left.localeCompare(right));
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Choose which cards you want to see.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All items</option><option value="favorites">Favorites only</option><option value="graded">Professionally graded only</option><option value="unpriced">Missing a matching price</option><option value="for-sale">For sale</option><option value="watchlist">Cards I’m watching</option><option value="sets">Set progress</option></select></div>
     <div class="field"><label for="sheetSet">Set</label><select id="sheetSet"><option value="">Every set</option>${sets.map((set) => `<option value="${esc(set)}">${esc(set)}</option>`).join("")}</select></div>
+    <div class="field"><label for="sheetCollectionFolder">Digital folder</label><select id="sheetCollectionFolder"><option value="">Every folder</option>${folders.map((folder) => `<option value="${esc(folder.id)}">${esc(folder.name)}</option>`).join("")}</select></div>
+    <div class="field"><label for="sheetLocation">Physical storage location</label><input id="sheetLocation" list="sheetLocations" maxlength="250" placeholder="Any location"><datalist id="sheetLocations">${locations.map((location) => `<option value="${esc(location)}"></option>`).join("")}</datalist></div>
     <div class="field"><label for="sheetCondition">Card type or wear</label><select id="sheetCondition"><option value="">Every type and condition</option><option value="Raw">Ungraded cards</option><option value="Graded">Professionally graded cards</option><option value="Sealed">Unopened products</option><option value="Near Mint">Like new</option><option value="Lightly Played">Light wear</option><option value="Moderately Played">Noticeable wear</option><option value="Heavily Played">Heavy wear</option><option value="Damaged">Damaged</option></select></div>
-    <div class="field"><label for="sheetLanguage">Language</label><select id="sheetLanguage"><option value="">English and Japanese</option><option value="en">English</option><option value="ja">Japanese</option></select></div>
+    <div class="field"><label for="sheetLanguage">Language</label><select id="sheetLanguage"><option value="">Every supported language</option>${["en", "ja", "fr", "de", "es", "it", "pt", "zh-tw", "id", "th"].map((code) => `<option value="${code}">${esc(languageName(code))}</option>`).join("")}</select></div>
     <div class="field"><label for="sheetGrader">Grading company</label><select id="sheetGrader"><option value="">Every company</option>${graders.map((grader) => `<option value="${esc(grader)}">${esc(grader)}</option>`).join("")}</select></div>
     <div class="field"><label for="sheetGrade">Digital or professional grade</label><select id="sheetGrade"><option value="">Every grade</option>${grades.map((grade) => `<option value="${esc(grade)}">${esc(grade)}</option>`).join("")}</select></div>
     <div class="field"><label for="sheetPerformance">Profit or loss</label><select id="sheetPerformance"><option value="">Every result</option><option value="gain">Gain</option><option value="loss">Loss</option><option value="unknown">Not enough information</option></select></div>
+    <div class="field"><label for="sheetMovement">Recorded price movement</label><select id="sheetMovement"><option value="">Any movement</option><option value="rising">Rising</option><option value="falling">Falling</option><option value="flat">Flat</option></select></div>
+    <div class="field"><label for="sheetCoverage">Price coverage</label><select id="sheetCoverage"><option value="">Any coverage</option><option value="missing">Missing or unavailable</option><option value="stale">Stale</option></select></div>
     <div class="field"><label for="sheetAcquisition">How it was acquired</label><select id="sheetAcquisition"><option value="">Every method</option><option value="direct_purchase">Bought directly</option><option value="paid_pack">Paid pack</option><option value="free_pack">Free pack</option><option value="trade">Trade</option><option value="gift">Gift</option><option value="prize">Prize</option><option value="free_card">Free card</option><option value="unknown">Unknown</option><option value="mixed">Mixed</option></select></div>
     <div class="field"><label>Position value</label><div class="value-range"><input id="sheetMinimumValue" type="number" min="0" step="1" placeholder="Minimum" aria-label="Minimum position value"><input id="sheetMaximumValue" type="number" min="0" step="1" placeholder="Maximum" aria-label="Maximum position value"></div></div>
+    <div class="field"><label>Position P/L · native currency</label><div class="value-range"><input id="sheetMinimumProfitLoss" type="number" step="0.01" placeholder="Minimum" aria-label="Minimum position profit or loss"><input id="sheetMaximumProfitLoss" type="number" step="0.01" placeholder="Maximum" aria-label="Maximum position profit or loss"></div></div>
+    <div class="field"><label>Purchase date</label><div class="value-range"><input id="sheetPurchaseDateFrom" type="date" aria-label="Purchase date from"><input id="sheetPurchaseDateTo" type="date" aria-label="Purchase date to"></div></div>
     <div class="field"><label for="sheetLabel">Label</label><select id="sheetLabel"><option value="">Every label</option>${labels.map((label) => `<option value="${esc(label)}">${esc(label)}</option>`).join("")}</select></div>
-    <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Most valuable first</option><option value="name">Name, A to Z</option></select></div>
+    <div class="field"><label for="sheetGroup">Group rows by</label><select id="sheetGroup"><option value="none">No grouping</option><option value="folder">Digital folder</option><option value="set">Set</option><option value="location">Physical location</option><option value="language">Language</option><option value="condition">Condition or grade</option></select></div>
+    <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Most valuable first</option><option value="name">Name, A to Z</option><option value="updated-desc">Recently updated</option><option value="location">Physical storage location</option></select></div>
     <div class="sheet-actions"><button class="secondary" id="resetSheet">Reset</button><button class="primary" id="applySheet">Apply filters</button></div>`);
   $("#sheetView").value = state.ledgerView;
   $("#sheetSet").value = state.setFilter;
+  $("#sheetCollectionFolder").value = state.collectionFilter;
+  $("#sheetLocation").value = state.locationFilter;
   $("#sheetCondition").value = state.conditionFilter;
   $("#sheetLabel").value = state.labelFilter;
   $("#sheetLanguage").value = state.languageFilter;
   $("#sheetGrader").value = state.graderFilter;
   $("#sheetGrade").value = state.gradeFilter;
   $("#sheetPerformance").value = state.performanceFilter;
+  $("#sheetMovement").value = state.movementFilter;
+  $("#sheetCoverage").value = state.coverageFilter;
   $("#sheetAcquisition").value = state.acquisitionFilter;
   $("#sheetMinimumValue").value = state.minimumValue;
   $("#sheetMaximumValue").value = state.maximumValue;
+  $("#sheetMinimumProfitLoss").value = state.minimumProfitLoss;
+  $("#sheetMaximumProfitLoss").value = state.maximumProfitLoss;
+  $("#sheetPurchaseDateFrom").value = state.purchaseDateFrom;
+  $("#sheetPurchaseDateTo").value = state.purchaseDateTo;
+  $("#sheetGroup").value = state.groupBy;
   $("#sheetSort").value = state.sort;
+  if (state.largeInventory.active) {
+    ["unpriced", "sets"].forEach((value) => {
+      const option = $("#sheetView").querySelector(`option[value="${value}"]`);
+      if (option) option.disabled = true;
+    });
+    $("#sheetSort").querySelector('option[value="value-desc"]').disabled = true;
+    [
+      "#sheetPerformance",
+      "#sheetMovement",
+      "#sheetCoverage",
+      "#sheetAcquisition",
+      "#sheetMinimumValue",
+      "#sheetMaximumValue",
+      "#sheetMinimumProfitLoss",
+      "#sheetMaximumProfitLoss",
+      "#sheetPurchaseDateFrom",
+      "#sheetPurchaseDateTo",
+    ].forEach((selector) => {
+      $(selector).disabled = true;
+      $(selector).title =
+        "Narrow the server-backed inventory before using calculated value or purchase filters.";
+    });
+  }
   $("#resetSheet").addEventListener("click", () => {
     state.ledgerView = "all";
     state.setFilter = "";
     state.conditionFilter = "";
     state.labelFilter = "";
+    state.collectionFilter = "";
+    state.locationFilter = "";
     state.languageFilter = "";
     state.graderFilter = "";
     state.gradeFilter = "";
     state.performanceFilter = "";
+    state.movementFilter = "";
+    state.coverageFilter = "";
     state.acquisitionFilter = "";
     state.minimumValue = "";
     state.maximumValue = "";
+    state.minimumProfitLoss = "";
+    state.maximumProfitLoss = "";
+    state.purchaseDateFrom = "";
+    state.purchaseDateTo = "";
+    state.groupBy = "none";
     state.sort = "value-desc";
     state.query = "";
     $("#collectionSearch").value = "";
     closeSheet();
     syncTabs();
-    renderCollection();
+    if (state.largeInventory.active) void refreshLargeCollectionPage();
+    else renderCollection();
   });
   $("#applySheet").addEventListener("click", () => {
     state.ledgerView = $("#sheetView").value;
     state.setFilter = $("#sheetSet").value;
     state.conditionFilter = $("#sheetCondition").value;
     state.labelFilter = $("#sheetLabel").value;
+    state.collectionFilter = $("#sheetCollectionFolder").value;
+    state.locationFilter = $("#sheetLocation").value.trim();
     state.languageFilter = $("#sheetLanguage").value;
     state.graderFilter = $("#sheetGrader").value;
     state.gradeFilter = $("#sheetGrade").value;
     state.performanceFilter = $("#sheetPerformance").value;
+    state.movementFilter = $("#sheetMovement").value;
+    state.coverageFilter = $("#sheetCoverage").value;
     state.acquisitionFilter = $("#sheetAcquisition").value;
     state.minimumValue = $("#sheetMinimumValue").value;
     state.maximumValue = $("#sheetMaximumValue").value;
+    state.minimumProfitLoss = $("#sheetMinimumProfitLoss").value;
+    state.maximumProfitLoss = $("#sheetMaximumProfitLoss").value;
+    state.purchaseDateFrom = $("#sheetPurchaseDateFrom").value;
+    state.purchaseDateTo = $("#sheetPurchaseDateTo").value;
+    state.groupBy = $("#sheetGroup").value;
     state.sort = $("#sheetSort").value;
     closeSheet();
     syncTabs();
-    renderCollection();
+    if (state.largeInventory.active && state.ledgerView !== "watchlist")
+      void refreshLargeCollectionPage();
+    else renderCollection();
     saveCollectionViewState();
     toast("Collection view updated");
   });
 }
 
-function stopAutoCaptureCamera() {
+function stopAutoCaptureCamera({ preserveLifecycle = false } = {}) {
+  if (!preserveLifecycle) activeCameraLifecycle = null;
   if (activeCameraTimer) clearInterval(activeCameraTimer);
   activeCameraTimer = null;
   activeMotionCleanup?.();
@@ -7205,6 +11686,20 @@ function cardBoundsInCameraFrame(video, geometry, guideElement) {
   };
 }
 
+function documentCornersInCameraFrame(video, geometry, guideElement) {
+  if (!geometry?.detected || !geometry.corners) return null;
+  const guide = guideCropInFrame(video, guideElement);
+  return Object.fromEntries(
+    Object.entries(geometry.corners).map(([key, point]) => [
+      key,
+      {
+        x: (guide.x + point.x * guide.width) / video.videoWidth,
+        y: (guide.y + point.y * guide.height) / video.videoHeight,
+      },
+    ]),
+  );
+}
+
 function cameraErrorMessage(error) {
   if (error?.name === "NotAllowedError")
     return "Camera access was blocked. Allow camera access for this site in your browser settings, then try again.";
@@ -7259,7 +11754,7 @@ async function openDeviceCamera({
         description: automatic
           ? "Hold steady and Mica will take the photo."
           : "Center one card, then press the shutter.",
-        instruction: "Keep the entire card visible and avoid glare.",
+        instruction: "Keep one full card or slab visible and avoid glare.",
         guide: "card",
         alt: "Captured Pokémon card",
       },
@@ -7273,13 +11768,16 @@ async function openDeviceCamera({
     }[kind];
   if (!copy) throw new Error("invalid_camera_workflow");
   const operationId = crypto.randomUUID();
+  const ownerId = state.session?.user?.id || null;
+  const loadVersion = sessionLoadVersion;
+  const cameraStartedAt = performance.now();
   const gradingExperience = experience === "grading";
   const stepLabel = `${Math.min(stepIndex + 1, stepTotal)} of ${stepTotal}`;
   const progressMarkup = gradingExperience
     ? `<div class="grading-capture-progress"><div><span>${esc(GRADING_MODES[gradingMode]?.name || "Digital grading")}${reportId ? ` · ${esc(reportId.slice(0, 8).toUpperCase())}` : ""}</span><strong>${esc(stepLabel)} · ${esc(copy.title)}</strong></div><button id="cameraCoachHelp" type="button" aria-label="Open capture help">?</button><ol aria-label="Grading capture progress">${Array.from({ length: stepTotal }, (_, index) => `<li class="${index < stepIndex ? "complete" : index === stepIndex ? "active" : ""}"><span>${index + 1}</span></li>`).join("")}</ol></div>`
     : "";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(copy.title)}</h2><p>${esc(copy.description)}</p></div><button class="sheet-close" aria-label="Close camera">×</button></div>${progressMarkup}<div class="device-camera" data-camera-kind="${esc(copy.guide)}"><div class="auto-capture-stage"><video id="deviceCameraVideo" autoplay playsinline muted aria-label="Live device camera preview"></video><img id="deviceCameraReview" alt="${esc(copy.alt)}" hidden><div class="auto-capture-guide"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>${automatic ? '<span class="camera-scan-line" aria-hidden="true"></span>' : ""}${copy.guide === "card" ? '<div class="camera-edge-levels" id="deviceCameraLevel" role="status" aria-live="polite"><span class="edge-level horizontal top" aria-hidden="true"><i></i></span><span class="edge-level horizontal bottom" aria-hidden="true"><i></i></span><span class="edge-level vertical left" aria-hidden="true"><i></i></span><span class="edge-level vertical right" aria-hidden="true"><i></i></span><b class="sr-only">Checking phone level</b></div>' : ""}</div><div class="camera-top-actions"><button id="deviceCameraSwitch" type="button" hidden>Switch camera</button>${copy.guide === "card" ? '<button id="deviceCameraMotion" type="button" hidden>Enable level</button>' : ""}<button id="deviceCameraTorch" type="button" aria-pressed="false" hidden>Light</button></div><div class="auto-capture-state" id="deviceCameraState" role="status" aria-live="polite">Requesting camera permission…</div></div><p class="automation-privacy"><strong>${esc(copy.instruction)}</strong>${gradingExperience ? " Mica scans the live video and keeps the clearest gradeable frame automatically." : " The browser will ask whether Mica may use this device’s camera. No photo is saved until you choose to continue."}</p><div class="camera-permission-help" id="deviceCameraHelp" hidden></div><div class="camera-capture-actions"><label class="camera-upload-fallback" for="deviceCameraUpload">Choose saved photo<input id="deviceCameraUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label><button class="secondary" id="deviceCameraRetry" type="button" hidden>Try camera again</button><button class="secondary" id="deviceCameraRetake" type="button" hidden>Retake</button><button class="secondary camera-timer" id="deviceCameraTimer" type="button" aria-pressed="false">Tripod timer · 3s</button><button class="camera-shutter" id="deviceCameraCapture" type="button" disabled aria-label="Take photo"><i aria-hidden="true"></i></button><button class="primary camera-use-photo" id="deviceCameraUse" type="button" hidden>Use photo</button></div></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(copy.title)}</h2><p>${esc(copy.description)}</p></div><button class="sheet-close" aria-label="Close camera">×</button></div>${progressMarkup}<div class="device-camera" data-camera-kind="${esc(copy.guide)}"><div class="auto-capture-stage"><video id="deviceCameraVideo" autoplay playsinline muted aria-label="Live device camera preview"></video><img id="deviceCameraReview" alt="${esc(copy.alt)}" hidden><svg id="deviceCameraAdjustmentOutline" preserveAspectRatio="xMidYMid meet" aria-hidden="true" hidden><polygon points=""></polygon><circle data-corner="topLeft" r="14"></circle><circle data-corner="topRight" r="14"></circle><circle data-corner="bottomRight" r="14"></circle><circle data-corner="bottomLeft" r="14"></circle></svg><div class="auto-capture-guide"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><svg id="deviceCameraOutline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points=""></polygon></svg>${automatic ? '<span class="camera-scan-line" aria-hidden="true"></span>' : ""}${copy.guide === "card" ? '<div class="camera-edge-levels" id="deviceCameraLevel" role="status" aria-live="polite"><span class="edge-level horizontal top" aria-hidden="true"><i></i></span><span class="edge-level horizontal bottom" aria-hidden="true"><i></i></span><span class="edge-level vertical left" aria-hidden="true"><i></i></span><span class="edge-level vertical right" aria-hidden="true"><i></i></span><b class="sr-only">Checking phone level</b></div>' : ""}</div><div class="camera-top-actions"><button id="deviceCameraSwitch" type="button" hidden>Switch camera</button>${copy.guide === "card" ? '<button id="deviceCameraMotion" type="button" hidden>Enable level</button>' : ""}<button id="deviceCameraTorch" type="button" aria-pressed="false" hidden>Light</button></div><div class="auto-capture-state" id="deviceCameraState" role="status" aria-live="polite">Requesting camera permission…</div></div><p class="automation-privacy"><strong>${esc(copy.instruction)}</strong>${gradingExperience ? " Mica scans the live video and keeps the clearest gradeable frame automatically." : " The browser will ask whether Mica may use this device’s camera. No photo is saved until you choose to continue."}</p><div class="camera-permission-help" id="deviceCameraHelp" hidden></div><fieldset class="camera-corner-controls" id="deviceCameraAdjustments" hidden><legend>Adjust document edges</legend><label>Corner <select id="deviceCameraCorner"><option value="topLeft">Top left</option><option value="topRight">Top right</option><option value="bottomRight">Bottom right</option><option value="bottomLeft">Bottom left</option></select></label><div><button type="button" data-corner-move="left" aria-label="Move selected corner left">←</button><button type="button" data-corner-move="up" aria-label="Move selected corner up">↑</button><button type="button" data-corner-move="down" aria-label="Move selected corner down">↓</button><button type="button" data-corner-move="right" aria-label="Move selected corner right">→</button></div><button class="secondary" id="deviceCameraRotate" type="button">Rotate 90°</button><button class="primary" id="deviceCameraApply" type="button">Apply correction</button></fieldset><div class="camera-capture-actions"><label class="camera-upload-fallback" for="deviceCameraUpload">Choose saved photo<input id="deviceCameraUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label><button class="secondary" id="deviceCameraRetry" type="button" hidden>Try camera again</button><button class="secondary" id="deviceCameraRetake" type="button" hidden>Retake</button><button class="secondary" id="deviceCameraAdjust" type="button" hidden>Adjust edges</button><button class="secondary camera-timer" id="deviceCameraTimer" type="button" aria-pressed="false">Tripod timer · 3s</button><button class="camera-shutter" id="deviceCameraCapture" type="button" disabled aria-label="Take photo"><i aria-hidden="true"></i></button><button class="primary camera-use-photo" id="deviceCameraUse" type="button" hidden>Use photo</button></div></div>`,
   );
   if (gradingExperience) $("#bottomSheet").dataset.experience = "grading";
   $("#bottomSheet").dataset.sensitive = "true";
@@ -7296,6 +11794,9 @@ async function openDeviceCamera({
   const torchButton = $("#deviceCameraTorch");
   const motionButton = $("#deviceCameraMotion");
   const timerButton = $("#deviceCameraTimer");
+  const adjustButton = $("#deviceCameraAdjust");
+  const adjustments = $("#deviceCameraAdjustments");
+  const outline = $("#deviceCameraOutline polygon");
   const levelNode = $("#deviceCameraLevel");
   const guideNode = $(".auto-capture-guide");
   let cameras = [];
@@ -7321,10 +11822,16 @@ async function openDeviceCamera({
   let automaticFrameSequence = [];
   let frameSequenceSummary = null;
   let captureInFlight = false;
+  let reviewVersion = 0;
+  let cameraStartVersion = 0;
+  let manualRotationDegrees = 0;
+  let manualGeometry = null;
 
   const operationIsCurrent = () =>
+    (!nativeBuild || nativeAppActive) &&
     $("#bottomSheet").dataset.cameraOperation === operationId &&
-    !$("#bottomSheet").hidden;
+    !$("#bottomSheet").hidden &&
+    (ownerId ? accountRequestIsCurrent(ownerId, loadVersion) : true);
 
   const clearMonitor = () => {
     if (activeCameraTimer) clearInterval(activeCameraTimer);
@@ -7415,7 +11922,17 @@ async function openDeviceCamera({
   };
 
   const deliverPhoto = (file) => {
-    if (!validateImageFile(file)) return;
+    if (!operationIsCurrent() || !validateImageFile(file)) return;
+    file.micaCaptureMetadata = {
+      ...(file.micaCaptureMetadata || {}),
+      geometry: manualGeometry || file.micaCaptureMetadata?.geometry || null,
+      documentTransform: {
+        method: "native_projective_quad_v1",
+        manualRotationDegrees,
+        photometricChanges: false,
+        originalRetainedForOperation: true,
+      },
+    };
     releasePreview();
     closeSheet({
       discardHistory: true,
@@ -7430,30 +11947,140 @@ async function openDeviceCamera({
   const setReviewMode = (reviewing) => {
     video.hidden = reviewing;
     review.hidden = !reviewing;
+    guideNode.hidden = reviewing;
     captureButton.hidden = reviewing;
     useButton.hidden = !reviewing;
     retakeButton.hidden = !reviewing;
     switchButton.hidden = reviewing || cameras.length < 2;
     torchButton.hidden = reviewing || torchButton.dataset.supported !== "true";
+    adjustButton.hidden = !reviewing || copy.guide !== "card";
+    if (!reviewing) adjustments.hidden = true;
     if (timerButton) timerButton.hidden = reviewing;
+  };
+
+  const renderAdjustmentOutline = () => {
+    const overlay = $("#deviceCameraAdjustmentOutline");
+    if (!overlay) return;
+    overlay.toggleAttribute(
+      "hidden",
+      adjustments.hidden || !manualGeometry?.corners,
+    );
+    if (
+      overlay.hasAttribute("hidden") ||
+      !review.naturalWidth ||
+      !review.naturalHeight
+    )
+      return;
+    overlay.setAttribute(
+      "viewBox",
+      `0 0 ${review.naturalWidth} ${review.naturalHeight}`,
+    );
+    $("polygon", overlay).setAttribute(
+      "points",
+      ["topLeft", "topRight", "bottomRight", "bottomLeft"]
+        .map((key) => {
+          const point = manualGeometry.corners[key];
+          return `${point.x * review.naturalWidth},${point.y * review.naturalHeight}`;
+        })
+        .join(" "),
+    );
+    $$("[data-corner]", overlay).forEach((marker) => {
+      const point = manualGeometry.corners[marker.dataset.corner];
+      marker.setAttribute("cx", point.x * review.naturalWidth);
+      marker.setAttribute("cy", point.y * review.naturalHeight);
+      marker.dataset.selected = String(
+        marker.dataset.corner === $("#deviceCameraCorner").value,
+      );
+    });
+  };
+  review.addEventListener("load", renderAdjustmentOutline);
+  $("#deviceCameraCorner").addEventListener("change", renderAdjustmentOutline);
+
+  const showReview = async (file, geometry = null) => {
+    if (!validateImageFile(file) || !operationIsCurrent()) return;
+    const currentReview = ++reviewVersion;
+    capturedFile = file;
+    manualGeometry = geometry || file.micaCaptureMetadata?.geometry || null;
+    captureInFlight = true;
+    setReviewMode(true);
+    help.hidden = true;
+    retryButton.hidden = true;
+    useButton.disabled = true;
+    status.textContent =
+      copy.guide === "detail"
+        ? "Photo captured · review it"
+        : "Correcting document edges…";
+    releasePreview();
+    if (copy.guide === "detail") {
+      previewUrl = URL.createObjectURL(file);
+      $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
+      review.src = previewUrl;
+      useButton.disabled = false;
+      captureInFlight = false;
+      return;
+    }
+    try {
+      const prepared = await prepareDocumentPreview(file, {
+        documentKind: gradingExperience ? "card" : "auto",
+        geometry: manualGeometry?.corners ? manualGeometry : null,
+        rotationDegrees: manualRotationDegrees,
+      });
+      if (
+        !operationIsCurrent() ||
+        currentReview !== reviewVersion ||
+        !adjustments.hidden
+      )
+        return;
+      if (prepared.corrected) {
+        manualGeometry = prepared.geometry;
+        review.src = prepared.dataUrl;
+        status.textContent = `Corrected ${prepared.documentKind === "slab" ? "full slab" : "card"} preview · confirm or adjust`;
+      } else {
+        previewUrl = URL.createObjectURL(file);
+        $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
+        review.src = previewUrl;
+        status.textContent =
+          prepared.geometry?.reason === "multiple_documents"
+            ? "More than one card detected · retake with one item"
+            : "Check the document edges or retake";
+      }
+      useButton.disabled = !prepared.corrected;
+    } catch {
+      if (
+        !operationIsCurrent() ||
+        currentReview !== reviewVersion ||
+        !adjustments.hidden
+      )
+        return;
+      previewUrl = URL.createObjectURL(file);
+      $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
+      review.src = previewUrl;
+      status.textContent = "Correction failed · adjust the edges or retake";
+      useButton.disabled = true;
+    } finally {
+      if (currentReview === reviewVersion) captureInFlight = false;
+    }
   };
 
   const captureFrame = async (candidate = null) => {
     if (
       capturedFile ||
       captureInFlight ||
+      document.hidden ||
       !video.videoWidth ||
       !operationIsCurrent() ||
       timerPending
     )
       return;
     clearMonitor();
+    const shotVersion = reviewVersion;
     captureInFlight = true;
     captureButton.disabled = true;
     status.textContent = "Photo captured · review before continuing";
     const source = candidate?.canvas || video;
-    capturedFile = await autoCaptureImage(source);
-    if (!capturedFile || !operationIsCurrent()) {
+    const file = await autoCaptureImage(source);
+    if (shotVersion !== reviewVersion || !operationIsCurrent()) return;
+    if (!file || !operationIsCurrent()) {
       capturedFile = null;
       captureInFlight = false;
       captureButton.disabled = false;
@@ -7461,13 +12088,16 @@ async function openDeviceCamera({
       return;
     }
     const capturedGeometry = candidate?.geometry || geometryReading;
-    capturedFile.micaCaptureMetadata = {
+    file.micaCaptureMetadata = {
       level: levelReading,
       geometry: {
         ...capturedGeometry,
         cardBoundsInFrame:
           candidate?.cardBoundsInFrame ||
           cardBoundsInCameraFrame(video, capturedGeometry, guideNode),
+        cornersInFrame:
+          candidate?.cornersInFrame ||
+          documentCornersInCameraFrame(video, capturedGeometry, guideNode),
       },
       frameQualityScore: candidate?.score ?? null,
       frameSequenceSummary:
@@ -7479,20 +12109,15 @@ async function openDeviceCamera({
           ? "automatic_manual_fallback"
           : "manual_camera",
     };
-    previewUrl = URL.createObjectURL(capturedFile);
-    $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
-    review.src = previewUrl;
     video.pause();
-    setReviewMode(true);
-    captureInFlight = false;
+    await showReview(file, {
+      ...capturedGeometry,
+      bounds: file.micaCaptureMetadata.geometry.cardBoundsInFrame,
+      corners: file.micaCaptureMetadata.geometry.cornersInFrame,
+    });
   };
 
   const requestCapture = () => {
-    if (automatic && !cameraReady) {
-      status.textContent =
-        "Mica is still checking level, focus, glare, card boundary, and stability";
-      return;
-    }
     if (!timerEnabled) {
       void captureFrame();
       return;
@@ -7521,7 +12146,6 @@ async function openDeviceCamera({
   };
 
   const startAutomaticCapture = () => {
-    if (!automatic) return;
     const motionCanvas = document.createElement("canvas");
     motionCanvas.width = 80;
     motionCanvas.height = 112;
@@ -7541,6 +12165,8 @@ async function openDeviceCamera({
         automaticFrameSequence = [];
         frameSequenceSummary = null;
         cameraReady = false;
+        bestAutomaticFrame = null;
+        previousFrame = null;
         return;
       }
       const guide = guideCropInFrame(video, guideNode);
@@ -7593,16 +12219,33 @@ async function openDeviceCamera({
         ? differenceTotal / sample.length
         : Number.POSITIVE_INFINITY;
       previousFrame = sample;
-      geometryReading = analyzeCardGuideGeometry(sample, 80, 112);
+      geometryReading = detectDocumentBoundaryFromPixels(pixels, 80, 112, {
+        documentKind: gradingExperience ? "card" : "auto",
+      });
+      const captureGeometry = gradingExperience
+        ? geometryReading
+        : { ...geometryReading, straight: geometryReading.correctable };
       const assessment = scoreGradeableCameraFrame({
         brightness,
         contrast,
         sharpness,
         glareRatio,
         movement,
-        geometry: geometryReading,
-        level: levelReading,
+        geometry: captureGeometry,
+        level: gradingExperience ? levelReading : { available: false },
       });
+      if (outline)
+        outline.setAttribute(
+          "points",
+          geometryReading.detected
+            ? ["topLeft", "topRight", "bottomRight", "bottomLeft"]
+                .map((key) => {
+                  const point = geometryReading.corners[key];
+                  return `${point.x * 100},${point.y * 100}`;
+                })
+                .join(" ")
+            : "",
+        );
       guideNode?.setAttribute(
         "data-state",
         assessment.gradeable ? "ready" : "scanning",
@@ -7633,9 +12276,10 @@ async function openDeviceCamera({
         bestAutomaticFrame = null;
       if (
         geometryReading.detected &&
-        geometryReading.straight &&
-        assessment.score >= 0.62 &&
-        (!bestAutomaticFrame || assessment.score > bestAutomaticFrame.score)
+        (gradingExperience
+          ? geometryReading.straight
+          : geometryReading.correctable) &&
+        shouldKeepCameraFrame(assessment, bestAutomaticFrame?.score)
       ) {
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
@@ -7649,6 +12293,11 @@ async function openDeviceCamera({
             geometryReading,
             guideNode,
           ),
+          cornersInFrame: documentCornersInCameraFrame(
+            video,
+            geometryReading,
+            guideNode,
+          ),
           score: assessment.score,
           savedAt: now,
         };
@@ -7657,18 +12306,29 @@ async function openDeviceCamera({
         bestAutomaticFrame.sequenceSummary =
           structuredClone(frameSequenceSummary);
       cameraReady = frameSequenceSummary.ready && Boolean(bestAutomaticFrame);
-      captureButton.disabled = !cameraReady;
+      captureButton.disabled = captureInFlight;
       const percent = Math.round(assessment.score * 100);
       status.textContent = cameraReady
         ? timerEnabled
           ? `Frame ready · ${percent}% · press the shutter`
           : `Frame ready · ${percent}% · capturing`
-        : `${assessment.action} · ${percent}%`;
-      if (cameraReady && !timerEnabled) void captureFrame(bestAutomaticFrame);
+        : geometryReading.reason === "multiple_documents"
+          ? "Keep one card in view"
+          : geometryReading.reason === "document_clipped"
+            ? "Move the full document inside the frame"
+            : `${assessment.action} · ${percent}%`;
+      if (automatic && cameraReady && !timerEnabled)
+        void captureFrame(bestAutomaticFrame);
     }, 180);
   };
 
   const startCamera = async (deviceId = "") => {
+    if (!operationIsCurrent()) return;
+    const currentStart = ++cameraStartVersion;
+    reviewVersion += 1;
+    captureInFlight = false;
+    capturedFile = null;
+    bestAutomaticFrame = null;
     clearMonitor();
     activeCameraStream?.getTracks().forEach((track) => track.stop());
     activeCameraStream = null;
@@ -7676,39 +12336,56 @@ async function openDeviceCamera({
     retryButton.hidden = true;
     help.hidden = true;
     status.textContent = "Requesting camera permission…";
+    let stream;
     try {
-      activeCameraStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: deviceId
-          ? { deviceId: { exact: deviceId } }
-          : {
-              facingMode: { ideal: "environment" },
-              width: { ideal: 1920 },
-              height: { ideal: 1440 },
-            },
-      });
-      if (!operationIsCurrent()) {
-        stopAutoCaptureCamera();
+      // prettier-ignore
+      stream = await navigator.mediaDevices.getUserMedia(cardCameraConstraints(deviceId));
+      if (!operationIsCurrent() || currentStart !== cameraStartVersion) {
+        stream.getTracks().forEach((track) => track.stop());
         return;
       }
-      video.srcObject = activeCameraStream;
+      activeCameraStream = stream;
+      await configureCardCamera(stream.getVideoTracks()[0]);
+      if (!operationIsCurrent() || currentStart !== cameraStartVersion) {
+        stream.getTracks().forEach((track) => track.stop());
+        if (activeCameraStream === stream) activeCameraStream = null;
+        return;
+      }
+      video.srcObject = stream;
       await video.play();
-      if (!operationIsCurrent()) {
-        stopAutoCaptureCamera();
+      if (!operationIsCurrent() || currentStart !== cameraStartVersion) {
+        stream.getTracks().forEach((track) => track.stop());
+        if (activeCameraStream === stream) activeCameraStream = null;
         return;
       }
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      cameras = devices.filter((device) => device.kind === "videoinput");
-      const track = activeCameraStream.getVideoTracks()[0];
-      currentCameraId = track.getSettings?.().deviceId || deviceId;
+      let devices = [];
+      try {
+        devices = await navigator.mediaDevices.enumerateDevices();
+      } catch {}
+      if (!operationIsCurrent() || currentStart !== cameraStartVersion) {
+        stream.getTracks().forEach((track) => track.stop());
+        if (activeCameraStream === stream) activeCameraStream = null;
+        return;
+      }
+      cameras = (Array.isArray(devices) ? devices : []).filter(
+        (device) => device.kind === "videoinput",
+      );
+      const track = stream.getVideoTracks()[0];
+      currentCameraId = deviceId;
+      try {
+        currentCameraId = track.getSettings?.().deviceId || deviceId;
+      } catch {}
       switchButton.hidden = cameras.length < 2;
-      const capabilities = track.getCapabilities?.() || {};
+      let capabilities = {};
+      try {
+        capabilities = track.getCapabilities?.() || {};
+      } catch {}
       torchButton.dataset.supported = String(Boolean(capabilities.torch));
       torchButton.hidden = !capabilities.torch;
       torchEnabled = false;
       torchButton.setAttribute("aria-pressed", "false");
       torchButton.textContent = "Light";
-      captureButton.disabled = automatic;
+      captureButton.disabled = false;
       status.textContent = automatic
         ? "Center the card and hold steady"
         : "Center the card, then press the shutter";
@@ -7721,9 +12398,9 @@ async function openDeviceCamera({
         void enableDeviceLevel();
       else if (motionButton) motionButton.hidden = false;
     } catch (error) {
-      activeCameraStream?.getTracks().forEach((track) => track.stop());
-      activeCameraStream = null;
-      if (!operationIsCurrent()) return;
+      stream?.getTracks().forEach((track) => track.stop());
+      if (activeCameraStream === stream) activeCameraStream = null;
+      if (!operationIsCurrent() || currentStart !== cameraStartVersion) return;
       status.textContent = cameraErrorMessage(error);
       help.hidden = false;
       help.innerHTML =
@@ -7731,8 +12408,38 @@ async function openDeviceCamera({
           ? "Select the camera icon near the address bar, allow camera access for Mica, then choose <strong>Try camera again</strong>."
           : "The saved-photo option remains available and never grants ongoing camera access.";
       retryButton.hidden = false;
+      logIngestionEvent({
+        sessionId: operationId,
+        channel: "camera",
+        stage: "failed",
+        outcome: "failure",
+        durationMs: performance.now() - cameraStartedAt,
+        metadata: { reason: ingestionFailureReason(error) },
+      });
     }
   };
+
+  if (nativeBuild)
+    activeCameraLifecycle = async (active) => {
+      if (!active) {
+        cameraStartVersion += 1;
+        reviewVersion += 1;
+        clearMonitor();
+        stopAutoCaptureCamera({ preserveLifecycle: true });
+        captureInFlight = false;
+        bestAutomaticFrame = null;
+        cameraReady = false;
+        if (!capturedFile) {
+          captureButton.disabled = true;
+          status.textContent = "Camera paused · return to continue";
+        }
+        return;
+      }
+      if (!operationIsCurrent()) return;
+      if (capturedFile) {
+        if (adjustments.hidden) await showReview(capturedFile, manualGeometry);
+      } else await startCamera(currentCameraId);
+    };
 
   captureButton.addEventListener("click", requestCapture);
   $("#cameraCoachHelp")?.addEventListener("click", () => {
@@ -7765,14 +12472,95 @@ async function openDeviceCamera({
         ? "Automatic capture on · center the card and hold steady"
         : "Timer off · press the shutter when ready";
   });
-  useButton.addEventListener("click", () =>
-    capturedFile ? deliverPhoto(capturedFile) : null,
+  useButton.addEventListener("click", () => {
+    if (capturedFile) deliverPhoto(capturedFile);
+  });
+  adjustButton.addEventListener("click", () => {
+    if (!capturedFile) return;
+    useButton.disabled = true;
+    adjustments.hidden = false;
+    if (manualGeometry?.corners)
+      manualGeometry = structuredClone(manualGeometry);
+    if (!manualGeometry?.corners) {
+      manualGeometry = {
+        detected: true,
+        correctable: true,
+        straight: false,
+        confidence: 0.5,
+        documentKind: gradingExperience ? "card" : "auto",
+        bounds: { x: 0.08, y: 0.05, width: 0.84, height: 0.9 },
+        cardBounds: { x: 0.08, y: 0.05, width: 0.84, height: 0.9 },
+        corners: {
+          topLeft: { x: 0.08, y: 0.05 },
+          topRight: { x: 0.92, y: 0.05 },
+          bottomRight: { x: 0.92, y: 0.95 },
+          bottomLeft: { x: 0.08, y: 0.95 },
+        },
+      };
+    }
+    releasePreview();
+    previewUrl = URL.createObjectURL(capturedFile);
+    $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
+    review.src = previewUrl;
+    status.textContent = "Adjust one corner at a time, then apply correction";
+    renderAdjustmentOutline();
+  });
+  $$("[data-corner-move]", adjustments).forEach((button) =>
+    button.addEventListener("click", () => {
+      if (!manualGeometry?.corners) return;
+      const select = $("#deviceCameraCorner");
+      const point = manualGeometry.corners[select.value];
+      const step = 0.01;
+      if (button.dataset.cornerMove === "left") point.x -= step;
+      if (button.dataset.cornerMove === "right") point.x += step;
+      if (button.dataset.cornerMove === "up") point.y -= step;
+      if (button.dataset.cornerMove === "down") point.y += step;
+      point.x = Math.max(0, Math.min(1, point.x));
+      point.y = Math.max(0, Math.min(1, point.y));
+      status.textContent = `${select.selectedOptions[0].text} moved · apply to preview`;
+      renderAdjustmentOutline();
+    }),
   );
+  const applyManualGeometry = () => {
+    if (manualGeometry?.corners) {
+      const bounds = documentBoundsFromCorners(manualGeometry.corners);
+      manualGeometry = {
+        ...manualGeometry,
+        bounds,
+        cardBounds: bounds,
+        cardBoundsInFrame: bounds,
+        cornersInFrame: manualGeometry.corners,
+        manuallyAdjusted: true,
+        detected: true,
+        correctable: true,
+        method: "manual_document_corners_v1",
+        straight: false,
+        confidence: 0,
+        perspectiveDelta: null,
+      };
+    }
+    adjustments.hidden = true;
+    renderAdjustmentOutline();
+    if (capturedFile) void showReview(capturedFile, manualGeometry);
+  };
+  $("#deviceCameraRotate").addEventListener("click", () => {
+    manualRotationDegrees = (manualRotationDegrees + 90) % 360;
+    applyManualGeometry();
+  });
+  $("#deviceCameraApply").addEventListener("click", applyManualGeometry);
   retakeButton.addEventListener("click", async () => {
+    reviewVersion += 1;
+    captureInFlight = false;
     releasePreview();
     capturedFile = null;
+    manualGeometry = null;
+    manualRotationDegrees = 0;
     setReviewMode(false);
     captureButton.disabled = false;
+    if (!activeCameraStream) {
+      await startCamera(currentCameraId);
+      return;
+    }
     await video.play();
     status.textContent = automatic
       ? "Center the card and hold steady"
@@ -7823,7 +12611,14 @@ async function openDeviceCamera({
   $("#deviceCameraUpload").addEventListener("change", (event) => {
     const file = event.target.files[0];
     event.target.value = "";
-    if (file) deliverPhoto(file);
+    if (file) {
+      stopAutoCaptureCamera({ preserveLifecycle: true });
+      file.micaCaptureMetadata = {
+        capturedAt: new Date().toISOString(),
+        captureMethod: "file_upload",
+      };
+      void showReview(file);
+    }
   });
 
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -7832,6 +12627,14 @@ async function openDeviceCamera({
     help.hidden = false;
     help.textContent =
       "Try the latest Safari, Chrome, or Edge on an HTTPS connection.";
+    logIngestionEvent({
+      sessionId: operationId,
+      channel: "camera",
+      stage: "failed",
+      outcome: "failure",
+      durationMs: performance.now() - cameraStartedAt,
+      metadata: { reason: "camera_unsupported" },
+    });
     return;
   }
   await startCamera();
@@ -7887,6 +12690,17 @@ function gradingCoachStorageKey() {
 }
 
 function openGradingCaptureCoach(onContinue) {
+  const ownerId = state.session?.user?.id;
+  const loadVersion = sessionLoadVersion;
+  let finished = false;
+  const continueOnce = () => {
+    if (finished || !accountRequestIsCurrent(ownerId, loadVersion)) return;
+    finished = true;
+    try {
+      localStorage.setItem(gradingCoachStorageKey(), "complete");
+    } catch {}
+    onContinue();
+  };
   const lessons = [
     {
       title: "Keep the phone parallel",
@@ -7925,8 +12739,9 @@ function openGradingCaptureCoach(onContinue) {
   const render = () => {
     const lesson = lessons[active];
     openSheet(
-      `<div class="grading-coach"><div class="sheet-heading"><div><span>Capture coach · ${active + 1} of ${lessons.length}</span><h2 id="sheetTitle">${esc(lesson.title)}</h2><p>${esc(lesson.copy)}</p></div><button class="sheet-close" aria-label="Close capture coach">×</button></div><div class="grading-coach-examples"><figure class="pass"><div><img src="${esc(lesson.goodImage)}" alt="Correct example: ${esc(lesson.good)}"><b aria-hidden="true">✓</b></div><figcaption><strong>Pass</strong><span>${esc(lesson.good)}</span></figcaption></figure><figure class="fail"><div><img src="${esc(lesson.badImage)}" alt="Retake example: ${esc(lesson.bad)}"><b aria-hidden="true">×</b></div><figcaption><strong>Retake</strong><span>${esc(lesson.bad)}</span></figcaption></figure></div><ol class="grading-coach-dots" aria-label="Capture lesson progress">${lessons.map((_, index) => `<li class="${index === active ? "active" : index < active ? "complete" : ""}">${index + 1}</li>`).join("")}</ol><div class="sheet-actions"><button class="secondary" id="gradingCoachBack" type="button" ${active === 0 ? "disabled" : ""}>Back</button><button class="primary" id="gradingCoachNext" type="button">${active === lessons.length - 1 ? "Open camera" : "Next"}</button></div></div>`,
+      `<div class="grading-coach"><div class="sheet-heading"><div><span>Capture coach · ${active + 1} of ${lessons.length}</span><h2 id="sheetTitle">${esc(lesson.title)}</h2><p>${esc(lesson.copy)}</p></div><button class="sheet-close" aria-label="Close capture coach">×</button></div><div class="grading-coach-examples"><figure class="pass"><div><img src="${esc(lesson.goodImage)}" alt="Correct example: ${esc(lesson.good)}"><b aria-hidden="true">✓</b></div><figcaption><strong>Pass</strong><span>${esc(lesson.good)}</span></figcaption></figure><figure class="fail"><div><img src="${esc(lesson.badImage)}" alt="Retake example: ${esc(lesson.bad)}"><b aria-hidden="true">×</b></div><figcaption><strong>Retake</strong><span>${esc(lesson.bad)}</span></figcaption></figure></div><ol class="grading-coach-dots" aria-label="Capture lesson progress">${lessons.map((_, index) => `<li class="${index === active ? "active" : index < active ? "complete" : ""}">${index + 1}</li>`).join("")}</ol><div class="sheet-actions"><button class="secondary" id="gradingCoachSkip" type="button">Open camera</button><button class="secondary" id="gradingCoachBack" type="button" ${active === 0 ? "disabled" : ""}>Back</button><button class="primary" id="gradingCoachNext" type="button">${active === lessons.length - 1 ? "Open camera" : "Next"}</button></div></div>`,
     );
+    $("#gradingCoachSkip").addEventListener("click", continueOnce);
     $("#gradingCoachBack").addEventListener("click", () => {
       active -= 1;
       render();
@@ -7937,16 +12752,17 @@ function openGradingCaptureCoach(onContinue) {
         render();
         return;
       }
-      try {
-        localStorage.setItem(gradingCoachStorageKey(), "complete");
-      } catch {}
-      onContinue();
+      continueOnce();
     });
   };
   render();
 }
 
 function openDigitalGradeCaptureStep(index = 0, captures = [], context = {}) {
+  const ownerId = context.ownerId ?? state.session?.user?.id;
+  const loadVersion = context.loadVersion ?? sessionLoadVersion;
+  context = { ...context, ownerId, loadVersion };
+  if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
   const steps = gradingCaptureSteps(context.gradingMode);
   const step = steps[index];
   if (!step) return void showPrecisionGradingProcessing(captures, context);
@@ -7967,15 +12783,14 @@ function openDigitalGradeCaptureStep(index = 0, captures = [], context = {}) {
     gradingMode: context.gradingMode,
     reportId: context.scanSessionId,
     onPhoto: (file) => {
-      const next = [
-        ...captures,
-        {
-          file,
-          captureType: step.captureType,
-          side: step.side,
-          captureReason: step.instruction,
-        },
-      ];
+      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+      const next = replaceRequiredCapture(captures, {
+        file,
+        captureType: step.captureType,
+        side: step.side,
+        captureReason: step.instruction,
+      });
+      const nextIndex = nextMissingCaptureIndex(next);
       if (context.scanSessionId) {
         state.gradingCaptureDrafts.set(context.scanSessionId, next);
         void updateGradingSessionCaptureProgress(
@@ -7984,40 +12799,59 @@ function openDigitalGradeCaptureStep(index = 0, captures = [], context = {}) {
           context.scanSessionId,
           {
             completedCaptureTypes: next.map((capture) => capture.captureType),
-            nextCaptureType: steps[index + 1]?.captureType || null,
+            nextCaptureType: steps[nextIndex]?.captureType || null,
             totalRequired: steps.length,
           },
         ).catch(() => {});
       }
-      if (index + 1 < steps.length)
-        void openDigitalGradeCaptureStep(index + 1, next, context);
+      if (nextIndex >= 0)
+        void openDigitalGradeCaptureStep(nextIndex, next, context);
       else void showPrecisionGradingProcessing(next, context);
     },
   });
 }
 
 async function showPrecisionGradingProcessing(captures, context = {}) {
+  const ownerId = context.ownerId ?? state.session?.user?.id;
+  const loadVersion = context.loadVersion ?? sessionLoadVersion;
+  context = { ...context, ownerId, loadVersion };
+  if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
   const operationId = crypto.randomUUID();
   const steps = gradingCaptureSteps(context.gradingMode);
   const mode = GRADING_MODES[context.gradingMode] || GRADING_MODES.full;
   openSheet(
-    `<div class="sheet-heading grading-process-heading"><div><span>${esc(mode.name)}</span><h2 id="sheetTitle">Preparing ${captures.length} views</h2><p>${context.scanSessionId ? `Report ${esc(context.scanSessionId.slice(0, 8).toUpperCase())}` : "Private grading session"}</p></div></div><div class="precision-prepare" role="status" aria-live="polite">${captures.map((capture, index) => `<div data-prepare-capture="${index}"><span>${esc(steps[index]?.label || capture.captureType)}</span><i><b></b></i><strong>Waiting</strong></div>`).join("")}</div><div class="grading-process-note"><span class="digital-grader-mark" aria-hidden="true">DG</span><p><strong>No single model decides the result.</strong> Mica keeps evidence only when independent reviews agree on its location.</p></div>`,
+    `<div class="sheet-heading grading-process-heading"><div><span>${esc(mode.name)}</span><h2 id="sheetTitle">Preparing ${captures.length} views</h2><p>${context.scanSessionId ? `Report ${esc(context.scanSessionId.slice(0, 8).toUpperCase())}` : "Private grading session"}</p></div></div><div class="precision-prepare" role="status" aria-live="polite">${captures.map((capture, index) => `<div data-prepare-capture="${index}"><span>${esc(steps[index]?.label || capture.captureType)}</span><i><b></b></i><strong>Waiting</strong></div>`).join("")}</div><div class="grading-process-note"><span class="digital-grader-mark" aria-hidden="true">DG</span><p>Checking your card’s centering, corners, edges, and surface.</p></div>`,
   );
   $("#bottomSheet").dataset.experience = "grading";
   $("#bottomSheet").dataset.lockClose = "true";
   $("#bottomSheet").dataset.visionOperation = operationId;
   try {
+    captures = orderedRequiredCaptures(captures, { complete: true });
     const prepared = [];
     for (let index = 0; index < captures.length; index += 1) {
       const capture = captures[index];
       const row = $(`[data-prepare-capture="${index}"]`);
       row.dataset.state = "active";
       $("strong", row).textContent = "Checking quality";
-      const image = await prepareVisionImage(capture.file, {
-        purpose: "card",
-        captureType: capture.captureType,
-        side: capture.side,
-      });
+      let image;
+      try {
+        image = await prepareVisionImage(capture.file, {
+          purpose: "card",
+          captureType: capture.captureType,
+          side: capture.side,
+        });
+      } catch (error) {
+        const failure = new Error(
+          error.message || "This photo could not be prepared.",
+        );
+        failure.failedCaptureIndex = index;
+        throw failure;
+      }
+      if (
+        !accountRequestIsCurrent(ownerId, loadVersion) ||
+        $("#bottomSheet").dataset.visionOperation !== operationId
+      )
+        return;
       image.captureReason = capture.captureReason;
       if (image.blockers.length) {
         const failure = new Error(
@@ -8042,16 +12876,34 @@ async function showPrecisionGradingProcessing(captures, context = {}) {
         ? "Usable · limited"
         : "Ready";
     }
-    if ($("#bottomSheet").dataset.visionOperation !== operationId) return;
+    if (
+      !accountRequestIsCurrent(ownerId, loadVersion) ||
+      $("#bottomSheet").dataset.visionOperation !== operationId
+    )
+      return;
     await analyzeCardImages("grade", prepared, {
       scanSessionId: context.scanSessionId || null,
       gradingMode: context.gradingMode,
+      captureDraft: captures,
     });
   } catch (error) {
-    if ($("#bottomSheet").dataset.visionOperation !== operationId) return;
+    if (
+      !accountRequestIsCurrent(ownerId, loadVersion) ||
+      $("#bottomSheet").dataset.visionOperation !== operationId
+    )
+      return;
+    const failedIndex = Number.isInteger(error.failedCaptureIndex)
+      ? error.failedCaptureIndex
+      : null;
+    if (failedIndex != null && context.scanSessionId) {
+      state.gradingCaptureDrafts.set(
+        context.scanSessionId,
+        captures.filter((_, index) => index !== failedIndex),
+      );
+    }
     $("#bottomSheet").dataset.lockClose = "false";
     openSheet(
-      `<div class="grading-recovery"><span class="digital-grader-mark" aria-hidden="true">DG</span><p class="eyebrow">Capture check</p><h2 id="sheetTitle">One view needs another pass</h2><p>${esc(error.message || "The grading photos could not be prepared.")}</p><div class="sheet-actions"><button class="secondary sheet-close" type="button">Pause</button><button class="primary" id="restartDigitalGrade" type="button">Retake this view</button></div></div>`,
+      `<div class="grading-recovery"><span class="digital-grader-mark" aria-hidden="true">DG</span><p class="eyebrow">Capture check</p><h2 id="sheetTitle">${failedIndex == null ? "The photos need another check" : "One view needs another pass"}</h2><p>${esc(error.message || "The grading photos could not be prepared.")}</p><div class="sheet-actions"><button class="secondary sheet-close" type="button">Pause</button><button class="primary" id="restartDigitalGrade" type="button">${failedIndex == null ? "Try preparing again" : "Retake this view"}</button></div></div>`,
     );
     $("#bottomSheet").dataset.experience = "grading";
     $("#restartDigitalGrade").addEventListener("click", () => {
@@ -8061,20 +12913,20 @@ async function showPrecisionGradingProcessing(captures, context = {}) {
         preserveDigitalGradeTarget: true,
         preservePendingCardAdd: true,
       });
-      const failedIndex = Math.max(
-        0,
-        Math.min(captures.length - 1, Number(error.failedCaptureIndex) || 0),
-      );
-      void openDigitalGradeCaptureStep(
-        failedIndex,
-        captures.slice(0, failedIndex),
-        context,
-      );
+      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+      if (failedIndex == null) {
+        void showPrecisionGradingProcessing(captures, context);
+        return;
+      }
+      void openDigitalGradeCaptureStep(failedIndex, captures, context);
     });
   }
 }
 
 async function beginDigitalGrading(item = null, gradingMode = "full") {
+  const ownerId = state.session?.user?.id;
+  const loadVersion = sessionLoadVersion;
+  if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
   if (item) {
     const eligible =
       item.cardState !== "sealed" &&
@@ -8100,10 +12952,11 @@ async function beginDigitalGrading(item = null, gradingMode = "full") {
       modelBundleVersion: "mica-evidence-consensus-v4:pending",
     });
   } catch (error) {
-    toast(error.message || "A private grading session could not be started");
+    toast("Couldn’t start the scan. Please try again.");
     return;
   }
-  const context = { scanSessionId, gradingMode: "full" };
+  if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+  const context = { scanSessionId, gradingMode: "full", ownerId, loadVersion };
   const openCamera = () => openDigitalGradeCaptureStep(0, [], context);
   let coachComplete = false;
   try {
@@ -8353,7 +13206,7 @@ function centeredCardBounds(width, height) {
   };
 }
 
-async function identityEvidenceDataUrl(source) {
+async function identityEvidenceDataUrl(source, documentKind = "card") {
   const evidence = document.createElement("canvas");
   evidence.width = 1536;
   evidence.height = 1024;
@@ -8362,20 +13215,37 @@ async function identityEvidenceDataUrl(source) {
   context.fillRect(0, 0, evidence.width, evidence.height);
   context.fillStyle = "#f6f8fc";
   context.font = "600 24px system-ui, sans-serif";
-  context.fillText("FULL CARD", 34, 38);
-  context.fillText("NAME + SET", 748, 38);
-  context.fillText("COLLECTOR NUMBER", 748, 550);
+  const slab = documentKind === "slab";
+  context.fillText(slab ? "FULL SLAB" : "FULL CARD", 34, 38);
+  context.fillText(slab ? "CERTIFICATE LABEL" : "NAME + SET", 748, 38);
+  context.fillText(slab ? "CARD" : "COLLECTOR NUMBER", 748, 550);
 
   const full = containedRect(source.width, source.height, 28, 58, 670, 938);
   context.drawImage(source, full.x, full.y, full.width, full.height);
 
-  const card = centeredCardBounds(source.width, source.height);
+  const regions = documentRecognitionRegions(documentKind);
+  const card = slab
+    ? {
+        x: regions.card.x * source.width,
+        y: regions.card.y * source.height,
+        width: regions.card.width * source.width,
+        height: regions.card.height * source.height,
+      }
+    : centeredCardBounds(source.width, source.height);
+  const upper = slab
+    ? {
+        x: regions.label.x * source.width,
+        y: regions.label.y * source.height,
+        width: regions.label.width * source.width,
+        height: regions.label.height * source.height,
+      }
+    : { x: card.x, y: card.y, width: card.width, height: card.height * 0.25 };
   context.drawImage(
     source,
-    card.x,
-    card.y,
-    card.width,
-    card.height * 0.25,
+    upper.x,
+    upper.y,
+    upper.width,
+    upper.height,
     734,
     58,
     774,
@@ -8421,14 +13291,17 @@ function captureGeometry(
   const detected = captureMetadata?.geometry || null;
   const level = captureMetadata?.level || null;
   const isolatedBounds =
+    detected?.bounds ||
     detected?.cardBoundsInFrame ||
     (isolatedCard?.detected ? isolatedCard.bounds : null);
   return {
-    method: detected?.detected
-      ? "guided_boundary_and_level_v2"
-      : isolatedCard?.detected
-        ? isolatedCard.method
-        : "card_isolation_unverified",
+    method: detected?.manuallyAdjusted
+      ? "manual_document_corners_v1"
+      : detected?.detected
+        ? "guided_boundary_and_level_v2"
+        : isolatedCard?.detected
+          ? isolatedCard.method
+          : "card_isolation_unverified",
     cardBounds: isolatedBounds
       ? { x: 0, y: 0, width: 1, height: 1 }
       : detected?.cardBounds || {
@@ -8446,8 +13319,11 @@ function captureGeometry(
     perspectiveDelta: detected?.perspectiveDelta ?? null,
     boundaryConfidence:
       detected?.confidence ?? isolatedCard?.confidence ?? null,
-    boundaryVerified: Boolean(detected?.detected || isolatedCard?.detected),
-    perspectiveVerified: Boolean(detected?.straight),
+    boundaryVerified:
+      !detected?.manuallyAdjusted &&
+      Boolean(detected?.detected || isolatedCard?.detected),
+    perspectiveVerified:
+      !detected?.manuallyAdjusted && Boolean(detected?.straight),
     deviceLevelAvailable: Boolean(level?.available),
     deviceLevelVerified: level?.available ? Boolean(level.level) : null,
     deviceTiltDegrees: level?.tiltDegrees ?? null,
@@ -8461,8 +13337,13 @@ function captureGeometry(
   };
 }
 
-function isolateUploadedCard(decoded, width, height) {
-  const maximum = 224;
+function isolateUploadedDocument(
+  decoded,
+  width,
+  height,
+  documentKind = "auto",
+) {
+  const maximum = 320;
   const scale = Math.min(1, maximum / Math.max(width, height));
   const sample = document.createElement("canvas");
   sample.width = Math.max(32, Math.round(width * scale));
@@ -8473,7 +13354,111 @@ function isolateUploadedCard(decoded, width, height) {
   });
   context.drawImage(decoded, 0, 0, sample.width, sample.height);
   const pixels = context.getImageData(0, 0, sample.width, sample.height).data;
-  return detectCardBoundaryFromPixels(pixels, sample.width, sample.height);
+  return detectDocumentBoundaryFromPixels(pixels, sample.width, sample.height, {
+    documentKind,
+  });
+}
+
+function canvasFromDocumentPixels(result) {
+  if (!result?.corrected) return null;
+  const canvas = document.createElement("canvas");
+  canvas.width = result.width;
+  canvas.height = result.height;
+  canvas
+    .getContext("2d", { alpha: false })
+    .putImageData(
+      new ImageData(result.pixels, result.width, result.height),
+      0,
+      0,
+    );
+  return canvas;
+}
+
+function sourceEvidenceCanvas(decoded, width, height, bounds = null) {
+  const maximum = 3072;
+  const crop = bounds || { x: 0, y: 0, width: 1, height: 1 };
+  const sourceWidth = Math.max(1, Math.round(crop.width * width));
+  const sourceHeight = Math.max(1, Math.round(crop.height * height));
+  const scale = Math.min(1, maximum / Math.max(sourceWidth, sourceHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(sourceWidth * scale));
+  canvas.height = Math.max(1, Math.round(sourceHeight * scale));
+  canvas
+    .getContext("2d", { alpha: false })
+    .drawImage(
+      decoded,
+      Math.round(crop.x * width),
+      Math.round(crop.y * height),
+      sourceWidth,
+      sourceHeight,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
+  return canvas;
+}
+
+function correctedDocumentCanvas(
+  decoded,
+  width,
+  height,
+  geometry,
+  rotationDegrees = 0,
+) {
+  const maximum = 2048;
+  const scale = Math.min(1, maximum / Math.max(width, height));
+  const source = document.createElement("canvas");
+  source.width = Math.max(1, Math.round(width * scale));
+  source.height = Math.max(1, Math.round(height * scale));
+  const context = source.getContext("2d", {
+    alpha: false,
+    willReadFrequently: true,
+  });
+  context.drawImage(decoded, 0, 0, source.width, source.height);
+  const pixels = context.getImageData(0, 0, source.width, source.height).data;
+  return canvasFromDocumentPixels(
+    rectifyDocumentPixels(pixels, source.width, source.height, geometry, {
+      maximumDimension: maximum,
+      rotationDegrees,
+    }),
+  );
+}
+
+async function prepareDocumentPreview(file, options = {}) {
+  const decoded = await decodeVisionImage(file);
+  const width = decoded.width || decoded.naturalWidth;
+  const height = decoded.height || decoded.naturalHeight;
+  const requestedKind = options.documentKind || "auto";
+  const detected =
+    options.geometry ||
+    isolateUploadedDocument(decoded, width, height, requestedKind);
+  if (!detected?.detected || !detected.correctable) {
+    decoded.close?.();
+    return { corrected: false, geometry: detected };
+  }
+  const canvas = correctedDocumentCanvas(
+    decoded,
+    width,
+    height,
+    detected,
+    options.rotationDegrees || 0,
+  );
+  decoded.close?.();
+  if (!canvas) return { corrected: false, geometry: detected };
+  const blob = await canvasBlob(canvas, 0.92);
+  return {
+    corrected: true,
+    geometry: detected,
+    documentKind:
+      !detected.documentKind || detected.documentKind === "auto"
+        ? Math.min(canvas.width / canvas.height, canvas.height / canvas.width) <
+          0.64
+          ? "slab"
+          : "card"
+        : detected.documentKind,
+    dataUrl: await readBlobAsDataUrl(blob),
+  };
 }
 
 function privacySafeCaptureContext(width, height, captureMetadata = null) {
@@ -8530,61 +13515,78 @@ async function prepareVisionImage(file, options = {}) {
     throw new Error("image_resolution_low");
   }
   const captureMetadata = file.micaCaptureMetadata || null;
+  const detailOnly = options.purpose === "detail";
+  const requestedKind = options.purpose === "card" ? "card" : "auto";
   const guidedBounds =
-    captureMetadata?.geometry?.straight &&
+    captureMetadata?.geometry?.detected &&
     captureMetadata.geometry.cardBoundsInFrame;
-  const isolatedCard = guidedBounds
-    ? {
-        detected: true,
-        confidence: captureMetadata.geometry.confidence,
-        bounds: guidedBounds,
-        backgroundExcluded: true,
-        method: "guided_boundary_and_level_v2",
-        reason: captureMetadata.geometry.reason,
-      }
-    : isolateUploadedCard(decoded, originalWidth, originalHeight);
-  const detectedBounds = isolatedCard?.detected ? isolatedCard.bounds : null;
-  const crop = detectedBounds
-    ? normalizedCardCrop(
-        detectedBounds,
-        63 / 88,
-        0.006,
-        originalWidth / originalHeight,
-      )
-    : { x: 0, y: 0, width: 1, height: 1 };
-  const sourceX = Math.round(crop.x * originalWidth);
-  const sourceY = Math.round(crop.y * originalHeight);
-  const sourceWidth = Math.max(1, Math.round(crop.width * originalWidth));
-  const sourceHeight = Math.max(1, Math.round(crop.height * originalHeight));
-  const maximumDimension = 3072;
-  const scale = Math.min(
-    1,
-    maximumDimension / Math.max(sourceWidth, sourceHeight),
-  );
-  const width = Math.max(1, Math.round(sourceWidth * scale));
-  const height = Math.max(1, Math.round(sourceHeight * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d", { alpha: false });
-  context.fillStyle = "#ffffff";
-  context.fillRect(0, 0, width, height);
-  context.drawImage(
+  const isolatedCard = detailOnly
+    ? null
+    : captureMetadata?.geometry?.detected &&
+        (captureMetadata.geometry.corners ||
+          captureMetadata.geometry.cornersInFrame)
+      ? {
+          ...captureMetadata.geometry,
+          bounds:
+            captureMetadata.geometry.bounds ||
+            captureMetadata.geometry.cardBoundsInFrame,
+          corners:
+            captureMetadata.geometry.corners ||
+            captureMetadata.geometry.cornersInFrame,
+        }
+      : guidedBounds
+        ? {
+            detected: true,
+            confidence: captureMetadata.geometry.confidence,
+            bounds: guidedBounds,
+            corners: captureMetadata.geometry.cornersInFrame || null,
+            documentKind:
+              captureMetadata.geometry.documentKind || requestedKind,
+            correctable: captureMetadata.geometry.correctable === true,
+            straight: captureMetadata.geometry.straight,
+            perspectiveDelta: captureMetadata.geometry.perspectiveDelta,
+            backgroundExcluded: true,
+            method: "guided_document_boundary_v4",
+            reason: captureMetadata.geometry.reason,
+          }
+        : isolateUploadedDocument(
+            decoded,
+            originalWidth,
+            originalHeight,
+            requestedKind,
+          );
+  const correctedCanvas =
+    !detailOnly &&
+    isolatedCard?.detected &&
+    isolatedCard.correctable === true &&
+    isolatedCard.corners
+      ? correctedDocumentCanvas(
+          decoded,
+          originalWidth,
+          originalHeight,
+          isolatedCard,
+          captureMetadata?.documentTransform?.manualRotationDegrees || 0,
+        )
+      : null;
+  const acceptedGeometry = Boolean(correctedCanvas);
+  const detectedBounds = acceptedGeometry ? isolatedCard.bounds : null;
+  const evidenceCanvas = sourceEvidenceCanvas(
     decoded,
-    sourceX,
-    sourceY,
-    sourceWidth,
-    sourceHeight,
-    0,
-    0,
-    width,
-    height,
+    originalWidth,
+    originalHeight,
+    detectedBounds,
   );
+  const canvas = correctedCanvas || evidenceCanvas;
   decoded.close?.();
-  const qualityCheck = sampledImageQuality(context, width, height);
-  if (options.purpose === "card" && !isolatedCard?.detected)
+  const qualityContext = evidenceCanvas.getContext("2d", { alpha: false });
+  const qualityCheck = sampledImageQuality(
+    qualityContext,
+    evidenceCanvas.width,
+    evidenceCanvas.height,
+  );
+  if (!detailOnly && !acceptedGeometry)
     qualityCheck.blockers.push(
-      "Mica could not separate the card from the table. Use a plain contrasting mat and keep the full card visible.",
+      "Mica could not confirm the document edges. Adjust the edges or retake with the full card or slab visible.",
     );
   if (
     options.purpose === "card" &&
@@ -8602,9 +13604,15 @@ async function prepareVisionImage(file, options = {}) {
     qualityCheck.blockers.push(
       "The card was photographed at an angle. Move directly above it and retake.",
     );
+  // Condition measurements stay on the unwarped source crop. Projective
+  // correction is only for reading identity and presenting a useful preview.
   const borderSample =
-    options.purpose === "card" && isolatedCard?.detected
-      ? normalizedCanvasGrayscale(canvas)
+    options.purpose === "card" &&
+    acceptedGeometry &&
+    !captureMetadata?.geometry?.manuallyAdjusted &&
+    captureMetadata?.geometry?.straight === true &&
+    captureMetadata?.level?.level === true
+      ? normalizedCanvasGrayscale(evidenceCanvas)
       : null;
   const printedBorderCentering = borderSample
     ? measurePrintedBorderCentering(
@@ -8618,18 +13626,35 @@ async function prepareVisionImage(file, options = {}) {
         reason:
           "Use the guided level camera to enable deterministic border measurement.",
       };
-  const identityDataUrl = await identityEvidenceDataUrl(canvas);
+  const documentKind =
+    acceptedGeometry &&
+    isolatedCard?.documentKind &&
+    isolatedCard.documentKind !== "auto"
+      ? isolatedCard.documentKind
+      : Math.min(canvas.width / canvas.height, canvas.height / canvas.width) <
+          0.64
+        ? "slab"
+        : "card";
+  const identityDataUrl = await identityEvidenceDataUrl(
+    correctedCanvas || evidenceCanvas,
+    documentKind,
+  );
+  const uploadCanvas = options.purpose === "card" ? evidenceCanvas : canvas;
+  const width = uploadCanvas.width;
+  const height = uploadCanvas.height;
   let quality = 0.9;
-  let blob = await canvasBlob(canvas, quality);
+  let blob = await canvasBlob(uploadCanvas, quality);
   while (blob.size > 1_250_000 && quality > 0.66) {
     quality -= 0.06;
-    blob = await canvasBlob(canvas, quality);
+    blob = await canvasBlob(uploadCanvas, quality);
   }
   if (blob.size > 1_350_000) throw new Error("image_encode_large");
   const normalizedDataUrl = await readBlobAsDataUrl(blob);
   return {
     dataUrl: normalizedDataUrl,
-    previewDataUrl: normalizedDataUrl,
+    previewDataUrl: correctedCanvas
+      ? await readBlobAsDataUrl(await canvasBlob(correctedCanvas, 0.9))
+      : normalizedDataUrl,
     width,
     height,
     bytes: blob.size,
@@ -8643,12 +13668,44 @@ async function prepareVisionImage(file, options = {}) {
         captureMetadata,
       ),
     },
-    geometryMeasurements: captureGeometry(
-      width,
-      height,
-      captureMetadata,
-      isolatedCard,
-    ),
+    geometryMeasurements: {
+      ...captureGeometry(
+        width,
+        height,
+        captureMetadata
+          ? {
+              ...captureMetadata,
+              geometry: acceptedGeometry ? captureMetadata.geometry : null,
+            }
+          : null,
+        acceptedGeometry ? isolatedCard : null,
+      ),
+      ...(!acceptedGeometry && !detailOnly && isolatedCard?.detected
+        ? {
+            note: `Detected edges were not accepted${isolatedCard.reason ? `: ${isolatedCard.reason}` : "."}`,
+          }
+        : {}),
+    },
+    documentCapture: {
+      kind: documentKind,
+      corrected: Boolean(correctedCanvas),
+      transform: correctedCanvas
+        ? {
+            method: "native_projective_quad_v1",
+            sourceCorners: isolatedCard.corners,
+            sourceWidth: originalWidth,
+            sourceHeight: originalHeight,
+            outputWidth: correctedCanvas.width,
+            outputHeight: correctedCanvas.height,
+            photometricChanges: false,
+          }
+        : null,
+      originalRetainedForOperation: true,
+      conditionEvidence: detectedBounds
+        ? "unwarped_source_crop"
+        : "full_source_frame",
+      regions: documentRecognitionRegions(documentKind),
+    },
     printedBorderCentering,
     imageHash: await sha256Hex(blob),
     captureType: options.captureType || options.side || "front",
@@ -9163,6 +14220,18 @@ function gradingMarketContextMarkup(item, prediction = {}) {
       : gradedQuote
         ? `${money(gradedQuote.amount, gradedQuote.currency)} each`
         : `No exact PSA ${predictedGrade} price`;
+  const rawEvidence = rawAvailable ? priceProvenanceText(item) : "";
+  const gradedEvidence = gradedQuote
+    ? priceProvenanceText({
+        ...item,
+        cardState: "graded",
+        gradingCompany: "PSA",
+        grade: String(predictedGrade),
+        price: gradedQuote.amount,
+        currency: gradedQuote.currency,
+        pricingStatus: priceFreshness(gradedQuote).status,
+      })
+    : "";
   const contextNote =
     status !== "estimate"
       ? "Mica does not calculate grading profit after abstaining."
@@ -9170,7 +14239,7 @@ function gradingMarketContextMarkup(item, prediction = {}) {
         ? "The exact current ungraded price is unavailable, so Mica will not invent a comparison."
         : !gradedQuote
           ? `PkmnPrices has not supplied an exact PSA ${predictedGrade} price for this card. Mica will not substitute another grade.`
-          : `Uses ${esc(gradedQuote.provider)}’s exact PSA ${predictedGrade} quote and the ${esc(defaultService.name)} fee assumption. Shipping and insurance remain $0 until you enter them in Batch Grading.`;
+          : `Raw evidence: ${esc(rawEvidence)}. Graded evidence: ${esc(gradedEvidence)}. Uses the ${esc(defaultService.name)} fee assumption; shipping and insurance remain $0 until you enter them in Batch Grading.`;
   return `<section class="vision-market-context" aria-label="Grading value comparison"><div class="vision-market-heading"><span>Market context</span><strong>Could grading add value?</strong></div><div class="vision-market-grid"><div><span>Ungraded value now</span><strong>${rawAvailable ? `${money(rawValue, item.currency || "USD")} each` : "Not available"}</strong></div><div><span>Predicted-grade value</span><strong>${gradedPriceLabel}</strong></div><div><span>Estimated grading cost</span><strong>${gradingCostMinor === null ? "Not available" : money(gradingCostMinor / 100, "USD")}</strong></div><div><span>Possible value gained</span><strong class="${decision?.valueAddedMinor == null ? "" : decision.valueAddedMinor >= 0 ? "positive" : "negative"}">${decision?.valueAddedMinor == null ? "Not available" : `${decision.valueAddedMinor >= 0 ? "+" : "−"}${money(Math.abs(decision.valueAddedMinor) / 100, "USD")}`}</strong></div></div><p>${contextNote}</p></section>`;
 }
 
@@ -9326,8 +14395,10 @@ function captureSupplementalEvidence(
   });
 }
 
-function renderVisionResult(payload, mode, preparedImages) {
+function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
   const analysis = payload.analysis;
+  const gradingWorkflow = analysis.gradingWorkflow || null;
+  const referenceComparison = analysis.referenceComparison || null;
   const identity = analysis.identity || {};
   const condition = analysis.condition || {};
   const prediction = analysis.psaPrediction || {};
@@ -9391,10 +14462,18 @@ function renderVisionResult(payload, mode, preparedImages) {
       )
     : { status: "stable", stable: true, reasons: [] };
   const canSaveGrade = baseCanSaveGrade && !identityBlocked && stability.stable;
+  const canRetakeIdentityFront =
+    mode === "grade" &&
+    identityBlocked &&
+    identityCheck.status === "insufficient" &&
+    captureDraft.length === 4 &&
+    nextMissingCaptureIndex(captureDraft) === -1;
   const blockedSaveMessage = identityBlocked
     ? identityCheck.status === "mismatch"
       ? "The scan identity does not match this card. Restart from the correct card."
-      : "The card identity was not readable in every required field. Retake the four views before attaching this grade."
+      : canRetakeIdentityFront
+        ? "Retake the front so Mica can read the printed identity. Your other views will be kept."
+        : "The card identity was not readable in every required field. Start a new capture before attaching this grade."
     : stability.status === "unstable"
       ? "This regrade moved too far from the saved evidence. The current DG number was protected; repeat the four-view scan."
       : gradingWorkflow?.nextBlockedStage
@@ -9403,7 +14482,7 @@ function renderVisionResult(payload, mode, preparedImages) {
   const gradeGuardMarkup = identityBlocked
     ? identityCheck.status === "mismatch"
       ? `<div class="vision-quality blocking"><strong>This scan does not match the saved card</strong><span>${esc(identityCheck.mismatches.join(", "))} changed. Mica kept the report but will not attach it to the wrong card.</span></div>`
-      : `<div class="vision-quality blocking"><strong>The exact card identity is incomplete</strong><span>${esc(identityCheck.missingFields.join(", "))} could not be verified. Mica kept the report but will not attach an uncertain identity.</span></div>`
+      : `<div class="vision-quality blocking"><strong>The exact card identity is incomplete</strong><span>${esc(identityCheck.missingFields.join(", "))} could not be verified. Mica kept the report but will not attach an uncertain identity.</span>${canRetakeIdentityFront ? '<button class="primary" id="retakeIdentityFront" type="button">Retake front · keep other views</button>' : ""}</div>`
     : stability.status === "unstable"
       ? `<div class="vision-quality blocking"><strong>The regrade did not repeat closely enough</strong>${stability.reasons.map((reason) => `<span>${esc(reason)}</span>`).join("")}<span>Your current DG number stays unchanged. Repeat the four-view scan under the same setup.</span></div>`
       : "";
@@ -9427,7 +14506,7 @@ function renderVisionResult(payload, mode, preparedImages) {
     pregrade: analysis.micaPregrade || null,
     evidenceProfile: analysis.evidenceProfile || null,
     confidence: condition.confidence || prediction.confidence || 0,
-    prediction,
+    prediction: { ...prediction, stability },
     blockers: reportBlockers,
   });
   const workflowMarkup = gradingWorkflow
@@ -9451,6 +14530,53 @@ function renderVisionResult(payload, mode, preparedImages) {
   );
   if (mode === "grade") $("#bottomSheet").dataset.experience = "grading";
   $("#bottomSheet").dataset.lockClose = "false";
+  const reportOwnerId = state.session?.user?.id;
+  const reportLoadVersion = sessionLoadVersion;
+  $("#retakeIdentityFront")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    if (
+      button.disabled ||
+      !canRetakeIdentityFront ||
+      !accountRequestIsCurrent(reportOwnerId, reportLoadVersion)
+    )
+      return;
+    button.disabled = true;
+    try {
+      const scanSessionId = await createGradingScanSession(supabase, {
+        collectionItemId: state.digitalGradeTargetId || null,
+        identitySnapshot: gradingIdentitySnapshot("full"),
+        idempotencyKey: crypto.randomUUID(),
+        consentMode: state.gradingResearchConsent ? "research" : "normal",
+        consentVersion: state.gradingResearchConsent
+          ? "mica-grading-research-v2"
+          : null,
+        modelBundleVersion: "mica-evidence-consensus-v4:pending",
+      });
+      if (
+        !accountRequestIsCurrent(reportOwnerId, reportLoadVersion) ||
+        !button.isConnected
+      )
+        return;
+      const retainedViews = captureDraft.filter(
+        (capture) => capture.captureType !== "front",
+      );
+      state.gradingCaptureDrafts.set(scanSessionId, retainedViews);
+      void openDigitalGradeCaptureStep(0, retainedViews, {
+        scanSessionId,
+        gradingMode: "full",
+        ownerId: reportOwnerId,
+        loadVersion: reportLoadVersion,
+      });
+    } catch {
+      if (
+        !accountRequestIsCurrent(reportOwnerId, reportLoadVersion) ||
+        !button.isConnected
+      )
+        return;
+      button.disabled = false;
+      toast("Couldn’t start the retake. Your photos are still here.");
+    }
+  });
   bindDefectEvidenceDialog(condition, preparedImages);
   $$("[data-report-side]", $("#sheetContent")).forEach((button) =>
     button.addEventListener("click", () => {
@@ -9597,7 +14723,7 @@ function renderVisionResult(payload, mode, preparedImages) {
         if (!$("#visionCatalogResults")) return;
         node.innerHTML = `<div class="unavailable-panel"><strong>The grade finished, but the card was not added.</strong><br>${esc(error.message || "Try saving again.")}</div><button class="primary" id="retryPendingCardSave" type="button">Try saving again</button>`;
         $("#retryPendingCardSave").addEventListener("click", () =>
-          renderVisionResult(payload, mode, preparedImages),
+          renderVisionResult(payload, mode, preparedImages, captureDraft),
         );
       }
     })();
@@ -9819,6 +14945,14 @@ function renderVisionResult(payload, mode, preparedImages) {
         }
         openPositionSheet(card, {
           prefill,
+          ingestionChannel: preparedImages.some((image) =>
+            String(image.captureMetadata?.captureMethod || "").includes(
+              "camera",
+            ),
+          )
+            ? "camera"
+            : "upload",
+          ingestionConfidence: identity.confidence,
           visionAnalysis: {
             mode,
             gradeRange: prefill.aiEstimate,
@@ -9843,10 +14977,23 @@ function renderVisionResult(payload, mode, preparedImages) {
 async function analyzeCardImages(mode, preparedImages, options = {}) {
   $("#bottomSheet").dataset.lockClose = "true";
   openSheet(
-    `<div class="sheet-heading grading-process-heading"><div><span>${mode === "grade" ? esc(GRADING_MODES[options.gradingMode]?.name || "Digital grading") : "Card identification"}</span><h2 id="sheetTitle">${mode === "grade" ? "Grade processing" : "Checking your card"}</h2><p>${mode === "grade" ? `${preparedImages.length} real captures · identity, match, and grade` : "Reading the name and bottom number"}</p></div></div>${mode === "grade" ? '<div class="grade-processing" role="status" aria-live="polite"><div data-process-stage="normalize" data-state="complete"><span>Photo normalization</span><small>Device, light, and perspective checks</small><i></i><b>Complete</b></div><div data-process-stage="identity" data-state="active"><span>Card identity + Collection match</span><small>Name, set, collector number, and language</small><i></i><b>In progress</b></div><div data-process-stage="centering" data-state="waiting"><span>Centering model</span><small>Front and back printed-border geometry</small><i></i><b>Waiting</b></div><div data-process-stage="edges" data-state="waiting"><span>Corner + edge models</span><small>Independent localized evidence</small><i></i><b>Waiting</b></div><div data-process-stage="surface" data-state="waiting"><span>Surface + structure models</span><small>Cross-view evidence comparison</small><i></i><b>Waiting</b></div><div class="grade-processing-overall" data-process-stage="overall" data-state="waiting"><span>Overall grade + automatic attachment</span><i></i><b>Waiting</b></div><strong>Identifying, matching, and grading your card…</strong><small>Mica only changes an eligible Collection card when its printed identity is verified.</small></div>' : '<div class="vision-processing" role="status" aria-live="polite"><i></i><strong>Reading the card or graded case…</strong><span>The photo is sent once for this scan and is not saved in your collection.</span></div>'}`,
+    `<div class="sheet-heading grading-process-heading"><div><span>${mode === "grade" ? esc(GRADING_MODES[options.gradingMode]?.name || "Digital grading") : "Card identification"}</span><h2 id="sheetTitle">${mode === "grade" ? "Grade processing" : "Checking your card"}</h2><p>${mode === "grade" ? `${preparedImages.length} real captures · identity, match, and grade` : "Reading the name and bottom number"}</p></div></div>${mode === "grade" ? '<div class="grade-processing" role="status" aria-live="polite"><div data-process-stage="normalize" data-state="complete"><span>Photo normalization</span><small>Device, light, and perspective checks</small><i></i><b>Complete</b></div><div data-process-stage="identity" data-state="active"><span>Card identity + Collection match</span><small>Name, set, collector number, and language</small><i></i><b>In progress</b></div><div data-process-stage="centering" data-state="waiting"><span>Centering model</span><small>Front and back printed-border geometry</small><i></i><b>Waiting</b></div><div data-process-stage="edges" data-state="waiting"><span>Corner + edge models</span><small>Independent localized evidence</small><i></i><b>Waiting</b></div><div data-process-stage="surface" data-state="waiting"><span>Surface + structure models</span><small>Cross-view evidence comparison</small><i></i><b>Waiting</b></div><div class="grade-processing-overall" data-process-stage="overall" data-state="waiting"><span>Overall grade + automatic attachment</span><i></i><b>Waiting</b></div><strong>Identifying, matching, and grading your card…</strong><small>Mica only changes an eligible Collection card when its printed identity is verified.</small></div>' : '<div class="vision-processing" role="status" aria-live="polite"><i></i><strong>Reading the card or graded case…</strong><span>The prepared photo may pass through several private model checks in this request and is not saved in your collection.</span></div>'}`,
   );
   if (mode === "grade") $("#bottomSheet").dataset.experience = "grading";
   const requestId = crypto.randomUUID();
+  const ingestionStartedAt = performance.now();
+  const ingestionChannel = preparedImages.some((image) =>
+    String(image.captureMetadata?.captureMethod || "").includes("camera"),
+  )
+    ? "camera"
+    : "upload";
+  logIngestionEvent({
+    sessionId: requestId,
+    channel: ingestionChannel,
+    stage: "started",
+    outcome: "success",
+    metadata: { candidateStatus: mode },
+  });
   let scanSessionId = options.scanSessionId || null;
   let thumbnailStorageError = "";
   let thumbnailPath = "";
@@ -9993,8 +15140,35 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
         payload.reportPersistenceError = `${error.message || "The private report could not be saved."}${cleanupWarning}`;
       }
     }
-    renderVisionResult(payload, mode, preparedImages);
+    renderVisionResult(
+      payload,
+      mode,
+      preparedImages,
+      options.captureDraft || [],
+    );
+    logIngestionEvent({
+      sessionId: requestId,
+      channel: ingestionChannel,
+      stage: "confirmed",
+      outcome:
+        payload.catalogResolution?.resolution?.status === "exact"
+          ? "success"
+          : "needs_confirmation",
+      durationMs: performance.now() - ingestionStartedAt,
+      metadata: {
+        candidateStatus:
+          payload.catalogResolution?.resolution?.status || "needs_review",
+      },
+    });
   } catch (error) {
+    logIngestionEvent({
+      sessionId: requestId,
+      channel: ingestionChannel,
+      stage: "failed",
+      outcome: "failure",
+      durationMs: performance.now() - ingestionStartedAt,
+      metadata: { reason: ingestionFailureReason(error) },
+    });
     if (mode === "grade" && scanSessionId && !reportSaved) {
       const cleanup = await cleanupFailedGradingUploads({
         scanSessionId,
@@ -10035,7 +15209,7 @@ async function showProcessing(file) {
     `<img src="${previewUrl}" alt="Selected card photograph">`;
   $("#qualityChip").innerHTML = "<span></span> Preparing photo";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find this card</h2><p>Read the printed name and bottom number</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica sends this prepared copy once for identification and asks you to confirm the exact printing.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Checking photo quality…</div><div class="vision-choice-grid identification-only"><button id="visionIdentify" type="button" disabled><strong>Find matching cards</strong><span>Read the name and bottom number, then show the closest printings.</span></button></div><div class="sheet-actions"><button class="secondary" id="photoAssistSearch" type="button">Search myself</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find this card</h2><p>Read the printed name and bottom number</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica may process this prepared copy through several private model checks in one identification request, then asks you to confirm the exact printing.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Checking photo quality…</div><div class="vision-choice-grid identification-only"><button id="visionIdentify" type="button" disabled><strong>Find matching cards</strong><span>Read the name and bottom number, then show the closest printings.</span></button></div><div class="sheet-actions"><button class="primary" id="photoAssistRetry" type="button" hidden>Adjust or retake</button><button class="secondary" id="photoAssistSearch" type="button">Search myself</button></div>`,
   );
   $("#bottomSheet").dataset.sensitive = "true";
   $("#bottomSheet").dataset.visionOperation = operationId;
@@ -10052,7 +15226,7 @@ async function showProcessing(file) {
   let frontReady = false;
   try {
     front = await prepareVisionImage(file, {
-      purpose: "card",
+      purpose: "collectible",
       captureType: "front",
       side: "front",
     });
@@ -10062,19 +15236,21 @@ async function showProcessing(file) {
     )
       return;
     $("#capturePreview").innerHTML =
-      `<img src="${front.dataUrl}" alt="Selected card photograph">`;
+      `<img src="${front.previewDataUrl}" alt="Corrected document preview">`;
     frontReady = !front.blockers.length;
+    $("#photoAssistRetry").hidden = frontReady;
     $("#qualityChip").innerHTML = frontReady
       ? "<span></span> Ready for AI review"
       : "<span></span> Retake needed";
     $("#visionLocalCheck").innerHTML = front.blockers.length
-      ? `<strong>Retake before AI review</strong>${front.blockers.map((blocker) => `<span>${esc(blocker)}</span>`).join("")}<span>This check prevents spending an AI scan on unreadable evidence.</span>`
+      ? `<strong>Retake before AI review</strong> ${front.blockers.map((blocker) => `<span>${esc(blocker)}</span>`).join(" ")} <span>This check prevents spending an AI scan on unreadable evidence.</span>`
       : front.warnings.length
-        ? `<strong>Improve accuracy if possible</strong>${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join("")}`
+        ? `<strong>Improve accuracy if possible</strong> ${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join(" ")}`
         : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · original is not uploaded</span>`;
     $("#visionIdentify").disabled = !frontReady;
   } catch (error) {
     if (!$("#visionLocalCheck")) return;
+    $("#photoAssistRetry").hidden = false;
     $("#visionLocalCheck").innerHTML =
       `<strong>Could not prepare this image</strong><span>${error.message === "image_resolution_low" ? "Move closer and use a higher-resolution photo." : "This device could not decode the file. Try JPEG, PNG, or WebP."}</span>`;
   }
@@ -10093,6 +15269,9 @@ async function showProcessing(file) {
   );
   $("#photoAssistSearch")?.addEventListener("click", () =>
     openVisionSearchFallback(),
+  );
+  $("#photoAssistRetry")?.addEventListener("click", () =>
+    openDeviceCamera({ kind: "card", onPhoto: showProcessing }),
   );
 }
 
@@ -10131,6 +15310,9 @@ function catalogItem(item, selectedVariant = "") {
     collectibleId: variant.collectibleId || null,
     variantId: variant.id || null,
     variant: variant.label,
+    finish: variant.finish,
+    edition: variant.edition,
+    promoType: variant.promoType,
     variants: variantOptions.map((option) => option.label),
     variantOptions,
     identityStatus: variant.status,
@@ -10156,25 +15338,37 @@ function rememberCatalogItems(items) {
   }
 }
 
-async function searchCatalog(query, language, limit = 12) {
-  const response = await fetch(
-    `/api/catalog?q=${encodeURIComponent(query)}&language=${encodeURIComponent(language)}&limit=${limit}`,
-    { headers: { Accept: "application/json" } },
-  );
-  if (!response.ok) throw new Error("catalog");
-  const payload = await response.json();
-  const items = (payload.cards || []).flatMap((item) => {
-    const variants = Array.isArray(item.variantOptions)
-      ? item.variantOptions
-      : [...new Set(item.variants || [])];
-    return variants.length > 1
-      ? variants.map((variant) =>
-          catalogItem(item, variant.id || variant.collectibleId || variant),
-        )
-      : [catalogItem(item, variants[0]?.id || variants[0])];
-  });
-  rememberCatalogItems(items);
-  return { items, parsedQuery: payload.parsedQuery || null };
+async function searchCatalog(query, language, limit = 12, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(
+      `/api/catalog?${new URLSearchParams({ q: query, language, limit: String(limit), ...Object.fromEntries(Object.entries(options).filter(([, value]) => value)) })}`,
+      { headers: { Accept: "application/json" }, signal: controller.signal },
+    );
+    if (!response.ok) throw new Error("catalog");
+    const payload = await response.json();
+    const items = (payload.cards || []).flatMap((item) => {
+      const variants = Array.isArray(item.variantOptions)
+        ? item.variantOptions
+        : [...new Set(item.variants || [])];
+      return variants.length > 1
+        ? variants.map((variant) =>
+            catalogItem(item, variant.id || variant.collectibleId || variant),
+          )
+        : [catalogItem(item, variants[0]?.id || variants[0])];
+    });
+    rememberCatalogItems(items);
+    return {
+      items,
+      parsedQuery: payload.parsedQuery || null,
+      nextCursor: payload.nextCursor || null,
+      hasMore: payload.hasMore === true,
+      provider: payload.provider || "",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function matchReason() {
@@ -10182,90 +15376,207 @@ function matchReason() {
 }
 
 function ownedSearchStatus(item) {
-  const owned = ownedCardSummary(item, state.items);
+  const owned = ownedCardSummary(item, state.items, { exactPrinting: true });
   if (!owned.quantity) return "";
   return `<small class="owned-search-status"><strong>In your library</strong> · ${owned.quantity} card${owned.quantity === 1 ? "" : "s"}${owned.positions > 1 ? ` with ${owned.positions} different wear levels or grades` : ""}</small>`;
+}
+
+function preserveSearchResultFocus(root) {
+  const active = document.activeElement;
+  const attribute =
+    root.contains(active) &&
+    [
+      "data-result-set",
+      "data-quick-card",
+      "data-add-search-card",
+      "data-queue-search-card",
+      "data-catalog-id",
+      "data-retry-catalog",
+    ].find((name) => active.hasAttribute(name));
+  const value = attribute ? active.getAttribute(attribute) : null;
+  return () => {
+    if (!attribute) return;
+    [...root.querySelectorAll(`[${attribute}]`)]
+      .find((node) => node.getAttribute(attribute) === value)
+      ?.focus({ preventScroll: true });
+  };
 }
 
 function setFilterMarkup(results, selected = "") {
   const sets = [
     ...new Set(results.map((item) => item.set).filter(Boolean)),
   ].slice(0, 5);
-  if (results.length < 6 || sets.length < 2) return "";
+  if (!selected && (results.length < 6 || sets.length < 2)) return "";
+  if (selected && !sets.includes(selected)) sets.push(selected);
   return `<div class="result-filters" role="group" aria-label="Filter search results by set"><button type="button" data-result-set="" aria-pressed="${String(!selected)}">All</button>${sets.map((set) => `<button type="button" data-result-set="${esc(set)}" aria-pressed="${String(selected === set)}">${esc(set)}</button>`).join("")}</div>`;
 }
 
 function openManualSearch() {
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find a card</h2><p>Type the card name and the number printed at the bottom, such as 4/102.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="catalogQuery" type="search" placeholder="Charizard 4/102" aria-label="Search by card name and bottom number"></label><div class="field"><label for="catalogLanguage">Language on the card</label><select id="catalogLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div></div><div class="manual-results" id="manualResults" aria-live="polite"><div class="unavailable-panel">Type at least two characters to search.</div></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find a card</h2><p>Type the card name and the number printed at the bottom, such as 4/102.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="catalogQuery" type="search" placeholder="Charizard 4/102" aria-label="Search by card name and bottom number"></label><div class="field"><label for="catalogLanguage">Language on the card</label><select id="catalogLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div><div class="field full"><label for="catalogSet">Set name · optional</label><input id="catalogSet" type="search" placeholder="All sets"></div></div><div class="manual-results" id="manualResults" aria-live="polite"><div class="unavailable-panel">Type at least two characters to search.</div></div>`,
   );
   const input = $("#catalogQuery");
   const language = $("#catalogLanguage");
+  const resultsNode = $("#manualResults");
+  input.value = $("#quickCardSearch")?.value || "";
+  language.value = $("#quickSearchLanguage")?.value || "en";
   let timer;
   let requestId = 0;
   let allResults = [];
   let selectedSet = "";
+  let nextCursor = null;
+  let provider = "";
+  let source = "";
+  const setInput = $("#catalogSet");
   const bindResults = () => {
-    const visible = selectedSet
-      ? allResults.filter((item) => item.set === selectedSet)
-      : allResults;
-    $("#manualResults").innerHTML = allResults.length
+    const restoreFocus = preserveSearchResultFocus(resultsNode);
+    const visible = allResults;
+    resultsNode.innerHTML = allResults.length
       ? `${setFilterMarkup(allResults, selectedSet)}${visible
           .map((item) => {
-            const owned = ownedCardSummary(item, state.items);
+            const owned = ownedCardSummary(item, state.items, {
+              exactPrinting: true,
+            });
             return `<button class="catalog-result" type="button" data-catalog-id="${esc(item.id)}" aria-label="Review ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong>${esc(item.set || "Set unavailable")} · ${esc(item.number)}<small>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant)}</small>${ownedSearchStatus(item)}${matchReason(item)}</span><b>${owned.quantity ? "Owned" : "Review"}</b></button>`;
           })
           .join("")}`
       : '<div class="unavailable-panel">No catalog matches found. Try fewer details or verify the language.</div>';
-    $$("[data-result-set]", $("#manualResults")).forEach((button) =>
+    if (nextCursor)
+      resultsNode.insertAdjacentHTML(
+        "beforeend",
+        '<button type="button" class="secondary catalog-more" data-catalog-more>Load more cards</button>',
+      );
+    if (provider === "internal")
+      resultsNode.insertAdjacentHTML(
+        "beforeend",
+        '<button type="button" class="secondary catalog-more" data-catalog-broader>Search full catalog</button>',
+      );
+    resultsNode
+      .querySelector("[data-catalog-more]")
+      ?.addEventListener("click", () => renderResults(true));
+    resultsNode
+      .querySelector("[data-catalog-broader]")
+      ?.addEventListener("click", () => {
+        source = "tcgdex";
+        renderResults();
+      });
+    $$("[data-result-set]", resultsNode).forEach((button) =>
       button.addEventListener("click", () => {
         selectedSet = button.dataset.resultSet;
-        bindResults();
+        setInput.value = selectedSet;
+        renderResults();
       }),
     );
-    $$("[data-catalog-id]", $("#manualResults")).forEach((button) =>
+    $$("[data-catalog-id]", resultsNode).forEach((button, index) =>
       button.addEventListener("click", () => {
-        const card = catalog.find(
-          (item) => item.id === button.dataset.catalogId,
-        );
+        const card = visible[index];
         closeSheet({ discardHistory: true });
         openCardDetail(card);
       }),
     );
+    restoreFocus();
   };
-  const renderResults = async () => {
+  const isActive = () => resultsNode.isConnected && !$("#bottomSheet").hidden;
+  const renderResults = async (append = false) => {
+    const focusBeforeSearch = document.activeElement;
+    const restoreSearchFocus = preserveSearchResultFocus(resultsNode);
+    append = append === true;
+    if (!append) {
+      allResults = [];
+      nextCursor = null;
+      provider = "";
+    }
+    selectedSet = setInput.value.trim();
+    clearTimeout(timer);
     const q = input.value.trim();
+    const selectedLanguage = language.value;
+    const requestedSet = selectedSet;
     const current = ++requestId;
+    if (!isActive()) return;
+    const isCurrent = () =>
+      isActive() &&
+      current === requestId &&
+      input.value.trim() === q &&
+      language.value === selectedLanguage &&
+      setInput.value.trim() === requestedSet;
     if (q.length < 2) {
-      $("#manualResults").innerHTML =
+      resultsNode.setAttribute("aria-busy", "false");
+      resultsNode.innerHTML =
         '<div class="unavailable-panel">Type at least two characters to search.</div>';
       return;
     }
-    $("#manualResults").setAttribute("aria-busy", "true");
-    $("#manualResults").innerHTML =
-      '<div class="unavailable-panel">Finding matching cards…</div>';
+    resultsNode.setAttribute("aria-busy", "true");
+    if (!append)
+      resultsNode.innerHTML =
+        '<div class="unavailable-panel">Finding matching cards…</div>';
+    resultsNode
+      .querySelector("[data-catalog-more]")
+      ?.setAttribute("disabled", "");
     try {
-      const result = await searchCatalog(q, language.value, 12);
-      if (current !== requestId) return;
-      allResults = result.items;
-      selectedSet = "";
+      const result = await searchCatalog(q, selectedLanguage, 12, {
+        set: requestedSet,
+        cursor: append ? nextCursor : null,
+        source,
+      });
+      if (!isCurrent()) return;
+      nextCursor = result.nextCursor;
+      provider = result.provider;
+      const rows = append ? [...allResults, ...result.items] : result.items;
+      allResults = [...new Map(rows.map((item) => [item.id, item])).values()];
       bindResults();
+      if (
+        document.activeElement === document.body ||
+        document.activeElement === focusBeforeSearch
+      )
+        restoreSearchFocus();
     } catch {
-      if (current === requestId)
-        $("#manualResults").innerHTML =
-          '<div class="unavailable-panel">Catalog search is temporarily unavailable.</div>';
+      if (!isCurrent()) return;
+      if (append) {
+        bindResults();
+        resultsNode.insertAdjacentHTML(
+          "beforeend",
+          '<p role="status">Couldn’t load more. Try again; your results are kept.</p>',
+        );
+        return;
+      }
+      resultsNode.innerHTML =
+        '<div class="unavailable-panel">Couldn’t search for cards. Please try again.</div><button class="secondary" type="button" data-retry-catalog>Try again</button>';
+      resultsNode
+        .querySelector("[data-retry-catalog]")
+        .addEventListener("click", renderResults);
     } finally {
-      if (current === requestId)
-        $("#manualResults").setAttribute("aria-busy", "false");
+      if (isCurrent()) resultsNode.setAttribute("aria-busy", "false");
     }
   };
   const schedule = () => {
     clearTimeout(timer);
+    ++requestId;
+    if (input.value.trim().length < 2) {
+      void renderResults();
+      return;
+    }
+    resultsNode.setAttribute("aria-busy", "true");
+    resultsNode.innerHTML =
+      '<div class="unavailable-panel">Finding matching cards…</div>';
     timer = setTimeout(renderResults, 250);
   };
   input.addEventListener("input", schedule);
-  language.addEventListener("change", renderResults);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.isComposing) {
+      event.preventDefault();
+      void renderResults();
+    }
+  });
+  language.addEventListener("change", () => {
+    source = "";
+    renderResults();
+  });
+  setInput.addEventListener("change", () => {
+    source = "";
+    renderResults();
+  });
   input.focus();
+  if (input.value.trim().length >= 2) void renderResults();
 }
 
 function openInfo(kind) {
@@ -10284,7 +15595,7 @@ function openInfo(kind) {
     sources:
       "Mica checks connected card-price services without showing them your private collection. Each price stays attached to the exact card version, wear level or professional grade, currency, date, and source. A price for a different card is never used as a substitute.",
     retention:
-      "Mica makes a smaller copy of your photo on your device and sends it once for analysis. The photo and AI result are not saved with your collection, and no card is added until you confirm it.",
+      "Mica makes a smaller copy of your photo on your device. One request may use several private model checks. The photo and AI result are not saved with your collection, and no card is added until you confirm it.",
     privacy:
       "Your collection is private to your signed-in account. You can download your data or permanently delete the account from Settings.",
   }[kind];
@@ -10307,6 +15618,10 @@ async function refreshCapabilityStatus() {
     });
     const capabilities = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error("Connection check unavailable");
+    state.actionCenter.capabilities = {
+      ...state.actionCenter.capabilities,
+      ...(capabilities.notifications || {}),
+    };
     setStatus("catalogConnectionState", "Active", "active");
     setStatus(
       "pricingConnectionState",
@@ -10324,7 +15639,15 @@ async function refreshCapabilityStatus() {
           : "AI connection needed",
       capabilities.vision?.status === "connected" ? "active" : "limited",
     );
-    setStatus("pushConnectionState", "Ready after app-store setup", "limited");
+    setStatus(
+      "pushConnectionState",
+      capabilities.notifications?.webPush === "configured_unverified"
+        ? "Push adapter configured · verify on a test device"
+        : "Prepared · adapter and test device still needed",
+      capabilities.notifications?.webPush === "configured_unverified"
+        ? "active"
+        : "limited",
+    );
     if ($("#connectionStatusNote"))
       $("#connectionStatusNote").textContent =
         "A tool that still needs a connection will explain what is missing when you open it.";
@@ -10385,6 +15708,7 @@ function openAutomationInfo(kind) {
 
 function isInstalledApp() {
   return (
+    nativeBuild ||
     window.matchMedia("(display-mode: standalone)").matches ||
     navigator.standalone === true
   );
@@ -10443,9 +15767,106 @@ function targetAlertStorageKey() {
   return `mica-target-alert-hits-${state.session?.user?.id || "guest"}`;
 }
 
+function localActionSnapshot() {
+  const positions = state.items.map((item) => ({
+    ...item,
+    priceObservedAt: item.pricingUpdatedAt,
+    priceMovement: item.movement
+      ? {
+          percent: item.movement.changePercent,
+          status: item.pricingStatus === "live" ? "live" : item.pricingStatus,
+          observedAt: item.movement.toDate,
+          previousObservedAt: item.movement.fromDate,
+          source: item.movement.provider || item.referenceProvider,
+        }
+      : null,
+    comparableMovement: item.comparableMovement || null,
+  }));
+  const gradingSubmissions = state.items.flatMap((item) =>
+    (item.gradingSubmissions || []).map((submission) => ({
+      ...submission,
+      observedAt: submission.statusUpdatedAt,
+      source: "saved grading submission",
+    })),
+  );
+  const listings = state.items
+    .filter((item) => item.status === "listed")
+    .map((item) => ({
+      id: item.uid,
+      name: item.name,
+      updatedAt: item.priceReviewedAt || item.listedAt || item.updatedAt,
+      lastReviewedAt: item.priceReviewedAt || item.listedAt,
+      reviewReasons: [
+        item.askingPrice == null ? "asking price missing" : "",
+        item.listingVenue ? "" : "listing venue missing",
+        item.listedAt ? "" : "listing date missing",
+      ].filter(Boolean),
+    }));
+  return evaluateActionRules({
+    now: new Date().toISOString(),
+    thresholds:
+      state.actionCenter.preferences.thresholds || DEFAULT_ACTION_THRESHOLDS,
+    positions,
+    watchlist: state.watchlist,
+    goals: state.organization.goals.map((goal) => ({
+      ...goal,
+      lastProgress: goal.progress,
+    })),
+    gradingSubmissions,
+    listings,
+  });
+}
+
+async function refreshActionCenter({ persist = true } = {}) {
+  if (!state.session?.user?.id) return;
+  const ownerId = state.session.user.id;
+  const loadVersion = sessionLoadVersion;
+  const snapshot = localActionSnapshot();
+  if (state.actionCenter.status !== "ready" || !persist) {
+    state.actionCenter.items = snapshot;
+    if (state.actionCenter.status !== "ready")
+      state.actionCenter.status = "local";
+    renderBusinessReview();
+    updateTargetAlertControl();
+    return;
+  }
+  try {
+    await upsertActionCenterSnapshot(supabase, snapshot);
+    const durable = await loadActionCenter(supabase, ownerId);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    state.actionCenter = {
+      ...state.actionCenter,
+      status: "ready",
+      items: durable.items,
+      preferences: durable.preferences,
+    };
+  } catch {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    state.actionCenter = {
+      ...state.actionCenter,
+      status: "local",
+      items: snapshot,
+    };
+  }
+  renderBusinessReview();
+  updateTargetAlertControl();
+}
+
 function updateTargetAlertControl() {
   const button = $("#targetAlertButton");
   if (!button) return;
+  if (state.actionCenter.status === "ready") {
+    const preferences = state.actionCenter.preferences;
+    button.disabled = false;
+    $("#targetAlertState").textContent = preferences.enabled
+      ? preferences.channels.inApp
+        ? "On"
+        : "Paused"
+      : "Paused";
+    $("#targetAlertHelp").textContent =
+      `${preferences.dailyCap} per channel each day · quiet ${preferences.quietHours.start}–${preferences.quietHours.end} ${preferences.timeZone}`;
+    return;
+  }
   const supported = "Notification" in window;
   const permission = supported ? Notification.permission : "unsupported";
   if (!supported) {
@@ -10475,6 +15896,7 @@ function updateTargetAlertControl() {
 }
 
 async function notifyReachedTargets() {
+  if (state.actionCenter.status === "ready") return;
   if (
     !targetAlertsEnabled ||
     !("Notification" in window) ||
@@ -10492,8 +15914,12 @@ async function notifyReachedTargets() {
     localStorage.setItem(targetAlertStorageKey(), JSON.stringify(next));
   } catch {}
   for (const item of notifications) {
+    const evidence = itemWithPriceEvidence(item);
+    const source = evidence.referenceProvider
+      ? `${evidence.referenceProvider}${evidence.referenceObservedAt ? ` observed ${String(evidence.referenceObservedAt).slice(0, 10)}` : "; observation date unavailable"}`
+      : "source unavailable";
     const options = {
-      body: `${item.name} is ${money(item.currentPrice, item.currency)} · your target is ${money(item.targetPrice, item.currency)}`,
+      body: `${item.name} is ${money(item.currentPrice, item.currency)} · your target is ${money(item.targetPrice, item.currency)} · ${source}`,
       icon: "./icons/icon-192.png",
       badge: "./icons/icon-192.png",
       tag: `mica-target-${item.watchlistId || item.id}`,
@@ -10509,6 +15935,10 @@ async function notifyReachedTargets() {
 }
 
 async function toggleTargetAlerts() {
+  if (state.actionCenter.status === "ready") {
+    openNotificationPreferencesSheet();
+    return;
+  }
   if (!("Notification" in window)) return;
   if (targetAlertsEnabled && Notification.permission === "granted") {
     targetAlertsEnabled = false;
@@ -10540,6 +15970,208 @@ async function toggleTargetAlerts() {
   updateTargetAlertControl();
   toast("Buy target alerts turned on");
   void notifyReachedTargets();
+}
+
+function notificationKindLabel(kind) {
+  return {
+    watch_target: "Buy targets",
+    price_change: "Price changes",
+    comparable_change: "Comparable sales",
+    coverage_loss: "Pricing coverage",
+    stale_data: "Stale data",
+    collection_goal: "Collection goals",
+    grading_opportunity: "Grading opportunities",
+    grading_status: "Grading status",
+    listing_review: "Listing reviews",
+    inventory_aging: "Inventory age",
+  }[kind];
+}
+
+let devicePushBusy = 0;
+async function clearAccountDevicePush(owner, removeRemote = false) {
+  devicePushBusy += 1;
+  try {
+    await disableDevicePush({
+      remove:
+        removeRemote && owner
+          ? (endpoint) => removeWebPushSubscription(supabase, owner, endpoint)
+          : undefined,
+    });
+  } finally {
+    devicePushBusy -= 1;
+  }
+}
+
+function openNotificationPreferencesSheet() {
+  if (state.actionCenter.status !== "ready") return;
+  const owner = state.session?.user?.id;
+  const version = sessionLoadVersion;
+  if (!owner) return;
+  const preferences = state.actionCenter.preferences;
+  const capabilities = state.actionCenter.capabilities;
+  const emailAvailable = capabilities.email === "configured_unverified";
+  const pushAvailable = capabilities.webPush === "configured_unverified";
+  const kindControls = actionRuleKinds()
+    .map(
+      (kind) =>
+        `<label class="notification-kind"><input type="checkbox" name="mutedKind" value="${kind}" ${preferences.mutedKinds.includes(kind) ? "" : "checked"}><span>${esc(notificationKindLabel(kind))}</span></label>`,
+    )
+    .join("");
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Action alerts</h2><p>Choose where and when Mica notifies you.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="notificationPreferencesForm"><div class="settings-form"><label class="toggle-field"><input type="checkbox" name="enabled" ${preferences.enabled ? "checked" : ""}><span><strong>Enable alerts</strong><small>Pause new alerts anytime.</small></span></label><label class="toggle-field"><input type="checkbox" name="inApp" ${preferences.channels.inApp ? "checked" : ""}><span><strong>In Mica</strong><small>See alerts when you open Mica.</small></span></label><label class="toggle-field"><input type="checkbox" name="email" ${preferences.channels.email ? "checked" : ""} ${!emailAvailable && !preferences.channels.email ? "disabled" : ""}><span><strong>Email</strong><small>${emailAvailable ? "Delivery hasn’t been verified yet." : "Email alerts aren’t available yet."}</small></span></label><label class="toggle-field"><input type="checkbox" name="webPush" ${preferences.channels.webPush ? "checked" : ""} ${!pushAvailable && !preferences.channels.webPush ? "disabled" : ""}><span><strong>Web push</strong><small>${pushAvailable ? "This device needs notification permission." : "Push notifications aren’t available yet."}</small></span></label><section class="device-notification-settings"><strong>This device</strong><p id="devicePushStatus" role="status">Checking notification support…</p><button id="enableDevicePush" class="secondary" type="button" ${pushAvailable ? "" : "disabled"}>Enable on this device</button><button id="disableDevicePush" class="secondary" type="button">Disable on this device</button><small>Device permission is separate from your account’s Web push setting.</small></section><label class="toggle-field"><input type="checkbox" name="quietEnabled" ${preferences.quietHours.enabled ? "checked" : ""}><span><strong>Quiet hours</strong><small>Pause email and push during these hours.</small></span></label><div class="form-grid"><div class="field"><label for="quietStart">Start</label><input id="quietStart" name="quietStart" type="time" value="${esc(preferences.quietHours.start)}"></div><div class="field"><label for="quietEnd">End</label><input id="quietEnd" name="quietEnd" type="time" value="${esc(preferences.quietHours.end)}"></div><div class="field full"><label for="dailyAlertCap">Maximum per channel each day</label><input id="dailyAlertCap" name="dailyCap" type="number" min="1" max="50" step="1" value="${preferences.dailyCap}"></div><div class="field full"><label for="notificationTimeZone">Timezone</label><input id="notificationTimeZone" name="timeZone" value="${esc(preferences.timeZone)}" placeholder="America/Chicago" required><small>Quiet hours and the daily limit use this timezone.</small></div></div><fieldset class="notification-kinds"><legend>Actions to include</legend>${kindControls}</fieldset></div><p class="form-error" id="notificationPreferencesError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="disableOptionalAlerts" type="button">Unsubscribe optional channels</button><button class="primary" type="submit">Save alert settings</button></div></form>`,
+  );
+  const form = $("#notificationPreferencesForm");
+  const errorNode = $("#notificationPreferencesError");
+  const current = () =>
+    form.isConnected &&
+    state.session?.user?.id === owner &&
+    sessionLoadVersion === version;
+  let saving = false;
+  const setSaving = (value) => {
+    saving = value;
+    form.querySelector('[type="submit"]').disabled = value;
+    $("#disableOptionalAlerts").disabled = value;
+  };
+  const deviceStatus = $("#devicePushStatus");
+  const enable = $("#enableDevicePush");
+  const disable = $("#disableDevicePush");
+  const showDeviceStatus = async () => {
+    try {
+      const result = await devicePushStatus(owner);
+      if (!current()) return;
+      deviceStatus.textContent = {
+        enabled: "Enabled on this device.",
+        disabled: "Not enabled on this device.",
+        blocked:
+          "Blocked in device settings. Allow notifications there to enable them.",
+        unsupported:
+          "Not supported here. On iPhone, open Mica from the Home Screen.",
+      }[result];
+      enable.disabled = !pushAvailable || result === "unsupported";
+      disable.disabled = result === "unsupported";
+    } catch {
+      if (current())
+        deviceStatus.textContent =
+          "Couldn’t check this device. Retry Enable or Disable.";
+    }
+  };
+  void showDeviceStatus();
+  const changeDevice = async (enabled) => {
+    if (!current() || devicePushBusy) return;
+    devicePushBusy += 1;
+    enable.disabled = true;
+    disable.disabled = true;
+    deviceStatus.textContent = enabled
+      ? "Enabling this device…"
+      : "Disabling this device…";
+    try {
+      const remove = (endpoint) =>
+        removeWebPushSubscription(supabase, owner, endpoint);
+      if (enabled)
+        await enableDevicePush({
+          ownerId: owner,
+          publicKey: capabilities.webPushPublicKey,
+          isCurrent: current,
+          save: (subscription) =>
+            saveWebPushSubscription(supabase, owner, subscription),
+          remove,
+        });
+      else await disableDevicePush({ remove });
+      if (current())
+        deviceStatus.textContent = enabled
+          ? "Enabled on this device. Save Web push above to receive account alerts."
+          : "Disabled on this device.";
+    } catch (error) {
+      if (current())
+        deviceStatus.textContent =
+          error.message?.includes("permission") ||
+          error.message?.includes("blocked") ||
+          error.message?.includes("supported")
+            ? error.message
+            : "Couldn’t update this device. Please retry.";
+    } finally {
+      devicePushBusy -= 1;
+      if (current()) {
+        enable.disabled = !pushAvailable;
+        disable.disabled = false;
+      }
+    }
+  };
+  enable.addEventListener("click", () => changeDevice(true));
+  disable.addEventListener("click", () => changeDevice(false));
+  $("#disableOptionalAlerts").addEventListener("click", async () => {
+    if (!current() || saving) return;
+    setSaving(true);
+    errorNode.textContent = "";
+    try {
+      const result = await saveActionCenterPreferences(supabase, {
+        ...preferences,
+        channels: { ...preferences.channels, email: false, webPush: false },
+      });
+      if (!current()) return;
+      state.actionCenter.preferences = result;
+      closeSheet({ discardHistory: true });
+      updateTargetAlertControl();
+      toast("Optional email and push alerts unsubscribed");
+    } catch {
+      if (current())
+        errorNode.textContent =
+          "Couldn’t update alert settings. Please try again.";
+    } finally {
+      if (current()) setSaving(false);
+    }
+  });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!current() || saving) return;
+    const data = new FormData(form);
+    let timeZone;
+    try {
+      timeZone = notificationTimeZone(data.get("timeZone"));
+    } catch (error) {
+      errorNode.textContent = error.message;
+      return;
+    }
+    const next = normalizeNotificationPreferences({
+      enabled: data.get("enabled") === "on",
+      channels: {
+        inApp: data.get("inApp") === "on",
+        email: data.get("email") === "on",
+        webPush: data.get("webPush") === "on",
+      },
+      quietHours: {
+        enabled: data.get("quietEnabled") === "on",
+        start: data.get("quietStart"),
+        end: data.get("quietEnd"),
+      },
+      timeZone,
+      dailyCap: data.get("dailyCap"),
+      cooldownHours: preferences.cooldownHours,
+      mutedKinds: actionRuleKinds().filter(
+        (kind) => !data.getAll("mutedKind").includes(kind),
+      ),
+    });
+    setSaving(true);
+    errorNode.textContent = "";
+    try {
+      const result = await saveActionCenterPreferences(supabase, {
+        ...next,
+        thresholds: preferences.thresholds,
+      });
+      if (!current()) return;
+      state.actionCenter.preferences = result;
+      closeSheet({ discardHistory: true });
+      updateTargetAlertControl();
+      void refreshActionCenter();
+      toast("Alert settings saved");
+    } catch {
+      if (current())
+        errorNode.textContent =
+          "Couldn’t save alert settings. Your choices are still here—please try again.";
+    } finally {
+      if (current()) setSaving(false);
+    }
+  });
 }
 
 async function openInstallExperience() {
@@ -10590,6 +16222,7 @@ function openAccountDeletionSheet() {
     $(".sheet-close").disabled = true;
     $("#deleteAccountError").textContent =
       "Deleting your account and saved collection…";
+    let accountDeleted = false;
     try {
       const response = await fetch("/api/account", {
         method: "DELETE",
@@ -10604,10 +16237,18 @@ function openAccountDeletionSheet() {
         throw new Error(
           result.error || `Request failed with status ${response.status}`,
         );
-      await clearDeletedAccountClientData(state.session?.user?.id);
-      await signOut(supabase);
+      accountDeleted = true;
+      const deletedOwner = state.session?.user?.id;
+      await clearAccountDevicePush(deletedOwner).catch(() => {});
+      try { await clearDeletedAccountClientData(deletedOwner); }
+      finally { await signOut(supabase); }
       location.reload();
     } catch (error) {
+      if (accountDeleted) {
+        await applySession(null);
+        authMessage("Account deleted. Restart Mica to finish local cleanup.", true);
+        return;
+      }
       confirm.disabled = false;
       input.disabled = false;
       $("#cancelAccountDeletion").disabled = false;
@@ -10620,6 +16261,13 @@ function openAccountDeletionSheet() {
 
 async function clearDeletedAccountClientData(ownerId) {
   const owner = String(ownerId || "");
+  if (nativeBuild && owner) {
+    const cleanup = await Promise.allSettled([
+      nativeRuntime().clearDraft(owner), nativeRuntime().clearDraft(owner, "position-draft"),
+    ]);
+    if (cleanup.some((result) => result.status === "rejected"))
+      throw new Error("Interrupted-work cleanup could not finish.");
+  }
   if (owner) {
     try {
       for (let index = localStorage.length - 1; index >= 0; index -= 1) {
@@ -10671,7 +16319,7 @@ function downloadCollectionCsv() {
   if (!requireAccountData()) return false;
   const date = localIsoDate();
   downloadTextFile(
-    collectionToCsv(state.items),
+    collectionToCsv(state.items.map(itemWithPriceEvidence)),
     "text/csv;charset=utf-8",
     `mica-collection-${date}.csv`,
   );
@@ -10684,8 +16332,8 @@ function downloadAccountBackup() {
   const exportedAt = new Date().toISOString();
   const date = exportedAt.slice(0, 10);
   const content = accountBackupJson({
-    items: state.items,
-    watchlist: state.watchlist,
+    items: state.items.map(itemWithPriceEvidence),
+    watchlist: state.watchlist.map(itemWithPriceEvidence),
     accountEmail: state.session?.user?.email || "",
     exportedAt,
   });
@@ -10716,7 +16364,7 @@ function openInsuranceReport() {
           ? null
           : Number(item.costBasis);
       const value = itemValue(item);
-      return `<article class="insurance-row"><img src="${esc(item.thumb || item.image || "./icons/icon.svg")}" alt="${esc(item.name)} reference image"><div class="insurance-card-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Version unknown")}</span><small>${esc(context)} · ${Number(item.quantity) || 0} owned</small>${item.certificationNumber ? `<small>Certification number ${esc(item.certificationNumber)}</small>` : ""}${item.location ? `<small>Stored at ${esc(item.location)}</small>` : ""}${item.notes ? `<p>${esc(item.notes)}</p>` : ""}</div><div class="insurance-values"><span>What you paid<strong>${basis === null ? "Not recorded" : money(basis, item.currency)}</strong></span><span>Estimated value today<strong>${value === null ? "Unavailable" : money(value, item.currency)}</strong></span></div></article>`;
+      return `<article class="insurance-row"><img src="${esc(item.thumb || item.image || "./icons/icon.svg")}" alt="${esc(item.name)} reference image"><div class="insurance-card-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Version unknown")}</span><small>${esc(context)} · ${Number(item.quantity) || 0} owned</small><small class="price-provenance">${esc(priceProvenanceText(item))}</small>${item.certificationNumber ? `<small>Certification number ${esc(item.certificationNumber)}</small>` : ""}${item.location ? `<small>Stored at ${esc(item.location)}</small>` : ""}${item.notes ? `<p>${esc(item.notes)}</p>` : ""}</div><div class="insurance-values"><span>What you paid<strong>${basis === null ? "Not recorded" : money(basis, item.currency)}</strong></span><span>Estimated value today<strong>${value === null ? "Unavailable" : money(value, item.currency)}</strong></span></div></article>`;
     })
     .join("");
   openSheet(
@@ -10732,7 +16380,7 @@ function openSharePortfolioSheet() {
     `<div class="sheet-heading"><div><h2 id="sheetTitle">Share a collection summary</h2><p>Preview exactly what will be shared.</p></div><button class="sheet-close" aria-label="Close">×</button></div><label class="share-performance"><input id="sharePerformance" type="checkbox"> Include what I paid and the known change in value</label><pre class="share-preview" id="sharePreview"></pre><div class="simple-note"><strong>Private by default.</strong><br>Notes, storage locations, certification numbers, purchase dates, account details, and buying or selling history are never included.</div><div class="sheet-actions"><button class="secondary" id="copyPortfolioSnapshot" type="button">Copy summary</button>${navigator.share ? '<button class="primary" id="nativeSharePortfolio" type="button">Share…</button>' : ""}</div>`,
   );
   const text = () =>
-    portfolioSnapshot(state.items, {
+    portfolioSnapshot(state.items.map(itemWithPriceEvidence), {
       includePerformance: $("#sharePerformance").checked,
     });
   const update = () => {
@@ -10767,387 +16415,527 @@ function openSharePortfolioSheet() {
   update();
 }
 
+async function openImportHistorySheet() {
+  if (!requireAccountData()) return;
+  openSheet(
+    '<div class="sheet-heading"><div><h2 id="sheetTitle">Spreadsheet import history</h2><p>Your recent imports</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="searching-cards"><i></i><span>Loading recent imports…</span></div>',
+  );
+  try {
+    const jobs = await loadRecentCollectionImports(supabase, 10);
+    const rows = jobs
+      .map((job) => {
+        const totals = job.totals || {};
+        const created = Number(totals.createdRows || 0);
+        const reused = Number(totals.reusedRows || 0);
+        const status = String(job.status || "unknown").replaceAll("_", " ");
+        const date = new Date(
+          job.committed_at || job.rolled_back_at || job.created_at,
+        );
+        const dateLabel = Number.isNaN(date.getTime())
+          ? "Date unavailable"
+          : date.toLocaleString();
+        const rollback =
+          job.status === "committed"
+            ? `<div class="import-history-rollback"><label><input type="checkbox" data-import-rollback-confirm="${esc(job.id)}"> Remove entries added by this import only if they have not changed.</label><button class="danger-action" type="button" data-import-rollback="${esc(job.id)}" disabled>Undo this import</button><p role="status" data-import-rollback-status="${esc(job.id)}"></p></div>`
+            : "";
+        return `<article class="import-history-row"><div><strong>${esc(job.source_name || "Collection CSV")}</strong><span>${esc(dateLabel)} · ${esc(status)}</span></div><p>${created.toLocaleString()} created · ${reused.toLocaleString()} already saved</p>${rollback}</article>`;
+      })
+      .join("");
+    openSheet(
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Spreadsheet import history</h2><p>Your recent imports</p></div><button class="sheet-close" aria-label="Close">×</button></div>${rows ? `<div class="import-history-list">${rows}</div>` : '<div class="empty-state"><strong>No completed imports yet</strong><p>Your imported spreadsheets will appear here.</p></div>'}`,
+    );
+    $$("[data-import-rollback-confirm]").forEach((control) =>
+      control.addEventListener("change", () => {
+        const button = $(
+          `[data-import-rollback="${control.dataset.importRollbackConfirm}"]`,
+        );
+        if (button) button.disabled = !control.checked;
+      }),
+    );
+    $$("[data-import-rollback]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        const jobId = button.dataset.importRollback;
+        const status = $(`[data-import-rollback-status="${jobId}"]`);
+        button.disabled = true;
+        status.textContent = "Checking imported entries…";
+        try {
+          const result = await rollbackCollectionImport(supabase, jobId);
+          await reloadPortfolio();
+          toast(
+            `${Number(result.removedRows || 0).toLocaleString()} untouched imported entries removed`,
+          );
+          await openImportHistorySheet();
+        } catch (error) {
+          button.disabled = false;
+          status.textContent =
+            "Could not confirm the undo. Check import history before trying again.";
+        }
+      }),
+    );
+  } catch (error) {
+    openSheet(
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Spreadsheet import history</h2><p>Your recent imports</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="unavailable-panel"><strong>Import history is unavailable.</strong><br>Close this window and try again.</div>`,
+    );
+  }
+}
+
 function handleCsv(file) {
   if (!requireAccountData()) return;
   const reader = new FileReader();
   reader.onerror = () => toast("Mica could not read that CSV");
-  reader.onload = () => {
-    const {
-      records,
-      errors,
-      source = "Generic CSV",
-    } = parseCollectionCsv(String(reader.result));
-    if (!records.length) {
-      toast(errors[0] || "No importable rows found");
-      return;
-    }
-    const errorCopy = errors.length
-      ? `<div class="unavailable-panel">${errors.length} row${errors.length === 1 ? "" : "s"} will be skipped. ${esc(errors.slice(0, 3).join(" · "))}</div>`
-      : "";
-    const today = localIsoDate();
-    const unknownCostRows = records.filter(
-      (record) => record.totalAcquisitionCost == null && record.cost == null,
-    ).length;
-    const unknownDateRows = records.filter(
-      (record) => !record.purchaseDate,
-    ).length;
-    const unknownCopy =
-      unknownCostRows || unknownDateRows
-        ? `<div class="simple-note"><strong>Mica will not guess missing purchase details.</strong><br>${unknownCostRows ? `${unknownCostRows.toLocaleString()} row${unknownCostRows === 1 ? " has" : "s have"} no amount paid, so Mica cannot show money gained for those cards. ` : ""}${unknownDateRows ? `${unknownDateRows.toLocaleString()} row${unknownDateRows === 1 ? " has" : "s have"} no purchase date; the date below only keeps purchases in a consistent order and will still be shown as “not recorded.”` : ""}</div>`
-        : "";
-    openSheet(
-      `<div class="sheet-heading"><div><h2 id="sheetTitle">Import ${records.length.toLocaleString()} card record${records.length === 1 ? "" : "s"}?</h2><p>${esc(source)} spreadsheet found · private collection</p></div><button class="sheet-close" aria-label="Close">×</button></div>${errorCopy}${unknownCopy}<div class="info-copy"><p>Mica keeps each card’s type, professional grade, version, known purchase history, certification number, labels, location, and notes. Cards already in your account are not overwritten. Importing the same rows again will reuse the copies already saved when it can do so safely.</p></div><div class="field"><label for="importFallbackDate">Temporary date for rows missing a purchase date</label><input id="importFallbackDate" type="date" max="${today}" value="${today}" required><small>This only keeps purchases in a consistent order. Mica will still show the real purchase date as not recorded.</small></div><section class="import-progress" id="importProgress" aria-labelledby="importProgressTitle" hidden><div><strong id="importProgressTitle">Preparing import…</strong><span id="importProgressCount">0 of ${records.length.toLocaleString()}</span></div><progress id="importProgressBar" max="${records.length}" value="0">0%</progress><small id="importProgressHelp">You can pause after the current secure saves finish.</small></section><p class="form-error" id="importStatus" role="status" aria-live="polite"></p><div class="sheet-actions import-actions"><button class="secondary" id="cancelCsvImport" type="button">Cancel</button><button class="secondary" id="pauseCsvImport" type="button" hidden>Pause</button><button class="primary" id="addCsvImport" type="button">Add to my account</button></div>`,
-    );
-    const prepare = (record, index) => {
-      const cardState =
-        record.cardState === "sealed"
-          ? "sealed"
-          : record.cardState === "graded" || Boolean(record.gradingCompany)
-            ? "graded"
-            : "raw";
-      const rawCondition =
-        cardState === "raw"
-          ? normalizeRawCondition(record.rawCondition || record.condition)
-              .normalized
-          : null;
-      const grader =
-        cardState === "graded"
-          ? normalizeGrader(record.gradingCompany).normalized
-          : null;
-      const grade =
-        cardState === "graded" ? normalizeGrade(record.grade) : null;
-      const acquisitionDateKnown = Boolean(record.purchaseDate);
-      const transactionDate =
-        record.purchaseDate || $("#importFallbackDate").value;
-      const total =
-        record.totalAcquisitionCost ??
-        (record.cost === null
-          ? null
-          : Number(record.cost) * Number(record.quantity));
-      const acquisitionCostKnown = total !== null;
-      if (
-        acquisitionCostKnown &&
-        (!Number.isFinite(Number(total)) || Number(total) < 0)
-      )
-        return {
-          error: `Row ${index + 2}: purchase price or total paid is invalid`,
-        };
-      if (
-        !/^\d{4}-\d{2}-\d{2}$/.test(transactionDate) ||
-        transactionDate > today
-      )
-        return {
-          error: `Row ${index + 2}: purchase date is invalid or in the future`,
-        };
-      if (cardState === "raw" && !rawCondition)
-        return {
-          error: `Row ${index + 2}: use Near Mint, Lightly Played, Moderately Played, Heavily Played, or Damaged`,
-        };
-      if (cardState === "graded" && (!grader || !grade))
-        return {
-          error: `Row ${index + 2}: graded cards need a valid grading company and grade`,
-        };
-      if (
-        String(record.location || "").length > 250 ||
-        String(record.notes || "").length > 10000
-      )
-        return {
-          error: `Row ${index + 2}: location or notes exceed the safe length limit`,
-        };
-      const exact =
-        cardState === "sealed"
-          ? null
-          : catalog.find((item) => item.id === record.id) ||
-            (record.externalIds?.tcgplayer
-              ? catalog.find(
-                  (item) =>
-                    String(item.externalIds?.tcgplayer || "") ===
-                    String(record.externalIds.tcgplayer),
-                )
-              : null) ||
-            catalog.find(
-              (item) =>
-                normalizeIdentity(item.name) ===
-                  normalizeIdentity(record.name) &&
-                normalizeIdentity(item.set) === normalizeIdentity(record.set) &&
-                normalizeIdentity(item.number) ===
-                  normalizeIdentity(record.number),
-            );
-      const sealedId =
-        cardState === "sealed"
-          ? String(record.id || "").match(/^sealed:(\d{1,12})$/)?.[1] || null
-          : null;
-      const card = {
-        ...record,
-        ...exact,
-        id:
-          exact?.id ||
-          record.id ||
-          `import:${normalizeIdentity(`${record.name}-${record.set}-${record.number}`) || "card"}`,
-        language: record.language || exact?.language || "en",
-        variant:
-          record.variant ||
-          exact?.variant ||
-          (cardState === "sealed" ? "Sealed" : "Unknown"),
-        productType:
-          cardState === "sealed"
-            ? record.productType || "sealed"
-            : record.productType || exact?.productType || null,
-        externalIds:
-          cardState === "sealed" && sealedId
-            ? { pkmnpricesSealed: Number(sealedId) }
-            : { ...(exact?.externalIds || {}), ...(record.externalIds || {}) },
-      };
-      const breakdown = acquisitionFromTotal(
-        acquisitionCostKnown ? total : 0,
-        record.quantity,
-      );
-      const currency = /^[A-Z]{3}$/.test(record.currency || "USD")
-        ? record.currency
-        : "USD";
-      return {
-        record,
-        card,
-        keyRecord: {
-          ...record,
-          id: card.id,
-          language: card.language,
-          variant: card.variant,
-          cardState,
-          rawCondition,
-          gradingCompany: grader,
-          grade,
-          quantity: Number(record.quantity),
-          totalAcquisitionCost: acquisitionCostKnown ? Number(total) : null,
-          purchaseDate: transactionDate,
-          currency,
-        },
-        input: {
-          ...breakdown,
-          identity: {
-            ...identitySnapshot(card, card.variant),
-            acquisitionCostKnown,
-            acquisitionDateKnown,
-          },
-          cardId: exact?.cardId || null,
-          variantId: exact?.variantId || null,
-          cardState,
-          rawCondition,
-          grader,
-          grade,
-          certificationNumber: record.certificationNumber || null,
-          quantity: Number(record.quantity),
-          transactionDate,
-          currency,
-          notes: record.notes || null,
-        },
-      };
-    };
-    let entries = [];
-    let validationFailures = [];
-    let pauseRequested = false;
-    let running = false;
-    const setRunning = (value) => {
-      running = value;
-      $("#bottomSheet").dataset.lockClose = value ? "true" : "false";
-      $("#importFallbackDate").disabled = value;
-      $("#cancelCsvImport").disabled = value;
-      $(".sheet-close").disabled = value;
-      $("#pauseCsvImport").hidden = !value;
-      $("#addCsvImport").disabled = value;
-    };
-    const updateProgress = (active) => {
-      const settled = active
-        ? entries.filter((item) => item.status === "done").length +
-          active.completed
-        : entries.filter(
-            (item) => item.status === "done" || item.status === "failed",
-          ).length;
-      const finished = active
-        ? entries.filter((item) => item.status === "done").length +
-          active.succeeded
-        : entries.filter((item) => item.status === "done").length;
-      const failed = active
-        ? active.failed
-        : entries.filter((item) => item.status === "failed").length;
-      const remaining = Math.max(0, entries.length - settled);
-      $("#importProgress").hidden = false;
-      $("#importProgressBar").max = Math.max(entries.length, 1);
-      $("#importProgressBar").value = settled;
-      $("#importProgressCount").textContent =
-        `${settled.toLocaleString()} of ${entries.length.toLocaleString()}`;
-      $("#importProgressTitle").textContent = running
-        ? pauseRequested
-          ? "Finishing current secure saves…"
-          : "Saving securely…"
-        : remaining
-          ? "Import paused"
-          : "Import complete";
-      $("#importProgressHelp").textContent = running
-        ? `${finished.toLocaleString()} saved · ${failed.toLocaleString()} failed so far. Pause finishes current saves first.`
-        : remaining
-          ? `${remaining.toLocaleString()} row${remaining === 1 ? "" : "s"} ready to continue.`
-          : `${finished.toLocaleString()} saved or safely recovered · ${failed.toLocaleString()} failed.`;
-    };
-    const finishView = async () => {
-      try {
-        await reloadPortfolio();
-      } catch (error) {
-        validationFailures.push(
-          `Portfolio refresh: ${error.message || "try refreshing the page"}`,
-        );
-      }
-      state.ledgerView = "all";
-      state.query = "";
-      state.setFilter = "";
-      state.conditionFilter = "";
-      state.labelFilter = "";
-      $("#collectionSearch").value = "";
-      syncTabs();
-      renderCollection();
-    };
-    const runImport = async () => {
-      if (running) return;
-      const pending = entries.filter(
-        (item) => item.status === "pending" || item.status === "failed",
-      );
-      if (!pending.length) return;
-      pending.forEach((item) => {
-        item.status = "pending";
-        delete item.error;
-      });
-      pauseRequested = false;
-      setRunning(true);
-      updateProgress();
-      const result = await runBoundedTasks(
-        pending,
-        async (item) => {
-          const saved = await createImportedPosition(supabase, {
-            ...item.input,
-            idempotencyKey: item.idempotencyKey,
-          });
-          if (item.record.location || (item.record.tags || []).length)
-            await updatePosition(supabase, saved.id, {
-              location: item.record.location || "",
-              tags: (item.record.tags || []).slice(0, 50),
-            });
-          return saved;
-        },
-        {
-          concurrency: 4,
-          shouldStop: () => pauseRequested,
-          onProgress: updateProgress,
-        },
-      );
-      result.results.forEach((outcome, index) => {
-        const item = pending[index];
-        if (!outcome) return;
-        item.status = outcome.status === "fulfilled" ? "done" : "failed";
-        if (outcome.status === "rejected")
-          item.error = `${item.record.name}: ${outcome.reason?.message || "could not save"}`;
-      });
-      $("#pauseCsvImport").disabled = true;
-      $("#importProgressTitle").textContent = "Refreshing your collection…";
-      $("#importProgressHelp").textContent =
-        "Your saved rows are safe. Mica is loading the updated library.";
-      await finishView();
-      setRunning(false);
-      updateProgress();
-      const remaining = entries.filter(
-        (item) => item.status === "pending",
-      ).length;
-      const failed = entries.filter((item) => item.status === "failed");
-      const done = entries.filter((item) => item.status === "done").length;
-      $("#cancelCsvImport").textContent = "Close";
-      $("#addCsvImport").disabled = false;
-      $("#addCsvImport").textContent = remaining
-        ? "Continue import"
-        : failed.length
-          ? "Retry failed rows"
-          : "Import complete";
-      $("#addCsvImport").disabled = !remaining && !failed.length;
-      const issues = [
-        ...validationFailures,
-        ...failed.map((item) => item.error),
-      ].filter(Boolean);
-      $("#importStatus").textContent = remaining
-        ? `${done.toLocaleString()} saved · paused with ${remaining.toLocaleString()} remaining.`
-        : issues.length
-          ? `${done.toLocaleString()} saved · ${issues.length.toLocaleString()} issue${issues.length === 1 ? "" : "s"}. ${issues.slice(0, 3).join(" · ")}`
-          : `${done.toLocaleString()} saved entr${done === 1 ? "y" : "ies"}. Safe to close.`;
-      toast(
-        remaining
-          ? `Import paused · ${done.toLocaleString()} saved`
-          : issues.length
-            ? `${done.toLocaleString()} saved · ${issues.length.toLocaleString()} need review`
-            : `${done.toLocaleString()} saved entr${done === 1 ? "y" : "ies"} added to your account`,
-      );
-    };
-    $("#cancelCsvImport").addEventListener("click", closeSheet);
-    $("#pauseCsvImport").addEventListener("click", () => {
-      pauseRequested = true;
-      $("#pauseCsvImport").disabled = true;
-      updateProgress();
-    });
-    $("#addCsvImport").addEventListener("click", async () => {
-      const fallback = $("#importFallbackDate");
-      if (!fallback.reportValidity()) return;
-      if (!entries.length) {
-        const button = $("#addCsvImport");
-        button.disabled = true;
-        fallback.disabled = true;
-        $("#importProgress").hidden = false;
-        $("#importProgressTitle").textContent = "Preparing secure row keys…";
-        $("#importProgressHelp").textContent =
-          "Checking exact identity and duplicate rows before anything is saved.";
-        const prepared = records.map(prepare);
-        validationFailures = prepared
-          .filter((item) => item.error)
-          .map((item) => item.error);
-        const ready = prepared.filter((item) => !item.error);
-        $("#importProgressBar").max = Math.max(ready.length, 1);
-        if (!ready.length) {
-          button.disabled = false;
-          fallback.disabled = false;
-          $("#importStatus").textContent = validationFailures
-            .slice(0, 3)
-            .join(" · ");
-          return;
-        }
-        const occurrences = new Map();
-        try {
-          for (const [index, item] of ready.entries()) {
-            const baseKey = await importRecordKey(item.keyRecord);
-            const occurrence = occurrences.get(baseKey) || 0;
-            occurrences.set(baseKey, occurrence + 1);
-            item.idempotencyKey = await importRecordKey(
-              item.keyRecord,
-              occurrence,
-            );
-            item.status = "pending";
-            if (index % 25 === 0 || index === ready.length - 1) {
-              $("#importProgressBar").value = index + 1;
-              $("#importProgressCount").textContent =
-                `${(index + 1).toLocaleString()} of ${ready.length.toLocaleString()}`;
-            }
-          }
-        } catch {
-          button.disabled = false;
-          fallback.disabled = false;
-          $("#importStatus").textContent =
-            "This browser could not prepare secure import keys. Update the browser and try again.";
-          return;
-        }
-        entries = ready;
-        if (validationFailures.length)
-          $("#importStatus").textContent =
-            `${validationFailures.length} invalid row${validationFailures.length === 1 ? "" : "s"} will be skipped.`;
-      }
-      $("#pauseCsvImport").disabled = false;
-      await runImport();
-    });
-  };
+  reader.onload = () => void openCsvImportReview(String(reader.result), file);
   reader.readAsText(file);
+}
+
+export async function openCsvImportReview(csvText, file) {
+  const ingestionSessionId = crypto.randomUUID();
+  const ingestionStartedAt = performance.now();
+  const inspection = inspectCollectionCsv(csvText);
+  if (!inspection.rowCount || inspection.errors.length) {
+    toast(inspection.errors[0] || "No importable rows found");
+    return;
+  }
+  let mapping = { ...inspection.suggestedMapping };
+  try {
+    const saved = await loadImportMappingProfile(
+      supabase,
+      inspection.headerSignature,
+    );
+    if (saved?.mapping) mapping = { ...mapping, ...saved.mapping };
+  } catch {}
+  const today = localIsoDate();
+  const headerOptions = inspection.headers
+    .map(
+      (header, index) =>
+        `<option value="${esc(inspection.normalizedHeaders[index])}">${esc(header)}</option>`,
+    )
+    .join("");
+  const mappingFields = COLLECTION_IMPORT_FIELDS.map(
+    (field) =>
+      `<label class="import-mapping-row" for="importMap-${esc(field.key)}"><span>${esc(field.label)}${field.required ? " *" : ""}</span><select id="importMap-${esc(field.key)}" data-import-map="${esc(field.key)}" ${field.required ? "required" : ""}><option value="">${field.required ? "Choose a column" : "Not included"}</option>${headerOptions}</select></label>`,
+  ).join("");
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Review spreadsheet import</h2><p>${esc(inspection.source)} · ${inspection.totalRowCount.toLocaleString()} data row${inspection.totalRowCount === 1 ? "" : "s"}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="import-safety-note"><strong>Nothing enters your library during preview.</strong><span>Check the rows below before adding them to your collection.</span></div><details class="import-mapping"><summary>Match spreadsheet columns</summary><div class="import-mapping-grid">${mappingFields}</div><label class="field-choice"><input id="saveImportMapping" type="checkbox" checked> Remember these column choices</label></details><div class="field"><label for="importFallbackDate">Temporary ordering date when the real purchase date is missing</label><input id="importFallbackDate" type="date" max="${today}" value="${today}" required><small>This date is marked unknown and is never presented as the real purchase date.</small></div><section class="import-dry-run" id="importDryRun" aria-live="polite"><div class="searching-cards"><i></i><span>Preparing row preview…</span></div></section><section class="import-progress" id="importProgress" aria-labelledby="importProgressTitle" hidden><div><strong id="importProgressTitle">Preparing your import…</strong><span id="importProgressCount">0</span></div><progress id="importProgressBar" max="1" value="0">0%</progress><small id="importProgressHelp">Your collection has not changed.</small></section><p class="form-error" id="importStatus" role="status" aria-live="polite"></p><div class="sheet-actions import-actions"><button class="secondary" id="cancelCsvImport" type="button">Cancel</button><button class="secondary" id="runCsvDryCheck" type="button">Check import</button><button class="primary" id="commitCsvImport" type="button" disabled>Import all rows</button></div>`,
+  );
+  for (const field of COLLECTION_IMPORT_FIELDS) {
+    const control = $(`#importMap-${field.key}`);
+    if (control) control.value = mapping[field.key] || "";
+  }
+
+  let current = null;
+  let dryCheckPassed = false;
+  let importJobId = null;
+  let stagedRows = [];
+  let staging = false;
+  const setControlsDisabled = (disabled) => {
+    $$("[data-import-map],#importFallbackDate,#saveImportMapping").forEach(
+      (control) => (control.disabled = disabled),
+    );
+    $("#cancelCsvImport").disabled = disabled;
+    $(".sheet-close").disabled = disabled;
+    $("#runCsvDryCheck").disabled = disabled;
+  };
+  const readMapping = () =>
+    Object.fromEntries(
+      $$("[data-import-map]").map((control) => [
+        control.dataset.importMap,
+        control.value,
+      ]),
+    );
+  const prepare = (record, index) => {
+    const sourceRows = record.sourceRows || [index + 2];
+    const rowLabel =
+      sourceRows.length > 1
+        ? `Rows ${sourceRows.join(", ")}`
+        : `Row ${sourceRows[0]}`;
+    const cardState =
+      record.cardState === "sealed"
+        ? "sealed"
+        : record.cardState === "graded" || Boolean(record.gradingCompany)
+          ? "graded"
+          : "raw";
+    const rawCondition =
+      cardState === "raw"
+        ? normalizeRawCondition(record.rawCondition || record.condition)
+            .normalized
+        : null;
+    const grader =
+      cardState === "graded"
+        ? normalizeGrader(record.gradingCompany).normalized
+        : null;
+    const grade = cardState === "graded" ? normalizeGrade(record.grade) : null;
+    const acquisitionDateKnown = Boolean(record.purchaseDate);
+    const transactionDate =
+      record.purchaseDate || $("#importFallbackDate").value;
+    const total =
+      record.totalAcquisitionCost ??
+      (record.cost === null
+        ? null
+        : Number(record.cost) * Number(record.quantity));
+    const acquisitionCostKnown = total !== null;
+    if (
+      acquisitionCostKnown &&
+      (!Number.isFinite(Number(total)) || Number(total) < 0)
+    )
+      return { error: `${rowLabel}: purchase price is invalid` };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(transactionDate) || transactionDate > today)
+      return {
+        error: `${rowLabel}: purchase date is invalid or in the future`,
+      };
+    if (cardState === "graded" && (!grader || !grade))
+      return {
+        error: `${rowLabel}: graded cards need a supported grader and grade`,
+      };
+    if (
+      String(record.location || "").length > 250 ||
+      String(record.notes || "").length > 10000 ||
+      String(record.folder || "").length > 100
+    )
+      return { error: `${rowLabel}: folder, location, or notes are too long` };
+    const customFields = normalizeCustomFields(record.customFields);
+    if (
+      Object.keys(customFields).length !==
+      Object.keys(record.customFields || {}).length
+    )
+      return {
+        error: `${rowLabel}: custom fields contain an unsupported key or value`,
+      };
+    if (
+      (record.tags || []).length > 50 ||
+      (record.tags || []).some(
+        (tag) => !String(tag).trim() || String(tag).trim().length > 40,
+      )
+    )
+      return { error: `${rowLabel}: labels must be 1–40 characters each` };
+    const exact =
+      cardState === "sealed"
+        ? null
+        : catalog.find((item) => item.id === record.id) ||
+          (record.externalIds?.tcgplayer
+            ? catalog.find(
+                (item) =>
+                  String(item.externalIds?.tcgplayer || "") ===
+                  String(record.externalIds.tcgplayer),
+              )
+            : null) ||
+          catalog.find(
+            (item) =>
+              normalizeIdentity(item.name) === normalizeIdentity(record.name) &&
+              normalizeIdentity(item.set) === normalizeIdentity(record.set) &&
+              normalizeIdentity(item.number) ===
+                normalizeIdentity(record.number),
+          );
+    const sealedId =
+      cardState === "sealed"
+        ? String(record.id || "").match(/^sealed:(\d{1,12})$/)?.[1] || null
+        : null;
+    const card = {
+      ...record,
+      ...exact,
+      id:
+        exact?.id ||
+        record.id ||
+        `import:${normalizeIdentity(`${record.name}-${record.set}-${record.number}`) || "card"}`,
+      language: record.language || exact?.language || "en",
+      variant:
+        record.variant ||
+        exact?.variant ||
+        (cardState === "sealed" ? "Sealed product" : "Unknown"),
+      productType:
+        cardState === "sealed"
+          ? record.productType || "sealed"
+          : record.productType || exact?.productType || null,
+      externalIds:
+        cardState === "sealed" && sealedId
+          ? { pkmnpricesSealed: Number(sealedId) }
+          : { ...(exact?.externalIds || {}), ...(record.externalIds || {}) },
+    };
+    const breakdown = acquisitionFromTotal(
+      acquisitionCostKnown ? total : 0,
+      record.quantity,
+    );
+    if (!breakdown)
+      return { error: `${rowLabel}: total or quantity is invalid` };
+    const currency = /^[A-Z]{3}$/.test(record.currency || "USD")
+      ? record.currency
+      : "USD";
+    const ingestion = confirmIngestionEnvelope(
+      createIngestionEnvelope({
+        channel: "csv",
+        item: card,
+        variant: card.variant,
+        candidateStatus: exact?.identityStatus || "needs_review",
+        source: record.source || inspection.source,
+      }),
+    );
+    return {
+      record,
+      sourceRows,
+      keyRecord: {
+        ...record,
+        id: card.id,
+        language: card.language,
+        variant: card.variant,
+        cardState,
+        rawCondition,
+        gradingCompany: grader,
+        grade,
+        quantity: Number(record.quantity),
+        totalAcquisitionCost: acquisitionCostKnown ? Number(total) : null,
+        purchaseDate: transactionDate,
+        currency,
+      },
+      payload: {
+        ...breakdown,
+        identity: {
+          ...identitySnapshot(card, card.variant, ingestion),
+          acquisitionCostKnown,
+          acquisitionDateKnown,
+          importSourceRows: sourceRows,
+        },
+        cardId: exact?.cardId || null,
+        variantId:
+          exact?.variantId && UUID_PATTERN.test(exact.variantId)
+            ? exact.variantId
+            : null,
+        cardState,
+        rawCondition,
+        grader,
+        grade,
+        certificationNumber: record.certificationNumber || null,
+        quantity: Number(record.quantity),
+        transactionDate,
+        currency,
+        marketplace: null,
+        acquisitionMethod: "unknown",
+        notes: record.notes || null,
+        folder: record.folder || null,
+        location: record.location || null,
+        tags: (record.tags || []).slice(0, 50),
+        customFields,
+      },
+    };
+  };
+  const renderPreview = ({ markDryRun = false } = {}) => {
+    mapping = readMapping();
+    const parsed = parseCollectionCsv(csvText, { mapping, limit: 5000 });
+    const plan = buildCollectionImportPreview(parsed.records, parsed.errors);
+    const prepared = plan.rows.map(prepare);
+    const preparationErrors = prepared
+      .filter((row) => row.error)
+      .map((row) => row.error);
+    const ready = prepared.filter((row) => !row.error);
+    current = {
+      parsed,
+      plan,
+      ready,
+      errors: [...plan.errors, ...preparationErrors],
+    };
+    dryCheckPassed =
+      markDryRun && current.errors.length === 0 && ready.length > 0;
+    const summary = plan.summary;
+    if (markDryRun)
+      logIngestionEvent({
+        sessionId: ingestionSessionId,
+        channel: "csv",
+        stage: "previewed",
+        outcome: dryCheckPassed ? "success" : "failure",
+        durationMs: performance.now() - ingestionStartedAt,
+        metadata: {
+          rowCount: inspection.totalRowCount,
+          stagedCount: ready.length,
+          invalidCount: current.errors.length,
+          duplicateCount: summary.exactDuplicates,
+          reason: dryCheckPassed ? "preview_passed" : "validation_failed",
+        },
+      });
+    const issues = [
+      ...current.errors.slice(0, 8),
+      ...plan.identityDuplicates
+        .slice(0, 4)
+        .map(
+          (duplicate) =>
+            `Rows ${duplicate.matchesRow} and ${duplicate.rowNumber} have the same card identity but different purchase facts; both remain separate.`,
+        ),
+    ];
+    const previewRows = ready
+      .slice(0, 12)
+      .map(
+        ({ record, sourceRows }) =>
+          `<tr><td>${esc(sourceRows.join(", "))}</td><td><strong>${esc(record.name)}</strong><small>${esc([record.set, record.number].filter(Boolean).join(" · ") || "Identity details missing")}</small></td><td>${Number(record.quantity).toLocaleString()}</td><td>${esc(record.variant || "Needs review")}</td><td>${esc(record.condition || record.gradingCompany || "Not recorded")}</td></tr>`,
+      );
+    $("#importDryRun").innerHTML =
+      `<div class="import-summary-grid"><div><span>Rows ready</span><strong>${ready.length.toLocaleString()}</strong></div><div><span>Total cards/products</span><strong>${summary.totalQuantity.toLocaleString()}</strong></div><div><span>Exact repeats combined</span><strong>${summary.exactDuplicates.toLocaleString()}</strong></div><div><span>Issues to fix</span><strong>${current.errors.length.toLocaleString()}</strong></div></div>${issues.length ? `<div class="unavailable-panel"><strong>${current.errors.length ? "Fix these before importing" : "Duplicate report"}</strong><br>${issues.map(esc).join("<br>")}</div>` : '<div class="simple-note"><strong>No row errors found.</strong><br>Check the import when you are ready.</div>'}<div class="import-preview-table-wrap"><table class="import-preview-table"><thead><tr><th>CSV row</th><th>Card</th><th>Qty</th><th>Version</th><th>Condition</th></tr></thead><tbody>${previewRows.join("")}</tbody></table></div>${ready.length > 12 ? `<small>Showing 12 of ${ready.length.toLocaleString()} entries.</small>` : ""}`;
+    $("#commitCsvImport").disabled = !dryCheckPassed;
+    $("#commitCsvImport").textContent = dryCheckPassed
+      ? `Import ${ready.length.toLocaleString()} entr${ready.length === 1 ? "y" : "ies"}`
+      : "Import all rows";
+    $("#importStatus").textContent = dryCheckPassed
+      ? "Ready to import. Your library is still unchanged."
+      : current.errors.length
+        ? "Correct the column choices or spreadsheet, then check again."
+        : "Review the rows, then check the import.";
+  };
+  $$("[data-import-map],#importFallbackDate").forEach((control) =>
+    control.addEventListener("change", () => {
+      importJobId = null;
+      stagedRows = [];
+      renderPreview();
+    }),
+  );
+  $("#cancelCsvImport").addEventListener("click", closeSheet);
+  $("#runCsvDryCheck").addEventListener("click", () =>
+    renderPreview({ markDryRun: true }),
+  );
+  $("#commitCsvImport").addEventListener("click", async () => {
+    if (!dryCheckPassed || !current?.ready.length || staging) return;
+    staging = true;
+    setControlsDisabled(true);
+    $("#commitCsvImport").disabled = true;
+    $("#importProgress").hidden = false;
+    $("#bottomSheet").dataset.lockClose = "true";
+    try {
+      if (!stagedRows.length) {
+        for (const row of current.ready) {
+          const idempotencyKey = await importRecordKey(row.keyRecord);
+          stagedRows.push({
+            rowNumber: row.sourceRows[0],
+            idempotencyKey,
+            payload: row.payload,
+          });
+        }
+      }
+      if (!importJobId)
+        importJobId = await beginCollectionImport(supabase, {
+          sourceName: current.parsed.source || inspection.source,
+          fileSha256: await sha256Text(csvText),
+          headerSignature: inspection.headerSignature,
+          mapping,
+          preview: current.plan.summary,
+        });
+      const chunks = chunkImportRows(stagedRows, 200);
+      $("#importProgressBar").max = stagedRows.length;
+      let staged = 0;
+      for (const chunk of chunks) {
+        await stageCollectionImportRows(supabase, importJobId, chunk);
+        staged += chunk.length;
+        $("#importProgressBar").value = staged;
+        $("#importProgressCount").textContent =
+          `${staged.toLocaleString()} of ${stagedRows.length.toLocaleString()}`;
+        $("#importProgressHelp").textContent =
+          "Preparing rows · your collection is still unchanged.";
+      }
+      logIngestionEvent({
+        sessionId: ingestionSessionId,
+        channel: "csv",
+        stage: "staged",
+        outcome: "success",
+        durationMs: performance.now() - ingestionStartedAt,
+        metadata: {
+          stagedCount: stagedRows.length,
+          retry: Boolean(importJobId),
+        },
+      });
+      const serverPreview = await previewCollectionImport(
+        supabase,
+        importJobId,
+      );
+      if (
+        Number(serverPreview.invalidRows) !== 0 ||
+        Number(serverPreview.validRows) !== stagedRows.length
+      )
+        throw new Error(
+          "The server dry check disagreed with this preview. Nothing was imported.",
+        );
+      $("#importProgressTitle").textContent = "Saving your import…";
+      const result = await commitCollectionImport(supabase, importJobId);
+      logIngestionEvent({
+        sessionId: ingestionSessionId,
+        channel: "csv",
+        stage: "committed",
+        outcome: "success",
+        durationMs: performance.now() - ingestionStartedAt,
+        metadata: {
+          rowCount: inspection.totalRowCount,
+          stagedCount: stagedRows.length,
+          duplicateCount: current.plan.summary.exactDuplicates,
+        },
+      });
+      if ($("#saveImportMapping").checked)
+        try {
+          await saveImportMappingProfile(supabase, {
+            sourceName: current.parsed.source || inspection.source,
+            headerSignature: inspection.headerSignature,
+            mapping,
+          });
+        } catch {}
+      await reloadPortfolio();
+      $("#bottomSheet").dataset.lockClose = "false";
+      openSheet(
+        `<div class="sheet-heading"><div><h2 id="sheetTitle">Import complete</h2><p>Your collection has been updated</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="import-complete"><span aria-hidden="true">✓</span><strong>${Number(result.createdRows || 0).toLocaleString()} new entr${Number(result.createdRows || 0) === 1 ? "y" : "ies"} saved</strong><p>${Number(result.reusedRows || 0).toLocaleString()} already saved. Exact repeats in the spreadsheet were combined.</p></div><div class="warning-panel"><strong>Need to undo this import?</strong><p>Undo removes entries added by this import only if they have not changed. Later purchases, sales, grading, and edits are protected.</p></div><p class="form-error" id="importRollbackStatus" role="status"></p><div class="sheet-actions"><button class="secondary" id="viewImportedCollection" type="button">View collection</button><button class="danger-action" id="rollbackCsvImport" type="button">Undo import</button></div>`,
+      );
+      $("#viewImportedCollection").addEventListener("click", () => {
+        closeSheet({ discardHistory: true });
+        routeTo("collection");
+      });
+      $("#rollbackCsvImport").addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        $("#importRollbackStatus").textContent = "Checking imported entries…";
+        try {
+          const rolledBack = await rollbackCollectionImport(
+            supabase,
+            importJobId,
+          );
+          logIngestionEvent({
+            sessionId: ingestionSessionId,
+            channel: "csv",
+            stage: "rolled_back",
+            outcome: "success",
+            durationMs: performance.now() - ingestionStartedAt,
+            metadata: { rowCount: Number(rolledBack.removedRows || 0) },
+          });
+          await reloadPortfolio();
+          $("#importRollbackStatus").textContent =
+            `${Number(rolledBack.removedRows || 0).toLocaleString()} imported entr${Number(rolledBack.removedRows || 0) === 1 ? "y" : "ies"} removed. Reused entries were left unchanged.`;
+          button.remove();
+          toast("Import undone");
+        } catch (error) {
+          button.disabled = false;
+          $("#importRollbackStatus").textContent =
+            "Could not confirm the undo. Check import history before trying again.";
+        }
+      });
+    } catch (error) {
+      logIngestionEvent({
+        sessionId: ingestionSessionId,
+        channel: "csv",
+        stage: "failed",
+        outcome: "failure",
+        durationMs: performance.now() - ingestionStartedAt,
+        metadata: {
+          rowCount: inspection.totalRowCount,
+          stagedCount: stagedRows.length,
+          reason: ingestionFailureReason(error),
+          offline: !navigator.onLine,
+          retry: Boolean(importJobId),
+        },
+      });
+      staging = false;
+      $("#bottomSheet").dataset.lockClose = "false";
+      setControlsDisabled(false);
+      $("#commitCsvImport").disabled = false;
+      $("#commitCsvImport").textContent = importJobId
+        ? "Retry import"
+        : "Try import again";
+      $("#importProgressTitle").textContent = "Import needs another try";
+      $("#importProgressHelp").textContent =
+        "Retry this import to check its result and finish without adding the same rows twice.";
+      $("#importStatus").textContent =
+        "We could not confirm the import finished. Your column choices are still here. Try again.";
+    }
+  });
+  renderPreview();
 }
 
 async function refreshLivePricing() {
@@ -11227,7 +17015,7 @@ async function refreshLivePricing() {
       results.forEach((result, index) => {
         const item = batch[index];
         sealedProcessed.add(item.id);
-        if (result.status === "fulfilled" && result.value.product)
+        if (result.status === "fulfilled" && sealedProductMatches(item, result.value?.product))
           sealedProducts.set(item.id, result.value.product);
         else partial = true;
       });
@@ -11301,12 +17089,12 @@ async function refreshLivePricing() {
         ? "partial"
         : "live";
     state.pricingRetrievedAt = retrievedAt;
-    await capturePortfolioValuation();
+    if (!state.largeInventory.active) await capturePortfolioValuation();
     renderCollection();
     renderInsights();
     if (state.route === "detail") renderDetail();
     if (state.route === "insights") void refreshMovementHistory();
-    void backfillPurchaseMarketReferences();
+    if (!state.largeInventory.active) void backfillPurchaseMarketReferences();
   } catch {
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.pricingStatus = "error";
@@ -11433,6 +17221,7 @@ async function refreshMovementHistory() {
   renderCollection();
   renderInsights();
   if (state.route === "detail") renderDetail();
+  void refreshActionCenter();
 }
 
 async function refreshWatchlistPricing() {
@@ -11517,7 +17306,7 @@ async function refreshWatchlistPricing() {
         }),
       );
       results.forEach((result) => {
-        if (result.status === "fulfilled" && result.value?.product)
+        if (result.status === "fulfilled" && sealedProductMatches(result.value.item, result.value.product))
           sealedProducts.set(result.value.item.id, result.value.product);
       });
     }
@@ -11597,6 +17386,7 @@ async function refreshWatchlistPricing() {
     }
   }
   void notifyReachedTargets();
+  void refreshActionCenter();
 }
 
 function renderBusinessReview() {
@@ -11615,6 +17405,68 @@ function renderBusinessReview() {
     (sum, action) => sum + action.items.length,
     0,
   );
+  if (["ready", "local"].includes(state.actionCenter.status)) {
+    const now = Date.now();
+    const durableActions = state.actionCenter.items.filter(
+      (item) =>
+        item.status === "open" ||
+        (item.status === "snoozed" &&
+          new Date(item.snoozedUntil || 0).getTime() <= now),
+    );
+    briefButton.disabled = !actions.length;
+    briefButton.textContent = actions.length
+      ? "Explain verified priorities"
+      : "Nothing needs explanation";
+    if (!state.items.length && !state.watchlist.length) {
+      $("#businessReview").innerHTML =
+        '<div class="action-center-empty"><span>Start here</span><strong>Add your first card</strong><small>Search for a card or unopened product, then enter the total paid. Mica will build a simple checklist from your collection.</small><button id="actionCenterAdd" type="button">Find a card →</button></div>';
+      $("#actionCenterAdd").addEventListener("click", () => {
+        routeTo("scan");
+        void openAutoCapture();
+      });
+      return;
+    }
+    if (!durableActions.length) {
+      $("#businessReview").innerHTML =
+        '<div class="action-center-clear"><span>Today</span><strong>You’re caught up</strong><small>No new alerts.</small><b>✓</b></div>';
+      return;
+    }
+    $("#businessReview").innerHTML =
+      `<div class="action-center-summary"><span>For you</span><strong>${durableActions.length} action${durableActions.length === 1 ? "" : "s"} need attention</strong></div>${durableActions
+        .map((item, index) => {
+          const observed = item.observedAt
+            ? new Date(item.observedAt).toLocaleString()
+            : "time unavailable";
+          const confidence = Number.isFinite(Number(item.confidence))
+            ? `${Math.round(Number(item.confidence) * 100)}% confidence`
+            : "confidence unavailable";
+          const controls = item.id
+            ? `<div class="action-item-controls"><button type="button" data-action-open="${esc(item.actionKey)}">Open evidence</button><button type="button" data-action-transition="snooze" data-action-key="${esc(item.actionKey)}">Snooze 24h</button><button type="button" data-action-transition="dismiss" data-action-key="${esc(item.actionKey)}">Dismiss</button><button type="button" data-action-transition="complete" data-action-key="${esc(item.actionKey)}">Complete</button></div>`
+            : `<div class="action-item-controls"><button type="button" data-action-open="${esc(item.actionKey)}">Open evidence</button><small>Snooze and dismiss aren’t available yet.</small></div>`;
+          return `<article class="durable-action ${index === 0 ? "recommended" : ""}"><span>${index === 0 ? "Do this first" : `Next ${index + 1}`}</span><strong>${esc(item.title)}</strong><p>${esc(item.reason)}</p><small>${esc(item.source)} · ${esc(observed)} · ${esc(confidence)}</small><em>${esc(item.suggestedAction)}</em>${controls}</article>`;
+        })
+        .join("")}`;
+    $$("[data-action-open]", $("#businessReview")).forEach((button) =>
+      button.addEventListener("click", () => {
+        const item = durableActions.find(
+          (candidate) => candidate.actionKey === button.dataset.actionOpen,
+        );
+        if (item) openActionDestination(item);
+      }),
+    );
+    $$("[data-action-transition]", $("#businessReview")).forEach((button) =>
+      button.addEventListener(
+        "click",
+        () =>
+          void applyActionTransition(
+            button.dataset.actionKey,
+            button.dataset.actionTransition,
+            button,
+          ),
+      ),
+    );
+    return;
+  }
   if (!state.items.length && !state.watchlist.length) {
     $("#businessReview").innerHTML =
       '<div class="action-center-empty"><span>Start here</span><strong>Add your first card</strong><small>Search for a card or unopened product, then enter the total paid. Mica will build a simple checklist from your collection.</small><button id="actionCenterAdd" type="button">Find a card →</button></div>';
@@ -11638,6 +17490,84 @@ function renderBusinessReview() {
       openBusinessReviewQueue(key, items);
     }),
   );
+}
+
+function openActionDestination(item) {
+  const route = item.destination?.route || "dashboard";
+  const id = item.destination?.id || item.subject?.id;
+  if (route === "settings") return routeTo("profile");
+  if (route === "watchlist") return openWorkspaceShortcut("watchlist");
+  if (route === "goals") {
+    routeTo("collection", { sidebarTarget: "collection" });
+    const goal = state.organization.goals.find(
+      (candidate) => candidate.id === id,
+    );
+    if (goal) requestAnimationFrame(() => openCollectionGoalSheet(goal.id));
+    return;
+  }
+  if (["collection", "grading", "listings"].includes(route)) {
+    const position = state.items.find((candidate) => candidate.uid === id);
+    if (position) return openCardDetail(position, true);
+    return openWorkspaceShortcut(
+      route === "listings" ? "seller" : "collection",
+    );
+  }
+  if (route === "sales") return openWorkspaceShortcut("sales");
+  routeTo("dashboard", { sidebarTarget: "dashboard" });
+}
+
+function applyPendingActionDestination() {
+  if (pendingActionDestinationApplied) return;
+  const parameters = new URLSearchParams(location.search);
+  const route = parameters.get("actionRoute");
+  const id = parameters.get("actionId");
+  if (!route && !id) return;
+  pendingActionDestinationApplied = true;
+  const action = state.actionCenter.items.find(
+    (candidate) =>
+      (!id ||
+        candidate.destination?.id === id ||
+        candidate.subject?.id === id) &&
+      (!route || candidate.destination?.route === route),
+  );
+  if (action) return openActionDestination(action);
+  if (route === "watchlist") return openWorkspaceShortcut("watchlist");
+  if (route === "settings") return routeTo("profile");
+  if (route === "sales") return openWorkspaceShortcut("sales");
+  if (["collection", "goals", "grading", "listings"].includes(route))
+    return openWorkspaceShortcut(
+      route === "listings" ? "seller" : "collection",
+    );
+  routeTo("dashboard", { sidebarTarget: "dashboard" });
+}
+
+async function applyActionTransition(actionKey, transition, button) {
+  const action = state.actionCenter.items.find(
+    (candidate) => candidate.actionKey === actionKey,
+  );
+  if (!action?.id || state.actionCenter.status !== "ready") return;
+  button.disabled = true;
+  const snoozedUntil =
+    transition === "snooze"
+      ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      : null;
+  try {
+    await transitionActionItem(supabase, action.id, transition, snoozedUntil);
+    const durable = await loadActionCenter(supabase, state.session.user.id);
+    state.actionCenter.items = durable.items;
+    state.actionCenter.preferences = durable.preferences;
+    renderBusinessReview();
+    toast(
+      transition === "complete"
+        ? "Action completed"
+        : transition === "dismiss"
+          ? "Action dismissed"
+          : "Action snoozed for 24 hours",
+    );
+  } catch (error) {
+    button.disabled = false;
+    toast(`Could not update the action: ${error.message || "Unknown error"}`);
+  }
 }
 
 function businessReviewItems(
@@ -11763,6 +17693,10 @@ function openBusinessReviewQueue(key, items) {
     .map((item, index) => {
       let metric = "";
       let detail = "";
+      const evidence = itemWithPriceEvidence({
+        ...item,
+        price: item.currentPrice ?? item.price,
+      });
       if (key === "pricing") {
         metric = "Needs price";
         detail = esc(
@@ -11783,7 +17717,7 @@ function openBusinessReviewQueue(key, items) {
         const value = Number(item.price || 0) * Number(item.quantity || 0);
         const gap = value - Number(item.costBasis || 0);
         metric = `${gap >= 0 ? "+" : ""}${money(gap, item.currency)}`;
-        detail = `${money(value, item.currency)} value · ${money(item.costBasis, item.currency)} paid`;
+        detail = `${money(value, item.currency)} value · ${money(item.costBasis, item.currency)} paid · ${esc(priceProvenanceText(evidence))}`;
       } else if (key === "older") {
         const days = holdingDays(item.purchaseDate);
         metric = days === null ? "Date missing" : `${days} days`;
@@ -11793,7 +17727,7 @@ function openBusinessReviewQueue(key, items) {
           item.currentPrice === null
             ? "Price missing"
             : money(item.currentPrice, item.currency);
-        detail = `Your target ${money(item.targetPrice, item.currency)} · ${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))}`;
+        detail = `Your target ${money(item.targetPrice, item.currency)} · ${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))} · ${esc(priceProvenanceText(evidence))}`;
       }
       return `<button class="review-queue-row" type="button" data-review-index="${index}"><img src="${esc(item.thumb || "./icons/icon.svg")}" alt=""><span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number)}</small><em>${detail}</em></span><b>${metric}<small>Review →</small></b></button>`;
     })
@@ -11817,6 +17751,8 @@ function openBusinessReviewQueue(key, items) {
     state.setFilter = "";
     state.conditionFilter = "";
     state.labelFilter = "";
+    state.collectionFilter = "";
+    state.locationFilter = "";
     $("#collectionSearch").value = "";
     syncTabs();
     renderCollection();
@@ -11911,6 +17847,10 @@ function renderLiquidationPlanner() {
       : plan.profitMinor >= 0
         ? "positive"
         : "negative";
+  const coverage = portfolioPriceCoverage(state.items, {
+    currency: plan.currency,
+  });
+  const evidenceSummary = `${coverage.automaticCoveragePercent.toFixed(0)}% live automatic coverage · ${coverage.categories.strong.units} strong · ${coverage.categories.moderate.units} moderate · ${coverage.categories.limited.units} limited`;
   output.innerHTML = `<div><span>Current value of included cards</span><strong>${money(plan.referenceValueMinor / 100, plan.currency)}</strong><small>${plan.pricedUnits} priced item${plan.pricedUnits === 1 ? "" : "s"}</small></div><div><span>Expected total sale prices</span><strong>${money(plan.expectedGrossMinor / 100, plan.currency)}</strong><small>Using ${Number(liquidationInputs().referencePercent).toFixed(1)}% of today’s prices</small></div><div><span>Fees and other costs</span><strong>−${money((plan.marketplaceFeesMinor + plan.totalSellingCostsMinor) / 100, plan.currency)}</strong><small>${money(plan.marketplaceFeesMinor / 100, plan.currency)} selling-site fee · ${money(plan.totalSellingCostsMinor / 100, plan.currency)} other</small></div><div class="take-home"><span>Estimated money you keep</span><strong>${money(plan.netProceedsMinor / 100, plan.currency)}</strong><small>Sale prices minus the costs above</small></div><div class="${profitClass}"><span>${plan.profitMinor === null ? "Money gained unavailable" : "Estimated money gained"}</span><strong>${plan.profitMinor === null ? "Add what you paid" : `${plan.profitMinor >= 0 ? "+" : ""}${money(plan.profitMinor / 100, plan.currency)}`}</strong><small>${plan.profitMinor === null ? `${plan.unknownBasisUnits} priced item${plan.unknownBasisUnits === 1 ? " is" : "s are"} missing the amount paid` : "Compared with what you paid for the cards sold"}</small></div><div><span>Lowest sale level that avoids losing money</span><strong>${plan.breakEvenReferencePercent === null ? "—" : `${plan.breakEvenReferencePercent.toFixed(1)}%`}</strong><small>Of today’s shown prices after fees and costs</small></div>`;
   const omissions = [];
   if (plan.unpricedUnits)
@@ -11926,8 +17866,8 @@ function renderLiquidationPlanner() {
       `${plan.unknownBasisUnits} item${plan.unknownBasisUnits === 1 ? "" : "s"} missing the amount paid`,
     );
   note.textContent = omissions.length
-    ? `${omissions.join(" · ")}. Missing values are never treated as zero.`
-    : "Every included item has a matching US-dollar price and a recorded amount paid. This is still an estimate, not a guaranteed sale.";
+    ? `${omissions.join(" · ")}. Missing values are never treated as zero. ${evidenceSummary}.`
+    : `Every included item has a matching US-dollar price and a recorded amount paid. ${evidenceSummary}. This is still an estimate, not a guaranteed sale.`;
 }
 
 function downloadLiquidationScenario() {
@@ -12068,7 +18008,7 @@ function renderInsights() {
         .slice(0, 5)
         .map(
           ({ item, value, gain, gainPercent }) =>
-            `<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))} · ${item.quantity} owned</span></div><b>${value === null ? "Unavailable" : `${money(value)}${gain === null ? "" : ` · ${gain >= 0 ? "up " : "down "}${money(Math.abs(gain))}${gainPercent === null ? "" : ` (${gainPercent >= 0 ? "+" : ""}${gainPercent.toFixed(1)}%)`}`}`}</b></div>`,
+            `<div class="mover"><img src="${esc(item.thumb)}" alt=""><div><strong>${esc(item.name)}</strong><span>${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))} · ${item.quantity} owned</span><small class="price-provenance">${esc(priceProvenanceText(item))}</small></div><b>${value === null ? "Unavailable" : `${money(value)}${gain === null ? "" : ` · ${gain >= 0 ? "up " : "down "}${money(Math.abs(gain))}${gainPercent === null ? "" : ` (${gainPercent >= 0 ? "+" : ""}${gainPercent.toFixed(1)}%)`}`}`}</b></div>`,
         )
         .join("")
     : '<div class="data-boundary"><strong>No cards yet</strong><p>Add a card and what you paid to start seeing collection insights.</p></div>';
@@ -12182,11 +18122,13 @@ function renderInsights() {
 function tradeItemMarkup(item, side) {
   const max = item.maxQuantity ? ` max="${item.maxQuantity}"` : "";
   const status =
-    item.pricingStatus === "live"
-      ? `Suggested trade value · ${esc(item.context)}`
-      : item.pricingStatus === "loading"
-        ? "Checking matching market price…"
-        : `Price needs review · ${esc(item.context)}`;
+    item.pricingStatus === "manual"
+      ? `Owner-entered trade value · ${esc(item.context)} · no market confidence`
+      : item.pricingStatus === "live"
+        ? `Suggested at ${Number(state.preferences.tradeValuePercent).toFixed(0)}% of reference · ${esc(priceProvenanceText(item))}`
+        : item.pricingStatus === "loading"
+          ? "Checking matching market price…"
+          : `Price needs review · ${esc(item.context)}`;
   return `<article class="trade-item" data-trade-item="${esc(item.tradeId)}" data-trade-item-side="${side}"><img src="${esc(item.thumb || "./icons/icon.svg")}" data-fallback="./icons/icon.svg" alt=""><div class="trade-item-main"><strong>${esc(item.name)}</strong><span>${esc(item.set)} · ${esc(item.number)} · ${esc(item.variant || "Version unknown")}</span><small>${status}</small></div><div class="trade-item-value"><strong>${String(item.valuePerCard).trim() ? money(Number(item.valuePerCard)) : "—"}</strong><label>How many?<input data-trade-quantity type="number" inputmode="numeric" min="1"${max} step="1" value="${item.quantity}"></label><details><summary>Change value</summary><label>Value for each card<div class="money-input"><span>$</span><input data-trade-value type="number" inputmode="decimal" min="0" step="0.01" value="${esc(item.valuePerCard)}" placeholder="0.00"></div></label></details></div><button class="trade-remove" data-trade-remove type="button" aria-label="Remove ${esc(item.name)} from trade">×</button></article>`;
 }
 
@@ -12331,29 +18273,58 @@ async function priceTradeCard(tradeItem, card) {
     if (!response.ok) throw new Error("pricing unavailable");
     const payload = await response.json();
     const priced = payload.cards?.[0];
+    const priceContext = tradeItem.gradingCompany
+      ? {
+          gradingCompany: tradeItem.gradingCompany,
+          grade: tradeItem.grade,
+        }
+      : { condition: tradeItem.condition || "Near Mint" };
     const quote = priced
-      ? selectReferenceQuote(priced.quotes, card.variant, "USD", {
-          condition: "Near Mint",
-        })
+      ? selectReferenceQuote(
+          priced.quotes,
+          card.variant,
+          tradeItem.currency || "USD",
+          priceContext,
+        )
       : null;
     const pricing = quotePricingFields(quote, priced, {
       ...card,
-      cardState: "raw",
-      condition: "Near Mint",
+      cardState: tradeItem.cardState,
+      condition: tradeItem.condition,
+      gradingCompany: tradeItem.gradingCompany,
+      grade: tradeItem.grade,
     });
-    if (pricing.price != null && String(tradeItem.valuePerCard).trim() === "") {
+    tradeItem.quotes = priced?.quotes || [];
+    tradeItem.priceCapabilities = priced?.capabilities || null;
+    tradeItem.pricingUpdatedAt =
+      quote?.observedAt || quote?.retrievedAt || null;
+    const ownerEntered = ["manual", "manual_override"].includes(
+      tradeItem.pricingStatus,
+    );
+    if (
+      pricing.price != null &&
+      String(tradeItem.valuePerCard).trim() === "" &&
+      !ownerEntered
+    ) {
       tradeItem.valuePerCard = (
         pricing.price *
         (Number(state.preferences.tradeValuePercent) / 100)
       ).toFixed(2);
       tradeItem.referencePrice = pricing.price;
+      tradeItem.price = pricing.price;
       tradeItem.pricingStatus = "live";
+    } else if (ownerEntered) {
+      tradeItem.referencePrice = pricing.referencePrice;
+      tradeItem.price = pricing.price;
+      tradeItem.pricingStatus = "manual";
     } else {
       tradeItem.referencePrice = pricing.referencePrice;
+      tradeItem.price = pricing.price;
       tradeItem.pricingStatus = pricing.pricingStatus;
     }
   } catch {
-    tradeItem.pricingStatus = "unavailable";
+    if (!["manual", "manual_override"].includes(tradeItem.pricingStatus))
+      tradeItem.pricingStatus = "unavailable";
   }
   if (state.route === "trade") renderTrade();
 }
@@ -12365,6 +18336,10 @@ function addTradeCard(card, side = state.trade.addingTo, owned = false) {
     : card.condition
       ? `Ungraded · ${conditionLabel(card.condition)}`
       : "Ungraded · wear not added";
+  const pricingSeed = tradePricingSeed(
+    card,
+    state.preferences.tradeValuePercent,
+  );
   const tradeItem = {
     tradeId: crypto.randomUUID(),
     cardId: card.id,
@@ -12373,25 +18348,28 @@ function addTradeCard(card, side = state.trade.addingTo, owned = false) {
     number: card.number,
     variant: card.variant,
     context,
+    cardState: card.cardState || (card.gradingCompany ? "graded" : "raw"),
+    condition: card.gradingCompany ? "Graded" : card.condition || "Near Mint",
+    gradingCompany: card.gradingCompany || "",
+    grade: card.grade == null ? "" : String(card.grade),
+    currency: card.currency || "USD",
     thumb: card.thumb || card.image,
     quantity: 1,
     maxQuantity: owned ? Number(card.quantity) : null,
-    valuePerCard:
-      card.price == null
-        ? ""
-        : (
-            Number(card.price) *
-            (Number(state.preferences.tradeValuePercent) / 100)
-          ).toFixed(2),
-    referencePrice: card.price == null ? null : Number(card.price),
-    pricingStatus: card.price == null ? "loading" : "live",
+    valuePerCard: pricingSeed.valuePerCard,
+    referencePrice: pricingSeed.referencePrice,
+    price: pricingSeed.price,
+    quotes: card.quotes || [],
+    priceCapabilities: card.priceCapabilities || null,
+    pricingUpdatedAt: card.pricingUpdatedAt || null,
+    pricingStatus: pricingSeed.pricingStatus,
   };
   state.trade[side].push(tradeItem);
   renderTrade();
   toast(
     `${card.name} added to ${side === "give" ? "You give" : "You receive"}`,
   );
-  if (card.price == null) void priceTradeCard(tradeItem, card);
+  if (!pricingSeed.canPrefill) void priceTradeCard(tradeItem, card);
 }
 
 function openTradeCardPicker(side) {
@@ -12523,6 +18501,503 @@ function toast(message) {
   setTimeout(() => node.remove(), 3000);
 }
 
+function intakeQueueStorageKey() {
+  const owner = state.session?.user?.id;
+  return owner ? `mica:intake-queue:v1:${owner}` : null;
+}
+
+function persistIntakeQueue() {
+  const key = intakeQueueStorageKey();
+  if (!key) return false;
+  try {
+    if (nativeBuild)
+      return nativeRuntime()
+        .writeDraft(state.session.user.id, JSON.stringify(state.intakeQueue))
+        .then(() => true)
+        .catch(() => {
+          toast(
+            "Your queue is kept in this session only. Restart recovery is unavailable; please retry.",
+          );
+          return false;
+        });
+    localStorage.setItem(key, JSON.stringify(state.intakeQueue));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function restoreIntakeQueue(serialized) {
+  const key = intakeQueueStorageKey();
+  if (!key) return [];
+  try {
+    const entries = JSON.parse(
+      serialized ?? (nativeBuild ? "[]" : localStorage.getItem(key) || "[]"),
+    );
+    if (!Array.isArray(entries)) return [];
+    return entries
+      .filter(
+        (entry) =>
+          entry &&
+          typeof entry.key === "string" &&
+          entry.card?.name &&
+          UUID_PATTERN.test(entry.operationId) &&
+          Number.isInteger(entry.quantity) &&
+          entry.quantity > 0 &&
+          entry.quantity <= 99999 &&
+          (!entry.pending ||
+            (entry.pending.idempotencyKey === entry.operationId &&
+              entry.pending.input &&
+              entry.pending.card)),
+      )
+      .slice(0, 50)
+      .map((entry) => {
+        const card = queuedCatalogCard(entry.card);
+        return { ...entry, card, key: intakeQueueKey(card) };
+      });
+  } catch {
+    return [];
+  }
+}
+
+function queuedCatalogCard(card) {
+  const variantOptions = card.variantOptions?.length
+    ? card.variantOptions.map((option) =>
+        normalizeVariantOption(option, { language: card.language }),
+      )
+    : [
+        card.finish
+          ? normalizeVariantOption({
+              id: card.variantId,
+              label: card.variant,
+              finish: card.finish,
+              edition: card.edition,
+              promoType: card.promoType,
+              language: card.language,
+            })
+          : selectVariantOption(
+              { ...card, variantOptions: undefined },
+              card.variantId || card.variant,
+            ),
+      ];
+  const snapshot = collectibleIdentitySnapshot(
+    { ...card, variantOptions },
+    card.variantId || card.variant,
+  );
+  // Keep structured identity; reparsing a display label can confuse non-holo with holo.
+  for (const field of ["image", "thumb"])
+    if (!/^(https?:\/\/|\.?\/)/i.test(snapshot[field] || ""))
+      snapshot[field] = null;
+  return { ...snapshot, id: card.id, provider: card.provider, variantOptions };
+}
+
+async function finishQueuedCard(entry, { refreshPending }) {
+  state.intakeQueue = state.intakeQueue.filter(
+    (candidate) => candidate.key !== entry.key,
+  );
+  await persistIntakeQueue();
+  renderIntakeQueueBar();
+  if (!refreshPending) openNextQueuedCard();
+}
+
+function openPendingQueuedCard(entry) {
+  const owner = state.session?.user?.id;
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Finish adding this card</h2><p>${esc(entry.card.name)} · ${esc(entry.card.set)} · ${esc(entry.pending.input.quantity)} copies</p></div><button class="sheet-close" aria-label="Close">×</button></div><p>${esc(entry.pending.input.variant || entry.card.variant)} · ${esc(languageName(entry.card.language))} · ${entry.pending.acquisitionCostKnown ? `Purchase total ${money(entry.pending.input.totalMinor / 100)}` : "Purchase cost not recorded"}</p><p>The last save wasn’t confirmed. Retry the same details safely before editing this card.</p><p id="queueRetryError" class="form-error" role="alert"></p><div class="sheet-actions"><button class="secondary" id="queueRetryBack">Back to queue</button><button class="primary" id="queueRetrySave">Retry save</button></div>`,
+  );
+  $("#queueRetryBack").addEventListener("click", openBatchIntakeSheet);
+  const button = $("#queueRetrySave");
+  const error = $("#queueRetryError");
+  button.addEventListener("click", async () => {
+    if (button.disabled) return;
+    button.disabled = true;
+    error.textContent = "";
+    try {
+      await saveCardAddDraft(
+        {
+          ...entry.pending,
+          queueEntryKey: entry.key,
+          queueOwner: owner,
+          afterSave: (result) => finishQueuedCard(entry, result),
+          afterRefresh: openNextQueuedCard,
+        },
+        entry.pending.visionAnalysis,
+      );
+    } catch {
+      if (error.isConnected && !entry.pending) {
+        openNextQueuedCard();
+        return;
+      }
+      if (error.isConnected)
+        error.textContent =
+          "Couldn’t confirm the save. Your details are kept. Please retry.";
+    } finally {
+      if (button.isConnected) button.disabled = false;
+    }
+  });
+}
+
+function intakeQueueKey(card) {
+  return [
+    card.collectibleId,
+    card.variantId,
+    card.id,
+    card.language,
+    card.variant,
+  ]
+    .filter(Boolean)
+    .join("|");
+}
+
+function renderIntakeQueueBar() {
+  const bar = $("#intakeQueueBar");
+  if (!bar) return;
+  const quantity = state.intakeQueue.reduce(
+    (sum, entry) => sum + Number(entry.quantity || 0),
+    0,
+  );
+  bar.hidden = state.intakeQueue.length === 0;
+  $("#intakeQueueCount").textContent =
+    `${quantity.toLocaleString()} card${quantity === 1 ? "" : "s"} · ${state.intakeQueue.length.toLocaleString()} exact version${state.intakeQueue.length === 1 ? "" : "s"}`;
+}
+
+export async function queueIntakeCard(card) {
+  card = queuedCatalogCard(card);
+  const key = intakeQueueKey(card);
+  const existing = state.intakeQueue.find((entry) => entry.key === key);
+  if (existing?.pending) {
+    toast("Finish the pending save before adding another copy");
+    return;
+  }
+  if (existing) {
+    existing.quantity = Math.min(99_999, existing.quantity + 1);
+    syncQueueDraftQuantity(existing);
+  } else if (state.intakeQueue.length < 50)
+    state.intakeQueue.push({
+      key,
+      card: queuedCatalogCard(card),
+      quantity: 1,
+      operationId: crypto.randomUUID(),
+    });
+  else {
+    toast("Review the 50 exact versions already queued first");
+    return;
+  }
+  renderIntakeQueueBar();
+  if (!(await persistIntakeQueue()) && intakeQueueStorageKey())
+    toast(
+      "Queue is available in this tab only. Device storage is unavailable.",
+    );
+  renderIntakeQueueBar();
+  logIngestionEvent({
+    sessionId: crypto.randomUUID(),
+    channel: "search",
+    stage: "queued",
+    outcome: "success",
+    metadata: {
+      queuedCount: state.intakeQueue.length,
+      language: card.language || "en",
+      candidateStatus: card.identityStatus || "needs_review",
+    },
+  });
+  toast(
+    existing
+      ? "Added another copy to the review queue"
+      : "Added to the review queue",
+  );
+}
+
+function openNextQueuedCard() {
+  const entry = state.intakeQueue[0];
+  if (!entry) {
+    renderIntakeQueueBar();
+    routeTo("scan");
+    $("#quickCardSearch")?.focus({ preventScroll: true });
+    return;
+  }
+  if (entry.pending) return openPendingQueuedCard(entry);
+  openPositionSheet(entry.card, {
+    queueEntryKey: entry.key,
+    queueOwner: state.session?.user?.id,
+    idempotencyKey: entry.operationId,
+    ingestionChannel: "search",
+    prefill: entry.editDraft
+      ? {
+          ...entry.editDraft.input,
+          acquisitionCostKnown: entry.editDraft.acquisitionCostKnown,
+          acquisitionDateKnown: entry.editDraft.acquisitionDateKnown,
+        }
+      : { quantity: entry.quantity },
+    onCancel: openBatchIntakeSheet,
+    afterRefresh: openNextQueuedCard,
+    afterSave: (result) => finishQueuedCard(entry, result),
+  });
+}
+
+function syncQueueDraftQuantity(entry) {
+  if (!entry.editDraft) return;
+  const input = entry.editDraft.input;
+  const breakdown = acquisitionFromTotal(
+    (Number(input.totalMinor || 0) / 100).toFixed(2),
+    entry.quantity,
+  );
+  Object.assign(input, breakdown, { quantity: entry.quantity });
+}
+
+function queueVariantIsReady(entry) {
+  const option = selectVariantOption(
+    queuedCatalogCard(entry.card),
+    entry.card.variantId || entry.card.variant,
+  );
+  return Boolean(
+    entry.card.name &&
+    entry.card.set &&
+    entry.card.number &&
+    entry.card.language &&
+    option.label &&
+    !/unknown|unconfirmed|needs confirmation/i.test(option.label),
+  );
+}
+
+async function saveIntakeBatch() {
+  const owner = state.session?.user?.id;
+  if (!owner) return;
+  const entries = [...state.intakeQueue];
+  const errorNode = $("#batchIntakeError");
+  const costText = $("#batchIntakeCost").value.trim();
+  const date = $("#batchIntakeDate").value;
+  const unitMinor = costText ? toMinorUnits(costText) : null;
+  if (
+    (costText && (!Number.isSafeInteger(unitMinor) || unitMinor < 0)) ||
+    (date && date > localIsoDate())
+  ) {
+    errorNode.textContent =
+      "Enter a valid cost and a date no later than today.";
+    return;
+  }
+  if (entries.some((entry) => !entry.pending && !queueVariantIsReady(entry))) {
+    errorNode.textContent =
+      "Choose the exact version for every card before saving.";
+    return;
+  }
+  try {
+    for (const entry of entries) {
+      const total = unitMinor == null ? 0 : unitMinor * entry.quantity;
+      if (!Number.isSafeInteger(total)) throw new Error("amount");
+      const draft = entry.pending ||
+        entry.editDraft || {
+          card: entry.card,
+          input: {
+            ...acquisitionFromTotal((total / 100).toFixed(2), entry.quantity),
+            quantity: entry.quantity,
+            variant: entry.card.variant,
+            variantId: entry.card.variantId || "",
+            cardState: "raw",
+            grader: null,
+            grade: null,
+            rawCondition: "",
+            transactionDate: date || localIsoDate(),
+            acquisitionMethod: costText ? "direct_purchase" : "unknown",
+            totalAcquisitionCost: costText ? (total / 100).toFixed(2) : "",
+          },
+          acquisitionCostKnown: unitMinor != null,
+          acquisitionDateKnown: Boolean(date),
+          idempotencyKey: entry.operationId,
+          ingestion: confirmIngestionEnvelope(
+            createIngestionEnvelope({
+              channel: "search",
+              item: entry.card,
+              variant: entry.card.variantId || entry.card.variant,
+              candidateStatus: entry.card.identityStatus,
+            }),
+          ),
+        };
+      if (!entry.pending && !entry.editDraft) entry.batchDraft = draft;
+      entry.batchDefaults = { cost: costText, date };
+    }
+    if (!(await persistIntakeQueue())) throw new Error("storage");
+  } catch {
+    errorNode.textContent =
+      "Couldn’t keep the batch safely on this device. Your queue is unchanged; free some space and retry.";
+    return;
+  }
+  const controls = [
+    ...$("#sheetContent").querySelectorAll("button, input, select"),
+  ];
+  controls.forEach((node) => (node.disabled = true));
+  $("#bottomSheet").dataset.lockClose = "true";
+  let saved = 0;
+  try {
+    for (const entry of entries) {
+      if (state.session?.user?.id !== owner) return;
+      errorNode.textContent = `Adding ${saved + 1} of ${entries.length}…`;
+      const draft = entry.pending || entry.editDraft || entry.batchDraft;
+      await saveCardAddDraft(
+        {
+          ...draft,
+          queueEntryKey: entry.key,
+          queueOwner: owner,
+          afterSave: async () => {
+            state.intakeQueue = state.intakeQueue.filter(
+              (candidate) => candidate.key !== entry.key,
+            );
+            await persistIntakeQueue();
+            renderIntakeQueueBar();
+          },
+        },
+        draft.visionAnalysis,
+        {
+          closeAfterSave: false,
+          focusAfterSave: false,
+          refreshAfterSave: false,
+          notifyAfterSave: false,
+        },
+      );
+      if (state.session?.user?.id !== owner) return;
+      saved += 1;
+    }
+    closeSheet({ discardHistory: true, force: true });
+    toast(
+      `Added ${saved} card version${saved === 1 ? "" : "s"} to your collection`,
+    );
+  } catch {
+    if (state.session?.user?.id !== owner) return;
+    openBatchIntakeSheet();
+    $("#batchIntakeCost").value = costText;
+    $("#batchIntakeDate").value = date;
+    $("#batchIntakeError").textContent =
+      `${saved} saved · ${state.intakeQueue.length} remaining. Retry to continue safely.`;
+  } finally {
+    if (state.session?.user?.id === owner) {
+      $("#bottomSheet").dataset.lockClose = "false";
+      controls
+        .filter((node) => node.isConnected)
+        .forEach((node) => (node.disabled = false));
+      if (saved) {
+        try {
+          await reloadPortfolio(null, { backgroundPricing: true });
+        } catch {
+          if (!state.intakeQueue.length && state.session?.user?.id === owner)
+            showSavedCollectionRefresh(null, "Cards added to your collection");
+        }
+      }
+    }
+  }
+}
+
+export function openBatchIntakeSheet() {
+  if (!state.intakeQueue.length) {
+    renderIntakeQueueBar();
+    toast("The review queue is empty");
+    return;
+  }
+  const shared =
+    state.intakeQueue.find((entry) => entry.batchDefaults)?.batchDefaults || {};
+  const rows = state.intakeQueue
+    .map(
+      (entry) =>
+        `<article class="intake-row" data-intake-row="${esc(entry.key)}"><img src="${esc(entry.card.thumb || entry.card.image || "./icons/icon.svg")}" alt=""><div><strong>${esc(entry.card.name)}</strong><span>${esc(entry.card.set || "Set unavailable")} · ${esc(entry.card.number || "Number unavailable")} · ${esc(languageName(entry.card.language || "en"))} · ${esc(entry.card.variant || "Version needs confirmation")}</span><label class="intake-version">Version <select data-intake-version="${esc(entry.key)}" ${entry.pending ? "disabled" : ""}>${(entry
+          .card.variantOptions?.length
+          ? entry.card.variantOptions
+          : [entry.card.variant || "Unknown"]
+        )
+          .map((value) => {
+            const option = normalizeVariantOption(value, {
+              language: entry.card.language,
+            });
+            return `<option value="${esc(option.id || option.label)}" ${(option.id || option.label) === (entry.card.variantId || entry.card.variant) ? "selected" : ""}>${esc(variantOptionSummary(option))}</option>`;
+          })
+          .join(
+            "",
+          )}</select></label></div><div class="intake-row-actions"><label>Copies <input data-intake-quantity="${esc(entry.key)}" type="number" inputmode="numeric" min="1" max="99999" value="${entry.quantity}" ${entry.pending ? "disabled" : ""}></label><button type="button" data-intake-remove="${esc(entry.key)}" ${entry.pending ? "disabled" : ""}>Remove</button></div></article>`,
+    )
+    .join("");
+  openSheet(
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Review card queue</h2><p>Fast catalog queue · confirm each exact version before saving</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="simple-note">${state.intakeQueue.some((entry) => entry.pending) ? "A card has an unconfirmed save. Retry it before clearing the queue." : "Check the versions and quantities. Purchase details are optional."}</div><div class="intake-list">${rows}</div><details class="intake-more"><summary>Shared purchase details · optional</summary><div class="form-grid"><div class="field"><label for="batchIntakeCost">Paid per card · USD</label><input id="batchIntakeCost" value="${esc(shared.cost || "")}" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Not recorded"></div><div class="field"><label for="batchIntakeDate">Date acquired</label><input id="batchIntakeDate" value="${esc(shared.date || "")}" type="date" max="${localIsoDate()}"></div></div></details><p class="form-error" id="batchIntakeError" role="status" aria-live="polite"></p><div class="sheet-actions"><button class="secondary" id="clearIntakeQueue" type="button" ${state.intakeQueue.some((entry) => entry.pending) ? "disabled" : ""}>Clear queue</button><button class="secondary" id="reviewNextIntake" type="button">Edit individual details</button><button class="primary" id="saveIntakeBatch" type="button">Add these cards</button></div>`,
+  );
+  $$("[data-intake-quantity]").forEach((input) =>
+    input.addEventListener("change", () => {
+      const entry = state.intakeQueue.find(
+        (candidate) => candidate.key === input.dataset.intakeQuantity,
+      );
+      const value = Number(input.value);
+      if (!entry || !Number.isInteger(value) || value < 1 || value > 99_999) {
+        input.value = entry?.quantity || 1;
+        return;
+      }
+      if (entry.pending) return;
+      entry.quantity = value;
+      syncQueueDraftQuantity(entry);
+      persistIntakeQueue();
+      renderIntakeQueueBar();
+    }),
+  );
+  $$("[data-intake-remove]").forEach((button) =>
+    button.addEventListener("click", () => {
+      state.intakeQueue = state.intakeQueue.filter(
+        (entry) => entry.pending || entry.key !== button.dataset.intakeRemove,
+      );
+      renderIntakeQueueBar();
+      persistIntakeQueue();
+      if (state.intakeQueue.length) openBatchIntakeSheet();
+      else closeSheet({ discardHistory: true });
+    }),
+  );
+  $("#clearIntakeQueue").addEventListener("click", () => {
+    if (state.intakeQueue.some((entry) => entry.pending)) return;
+    state.intakeQueue = [];
+    persistIntakeQueue();
+    renderIntakeQueueBar();
+    closeSheet({ discardHistory: true });
+    toast("Review queue cleared · no cards were saved");
+  });
+  $("#saveIntakeBatch").addEventListener("click", saveIntakeBatch);
+  $$("[data-intake-version]").forEach((select) =>
+    select.addEventListener("change", () => {
+      const entry = state.intakeQueue.find(
+        (candidate) => candidate.key === select.dataset.intakeVersion,
+      );
+      if (!entry || entry.pending) return;
+      const option = selectVariantOption(entry.card, select.value);
+      const nextCard = {
+        ...entry.card,
+        variant: option.label,
+        variantId: option.id || null,
+        finish: option.finish,
+        edition: option.edition,
+        promoType: option.promoType,
+      };
+      const key = intakeQueueKey(nextCard);
+      if (
+        state.intakeQueue.some(
+          (candidate) => candidate !== entry && candidate.key === key,
+        )
+      ) {
+        select.value = entry.card.variantId || entry.card.variant;
+        toast("That version is already queued. Adjust its copies instead.");
+        return;
+      }
+      entry.card = nextCard;
+      entry.key = key;
+      if (entry.editDraft) {
+        entry.editDraft.card = entry.card;
+        entry.editDraft.input.variant = option.label;
+        entry.editDraft.input.variantId = option.id || "";
+      }
+      const cost = $("#batchIntakeCost").value,
+        date = $("#batchIntakeDate").value;
+      persistIntakeQueue();
+      openBatchIntakeSheet();
+      $("#batchIntakeCost").value = cost;
+      $("#batchIntakeDate").value = date;
+      [...document.querySelectorAll("[data-intake-version]")]
+        .find((node) => node.dataset.intakeVersion === key)
+        ?.focus();
+    }),
+  );
+  $("#reviewNextIntake").addEventListener("click", openNextQueuedCard);
+}
+
 function bindQuickCardSearch() {
   const input = $("#quickCardSearch");
   const language = $("#quickSearchLanguage");
@@ -12532,50 +19007,115 @@ function bindQuickCardSearch() {
   let requestId = 0;
   let allResults = [];
   let selectedSet = "";
+  let showingCached = false;
+  let nextCursor = null;
+  let provider = "";
+  let source = "";
+  const setInput = $("#quickSearchSet");
   const showResults = (results) => {
+    const restoreFocus = preserveSearchResultFocus(resultsNode);
     if (results) {
       allResults = results;
-      selectedSet = "";
     }
-    const visible = selectedSet
-      ? allResults.filter((item) => item.set === selectedSet)
-      : allResults;
+    const visible = allResults;
     if (statusNode)
-      statusNode.textContent = `${visible.length} matching card${visible.length === 1 ? "" : "s"} shown.`;
+      statusNode.textContent = `${showingCached ? "Previously loaded cards · " : ""}${visible.length} matching card${visible.length === 1 ? "" : "s"} shown.`;
     resultsNode.innerHTML = allResults.length
-      ? `${setFilterMarkup(allResults, selectedSet)}${visible
+      ? `${showingCached ? '<div class="simple-note">Previously loaded cards · live search is unavailable. <button class="inline-retry" type="button" data-retry-catalog>Try again</button></div>' : ""}${setFilterMarkup(allResults, selectedSet)}${visible
           .map((item) => {
-            const owned = ownedCardSummary(item, state.items);
-            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Version unknown")}</em>${ownedSearchStatus(item)}</span><b>${owned.quantity ? "Owned" : "View"}</b></button><button class="queue-card-button" type="button" data-add-search-card="${esc(item.id)}" aria-label="${owned.quantity ? "Add another" : "Add"} ${esc(item.name)} card">${owned.quantity ? "Add another" : "Add"}</button></div>`;
+            const owned = ownedCardSummary(item, state.items, {
+              exactPrinting: true,
+            });
+            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Version unknown")}</em>${ownedSearchStatus(item)}</span></button><div class="quick-card-actions"><button type="button" data-add-search-card="${esc(item.id)}" aria-label="${owned.quantity ? "Add another" : "Add"} ${esc(item.name)} card">${owned.quantity ? "Add another" : "Add"}</button><button type="button" data-queue-search-card="${esc(item.id)}" aria-label="Queue ${esc(item.name)} for batch review">Queue</button></div></div>`;
           })
           .join("")}`
       : '<div class="find-empty"><strong>No matching cards</strong><span>Try fewer details, verify the language, or search the collector number by itself.</span></div>';
+    if (nextCursor)
+      resultsNode.insertAdjacentHTML(
+        "beforeend",
+        '<button type="button" class="secondary catalog-more" data-catalog-more>Load more cards</button>',
+      );
+    if (provider === "internal")
+      resultsNode.insertAdjacentHTML(
+        "beforeend",
+        '<button type="button" class="secondary catalog-more" data-catalog-broader>Search full catalog</button>',
+      );
+    resultsNode
+      .querySelector("[data-catalog-more]")
+      ?.addEventListener("click", () => search(true));
+    resultsNode
+      .querySelector("[data-catalog-broader]")
+      ?.addEventListener("click", () => {
+        source = "tcgdex";
+        search();
+      });
+    resultsNode
+      .querySelector("[data-retry-catalog]")
+      ?.addEventListener("click", search);
     $$("[data-result-set]", resultsNode).forEach((button) =>
       button.addEventListener("click", () => {
         selectedSet = button.dataset.resultSet;
-        showResults();
+        setInput.value = selectedSet;
+        search();
       }),
     );
-    $$("[data-quick-card]", resultsNode).forEach((button) =>
-      button.addEventListener("click", () =>
-        openCardDetail(
-          catalog.find((card) => card.id === button.dataset.quickCard),
-        ),
-      ),
+    $$("[data-quick-card]", resultsNode).forEach((button, index) =>
+      button.addEventListener("click", () => openCardDetail(visible[index])),
     );
-    $$("[data-add-search-card]", resultsNode).forEach((button) =>
+    $$("[data-add-search-card]", resultsNode).forEach((button, index) =>
       button.addEventListener("click", () => {
-        const card = catalog.find(
-          (candidate) => candidate.id === button.dataset.addSearchCard,
-        );
-        if (card) openPositionSheet(card);
+        const card = visible[index];
+        if (card) openPositionSheet(card, { ingestionChannel: "search" });
       }),
     );
+    $$("[data-queue-search-card]", resultsNode).forEach((button, index) =>
+      button.addEventListener("click", () => {
+        const card = visible[index];
+        if (card) queueIntakeCard(card);
+      }),
+    );
+    restoreFocus();
   };
-  const search = async () => {
+  const syncExamples = () => {
+    const examples =
+      input.closest("section")?.querySelector(".search-examples") ||
+      $(".search-examples");
+    if (examples) examples.hidden = input.value.trim().length > 0;
+  };
+  document.addEventListener("mica:collection-updated", () => {
+    if (allResults.length && resultsNode.getAttribute("aria-busy") !== "true") {
+      const resultScroll = resultsNode.scrollTop;
+      const pageScroll = { top: window.scrollY, left: window.scrollX };
+      showResults();
+      resultsNode.scrollTop = resultScroll;
+      window.scrollTo({ ...pageScroll, behavior: "instant" });
+    }
+  });
+  const search = async (append = false) => {
+    const focusBeforeSearch = document.activeElement;
+    const restoreSearchFocus = preserveSearchResultFocus(resultsNode);
+    append = append === true;
+    syncExamples();
+    if (!append) {
+      allResults = [];
+      nextCursor = null;
+      provider = "";
+    }
+    selectedSet = setInput.value.trim();
+    clearTimeout(timer);
     const q = input.value.trim();
+    const selectedLanguage = language.value;
+    const requestedSet = selectedSet;
     const current = ++requestId;
+    const isCurrent = () =>
+      resultsNode.isConnected &&
+      current === requestId &&
+      input.value.trim() === q &&
+      language.value === selectedLanguage &&
+      setInput.value.trim() === requestedSet;
+    showingCached = false;
     if (q.length < 2) {
+      resultsNode.setAttribute("aria-busy", "false");
       if (statusNode) statusNode.textContent = "Enter at least two characters.";
       resultsNode.innerHTML =
         '<div class="find-empty"><strong>Find the right card</strong><span>Results show the picture, set, and bottom number so you can choose the matching version.</span></div>';
@@ -12583,34 +19123,108 @@ function bindQuickCardSearch() {
     }
     resultsNode.setAttribute("aria-busy", "true");
     if (statusNode) statusNode.textContent = "Finding matching cards.";
-    resultsNode.innerHTML =
-      '<div class="searching-cards"><i></i><span>Finding matching cards…</span></div>';
+    if (!append)
+      resultsNode.innerHTML =
+        '<div class="searching-cards"><i></i><span>Finding matching cards…</span></div>';
+    resultsNode
+      .querySelector("[data-catalog-more]")
+      ?.setAttribute("disabled", "");
     try {
-      const result = await searchCatalog(q, language.value, 12);
-      if (current !== requestId) return;
-      showResults(result.items);
-    } catch {
-      if (current !== requestId) return;
+      const result = await searchCatalog(q, selectedLanguage, 12, {
+        set: requestedSet,
+        cursor: append ? nextCursor : null,
+        source,
+      });
+      if (!isCurrent()) return;
+      nextCursor = result.nextCursor;
+      provider = result.provider;
+      const rows = append ? [...allResults, ...result.items] : result.items;
+      showResults([...new Map(rows.map((item) => [item.id, item])).values()]);
+      if (
+        document.activeElement === document.body ||
+        document.activeElement === focusBeforeSearch
+      )
+        restoreSearchFocus();
+    } catch (error) {
+      if (!isCurrent()) return;
+      if (append) {
+        showResults();
+        if (statusNode)
+          statusNode.textContent =
+            "Couldn’t load more cards. Your results are still here. Try again.";
+        return;
+      }
+      logIngestionEvent({
+        sessionId: crypto.randomUUID(),
+        channel: "search",
+        stage: "failed",
+        outcome: "failure",
+        metadata: {
+          language: language.value,
+          reason: ingestionFailureReason(error),
+          offline: !navigator.onLine,
+        },
+      });
       const offlineMatches = catalog
-        .filter((item) => matchesSearch(item, q))
+        .filter(
+          (item) =>
+            String(item.language || "").toLowerCase() ===
+              selectedLanguage.toLowerCase() &&
+            matchesSearch(item, q) &&
+            (!requestedSet ||
+              item.set?.toLowerCase() === requestedSet.toLowerCase()),
+        )
         .slice(0, 12);
-      if (offlineMatches.length) showResults(offlineMatches);
-      else {
+      if (offlineMatches.length) {
+        showingCached = true;
+        showResults(offlineMatches);
+      } else {
         if (statusNode)
           statusNode.textContent = "Card search is temporarily unavailable.";
         resultsNode.innerHTML =
-          '<div class="find-empty"><strong>Search is temporarily unavailable</strong><span>Your library is still safe. Try again in a moment.</span></div>';
+          '<div class="find-empty"><strong>Search is temporarily unavailable</strong><span>Your search is still here.</span><button class="secondary" type="button" data-retry-catalog>Try again</button></div>';
+        resultsNode
+          .querySelector("[data-retry-catalog]")
+          .addEventListener("click", search);
       }
     } finally {
-      if (current === requestId) resultsNode.setAttribute("aria-busy", "false");
+      if (isCurrent()) resultsNode.setAttribute("aria-busy", "false");
     }
   };
   const schedule = () => {
+    syncExamples();
+    allResults = [];
+    selectedSet = "";
+    nextCursor = null;
+    provider = "";
+    source = "";
     clearTimeout(timer);
+    ++requestId;
+    if (input.value.trim().length < 2) {
+      void search();
+      return;
+    }
+    resultsNode.setAttribute("aria-busy", "true");
+    if (statusNode) statusNode.textContent = "Finding matching cards.";
+    resultsNode.innerHTML =
+      '<div class="searching-cards"><i></i><span>Finding matching cards…</span></div>';
     timer = setTimeout(search, 220);
   };
   input.addEventListener("input", schedule);
-  language.addEventListener("change", search);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.isComposing) {
+      event.preventDefault();
+      void search();
+    }
+  });
+  language.addEventListener("change", () => {
+    source = "";
+    search();
+  });
+  setInput.addEventListener("change", () => {
+    source = "";
+    search();
+  });
   $$("[data-search-example]").forEach((button) =>
     button.addEventListener("click", () => {
       input.value = button.dataset.searchExample;
@@ -12628,7 +19242,10 @@ function approvedImageProxyPath(value) {
       !["assets.tcgdex.net", "images.pokemontcg.io"].includes(source.hostname)
     )
       return null;
-    return `/api/card-image?url=${encodeURIComponent(source.href)}`;
+    const path = `/api/card-image?url=${encodeURIComponent(source.href)}`;
+    if (!nativeBuild) return path;
+    const origin = nativeRuntime()?.config.apiOrigin;
+    return origin ? new URL(path, origin).href : null;
   } catch {
     return null;
   }
@@ -12708,7 +19325,7 @@ function bindEvents() {
     },
     true,
   );
-  $$("[data-sidebar-target]").forEach((button) =>
+  $$("button[data-sidebar-target]").forEach((button) =>
     button.addEventListener("click", () =>
       openWorkspaceShortcut(button.dataset.sidebarTarget),
     ),
@@ -12730,11 +19347,24 @@ function bindEvents() {
   );
   $$(".view-tab").forEach((tab) =>
     tab.addEventListener("click", () => {
+      if (
+        state.largeInventory.active &&
+        ["sets", "unpriced"].includes(tab.dataset.ledgerView)
+      ) {
+        toast(
+          tab.dataset.ledgerView === "sets"
+            ? "Use exact collection goals for this large inventory"
+            : "Narrow the inventory before reviewing missing prices",
+        );
+        return;
+      }
       state.ledgerView = tab.dataset.ledgerView;
       state.conditionFilter = tab.dataset.conditionFilter || "";
       state.sidebarTarget = "collection";
       syncTabs();
-      renderCollection();
+      if (state.largeInventory.active && state.ledgerView !== "watchlist")
+        void refreshLargeCollectionPage();
+      else renderCollection();
       syncWorkspaceChrome();
       saveCollectionViewState();
     }),
@@ -12757,20 +19387,46 @@ function bindEvents() {
       tabs[next].click();
     }),
   );
+  let collectionSearchTimer;
   $("#collectionSearch").addEventListener("input", (event) => {
     state.query = event.target.value;
-    renderCollection();
+    if (state.largeInventory.active) {
+      clearTimeout(collectionSearchTimer);
+      collectionSearchTimer = setTimeout(
+        () => void refreshLargeCollectionPage(),
+        250,
+      );
+    } else renderCollection();
     saveCollectionViewState();
   });
   $("#filterButton").addEventListener("click", openFilterSheet);
+  $("#saveCollectionViewButton")?.addEventListener(
+    "click",
+    openSaveCollectionViewSheet,
+  );
+  $("#manageCollectionOrganizationButton")?.addEventListener(
+    "click",
+    openManageCollectionOrganizationSheet,
+  );
   $("#sortButton").addEventListener("click", () => {
-    state.sort = state.sort === "value-desc" ? "name" : "value-desc";
-    renderCollection();
+    state.sort = state.largeInventory.active
+      ? state.sort === "name"
+        ? "updated-desc"
+        : "name"
+      : state.sort === "value-desc"
+        ? "name"
+        : "value-desc";
+    if (state.largeInventory.active) void refreshLargeCollectionPage();
+    else renderCollection();
     saveCollectionViewState();
   });
   $("#loadMorePositions").addEventListener("click", () => {
-    state.visibleLimit += 100;
-    renderCollection();
+    if (state.largeInventory.active)
+      void refreshLargeCollectionPage({ append: true });
+    else {
+      state.visibleLimit += 100;
+      renderCollection();
+    }
   });
   $("#selectPositionsButton").addEventListener("click", () =>
     setBulkMode(!state.bulkMode),
@@ -12788,7 +19444,7 @@ function bindEvents() {
     state.visiblePositionIds.forEach((id) =>
       allShown ? state.bulkSelected.delete(id) : state.bulkSelected.add(id),
     );
-    renderCollection();
+    syncBulkSelectionRows();
   });
   $("#clearFilters").addEventListener("click", () => {
     state.query = "";
@@ -12796,9 +19452,27 @@ function bindEvents() {
     state.setFilter = "";
     state.conditionFilter = "";
     state.labelFilter = "";
+    state.collectionFilter = "";
+    state.locationFilter = "";
+    state.languageFilter = "";
+    state.graderFilter = "";
+    state.gradeFilter = "";
+    state.performanceFilter = "";
+    state.movementFilter = "";
+    state.coverageFilter = "";
+    state.acquisitionFilter = "";
+    state.minimumValue = "";
+    state.maximumValue = "";
+    state.minimumProfitLoss = "";
+    state.maximumProfitLoss = "";
+    state.purchaseDateFrom = "";
+    state.purchaseDateTo = "";
+    state.groupBy = "none";
     $("#collectionSearch").value = "";
     syncTabs();
-    renderCollection();
+    saveCollectionViewState();
+    if (state.largeInventory.active) void refreshLargeCollectionPage();
+    else renderCollection();
   });
   $("#emptyAddCard").addEventListener("click", () => {
     if (state.accountLoadError) void retryAccountLoad();
@@ -12859,6 +19533,8 @@ function bindEvents() {
   $("#exportButton").addEventListener("click", downloadAccountBackup);
   $("#exportCsvButton").addEventListener("click", downloadCollectionCsv);
   $("#importButton").addEventListener("click", () => $("#csvInput").click());
+  $("#importHistoryButton").addEventListener("click", openImportHistorySheet);
+  $("#reviewIntakeQueue").addEventListener("click", openBatchIntakeSheet);
   $("#sharePortfolioButton").addEventListener("click", openSharePortfolioSheet);
   $("#insuranceReportButton").addEventListener("click", openInsuranceReport);
   $("#batchGradingButton").addEventListener("click", openBatchGradingPlanner);
@@ -12882,13 +19558,19 @@ function bindEvents() {
     "click",
     downloadLiquidationScenario,
   );
-  $$("[data-workspace-mode]").forEach((button) =>
-    button.addEventListener("click", () =>
-      applyWorkspaceMode(button.dataset.workspaceMode, {
-        announce: true,
-        userSelected: true,
-      }),
+  $$("[data-software-mode]").forEach((button) =>
+    button.addEventListener(
+      "click",
+      () =>
+        void switchSoftwareMode(button.dataset.softwareMode, {
+          source: "settings",
+        }),
     ),
+  );
+  $("#softwareModeSelect")?.addEventListener(
+    "change",
+    (event) =>
+      void switchSoftwareMode(event.target.value, { source: "header" }),
   );
   $$("[data-ui-theme-option]").forEach((button) =>
     button.addEventListener("click", () =>
@@ -12900,8 +19582,9 @@ function bindEvents() {
       announce: true,
     }),
   );
-  $("#workspaceExpand")?.addEventListener("click", () =>
-    applyWorkspaceMode("growth", { announce: true, userSelected: true }),
+  $("#workspaceExpand")?.addEventListener(
+    "click",
+    () => void switchSoftwareMode("seller", { source: "settings" }),
   );
   $("#csvInput").addEventListener("change", (event) => {
     const file = event.target.files[0];
@@ -13676,6 +20359,13 @@ function ensureProfileAccount() {
   }
   button.onclick = async () => {
     button.disabled = true;
+    try {
+      await clearAccountDevicePush(state.session?.user?.id, true);
+    } catch {
+      toast(
+        "Device notifications could not be fully detached. You can retry in alert settings.",
+      );
+    }
     const { error } = await signOut(supabase);
     if (error) {
       toast(error.message);
@@ -13717,6 +20407,56 @@ function renderWorkflowDefaults() {
     ).toFixed(2);
 }
 
+function renderGradingCalibration() {
+  const root = $("#gradingCalibrationSummary");
+  if (!root) return;
+  if (state.gradingCalibrationStatus === "loading") {
+    root.innerHTML =
+      '<div class="compact-empty"><strong>Checking linked grading returns…</strong></div>';
+    return;
+  }
+  if (state.gradingCalibrationStatus === "error") {
+    root.innerHTML =
+      '<div class="unavailable-panel"><strong>Calibration is temporarily unavailable.</strong><br>Your reports and returns are unchanged.<br><button class="inline-retry" id="retryGradingCalibration" type="button">Try again</button></div>';
+    $("#retryGradingCalibration")?.addEventListener(
+      "click",
+      refreshGradingCalibration,
+    );
+    return;
+  }
+  if (!state.gradingCalibration.length) {
+    root.innerHTML =
+      '<div class="compact-empty"><strong>No linked numeric returns yet</strong><span>Attach a real professional return to the exact pregrade report. Mica will group accuracy by grading company and capture quality without exposing it to other accounts.</span></div>';
+    return;
+  }
+  root.innerHTML = `<div class="grading-calibration-grid">${state.gradingCalibration
+    .map(
+      (cohort) =>
+        `<article><span>${esc(cohort.grader)} · ${esc(cohort.captureQuality)} capture quality</span><strong>${cohort.meanAbsoluteError.toFixed(2)} grade MAE</strong><small>${cohort.outcomeCount} return${cohort.outcomeCount === 1 ? "" : "s"} · ${Math.round(cohort.withinOneRate * 100)}% within one grade · ${Math.round(cohort.exactRate * 100)}% exact</small></article>`,
+    )
+    .join(
+      "",
+    )}</div><p class="legal-copy">Small cohorts are descriptive only, not accuracy promises. Non-numeric and unlinked returns are excluded.</p>`;
+}
+
+async function refreshGradingCalibration() {
+  const ownerId = state.session?.user?.id;
+  if (!ownerId) return;
+  state.gradingCalibrationStatus = "loading";
+  renderGradingCalibration();
+  try {
+    const summary = await loadGradingCalibrationSummary(supabase);
+    if (state.session?.user?.id !== ownerId) return;
+    state.gradingCalibration = summary;
+    state.gradingCalibrationStatus = "ready";
+  } catch {
+    if (state.session?.user?.id !== ownerId) return;
+    state.gradingCalibration = [];
+    state.gradingCalibrationStatus = "error";
+  }
+  renderGradingCalibration();
+}
+
 async function persistWorkflowDefaults() {
   const button = $("#saveWorkflowDefaults");
   const status = $("#workflowDefaultsStatus");
@@ -13745,12 +20485,11 @@ async function persistWorkflowDefaults() {
   }
 }
 
-export function openOnboarding() {
+export function openOnboarding({ afterComplete } = {}) {
   if ($("#onboardingDialog")) return;
   const previousFocus = document.activeElement;
   const appShell = $("#appShell");
   const previousAriaHidden = appShell.getAttribute("aria-hidden");
-  let draftPreferences = null;
   const dialog = document.createElement("section");
   dialog.id = "onboardingDialog";
   dialog.className = "onboarding-dialog";
@@ -13758,7 +20497,7 @@ export function openOnboarding() {
   dialog.setAttribute("aria-modal", "true");
   dialog.setAttribute("aria-labelledby", "onboardingTitle");
   dialog.setAttribute("aria-describedby", "onboardingDescription");
-  dialog.innerHTML = `<form class="onboarding-card" id="onboardingForm"><p class="eyebrow">A simpler Mica from day one</p><h1 id="onboardingTitle">What will you use Mica for?</h1><p id="onboardingDescription">These optional choices are saved with your profile for future personalization. They do not currently hide, unlock, or automate any tools.</p><fieldset><legend>Main goal</legend><label><input type="radio" name="goal" value="collecting" checked><span><strong>Build my collection</strong><small>Track cards, sets, and value</small></span></label><label><input type="radio" name="goal" value="trading"><span><strong>Trade smarter</strong><small>Compare both sides quickly</small></span></label><label><input type="radio" name="goal" value="selling"><span><strong>Sell cards</strong><small>Track take-home and profit</small></span></label></fieldset><fieldset><legend>Experience</legend><label><input type="radio" name="experience" value="beginner" checked><span><strong>New collector</strong><small>Plain language and more guidance</small></span></label><label><input type="radio" name="experience" value="familiar"><span><strong>Familiar</strong><small>I know sets, condition, and grades</small></span></label><label><input type="radio" name="experience" value="professional"><span><strong>Full-time seller</strong><small>I manage inventory every day</small></span></label></fieldset><div class="onboarding-actions"><button class="secondary" type="button" data-skip-onboarding>Skip setup</button><button class="primary" type="submit">Continue</button></div><p class="form-error" id="onboardingError" role="alert"></p></form>`;
+  dialog.innerHTML = `<form class="onboarding-card" id="onboardingForm"><p class="eyebrow">Welcome to Mica</p><h1 id="onboardingTitle">Make it yours</h1><p id="onboardingDescription">What brings you here? You can change this anytime.</p><fieldset><legend>Your focus</legend><label><input type="radio" name="softwareMode" value="collector" checked><span><strong>Collector</strong><small>Cards, sets, and grading</small></span></label><label><input type="radio" name="softwareMode" value="investor"><span><strong>Investor</strong><small>Value, trends, and alerts</small></span></label><label><input type="radio" name="softwareMode" value="seller"><span><strong>Seller</strong><small>Inventory, sales, and profit</small></span></label></fieldset><fieldset><legend>Experience</legend><label><input type="radio" name="experience" value="beginner" checked><span><strong>New collector</strong><small>Plain language and more guidance</small></span></label><label><input type="radio" name="experience" value="familiar"><span><strong>Familiar</strong><small>I know sets, condition, and grades</small></span></label><label><input type="radio" name="experience" value="professional"><span><strong>Full-time seller</strong><small>I manage inventory every day</small></span></label></fieldset><div class="onboarding-actions"><button class="secondary" type="button" data-skip-onboarding>Skip setup</button><button class="primary" type="submit">Get started</button></div><p class="form-error" id="onboardingError" role="alert"></p></form>`;
   appShell.inert = true;
   appShell.setAttribute("aria-hidden", "true");
   document.body.style.overflow = "hidden";
@@ -13775,27 +20514,41 @@ export function openOnboarding() {
         : $("#main");
     focusTarget?.focus({ preventScroll: true });
   };
+  let saving = false;
   const saveAndClose = async (preferences, button) => {
-    button.disabled = true;
+    if (saving) return;
+    saving = true;
+    const controls = $$("button, input", dialog);
+    controls.forEach((control) => (control.disabled = true));
     const originalLabel = button.textContent;
     button.textContent = "Saving…";
     try {
+      const previousMode = workspaceMode;
       state.profile = await saveProfile(supabase, {
         displayName: profileDisplayName(),
         preferences,
         completeOnboarding: true,
       });
       state.preferences = state.profile.preferences;
-      applyWorkspaceMode(recommendedWorkspace(state.preferences));
+      applyWorkspaceMode(softwareModePreference(state.preferences));
+      restoreModeCollectionView(workspaceMode);
+      if (previousMode !== workspaceMode)
+        void recordSoftwareModeEvent(supabase, {
+          fromMode: previousMode,
+          toMode: workspaceMode,
+          source: "onboarding",
+        }).catch(() => {});
       renderWorkflowDefaults();
       closeOnboarding();
-    } catch (error) {
-      button.disabled = false;
+      afterComplete?.();
+    } catch {
+      saving = false;
+      controls.forEach((control) => (control.disabled = false));
       button.textContent = originalLabel;
       const errorNode = $("#onboardingError");
       if (errorNode)
         errorNode.textContent =
-          error.message || "This choice could not be saved.";
+          "Couldn’t save your preferences. Please try again.";
     }
   };
   const bindSkip = () => {
@@ -13824,23 +20577,22 @@ export function openOnboarding() {
   });
   bindSkip();
   requestAnimationFrame(() =>
-    dialog.querySelector('input[name="goal"]')?.focus(),
+    dialog.querySelector('input[name="softwareMode"]')?.focus(),
   );
   $("#onboardingForm").addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    draftPreferences = {
+    const draftPreferences = {
       ...state.preferences,
-      collectorGoal: data.get("goal"),
+      softwareMode: data.get("softwareMode"),
+      collectorGoal:
+        data.get("softwareMode") === "seller" ? "selling" : "collecting",
       experienceLevel: data.get("experience"),
     };
-    dialog.querySelector(".onboarding-card").innerHTML =
-      `<p class="eyebrow">A quick tour</p><h1 id="onboardingTitle">Start with the task you need</h1><p id="onboardingDescription">Mica keeps the full workspace available. Your optional profile choices do not hide or automate these steps.</p><ol class="onboarding-tour"><li><b>1</b><span><strong>Add a card</strong><small>Search by printed details, or explicitly choose the camera or a saved photo.</small></span></li><li><b>2</b><span><strong>Confirm the exact item</strong><small>Review the printing, quantity, and purchase details before saving.</small></span></li><li><b>3</b><span><strong>Review estimates</strong><small>Prices and digital condition grades remain estimates until you verify them.</small></span></li></ol><div class="onboarding-actions"><button class="secondary" type="button" data-skip-onboarding>Skip setup</button><button class="primary" id="finishOnboarding" type="button">Save and start</button></div><p class="form-error" id="onboardingError" role="alert"></p>`;
-    bindSkip();
-    $("#finishOnboarding").addEventListener("click", (finishEvent) =>
-      saveAndClose(draftPreferences, finishEvent.currentTarget),
+    void saveAndClose(
+      draftPreferences,
+      event.submitter || $('#onboardingForm button[type="submit"]'),
     );
-    $("#finishOnboarding").focus();
   });
 }
 
@@ -13851,21 +20603,34 @@ async function retryAccountLoad() {
   state.accountLoading = true;
   renderCollection();
   try {
-    const [items, watchlist, history, profile] = await Promise.all([
-      loadPortfolio(supabase, ownerId),
-      loadWatchlist(supabase, ownerId),
-      loadPortfolioValuationHistory(supabase, ownerId)
-        .then((data) => ({ data, error: null }))
-        .catch((error) => ({ data: [], error })),
-      loadProfile(supabase),
-    ]);
+    const [organization, watchlist, history, profile, actionCenter] =
+      await Promise.all([
+        loadCollectionOrganization(supabase, ownerId),
+        loadWatchlist(supabase, ownerId),
+        loadPortfolioValuationHistory(supabase, ownerId)
+          .then((data) => ({ data, error: null }))
+          .catch((error) => ({ data: [], error })),
+        loadProfile(supabase),
+        loadActionCenter(supabase, ownerId)
+          .then((data) => ({ data, error: null }))
+          .catch((error) => ({ data: null, error })),
+      ]);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-    state.items = items;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
     state.profile = profile;
     state.preferences = profile.preferences;
-    applyProfileDetailDefault();
+    state.actionCenter = actionCenter.error
+      ? emptyActionCenter("local")
+      : { ...state.actionCenter, ...actionCenter.data, status: "ready" };
+    applyWorkspaceMode(softwareModePreference(state.preferences));
+    restoreModeCollectionView(workspaceMode);
+    applyLoadedOrganization(organization);
+    const inventory = await loadCollectionInventory(ownerId, organization);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    state.items = inventory.items;
+    state.largeInventory = inventory.largeInventory;
+    applyLoadedOrganization(organization);
     state.portfolioHistoryStatus = history.error ? "error" : "ready";
     state.storageStatus = "cloud";
     state.accountLoadError = "";
@@ -13875,10 +20640,13 @@ async function retryAccountLoad() {
     renderTrade();
     toast("Your saved collection is available again");
     await Promise.all([refreshLivePricing(), refreshWatchlistPricing()]);
+    await refreshActionCenter();
+    applyPendingActionDestination();
   } catch (error) {
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = [];
     state.watchlist = [];
+    state.actionCenter = emptyActionCenter("local");
     state.storageStatus = "error";
     state.accountLoadError = error.message || "Saved collection unavailable";
     state.accountLoading = false;
@@ -13890,34 +20658,98 @@ async function retryAccountLoad() {
 }
 
 async function applySession(session) {
+  if (nativeBuild && nativeRuntime()?.failed) session = null;
+  // Token refresh and duplicate startup announcements must not close active work.
+  if (nativeBuild && session && state.session?.user?.id === session.user?.id) {
+    state.session = session;
+    return;
+  }
   const loadVersion = ++sessionLoadVersion;
   const ownerId = session?.user?.id || "";
   const previousOwnerId = state.session?.user?.id || "";
+  if (!session && previousOwnerId) capturePendingProfileAction(previousOwnerId);
   state.session = session;
+  if (session) pendingProfileAction(ownerId);
   if (previousOwnerId !== ownerId) {
+    nativePositionDraft = null;
+    clearDetailFx();
+    state.detailSales = null;
+    state.detailPricing = null;
+    state.detailSelectionKey = null;
+    state.detailValuationContext = null;
+    if (previousOwnerId)
+      void clearAccountDevicePush(previousOwnerId).catch(() => {});
+    gradingComparisonDrafts.clear();
+    state.intakeQueue = nativeBuild ? [] : restoreIntakeQueue();
+    renderIntakeQueueBar();
+    closeSheet({ discardHistory: true, force: true });
+    $("#sheetContent").replaceChildren();
+    state.lastFocus = null;
+    $("#quickCardSearch").value = "";
+    $("#quickSearchLanguage").value = "en";
+    $("#quickCardSearch").dispatchEvent(new Event("input"));
     purchaseMarketReferenceAttempts.clear();
-    state.portfolioHistoryRange = "3m";
+    state.portfolioHistoryRange = "1m";
     state.ledgerView = "all";
     state.query = "";
     state.sort = "value-desc";
     state.setFilter = "";
     state.conditionFilter = "";
     state.labelFilter = "";
+    state.collectionFilter = "";
+    state.locationFilter = "";
     state.languageFilter = "";
     state.graderFilter = "";
     state.gradeFilter = "";
     state.performanceFilter = "";
+    state.movementFilter = "";
+    state.coverageFilter = "";
     state.acquisitionFilter = "";
     state.minimumValue = "";
     state.maximumValue = "";
+    state.minimumProfitLoss = "";
+    state.maximumProfitLoss = "";
+    state.purchaseDateFrom = "";
+    state.purchaseDateTo = "";
+    state.groupBy = "none";
     state.bulkSelected.clear();
     state.bulkMode = false;
+    state.organization = {
+      status: session ? "idle" : "ready",
+      folders: [],
+      savedViews: [],
+      goals: [],
+      goalEvents: [],
+      operations: [],
+      customFields: [],
+      summary: {},
+      attachments: new Map(),
+    };
+    state.actionCenter = emptyActionCenter(session ? "idle" : "local");
+    state.largeInventory = {
+      active: false,
+      totalCount: 0,
+      nextCursor: null,
+      loading: false,
+    };
     state.gradingReports.clear();
     state.gradingActivity = [];
     state.gradingActivityPreviews.clear();
     state.gradingCaptureDrafts.clear();
     state.gradingActivityStatus = session ? "idle" : "ready";
+    state.gradingCalibration = [];
+    state.gradingCalibrationStatus = session ? "idle" : "ready";
     state.gradingResearchConsent = false;
+    state.preferences = {
+      tradeValuePercent: 90,
+      quickSalePercent: 80,
+      sellingFeePercent: 0,
+      otherSellingCosts: 0,
+      collectorGoal: "collecting",
+      experienceLevel: "beginner",
+      softwareMode: "collector",
+    };
+    applyWorkspaceMode("collector");
     state.trade = {
       give: [],
       receive: [],
@@ -13926,17 +20758,80 @@ async function applySession(session) {
       addingTo: "give",
       searchResults: [],
     };
-    if (session) restoreCollectionViewState();
   }
-  state.portfolioHistoryMode = "return";
+  state.portfolioHistoryMode = "pnl";
   $("#skipLink").setAttribute("href", session ? "#main" : "#authGate");
   document.body.classList.toggle("authenticated", Boolean(session));
   $("#authGate").hidden = Boolean(session);
+  if (nativeBuild) {
+    state.accountLoading = Boolean(session);
+    try {
+      if (previousOwnerId && previousOwnerId !== ownerId) {
+        const cleanup = await Promise.allSettled([
+          nativeRuntime().clearDraft(previousOwnerId),
+          nativeRuntime().clearDraft(previousOwnerId, "position-draft"),
+        ]);
+        if (cleanup.some((result) => result.status === "rejected"))
+          throw new Error("Previous-account cleanup could not finish.");
+      }
+      if (ownerId) {
+        const draft = await nativeRuntime().readDraft(ownerId);
+        if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+        state.intakeQueue = restoreIntakeQueue(draft);
+        const position = JSON.parse(
+          await nativeRuntime().readDraft(ownerId, "position-draft"),
+        );
+        if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+        if (
+          position &&
+          position.card?.name &&
+          UUID_PATTERN.test(position.idempotencyKey)
+        ) {
+          nativePositionDraft = position;
+          if (
+            position.pending?.idempotencyKey === position.idempotencyKey &&
+            position.pending.input
+          ) {
+            const key = `${intakeQueueKey(position.card)}|${position.idempotencyKey}`;
+            state.intakeQueue = state.intakeQueue.filter(
+              (entry) => entry.operationId !== position.idempotencyKey,
+            );
+            state.intakeQueue.push({
+              key,
+              card: position.card,
+              quantity: Number(position.pending.input.quantity),
+              operationId: position.idempotencyKey,
+              pending: position.pending,
+            });
+            if (!(await persistIntakeQueue()))
+              throw new Error("Interrupted save could not be preserved.");
+          }
+        }
+        renderIntakeQueueBar();
+      }
+    } catch {
+      toast(
+        "Your saved collection is unchanged. Interrupted work could not be restored on this device.",
+      );
+    }
+    if (
+      state.session?.user?.id !== session?.user?.id ||
+      sessionLoadVersion !== loadVersion
+    )
+      return;
+  }
   if (!session) {
     state.items = [];
     state.watchlist = [];
+    state.actionCenter = emptyActionCenter("local");
     state.portfolioHistory = [];
     state.portfolioHistoryStatus = "idle";
+    state.largeInventory = {
+      active: false,
+      totalCount: 0,
+      nextCursor: null,
+      loading: false,
+    };
     state.detailId = null;
     state.detailCard = null;
     state.movementStatus = "idle";
@@ -13950,6 +20845,7 @@ async function applySession(session) {
       otherSellingCosts: 0,
       collectorGoal: "collecting",
       experienceLevel: "beginner",
+      softwareMode: "collector",
     };
     state.trade = {
       give: [],
@@ -13968,6 +20864,7 @@ async function applySession(session) {
     appEventsBound = true;
   }
   ensureProfileAccount();
+  void refreshGradingCalibration();
   void loadGradingResearchConsent(supabase)
     .then((consent) => {
       if (state.session?.user?.id !== ownerId) return;
@@ -14006,21 +20903,34 @@ async function applySession(session) {
     { instant: true, history: "replace" },
   );
   try {
-    const [items, watchlist, history, profile] = await Promise.all([
-      loadPortfolio(supabase, ownerId),
-      loadWatchlist(supabase, ownerId),
-      loadPortfolioValuationHistory(supabase, ownerId)
-        .then((data) => ({ data, error: null }))
-        .catch((error) => ({ data: [], error })),
-      loadProfile(supabase),
-    ]);
+    const [organization, watchlist, history, profile, actionCenter] =
+      await Promise.all([
+        loadCollectionOrganization(supabase, ownerId),
+        loadWatchlist(supabase, ownerId),
+        loadPortfolioValuationHistory(supabase, ownerId)
+          .then((data) => ({ data, error: null }))
+          .catch((error) => ({ data: [], error })),
+        loadProfile(supabase),
+        loadActionCenter(supabase, ownerId)
+          .then((data) => ({ data, error: null }))
+          .catch((error) => ({ data: null, error })),
+      ]);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-    state.items = items;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
     state.profile = profile;
     state.preferences = profile.preferences;
-    applyProfileDetailDefault();
+    state.actionCenter = actionCenter.error
+      ? emptyActionCenter("local")
+      : { ...state.actionCenter, ...actionCenter.data, status: "ready" };
+    applyWorkspaceMode(softwareModePreference(state.preferences));
+    restoreModeCollectionView(workspaceMode);
+    applyLoadedOrganization(organization);
+    const inventory = await loadCollectionInventory(ownerId, organization);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    state.items = inventory.items;
+    state.largeInventory = inventory.largeInventory;
+    applyLoadedOrganization(organization);
     state.portfolioHistoryStatus = history.error ? "error" : "ready";
     state.storageStatus = "cloud";
     state.accountLoading = false;
@@ -14030,12 +20940,38 @@ async function applySession(session) {
     renderCollection();
     renderInsights();
     renderTrade();
-    if (!profile.onboardingCompletedAt) openOnboarding();
+    const authorizedPrivateAction = pendingProfileAction(ownerId);
+    if (!profile.onboardingCompletedAt && authorizedPrivateAction) {
+      openOnboarding({ afterComplete: restorePendingProfileAction });
+    } else {
+      const profileActionRestored = restorePendingProfileAction();
+      const publicCard = profileActionRestored ? null : pendingPublicCard();
+      if (publicCard) {
+        try {
+          sessionStorage.removeItem("mica:public-card");
+        } catch {}
+        openAddWorkspace();
+        openPositionSheet(publicCard, { ingestionChannel: "search" });
+      } else if (!profile.onboardingCompletedAt) openOnboarding();
+      else if (
+        nativeBuild &&
+        nativePositionDraft &&
+        !nativePositionDraft.pending
+      ) {
+        openPositionSheet(nativePositionDraft.card, {
+          prefill: nativePositionDraft.prefill,
+          idempotencyKey: nativePositionDraft.idempotencyKey,
+        });
+      }
+    }
     await Promise.all([refreshLivePricing(), refreshWatchlistPricing()]);
+    await refreshActionCenter();
+    applyPendingActionDestination();
   } catch (error) {
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = [];
     state.watchlist = [];
+    state.actionCenter = emptyActionCenter("local");
     state.storageStatus = "error";
     state.accountLoading = false;
     state.accountLoadError = error.message || "Saved collection unavailable";
@@ -14047,10 +20983,150 @@ async function applySession(session) {
   }
 }
 
+function pendingPublicCard() {
+  try {
+    const value = JSON.parse(
+      sessionStorage.getItem("mica:public-card") || "null",
+    );
+    return value?.card?.name && Date.now() - value.savedAt < 86400000
+      ? value.card
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function bindPublicCatalog() {
+  const panel = $("#publicCatalog");
+  const authCard = $("#authGate .auth-card");
+  const query = $("#publicCatalogQuery");
+  const language = $("#publicCatalogLanguage");
+  const set = $("#publicCatalogSet");
+  const results = $("#publicCatalogResults");
+  const status = $("#publicCatalogStatus");
+  let generation = 0,
+    nextCursor = null,
+    rows = [],
+    source = "";
+  const close = () => {
+    ++generation;
+    panel.hidden = true;
+    authCard.hidden = false;
+    $("#authEmail").focus();
+  };
+  $("#tryCardSearch").addEventListener("click", () => {
+    authCard.hidden = true;
+    panel.hidden = false;
+    if (matchMedia("(pointer: fine)").matches) query.focus();
+  });
+  $("#publicCatalogBack").addEventListener("click", close);
+  const search = async (append = false) => {
+    if (!$("#publicCatalogForm").reportValidity()) return;
+    const request = ++generation;
+    const signature = [
+      query.value.trim(),
+      language.value,
+      set.value.trim(),
+    ].join("|");
+    const current = () =>
+      request === generation &&
+      !panel.hidden &&
+      !state.session &&
+      signature ===
+        [query.value.trim(), language.value, set.value.trim()].join("|");
+    status.textContent = "Finding matching cards…";
+    if (!append) {
+      rows = [];
+      nextCursor = null;
+      results.replaceChildren();
+    }
+    results.querySelector("[data-public-more]")?.setAttribute("disabled", "");
+    try {
+      const page = await searchCatalog(query.value.trim(), language.value, 12, {
+        set: set.value.trim(),
+        cursor: append ? nextCursor : null,
+        source,
+      });
+      if (!current()) return;
+      nextCursor = page.nextCursor;
+      rows = [
+        ...new Map(
+          [...rows, ...page.items].map((card) => [card.id, card]),
+        ).values(),
+      ];
+      results.innerHTML = rows
+        .map(
+          (card, index) =>
+            `<article class="public-card"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt="${esc(card.name)}"><div><h2>${esc(card.name)}</h2><p>${esc(card.set)} · ${esc(card.number)}</p><p>${esc(languageName(card.language))} · ${esc(card.variant)}</p><button type="button" class="primary" data-public-save="${index}">Save to my collection</button></div></article>`,
+        )
+        .join("");
+      if (nextCursor)
+        results.insertAdjacentHTML(
+          "beforeend",
+          '<button type="button" class="secondary" data-public-more>Load more cards</button>',
+        );
+      if (page.provider === "internal")
+        results.insertAdjacentHTML(
+          "beforeend",
+          '<button type="button" class="secondary" data-public-broader>Search full catalog</button>',
+        );
+      results
+        .querySelector("[data-public-more]")
+        ?.addEventListener("click", () => search(true));
+      results
+        .querySelector("[data-public-broader]")
+        ?.addEventListener("click", () => {
+          source = "tcgdex";
+          search();
+        });
+      results.querySelectorAll("[data-public-save]").forEach((button) =>
+        button.addEventListener("click", () => {
+          const card = queuedCatalogCard(
+            rows[Number(button.dataset.publicSave)],
+          );
+          try {
+            sessionStorage.setItem(
+              "mica:public-card",
+              JSON.stringify({ card, savedAt: Date.now() }),
+            );
+          } catch {}
+          close();
+          authMessage(`Create an account or sign in to save ${card.name}.`);
+        }),
+      );
+      status.textContent = rows.length
+        ? `${rows.length} card versions shown${nextCursor ? " · more available" : ""}.`
+        : nextCursor
+          ? "More results are available. Continue to find the matching set."
+          : "No matches. Try the card number or fewer words.";
+    } catch {
+      if (current()) {
+        status.textContent =
+          "Couldn’t search right now. Your search is kept; please retry.";
+        results
+          .querySelector("[data-public-more]")
+          ?.removeAttribute("disabled");
+      }
+    }
+  };
+  $("#publicCatalogForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    source = "";
+    search();
+  });
+  [query, language, set].forEach((input) =>
+    input.addEventListener("input", () => {
+      ++generation;
+    }),
+  );
+}
+
 async function bootstrap() {
+  bindPublicCatalog();
   if (!supabase) {
     authMessage(
-      "Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, then rebuild.",
+      nativeBootError ||
+        "Sign-in is temporarily unavailable. Please try again later.",
       true,
     );
     return;
@@ -14063,13 +21139,45 @@ async function bootstrap() {
       if (event === "PASSWORD_RECOVERY") openPasswordResetDialog();
     }, 0);
   });
+  if (nativeBuild) {
+    try {
+      await nativeRuntime().bind(supabase, {
+        onActive(active) {
+          nativeAppActive = active;
+          void activeCameraLifecycle?.(active).catch(() =>
+            toast(
+              "Camera could not resume. Please retry or choose a saved photo.",
+            ),
+          );
+          if (active && state.session && state.accountLoadError)
+            void retryAccountLoad();
+        },
+        onReturnError() {
+          authMessage(
+            "This sign-in link could not finish. Request a new link on this device.",
+            true,
+          );
+        },
+      });
+    } catch {
+      authMessage(
+        "Mica could not start securely. Restart the app to retry.",
+        true,
+      );
+      return;
+    }
+  }
   const { data, error } = await supabase.auth.getSession();
   if (error) {
     authMessage(error.message, true);
     return;
   }
   await applySession(data.session);
-  if ("serviceWorker" in navigator && location.protocol !== "file:")
+  if (
+    !nativeBuild &&
+    "serviceWorker" in navigator &&
+    location.protocol !== "file:"
+  )
     navigator.serviceWorker.register("./sw.js").catch(() => {});
 }
 
@@ -14092,4 +21200,48 @@ window
 
 applyUiTheme(uiTheme);
 applyMotionPreference();
+if (nativeBuild) {
+  const secureFailure = () => {
+    supabase?.auth.stopAutoRefresh();
+    void applySession(null);
+    authMessage(
+      "Secure sign-in is unavailable. Restart Mica to retry; your saved collection is unchanged.",
+      true,
+    );
+    if (!$("#nativeSecureRetry")) {
+      const button = document.createElement("button");
+      button.id = "nativeSecureRetry";
+      button.type = "button";
+      button.className = "secondary";
+      button.textContent = "Restart Mica";
+      button.onclick = () => location.reload();
+      $("#authGate").append(button);
+    }
+  };
+  window.addEventListener("mica-secure-storage-error", secureFailure);
+  window.addEventListener("mica-native-signout", () => void applySession(null));
+  if (nativeBootError) secureFailure();
+}
 void bootstrap();
+if (
+  typeof __MICA_INTERNAL_CERTIFICATES__ !== "undefined" &&
+  __MICA_INTERNAL_CERTIFICATES__
+) {
+  globalThis.__MICA_INTERNAL_CERTIFICATE_TEST__ = {
+    state,
+    openPositionSheet,
+    openCardDetail,
+  };
+  void import("./internal/certificates.js").then(
+    ({ installCertificateWorkflows }) =>
+      installCertificateWorkflows({
+        state,
+        openSheet,
+        closeSheet,
+        openPositionSheet,
+        openCardDetail,
+        renderCollection,
+        renderDetail,
+      }),
+  );
+}

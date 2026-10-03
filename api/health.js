@@ -1,6 +1,6 @@
 import { serverEnvironment } from "../lib/env.js";
 
-async function probe(url, headers = {}) {
+async function probe(url, headers = {}, privateTable = false) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 3000);
   try {
@@ -8,6 +8,8 @@ async function probe(url, headers = {}) {
       headers: { Accept: "application/json", ...headers },
       signal: controller.signal,
     });
+    if (privateTable && response.status === 401 &&
+      (await response.json()).code === "42501") return "access_restricted";
     return response.ok ? "healthy" : "degraded";
   } catch {
     return "unreachable";
@@ -46,12 +48,13 @@ export default async function handler(request, response) {
       ? probe(`${config.supabaseUrl}/rest/v1/collections?select=id&limit=0`, {
           apikey: config.supabasePublishableKey,
           Authorization: `Bearer ${config.supabasePublishableKey}`,
-        })
+        }, true)
       : Promise.resolve("not_configured"),
-    probe("https://api.pkmnprices.com/health"),
+    Promise.resolve("release_hold"),
   ]);
   const database =
-    auth === "healthy" && appSchema === "healthy" ? "healthy" : "degraded";
+    auth === "healthy" && ["healthy", "access_restricted"].includes(appSchema)
+      ? "healthy" : "degraded";
   const status = database === "healthy" ? "healthy" : "degraded";
   return response.status(status === "healthy" ? 200 : 503).json({
     status,
@@ -61,13 +64,11 @@ export default async function handler(request, response) {
       database,
       auth,
       appSchema,
+      schemaVerification: "requires_authenticated_acceptance",
       catalog: "configured",
       pricingProvider,
-      paidPricing: config.pkmnpricesApiKey ? "configured" : "public_fallback",
-      vision:
-        config.aiGatewayApiKey || config.vercelOidcToken || process.env.VERCEL
-          ? "configured"
-          : "not_configured",
+      paidPricing: "release_hold",
+      vision: "release_hold",
     },
   });
 }

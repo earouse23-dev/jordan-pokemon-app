@@ -1,0 +1,6 @@
+{
+  "appId": "dev.mica.client07.local",
+  "appName": "Mica",
+  "webDir": "dist-native",
+  "ios": { "contentInset": "automatic" }
+}

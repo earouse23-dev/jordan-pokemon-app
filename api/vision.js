@@ -1,3 +1,5 @@
+import { releaseHold } from "../lib/release-hold.js";
+import { withNativeCors } from "../lib/native-cors.js";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { getVercelOidcToken } from "@vercel/oidc";
@@ -42,7 +44,7 @@ import {
 
 function send(response, status, body, headers = {}) {
   response.setHeader("Cache-Control", "no-store");
-  response.setHeader("Vary", "Authorization");
+  response.setHeader("Vary", "Origin, Authorization");
   for (const [key, value] of Object.entries(headers))
     response.setHeader(key, value);
   return response.status(status).json(body);
@@ -787,6 +789,8 @@ export async function visionHandler(
   }
 }
 
-export default function handler(request, response) {
+function handler(request, response) {
   return visionHandler(request, response);
 }
+
+export default withNativeCors(releaseHold, ["POST"]);

@@ -1,3 +1,5 @@
+import { releaseHold } from "../lib/release-hold.js";
+import { withNativeCors } from "../lib/native-cors.js";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeRawCondition } from "../lib/domain.js";
 import { serverEnvironment, validateServerEnvironment } from "../lib/env.js";
@@ -174,9 +176,8 @@ export function positionObservationRow(
     amount: Number(point.amount),
     price_low: Number.isFinite(Number(point.low)) ? Number(point.low) : null,
     price_high: Number.isFinite(Number(point.high)) ? Number(point.high) : null,
-    sales_count: Number.isFinite(Number(point.saleCount))
-      ? Number(point.saleCount)
-      : null,
+    // Aggregated price-history snapshots are not completed-sale counts.
+    sales_count: null,
     granularity: point.granularity === "day" ? "day" : "observation",
     quality: point.quality || {},
     provider_updated_at:
@@ -202,14 +203,13 @@ export function positionObservationRow(
         : null,
     confidence_reason: {
       direct: point.quality?.direct === true,
-      sampleSize: point.quality?.sampleSize || point.saleCount || null,
+      sampleSize: point.quality?.sampleSize || null,
       granularity: point.granularity || "observation",
     },
     outlier_review: point.outlierReview || {},
     source_metadata: {
       providerVariantId: point.providerVariantId || null,
       field: point.quality?.field || null,
-      saleCount: point.saleCount || null,
     },
     observed_at: observedAt,
   };
@@ -369,7 +369,7 @@ export function positionHistoryRows(position, normalized) {
   return { quote, rows };
 }
 
-export default async function handler(request, response) {
+async function handler(request, response) {
   if (!["GET", "POST"].includes(request.method)) {
     response.setHeader("Allow", "GET, POST");
     return send(response, 405, { error: "Method not allowed" });
@@ -609,3 +609,5 @@ export default async function handler(request, response) {
     finishedAt,
   });
 }
+
+export default withNativeCors(releaseHold, ["GET", "POST"]);

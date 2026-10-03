@@ -4,7 +4,16 @@ import { createServer } from "node:http";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(fileURLToPath(new URL("../dist/", import.meta.url)));
+const root = resolve(
+  fileURLToPath(
+    new URL(
+      process.env.MICA_INTERNAL_CERTIFICATES === "1"
+        ? "../dist-internal/"
+        : "../dist/",
+      import.meta.url,
+    ),
+  ),
+);
 const port = Number.parseInt(process.env.PORT || "4173", 10);
 if (!Number.isInteger(port) || port < 1 || port > 65_535)
   throw new Error("PORT must be between 1 and 65535");

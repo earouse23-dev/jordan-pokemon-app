@@ -1,3 +1,4 @@
+import { withNativeCors } from "../lib/native-cors.js";
 import {
   fetchJustTcgLookup,
   normalizeJustTcgCard,
@@ -77,11 +78,18 @@ function parseLookups(request) {
       name: String(raw?.name || "").trim(),
       set: String(raw?.set || "").trim(),
       number: String(raw?.number || "").trim(),
+      variant: String(raw?.variant || "").trim(),
+      condition: String(raw?.condition || "").trim(),
       language: String(raw?.language || "en")
         .trim()
         .toLowerCase(),
     };
     if (!lookup.clientId || seen.has(lookup.clientId)) continue;
+    if (
+      (lookup.variant && !SAFE_TEXT.test(lookup.variant)) ||
+      (lookup.condition && !SAFE_TEXT.test(lookup.condition))
+    )
+      return null;
     const hasDirectId =
       /^\d{1,12}$/.test(lookup.pkmnpricesId) ||
       /^[A-Za-z0-9-]{1,100}$/.test(lookup.justtcgId) ||
@@ -98,7 +106,7 @@ function parseLookups(request) {
   return lookups.length ? lookups : null;
 }
 
-export default async function handler(request, response) {
+async function handler(request, response) {
   if (request.method !== "GET") {
     response.setHeader("Allow", "GET");
     return send(response, 405, { error: "Method not allowed" });
@@ -115,21 +123,9 @@ export default async function handler(request, response) {
   if (!lookups)
     return send(response, 400, { error: "Provide 1 to 8 valid card lookups." });
 
-  const pkmnPricesKey =
-    process.env.PKMNPRICES_API_KEY ||
-    (process.env.PRICING_PROVIDER === "pkmnprices"
-      ? process.env.PRICING_PROVIDER_API_KEY
-      : "");
-  const justTcgApproved =
-    String(
-      process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED || "",
-    ).toLowerCase() === "true";
-  const justTcgKey = justTcgApproved
-    ? process.env.JUSTTCG_API_KEY ||
-      (process.env.PRICING_PROVIDER === "justtcg"
-        ? process.env.PRICING_PROVIDER_API_KEY
-        : "")
-    : "";
+  // Provider credentials cannot enable paid lookup in this release.
+  const pkmnPricesKey = "";
+  const justTcgKey = "";
   const configuredPlan = String(
     process.env.PKMNPRICES_PLAN || "free",
   ).toLowerCase();
@@ -256,3 +252,5 @@ export default async function handler(request, response) {
     });
   }
 }
+
+export default withNativeCors(handler, ["GET"]);

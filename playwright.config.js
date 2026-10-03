@@ -32,9 +32,39 @@ export default defineConfig({
         viewport: { width: 390, height: 844 },
       },
     },
+    {
+      name: "mobile-webkit",
+      workers: 1,
+      testMatch: [
+        "**/intake-continuity.spec.js",
+        "**/search-recovery.spec.js",
+        "**/add-save-recovery.spec.js",
+        "**/ui-regression.spec.js",
+        "**/mobile-workspaces.spec.js",
+        "**/collector-home.spec.js",
+        "**/grading-capture-recovery.spec.js",
+        "**/document-capture.spec.js",
+        "**/price-evidence.spec.js",
+        "**/physical-copies.spec.js",
+        "**/sealed-collector.spec.js",
+        "**/portfolio-history.spec.js",
+        "**/native-integration.spec.js",
+        "**/card-profile.spec.js",
+        "**/certificate-workflows.spec.js",
+        "**/shipping-certificate-exclusion.spec.js",
+      ],
+      use: {
+        ...devices["iPhone 13"],
+        browserName: "webkit",
+        viewport: { width: 390, height: 844 },
+      },
+    },
   ],
   webServer: {
-    command: "PORT=4189 npm run dev",
+    command:
+      process.env.MICA_INTERNAL_CERTIFICATES === "1"
+        ? "PORT=4189 MICA_INTERNAL_CERTIFICATES=1 node scripts/serve.mjs"
+        : "PORT=4189 npm run dev",
     url: "http://127.0.0.1:4189",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

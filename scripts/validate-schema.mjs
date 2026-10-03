@@ -63,6 +63,10 @@ const required = [
   "provider_health_events",
   "audit_events",
   "import_jobs",
+  "import_mapping_profiles",
+  "import_staged_rows",
+  "import_job_items",
+  "ingestion_events",
   "export_jobs",
   "card_provider_mappings",
   "price_observations",
@@ -90,6 +94,11 @@ const required = [
   "identity_corrections",
   "identity_merge_proposals",
   "identity_merge_events",
+  "collection_custom_field_definitions",
+  "collection_item_attachments",
+  "collection_goals",
+  "collection_goal_events",
+  "collection_organization_operations",
 ];
 
 const failures = [];

@@ -145,6 +145,20 @@ const purchaseMarketReferenceMigration = await readFile(
   ),
   "utf8",
 );
+const gradedPhysicalCopiesMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260918160000_graded_physical_copies.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const gradedPhysicalCopySaleMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260920200000_complete_graded_physical_copy_sale.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const serviceWorker = await readFile(
   new URL("../sw.js", import.meta.url),
   "utf8",
@@ -317,6 +331,20 @@ const gradingV3DatasetFactoryMigration = await readFile(
   ),
   "utf8",
 );
+const reliableIngestionMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260902120000_reliable_collection_ingestion.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const collectionOrganizationMigration = await readFile(
+  new URL(
+    "../supabase/migrations/20260903065732_organize_collection_depth.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const gradingPilotEndpoint = await readFile(
   new URL("../lib/grading-pilot-api.js", import.meta.url),
   "utf8",
@@ -444,7 +472,7 @@ test("optional grading assets cannot block service-worker installation", async (
 
   assert.equal(skippedWaiting, true);
   assert.ok(coreAssets.includes("./index.html"));
-  assert.ok(coreAssets.includes("./app.js?v=108"));
+  assert.ok(coreAssets.includes("./app.js?v=111"));
   assert.equal(
     coreAssets.some((asset) => asset.includes("coach-")),
     false,
@@ -554,16 +582,19 @@ test("working interfaces keep readable text at a twelve-pixel minimum", () => {
   assert.doesNotMatch(combinedCss, /font:\s*[^;]*\b(?:7|8|9|10|11)px\b/);
 });
 
-test("Mica uses one approved cream and sage interface", () => {
+test("Mica uses one approved cream and sage interface across focused modes", () => {
   assert.doesNotMatch(appShell, /data-ui-theme-option=/);
   assert.doesNotMatch(appShell, /data-workspace-mode=/);
+  assert.match(appShell, /data-software-mode="collector"/);
+  assert.match(appShell, /data-software-mode="investor"/);
+  assert.match(appShell, /data-software-mode="seller"/);
   assert.match(appShell, /themes\.css\?v=83/);
   assert.match(appSource, /let uiTheme = "mica"/);
-  assert.match(appSource, /let workspaceMode = "unified"/);
+  assert.match(appSource, /let workspaceMode = "collector"/);
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
   assert.match(themes, /--canvas:\s*#f5f0e4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
-  assert.match(serviceWorker, /mica-shell-v111/);
+  assert.match(serviceWorker, /mica-shell-v131/);
   assert.match(serviceWorker, /themes\.css\?v=83/);
 });
 
@@ -577,8 +608,8 @@ test("signup distinguishes repeated accounts and supports confirmation resend", 
   assert.match(appSource, /use Forgot password/);
 });
 
-test("one interface uses plain language and moves complexity into Advanced tools", () => {
-  assert.match(appSource, /let workspaceMode = "unified"/);
+test("one interface uses plain language and keeps mode separate from access", () => {
+  assert.match(appSource, /let workspaceMode = "collector"/);
   assert.doesNotMatch(appShell, /How much detail do you want/);
   assert.match(appShell, /Advanced tools/);
   assert.match(appSource, /Total paid/);
@@ -631,9 +662,11 @@ test("owned positions use provider prices and never fabricate current value or h
 test("portfolio dashboard uses a responsive stock-style interactive chart", () => {
   assert.match(appSource, /id="portfolioHistoryChart"/);
   assert.match(appSource, /data-portfolio-history-range/);
+  assert.match(appSource, /\["1w", "1 week"\]/);
   assert.match(appSource, /\["1m", "1 month"\]/);
-  assert.match(appSource, /\["3m", "3 months"\]/);
-  assert.match(appSource, /\["ytd", "This year"\]/);
+  assert.match(appSource, /\["6m", "6 months"\]/);
+  assert.match(appSource, /\["1y", "1 year"\]/);
+  assert.match(appSource, />P\/L</);
   assert.match(
     appSource,
     /interaction:\s*\{ mode: "index", intersect: false \}/,
@@ -688,7 +721,9 @@ test("consolidated workspace navigation remains responsive and routes to real wo
   assert.match(bottomNavigation, /data-sidebar-target="collection"/);
   assert.doesNotMatch(bottomNavigation, /data-route="insights"/);
   assert.doesNotMatch(bottomNavigation, /data-route="profile"/);
-  assert.doesNotMatch(appSource, /intakeQueue|openBatchIntakeSheet/);
+  assert.match(appSource, /intakeQueue/);
+  assert.match(appSource, /openBatchIntakeSheet/);
+  assert.match(appSource, /confirm each exact version before saving/i);
   assert.match(
     appSource,
     /route === "collection" \? restoreCollectionViewState\(\) : 0/,
@@ -764,7 +799,7 @@ test("card identification and digital grading use the live device camera", () =>
   assert.doesNotMatch(appShell, /for="receiptInput"/);
   assert.match(appSource, /navigator\.mediaDevices\.getUserMedia/);
   assert.match(appSource, /navigator\.mediaDevices\.enumerateDevices/);
-  assert.match(appSource, /facingMode:\s*\{\s*ideal:\s*"environment"/);
+  assert.match(appSource, /getUserMedia\(cardCameraConstraints\(deviceId\)\)/);
   assert.match(appSource, /applyConstraints\(\{\s*advanced:\s*\[\{\s*torch:/);
   assert.match(appSource, /error\?\.name === "NotAllowedError"/);
   assert.match(appSource, /kind:\s*"back"/);
@@ -789,12 +824,12 @@ test("card identification and digital grading use the live device camera", () =>
   assert.match(vercelConfig, /camera=\(self\)/);
 });
 
-test("raw card intake offers grading before save and Collection grading stays card-attached", () => {
-  assert.match(appSource, /Would you like to digitally grade this card\?/);
-  assert.match(appSource, /Add without grading/);
-  assert.match(appSource, /Grade now/);
+test("raw card intake saves directly with optional grading and Collection grading stays card-attached", () => {
+  assert.doesNotMatch(appSource, /openNewCardGradingDecision/);
+  assert.match(appSource, /id="positionGradeFirst"/);
+  assert.match(appSource, /Grade first/);
   assert.match(appShell, /Digitally grade a card/);
-  assert.match(appShell, /You confirm identity before an estimate is attached/);
+  assert.match(appShell, /Photo estimate · not a professional grade/);
   assert.doesNotMatch(appShell, /grading-workspace-facts/);
   assert.doesNotMatch(appShell, /Full Digital Grade/);
   assert.doesNotMatch(appSource, /function openGradingTargetPicker/);
@@ -885,17 +920,33 @@ test("graded certification checks stay on official sites and avoid authenticity 
   assert.doesNotMatch(appSource, /fetch\([^)]*certificationNumber/);
 });
 
-test("large CSV imports are bounded, resumable, and protected from duplicate retries", () => {
+test("large CSV imports preview, stage, commit atomically, and roll back safely", () => {
   assert.match(appShell, /up to 5,000 saved entries/i);
   assert.doesNotMatch(appSource, /records\.slice\(0,\s*100\)/);
-  assert.match(appSource, /runBoundedTasks\(\s*pending/);
-  assert.match(appSource, /concurrency:\s*4/);
-  assert.match(appSource, /shouldStop:\s*\(\)\s*=>\s*pauseRequested/);
-  assert.match(appSource, /createImportedPosition/);
-  assert.match(appSource, /idempotencyKey\s*=\s*await importRecordKey/);
+  assert.match(appSource, /openCsvImportReview/);
+  assert.match(appSource, /loadImportMappingProfile/);
+  assert.match(appSource, /saveImportMappingProfile/);
+  assert.match(appSource, /beginCollectionImport/);
+  assert.match(appSource, /stageCollectionImportRows/);
+  assert.match(appSource, /previewCollectionImport/);
+  assert.match(appSource, /commitCollectionImport/);
+  assert.match(appSource, /rollbackCollectionImport/);
+  assert.match(appSource, /chunkImportRows\(stagedRows,\s*200\)/);
+  assert.match(appSource, /serverPreview\.invalidRows/);
+  // Retry must keep the same job; presentation cannot promise that a lost
+  // commit response means no rows were saved. Browser tests cover recovery.
+  assert.match(appSource, /if \(!importJobId\)[\s\S]+beginCollectionImport/);
   assert.match(
     appSource,
-    /dataset\.lockClose\s*=\s*value\s*\?\s*["']true["']\s*:\s*["']false["']/,
+    /#bottomSheet[\s\S]+dataset\.lockClose\s*=\s*["']true["'][\s\S]+dataset\.lockClose\s*=\s*["']false["']/,
+  );
+  assert.match(
+    reliableIngestionMigration,
+    /commit_collection_import[\s\S]+import_validation_failed[\s\S]+create_collection_position/,
+  );
+  assert.match(
+    reliableIngestionMigration,
+    /rollback_collection_import[\s\S]+import_position_changed_after_commit[\s\S]+delete from public\.collection_items/,
   );
 });
 
@@ -1183,6 +1234,64 @@ test("bulk organization is owner-scoped and cannot mutate financial or identity 
     "grade",
     "currency",
     "manual_value",
+  ])
+    assert.doesNotMatch(updateClause, new RegExp(`\\b${protectedField}\\s*=`));
+});
+
+test("Step 8 organization remains private, bounded, indexed, and recoverable", () => {
+  for (const table of [
+    "collection_custom_field_definitions",
+    "collection_item_attachments",
+    "collection_goals",
+    "collection_goal_events",
+    "collection_organization_operations",
+  ])
+    assert.match(
+      collectionOrganizationMigration,
+      new RegExp(
+        `alter table public\\.${table} enable row level security`,
+        "i",
+      ),
+    );
+  assert.match(
+    collectionOrganizationMigration,
+    /bulk_organize_collection_items_v2[\s\S]+security definer[\s\S]+set search_path=''[\s\S]+owner_id uuid:=\(select auth\.uid\(\)\)/i,
+  );
+  assert.match(
+    collectionOrganizationMigration,
+    /undo_collection_organization_operation[\s\S]+security definer[\s\S]+set search_path=''[\s\S]+owner_id uuid:=\(select auth\.uid\(\)\)/i,
+  );
+  assert.match(
+    collectionOrganizationMigration,
+    /grant select on public\.collection_goal_events,public\.collection_organization_operations to authenticated/i,
+  );
+  assert.match(
+    collectionOrganizationMigration,
+    /search_collection_positions[\s\S]+p_limit not between 1 and 200[\s\S]+item\.user_id=\(select auth\.uid\(\)\)/i,
+  );
+  assert.match(
+    collectionOrganizationMigration,
+    /collection_items_organization_search_idx[\s\S]+using gin\(organization_search\)[\s\S]+collection_items_organization_aliases_idx[\s\S]+using gin\(organization_aliases\)/i,
+  );
+  assert.match(
+    collectionOrganizationMigration,
+    /revoke all on function public\.rollback_collection_import\(uuid\) from public,anon,authenticated[\s\S]+grant execute on function public\.rollback_collection_import_v2\(uuid\) to authenticated,service_role/i,
+  );
+  assert.match(
+    collectionOrganizationMigration,
+    /'collection-item-files','collection-item-files',false[\s\S]+storage\.foldername\(name\)\)\[1\]=\(select auth\.uid\(\)\)::text/i,
+  );
+  const updateClause =
+    collectionOrganizationMigration.match(
+      /update public\.collection_items item set[\s\S]+?where item\.user_id=owner_id and item\.id=any\(p_ids\)/i,
+    )?.[0] || "";
+  for (const protectedField of [
+    "quantity",
+    "card_id",
+    "variant_id",
+    "identity_snapshot",
+    "manual_value",
+    "currency",
   ])
     assert.doesNotMatch(updateClause, new RegExp(`\\b${protectedField}\\s*=`));
 });
@@ -1580,7 +1689,7 @@ test("account deletion verifies the bearer identity and matching email before ad
   assert.doesNotMatch(accountEndpoint, /supabaseSecretKey[^]*response\.json/);
   assert.match(
     appSource,
-    /clearDeletedAccountClientData\(state\.session\?\.user\?\.id\)[\s\S]+function clearDeletedAccountClientData[\s\S]+mica-collection-view-[\s\S]+mica-workflow-[\s\S]+mica-runtime-/,
+    /const deletedOwner = state\.session\?\.user\?\.id;[\s\S]+clearDeletedAccountClientData\(deletedOwner\)[\s\S]+function clearDeletedAccountClientData[\s\S]+mica-collection-view-[\s\S]+mica-workflow-[\s\S]+mica-runtime-/,
   );
 });
 
@@ -2167,7 +2276,7 @@ test("paused catalog cache stays bounded while Pro evidence trusts runtime entit
     offersEndpoint,
     /error\?\.status === 403[\s\S]+capabilityStatus: "unsupported"/,
   );
-  assert.doesNotMatch(appSource, /id="marketProofDetails"/);
+  assert.match(appSource, /id="marketProofDetails" data-detail-tool="sales"/);
   assert.doesNotMatch(appShell, />More price proof</);
 });
 
@@ -2284,5 +2393,94 @@ test("V3 datasets freeze complete lineage without exposing private captures", ()
   assert.match(
     gradingPilotEndpoint,
     /action === "freeze_v3_dataset"[\s\S]+role !== "admin"[\s\S]+grading_v3_freeze_dataset_service/,
+  );
+});
+
+test("graded-copy creation is owner-scoped, quantity-one, and retry safe", () => {
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /create or replace function public\.create_graded_copy_position[\s\S]+owner_id uuid := \(select auth\.uid\(\)\)/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /p_card_state<>'graded' or p_quantity<>1[\s\S]+graded_copy_quantity_one_required/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /request_key is null[\s\S]+graded_copy_idempotency_key_required/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /idempotency_key=request_key[\s\S]+graded-copy-create:[\s\S]+idempotency_key=request_key[\s\S]+return existing_item/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /pg_advisory_xact_lock[\s\S]+owner_id::text[\s\S]+upper\(trim\(p_grader\)\)[\s\S]+normalized_cert/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /where user_id=owner_id[\s\S]+card_state='graded'[\s\S]+quantity>0[\s\S]+duplicate_active_certificate/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /create_collection_position\([\s\S]+p_certification_number,1,p_transaction_date/,
+  );
+  assert.doesNotMatch(
+    gradedPhysicalCopiesMigration,
+    /where (?!user_id=owner_id)[^;]+certification_number[^;]+raise exception using/,
+  );
+});
+
+test("all current collection-item grade claims are user provenance at the database boundary", () => {
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /create or replace function identity_private\.enforce_user_grade_claim_provenance\(\)[\s\S]+returns trigger[\s\S]+security invoker/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /old\.card_state is distinct from new\.card_state[\s\S]+old\.card_id is distinct from new\.card_id[\s\S]+old\.variant_id is distinct from new\.variant_id[\s\S]+old\.collectible_id is distinct from new\.collectible_id[\s\S]+old\.grader is distinct from new\.grader[\s\S]+old\.grade is distinct from new\.grade[\s\S]+old\.certification_number is distinct from new\.certification_number[\s\S]+old\.identity_snapshot is distinct from new\.identity_snapshot/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /jsonb_set\([\s\S]+\{gradeClaimSource\}[\s\S]+to_jsonb\('user'::text\)/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /before insert or update of card_state,card_id,variant_id,collectible_id,grader,grade,certification_number,identity_snapshot[\s\S]+on public\.collection_items/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /revoke all on function identity_private\.enforce_user_grade_claim_provenance\(\)[\s\S]+from public,anon,authenticated,service_role/,
+  );
+});
+
+test("graded-copy sale locks and mutates only the selected owned copy", () => {
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /create or replace function public\.record_graded_copy_sale[\s\S]+where id=p_collection_item_id and user_id=owner_id[\s\S]+for update/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /transaction_type='sale'[\s\S]+collection_item_id=p_collection_item_id[\s\S]+return existing_sale/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /target_copy\.card_state<>'graded' or target_copy\.quantity<>1[\s\S]+graded_copy_sale_unavailable/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /upper\(p_currency\)<>target_copy\.currency[\s\S]+currency_mismatch/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /record_collection_sale\([\s\S]+p_collection_item_id,p_transaction_date,1/,
+  );
+  assert.match(
+    gradedPhysicalCopiesMigration,
+    /revoke all on function public\.record_graded_copy_sale[\s\S]+from public,anon[\s\S]+grant execute[\s\S]+to authenticated,service_role/,
+  );
+  assert.match(
+    gradedPhysicalCopySaleMigration,
+    /collection_items_quantity_check[\s\S]+quantity between 0 and 99999[\s\S]+validate constraint collection_items_quantity_check/,
   );
 });

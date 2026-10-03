@@ -1,3 +1,4 @@
+import { withNativeCors } from "../lib/native-cors.js";
 import { createClient } from "@supabase/supabase-js";
 import { serverEnvironment } from "../lib/env.js";
 
@@ -49,7 +50,7 @@ async function removePrivateBucketPaths({ bucket, paths }) {
   }
 }
 
-export default async function handler(request, response) {
+async function handler(request, response) {
   if (request.method !== "DELETE") {
     response.setHeader("Allow", "DELETE");
     return send(response, 405, { error: "Method not allowed" });
@@ -90,6 +91,7 @@ export default async function handler(request, response) {
         "grading-research",
         "grading-report-thumbnails",
         "grading-outcome-proofs",
+        "collection-item-files",
       ].map((bucketName) =>
         listPrivateBucketPaths(database, identity.user.id, bucketName),
       ),
@@ -131,3 +133,5 @@ export default async function handler(request, response) {
     return send(response, 500, { error: "Account could not be deleted" });
   return send(response, 200, { ok: true });
 }
+
+export default withNativeCors(handler, ["DELETE"]);

@@ -4,19 +4,48 @@
   "devCommand": "npm run dev",
   "outputDirectory": "dist",
   "cleanUrls": true,
-  "rewrites": [{ "source": "/profile", "destination": "/index.html" }],
+  "rewrites": [
+    {
+      "source": "/profile",
+      "destination": "/index.html"
+    }
+  ],
   "functions": {
-    "api/capabilities.js": { "maxDuration": 60 },
-    "api/card-image.js": { "maxDuration": 10 },
-    "api/health.js": { "maxDuration": 10 },
-    "api/cards.js": { "maxDuration": 10 },
-    "api/catalog.js": { "maxDuration": 10 },
-    "api/sales.js": { "maxDuration": 10 },
-    "api/vision.js": { "maxDuration": 60 },
-    "api/price-sync.js": { "maxDuration": 60 }
+    "api/capabilities.js": {
+      "maxDuration": 60
+    },
+    "api/card-image.js": {
+      "maxDuration": 10
+    },
+    "api/health.js": {
+      "maxDuration": 10
+    },
+    "api/cards.js": {
+      "maxDuration": 10
+    },
+    "api/catalog.js": {
+      "maxDuration": 10
+    },
+    "api/sales.js": {
+      "maxDuration": 10
+    },
+    "api/graded-valuation.js": {
+      "maxDuration": 15
+    },
+    "api/fx.js": {
+      "maxDuration": 10
+    },
+    "api/vision.js": {
+      "maxDuration": 60
+    },
+    "api/price-sync.js": {
+      "maxDuration": 60
+    },
+    "api/maintenance.js": {
+      "maxDuration": 60
+    }
   },
   "crons": [
-    { "path": "/api/price-sync", "schedule": "0 5 * * *" },
     {
       "path": "/api/capabilities?surface=grading-deletion",
       "schedule": "15 5 * * *"
@@ -26,8 +55,14 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
         {
           "key": "Referrer-Policy",
           "value": "strict-origin-when-cross-origin"
@@ -51,5 +86,8 @@
         }
       ]
     }
-  ]
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
 }

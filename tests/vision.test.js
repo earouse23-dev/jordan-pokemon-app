@@ -46,6 +46,7 @@ test("vision intake accepts only expected modes, image types, sizes, and counts"
     () => parseVisionRequest({ mode: "unknown", images: [tinyJpeg] }),
     /invalid_mode/,
   );
+  assert.equal(parseVisionRequest({ mode: "sealed", images: [tinyJpeg] }).mode, "sealed");
   assert.throws(
     () => parseVisionRequest({ mode: "grade", images: [tinyJpeg] }),
     /invalid_image_count/,
@@ -65,6 +66,22 @@ test("vision intake accepts only expected modes, image types, sizes, and counts"
     () => parseVisionRequest({ mode: "identify", images: [oversized] }),
     /image_too_large/,
   );
+});
+
+test("sealed image contract keeps uncertain facts unresolved and never yields a trusted ID", () => {
+  const request = buildGatewayVisionRequest({ mode: "sealed", images: [tinyJpeg], model: "synthetic-model", safetyIdentifier: "synthetic-owner" });
+  assert.equal(request.store, false);
+  assert.equal(request.text.format.name, "mica_sealed_candidate");
+  assert.match(request.input[0].content[0].text, /requires exact catalog or manual confirmation/i);
+  const output = normalizeVisionOutput("sealed", {
+    name: "Synthetic Elite Trainer Box", setName: "Synthetic Set", language: "xx",
+    region: null, productType: "elite_trainer_box", variant: null,
+    confidence: 0.6, providerId: 12345, price: 999,
+  });
+  assert.deepEqual(output, {
+    candidate: { name: "Synthetic Elite Trainer Box", set: "Synthetic Set", language: "", sealedRegion: null, productType: "elite_trainer_box", sealedVariant: null, confidence: 0.6 },
+    requiresConfirmation: true,
+  });
 });
 
 test("raw grading sends two high-detail images without provider persistence", () => {

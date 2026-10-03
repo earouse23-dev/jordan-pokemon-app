@@ -1,7 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import handler from "../api/cards.js";
-import { pricingCreditPlan } from "../api/price-sync.js";
+import {
+  positionObservationRow,
+  pricingCreditPlan,
+} from "../api/price-sync.js";
 import offersHandler from "../api/offers.js";
 import sealedHandler from "../api/sealed.js";
 import salesHandler from "../api/sales.js";
@@ -9,6 +12,7 @@ import {
   PRICE_EVIDENCE_RULE_VERSION,
   finishForVariant,
   gradedPriceLadder,
+  summarizePsaSales,
   mergePriceHistory,
   normalizePriceCapabilityStatus,
   normalizeCard,
@@ -17,15 +21,24 @@ import {
   priceFreshness,
   priceMovement,
   reviewComparableOutliers,
+  safeMarketSourceUrl,
   selectCardmarketReference,
   selectReferenceQuote,
 } from "../lib/pricing.js";
+
+test("market source links require the returned HTTPS marketplace host", () => {
+  assert.equal(safeMarketSourceUrl("https://www.tcgplayer.com/product/123", "tcgplayer"), "https://www.tcgplayer.com/product/123");
+  assert.equal(safeMarketSourceUrl("https://www.cardmarket.com/en/Pokemon/Products", "cardmarket"), "https://www.cardmarket.com/en/Pokemon/Products");
+  for (const url of ["javascript:alert(1)", "https://tcgplayer.com.evil.example/product/123", "https://user@www.tcgplayer.com/product/123", "http://www.tcgplayer.com/product/123"])
+    assert.equal(safeMarketSourceUrl(url, "tcgplayer"), null);
+});
 import {
   normalizeJustTcgCard,
   normalizePrinting,
 } from "../lib/providers/justtcg.js";
 import {
   fetchPkmnPricesOffers,
+  fetchPkmnPricesSales,
   fetchPkmnPricesSealedSearch,
   fetchPkmnPricesLookup,
   matchesPkmnPricesIdentity,
@@ -34,6 +47,8 @@ import {
   normalizePkmnPricesSealedProduct,
   normalizePkmnPricesSale,
   pkmnPricesRetryDelayMs,
+  saleMatchesCanonicalIdentity,
+  saleMatchesLookup,
 } from "../lib/providers/pkmnprices.js";
 import {
   normalizeTcgdexCard,
@@ -121,6 +136,101 @@ test("does not mix raw quotes into graded copies or substitute a different raw c
     }).amount,
     80,
   );
+});
+
+test("raw selection and confidence exclude graded-only evidence in every condition shape", () => {
+  const gradedQuotes = [
+    {
+      provider: "tcgplayer",
+      currency: "USD",
+      finish: "holofoil",
+      condition: null,
+      gradingCompany: "PSA",
+      grade: "10",
+      priceType: "market",
+      amount: 200,
+      observedAt: "2026-09-16T12:00:00.000Z",
+    },
+    {
+      provider: "tcgplayer",
+      currency: "USD",
+      finish: "holofoil",
+      gradingCompany: "BGS",
+      grade: "9.5",
+      priceType: "market",
+      amount: 150,
+      observedAt: "2026-09-16T12:00:00.000Z",
+    },
+    {
+      provider: "tcgplayer",
+      currency: "USD",
+      finish: "holofoil",
+      condition: "",
+      gradingCompany: "PSA",
+      grade: "9",
+      priceType: "market",
+      amount: 120,
+      observedAt: "2026-09-16T12:00:00.000Z",
+    },
+  ];
+  const rawContext = {
+    condition: "Near Mint",
+    finish: "holofoil",
+    edition: "unlimited",
+  };
+  assert.equal(
+    selectReferenceQuote(gradedQuotes, "Holofoil", "USD", rawContext),
+    null,
+  );
+  const gradedOnlyReport = priceEvidence(
+    gradedQuotes,
+    "Holofoil",
+    "USD",
+    rawContext,
+    new Date("2026-09-17T12:00:00.000Z").getTime(),
+  );
+  assert.equal(gradedOnlyReport.level, "unavailable");
+  assert.equal(gradedOnlyReport.sourceCount, 0);
+  assert.deepEqual(gradedOnlyReport.evidence, []);
+
+  const rawQuote = {
+    provider: "tcgplayer",
+    currency: "USD",
+    finish: "holofoil",
+    condition: null,
+    gradingCompany: null,
+    grade: null,
+    priceType: "market",
+    amount: 80,
+    observedAt: "2026-09-16T12:00:00.000Z",
+  };
+  for (const quotes of [
+    [...gradedQuotes, rawQuote],
+    [rawQuote, ...gradedQuotes],
+  ]) {
+    assert.equal(
+      selectReferenceQuote(quotes, "Holofoil", "USD", rawContext).amount,
+      80,
+    );
+    assert.equal(
+      selectReferenceQuote(quotes, "Holofoil", "USD", {
+        gradingCompany: "PSA",
+        grade: "10",
+        finish: "holofoil",
+        edition: "unlimited",
+      }).amount,
+      200,
+    );
+    const rawReport = priceEvidence(
+      quotes,
+      "Holofoil",
+      "USD",
+      rawContext,
+      new Date("2026-09-17T12:00:00.000Z").getTime(),
+    );
+    assert.equal(rawReport.sourceCount, 1);
+    assert.equal(rawReport.evidence[0].amount, 80);
+  }
 });
 
 test("price evidence scores only exact compatible context and explains disagreement", () => {
@@ -502,6 +612,30 @@ test("normalizes catalog variants and only preserves safe sold-listing links", (
   );
   assert.equal(catalogCard.id, "tcgdex:en:base1-4");
   assert.deepEqual(catalogCard.variants, ["holo", "firstEdition"]);
+  assert.deepEqual(
+    catalogCard.variantOptions.map(
+      ({ finish, edition, promoType, status }) => ({
+        finish,
+        edition,
+        promoType,
+        status,
+      }),
+    ),
+    [
+      {
+        finish: "holo",
+        edition: "unknown",
+        promoType: "unknown",
+        status: "needs_review",
+      },
+      {
+        finish: "unknown",
+        edition: "first_edition",
+        promoType: "unknown",
+        status: "needs_review",
+      },
+    ],
+  );
   const sale = normalizePkmnPricesSale({
     ebay_listing_id: "123",
     title: "Charizard PSA 10",
@@ -520,6 +654,81 @@ test("normalizes catalog variants and only preserves safe sold-listing links", (
     listing_url: "javascript:alert(1)",
   });
   assert.equal(unsafe.sourceUrl, null);
+  const deceptive = normalizePkmnPricesSale({
+    id: "x2",
+    title: "Deceptive host",
+    price: 1,
+    sold_at: "2026-07-10",
+    listing_url: "https://ebay.com.example.org/itm/123",
+  });
+  assert.equal(deceptive.sourceUrl, null);
+  const german = normalizePkmnPricesSale({
+    id: "de-123",
+    title: "German sold listing",
+    price: 20,
+    sold_at: "2026-07-10",
+    listing_url: "https://www.ebay.de/itm/123",
+  });
+  assert.equal(german.sourceUrl, "https://www.ebay.de/itm/123");
+});
+
+test("provider-normalized unknown finish cannot inherit a label-derived price", () => {
+  const card = normalizeTcgdexCard(
+    {
+      id: "base1-4",
+      name: "Charizard",
+      variants: { holo: true, firstEdition: true },
+    },
+    "en",
+  );
+  const unresolved = card.variantOptions.find(
+    (option) => option.edition === "first_edition",
+  );
+  const mappedHolo = card.variantOptions.find(
+    (option) => option.finish === "holo",
+  );
+  const quotes = [
+    {
+      provider: "tcgplayer",
+      currency: "USD",
+      finish: "normal",
+      condition: "Near Mint",
+      priceType: "market",
+      amount: 123,
+    },
+    {
+      provider: "tcgplayer",
+      currency: "USD",
+      finish: "1stEditionNormal",
+      condition: "Near Mint",
+      priceType: "market",
+      amount: 234,
+    },
+    {
+      provider: "tcgplayer",
+      currency: "USD",
+      finish: "holofoil",
+      condition: "Near Mint",
+      priceType: "market",
+      amount: 345,
+    },
+  ];
+  assert.equal(
+    selectReferenceQuote(quotes, unresolved.label, "USD", {
+      condition: "Near Mint",
+      finish: unresolved.finish,
+      edition: unresolved.edition,
+    }),
+    null,
+  );
+  assert.equal(
+    selectReferenceQuote(quotes, mappedHolo.label, "USD", {
+      condition: "Near Mint",
+      finish: mappedHolo.finish,
+      edition: mappedHolo.edition,
+    }).amount,
+    345,
+  );
 });
 
 test("normalizes PkmnPrices card quotes and daily history into the shared pricing schema", () => {
@@ -592,7 +801,9 @@ test("normalizes PkmnPrices card quotes and daily history into the shared pricin
     285,
   );
   assert.equal(normalized.history[0].amount, 290);
-  assert.equal(normalized.history[0].quality.saleCount, 3);
+  assert.equal(normalized.history[0].saleCount, undefined);
+  assert.equal(normalized.history[0].quality.saleCount, undefined);
+  assert.equal(normalized.history[0].quality.sampleSize, null);
   assert.equal(normalized.history[0].low, 270);
   assert.equal(normalized.history[0].high, 310);
   assert.equal(normalized.metadata.hp, 120);
@@ -608,6 +819,130 @@ test("normalizes PkmnPrices card quotes and daily history into the shared pricin
       observedAt: "2026-04-15T00:00:00Z",
     },
   ]);
+});
+
+test("sold evidence preserves exact context fields and rejects incompatible rows", () => {
+  const row = {
+    id: 1,
+    title: "Japanese BGS 9.5 Gold Label",
+    price: 125.5,
+    currency: "EUR",
+    language: "Japanese",
+    grader: "BGS",
+    grade: "9.5",
+    grade_qualifier: "Gold Label",
+    variant: "Reverse Holofoil",
+    attribution: "exact",
+    sold_at: "2026-09-15T00:00:00Z",
+    ingested_at: "2026-09-16T04:05:06Z",
+    listing_url: "https://www.ebay.de/itm/123",
+  };
+  const normalized = normalizePkmnPricesSale(row);
+  const exact = {
+    language: "ja",
+    grader: "BGS",
+    grade: "9.5",
+    gradeQualifier: "Gold Label",
+    variant: "Reverse Holofoil",
+  };
+  assert.equal(normalized.currency, "EUR");
+  assert.equal(normalized.grade, "9.5");
+  assert.equal(normalized.gradeQualifier, "Gold Label");
+  assert.equal(normalized.attribution, "exact");
+  assert.equal(normalized.soldAt, row.sold_at);
+  assert.equal(normalized.ingestedAt, row.ingested_at);
+  assert.equal(normalized.sourceUrl, row.listing_url);
+  assert.equal(saleMatchesLookup(normalized, exact), true);
+  assert.equal(
+    saleMatchesLookup(normalized, { ...exact, finish: "reverseHolofoil" }),
+    true,
+  );
+  assert.equal(
+    saleMatchesLookup(normalized, { ...exact, finish: "holofoil" }),
+    false,
+  );
+  assert.equal(
+    saleMatchesLookup(
+      { ...normalized, title: `${normalized.title} 1st Edition` },
+      { ...exact, edition: "unlimited" },
+    ),
+    false,
+  );
+  assert.equal(
+    saleMatchesLookup(normalized, { ...exact, edition: "first" }),
+    false,
+  );
+  assert.equal(
+    saleMatchesLookup(normalized, { ...exact, promoType: "Stamped" }),
+    false,
+  );
+  assert.equal(
+    saleMatchesLookup(normalized, { ...exact, language: "en" }),
+    false,
+  );
+  assert.equal(
+    saleMatchesLookup(normalized, { ...exact, variant: "Holofoil" }),
+    false,
+  );
+  assert.equal(
+    saleMatchesLookup(normalized, { ...exact, grader: "PSA" }),
+    false,
+  );
+  assert.equal(saleMatchesLookup(normalized, { ...exact, grade: "10" }), false);
+  assert.equal(
+    saleMatchesLookup(normalized, { ...exact, gradeQualifier: "Silver Label" }),
+    false,
+  );
+  assert.equal(
+    saleMatchesLookup({ ...normalized, attribution: "shared" }, exact),
+    false,
+  );
+  assert.equal(
+    saleMatchesLookup({ ...normalized, currency: null }, exact),
+    false,
+  );
+  assert.equal(
+    saleMatchesLookup(
+      {
+        ...normalized,
+        gradingCompany: null,
+        grade: null,
+        gradeQualifier: null,
+      },
+      exact,
+    ),
+    false,
+  );
+  assert.equal(
+    normalizePkmnPricesSale({ ...row, id: 2, currency: "USD" }).currency,
+    "USD",
+  );
+});
+
+test("daily snapshots cannot become completed-sale volume or confidence", () => {
+  const item = {
+    id: "position-1",
+    user_id: "user-1",
+    identity_snapshot: { language: "en" },
+    card_state: "graded",
+    grader: "PSA",
+    grade: "10",
+    currency: "USD",
+  };
+  const row = positionObservationRow(item, {
+    provider: "ebay",
+    providerVariantId: "snapshot",
+    currency: "USD",
+    finish: "holofoil",
+    amount: 100,
+    saleCount: 99,
+    recordedAt: "2026-09-01T00:00:00Z",
+    granularity: "day",
+    quality: { aggregator: "pkmnprices" },
+  });
+  assert.equal(row.sales_count, null);
+  assert.equal(row.confidence_reason.sampleSize, null);
+  assert.equal(Object.hasOwn(row.source_metadata, "saleCount"), false);
 });
 
 test("normalizes marketplace asks without presenting them as completed sales", () => {
@@ -783,11 +1118,11 @@ test("normalizes sealed products into the shared pricing model", () => {
   assert.equal(finishForVariant("Sealed product"), "sealed");
 });
 
-test("sealed search requests the documented Japanese product language", async () => {
+test("sealed search preserves the requested Pro language contract", async () => {
   const originalFetch = globalThis.fetch;
-  let requested;
+  const requested = [];
   globalThis.fetch = async (url, options) => {
-    requested = String(url);
+    requested.push(String(url));
     assert.equal(options.headers["X-API-Key"], "sealed-secret");
     return new Response(
       JSON.stringify({
@@ -803,17 +1138,28 @@ test("sealed search requests the documented Japanese product language", async ()
     );
   };
   try {
-    const products = await fetchPkmnPricesSealedSearch(
+    const japanese = await fetchPkmnPricesSealedSearch(
       "sealed-secret",
       "151 booster",
       "ja",
       undefined,
       12,
     );
-    assert.equal(products[0].id, "sealed:9");
-    assert.match(requested, /\/sealed\?/);
-    assert.match(requested, /language=jp/);
-    assert.match(requested, /per_page=12/);
+    const german = await fetchPkmnPricesSealedSearch(
+      "sealed-secret",
+      "display",
+      "de",
+      undefined,
+      1,
+    );
+    assert.equal(japanese[0].id, "sealed:9");
+    assert.equal(japanese[0].language, "jp");
+    assert.equal(german[0].language, "de");
+    assert.match(requested[0], /\/sealed\?/);
+    assert.match(requested[0], /language=jp/);
+    assert.match(requested[0], /per_page=12/);
+    assert.match(requested[1], /language=de/);
+    assert.match(requested[1], /per_page=1/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1134,6 +1480,72 @@ test("requests Japanese search, USD and EUR prices, and 365-day Pro history", as
       requested.filter((url) => /\/cards\/99\?currency=/.test(url)).length,
       2,
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("requests German pricing identity and preserves the language context", async () => {
+  const originalFetch = globalThis.fetch;
+  const requested = [];
+  globalThis.fetch = async (url) => {
+    const value = String(url);
+    requested.push(value);
+    if (value.includes("/cards?"))
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: 144,
+              name: "Glurak",
+              number: "4",
+              set: { name: "Grundset" },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    return new Response(
+      JSON.stringify({
+        id: 144,
+        name: "Glurak",
+        number: "4",
+        set: { name: "Grundset" },
+        prices: [
+          {
+            source: "cardmarket",
+            currency: "EUR",
+            condition: "Near Mint",
+            variant: "Holofoil",
+            market_price: 250,
+            created_at: "2026-08-30T00:00:00Z",
+          },
+        ],
+      }),
+      { status: 200 },
+    );
+  };
+  try {
+    const result = await fetchPkmnPricesLookup(
+      "pro-secret",
+      {
+        clientId: "de-144",
+        name: "Glurak",
+        set: "Grundset",
+        number: "4",
+        language: "de",
+      },
+      undefined,
+      { includeHistory: false },
+    );
+    assert.equal(
+      requested.some((url) => url.includes("language=German")),
+      true,
+    );
+    assert.equal(result.card.language, "German");
+    const normalized = normalizePkmnPricesCard(result.card, [], undefined);
+    assert.equal(normalized.language, "German");
+    assert.equal(normalized.quotes[0].language, "German");
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -1611,6 +2023,416 @@ test("server endpoint returns public TCGdex market pricing when no paid key is c
   }
 });
 
+test("sold evidence preserves printing attribution and excludes unrelated raw comps", async () => {
+  const originalFetch = globalThis.fetch;
+  const base = {
+    id: 1,
+    title: "Test card",
+    price: 12,
+    currency: "USD",
+    sold_at: "2026-09-01",
+    ingested_at: "2026-09-02T00:00:00Z",
+    listing_url: "https://www.ebay.com/itm/123",
+    variant: "Reverse Holofoil",
+    attribution: "exact",
+  };
+  const rows = [
+    base,
+    { ...base, id: 2, attribution: "shared" },
+    { ...base, id: 3, attribution: "unknown" },
+    { ...base, id: 4, attribution: undefined },
+    { ...base, id: 5, variant: "Normal" },
+    { ...base, id: 6, variant: null },
+    { ...base, id: 7, grader: "PSA", grade: "10" },
+    { ...base, id: 8, variant: "Staff Reverse Holofoil" },
+    { ...base, id: 9, listing_url: "https://ebay.com.evil.test/sale" },
+  ];
+  const requests = [];
+  globalThis.fetch = async (input) => {
+    requests.push(new URL(input));
+    return new Response(
+      JSON.stringify({ data: rows, pagination: { has_more: true } }),
+    );
+  };
+  try {
+    const result = await fetchPkmnPricesSales("key", {
+      pkmnpricesId: "123",
+      variant: "reverse_holofoil",
+      condition: "Near Mint",
+    });
+    assert.deepEqual(
+      result.sales.map((sale) => sale.providerSaleId),
+      ["1"],
+    );
+    assert.equal(result.sales[0].printing, "Reverse Holofoil");
+    assert.equal(result.sales[0].attribution, "exact");
+    assert.equal(result.sales[0].ingestedAt, base.ingested_at);
+    assert.equal(result.conditionScope, "not_provided");
+    assert.equal(result.excludedCount, 8);
+    assert.equal(result.hasMore, true);
+    assert.equal(requests[0].searchParams.get("graded"), "false");
+    assert.equal(requests[0].searchParams.get("variant"), "Reverse Holofoil");
+    assert.equal(requests[0].searchParams.has("condition"), false);
+    const unknown = await fetchPkmnPricesSales("key", { pkmnpricesId: "123" });
+    assert.equal(unknown.sales.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("sold evidence never mixes grader, grade, or named grade tiers", async () => {
+  const originalFetch = globalThis.fetch;
+  const base = {
+    id: 1,
+    title: "CGC 10 Test card",
+    price: 100,
+    currency: "USD",
+    grader: "CGC",
+    grade: "10",
+    variant: "Holofoil",
+    attribution: "exact",
+    sold_at: "2026-09-01",
+    listing_url: "https://www.ebay.com/itm/123",
+  };
+  globalThis.fetch = async (input) => {
+    const url = new URL(input);
+    assert.equal(url.searchParams.get("graded"), "true");
+    assert.equal(url.searchParams.get("grader"), "CGC");
+    assert.equal(url.searchParams.get("grade"), "10");
+    return new Response(
+      JSON.stringify({
+        data: [
+          base,
+          { ...base, id: 2, grade_qualifier: "Pristine" },
+          { ...base, id: 3, grader: "PSA" },
+          { ...base, id: 4, grade: "9" },
+          { ...base, id: 5, grader: null, grade: null },
+        ],
+      }),
+    );
+  };
+  try {
+    const lookup = {
+      pkmnpricesId: "123",
+      variant: "Holofoil",
+      grader: "CGC",
+      grade: "10",
+    };
+    const standard = await fetchPkmnPricesSales("key", lookup);
+    assert.deepEqual(
+      standard.sales.map((sale) => sale.providerSaleId),
+      ["1"],
+    );
+    const pristine = await fetchPkmnPricesSales("key", {
+      ...lookup,
+      gradeQualifier: "Pristine",
+    });
+    assert.deepEqual(
+      pristine.sales.map((sale) => sale.providerSaleId),
+      ["2"],
+    );
+    assert.equal(pristine.sales[0].gradeQualifier, "Pristine");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("direct sold lookups reject a provider card from another language", async () => {
+  const originalFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (input) => {
+    requests.push(new URL(input));
+    return new Response(JSON.stringify({ id: 123, language: "English" }));
+  };
+  try {
+    const result = await fetchPkmnPricesSales("key", {
+      pkmnpricesId: "123",
+      language: "ja",
+      variant: "Holofoil",
+      grader: "PSA",
+      grade: "10",
+    });
+    assert.equal(result.cardId, null);
+    assert.deepEqual(result.sales, []);
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].pathname, "/v1/cards/123");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("sold evidence rejects an exact-attributed row for a different canonical printing", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = new URL(input);
+    if (!url.pathname.endsWith("/listings/ebay"))
+      return new Response(
+        JSON.stringify({
+          id: 10195,
+          name: "Pikachu",
+          number: "006",
+          total_set_number: 15,
+          language: "English",
+          set: { id: 426, name: "McDonald's Promos 2023" },
+        }),
+      );
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 1,
+            title:
+              "Flying Pikachu V #006/025 | 2021 Pokemon Celebrations | PSA 10",
+            price: 70,
+            currency: "USD",
+            grader: "PSA",
+            grade: "10",
+            variant: "Holofoil",
+            attribution: "exact",
+            sold_at: "2026-09-16",
+            ingested_at: "2026-09-17T01:00:00Z",
+            listing_url: "https://www.ebay.com/itm/1001",
+          },
+          {
+            id: 2,
+            title: "PSA 10 McDonald's Pikachu Holo 2023 Pokemon 006/015",
+            price: 45,
+            currency: "USD",
+            grader: "PSA",
+            grade: "10",
+            variant: "Holofoil",
+            attribution: "exact",
+            sold_at: "2026-08-24",
+            ingested_at: "2026-09-17T01:00:00Z",
+            listing_url: "https://www.ebay.com/itm/1002",
+          },
+          {
+            id: 3,
+            title: "Pikachu Holo PSA 10",
+            price: 50,
+            currency: "USD",
+            grader: "PSA",
+            grade: "10",
+            variant: "Holofoil",
+            attribution: "exact",
+            sold_at: "2026-08-20",
+            ingested_at: "2026-09-17T01:00:00Z",
+            listing_url: "https://www.ebay.com/itm/1003",
+          },
+          {
+            id: 4,
+            title: "Pikachu 006/015 and Flying Pikachu 006/025 bundle PSA 10",
+            price: 80,
+            currency: "USD",
+            grader: "PSA",
+            grade: "10",
+            variant: "Holofoil",
+            attribution: "exact",
+            sold_at: "2026-08-19",
+            ingested_at: "2026-09-17T01:00:00Z",
+            listing_url: "https://www.ebay.com/itm/1004",
+          },
+          {
+            id: 5,
+            title: "Pikachu 006/015 McDonalds 2022 PSA 10",
+            price: 40,
+            currency: "USD",
+            grader: "PSA",
+            grade: "10",
+            variant: "Holofoil",
+            attribution: "exact",
+            sold_at: "2026-08-18",
+            ingested_at: "2026-09-17T01:00:00Z",
+            listing_url: "https://www.ebay.com/itm/1005",
+          },
+          {
+            id: 6,
+            title: "Pikachu 006/015 Celebrations 2023 PSA 10",
+            price: 41,
+            currency: "USD",
+            grader: "PSA",
+            grade: "10",
+            variant: "Holofoil",
+            attribution: "exact",
+            sold_at: "2026-08-17",
+            ingested_at: "2026-09-17T01:00:00Z",
+            listing_url: "https://www.ebay.com/itm/1006",
+          },
+        ],
+      }),
+    );
+  };
+  try {
+    const result = await fetchPkmnPricesSales("synthetic-key", {
+      clientId: "mcdonalds-2023-006",
+      pkmnpricesId: "10195",
+      name: "Pikachu",
+      set: "McDonald's Promos 2023",
+      number: "006/015",
+      language: "en",
+      variant: "Holofoil",
+      grader: "PSA",
+      grade: "10",
+    });
+    assert.deepEqual(
+      result.sales.map((sale) => sale.providerSaleId),
+      ["2"],
+    );
+    assert.deepEqual(result.exclusions, {
+      normalizationRejected: 0,
+      contextMismatch: 0,
+      canonicalIdentityMismatch: 5,
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("canonical sale identity preserves Japanese text and rejects contradictions", () => {
+  const card = {
+    id: 200,
+    name: "ピカチュウ",
+    number: "025",
+    total_set_number: "165",
+    set: { name: "ポケモンカード151" },
+  };
+  const lookup = {
+    name: "ピカチュウ",
+    set: "ポケモンカード151",
+    number: "025/165",
+    language: "ja",
+  };
+  assert.equal(
+    saleMatchesCanonicalIdentity(
+      { title: "ピカチュウ 025/165 PSA 10" },
+      card,
+      lookup,
+    ),
+    true,
+  );
+  assert.equal(
+    saleMatchesCanonicalIdentity(
+      { title: "ミュウ 025/165 PSA 10" },
+      card,
+      lookup,
+    ),
+    false,
+  );
+  assert.equal(
+    saleMatchesCanonicalIdentity(
+      { title: "ピカチュウ 151/165 PSA 10" },
+      card,
+      lookup,
+    ),
+    false,
+  );
+  assert.equal(
+    saleMatchesCanonicalIdentity(
+      { title: "ピカチュウ 025/165 黒炎の支配者 PSA 10" },
+      card,
+      lookup,
+    ),
+    false,
+  );
+});
+
+test("sold API passes exact context and validates it even with direct provider IDs", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.PKMNPRICES_API_KEY;
+  process.env.PKMNPRICES_API_KEY = "test-sales-secret";
+  let body;
+  let calls = 0;
+  const response = {
+    setHeader() {},
+    status(status) {
+      this.statusCode = status;
+      return this;
+    },
+    json(value) {
+      body = value;
+      return value;
+    },
+  };
+  globalThis.fetch = async (input) => {
+    calls += 1;
+    const url = new URL(input);
+    if (!url.pathname.endsWith("/listings/ebay"))
+      return new Response(
+        JSON.stringify({
+          id: 123,
+          name: "Pikachu",
+          number: "1",
+          total_set_number: 10,
+          language: "English",
+          set: { name: "Test Set" },
+        }),
+      );
+    assert.equal(url.searchParams.get("variant"), "Reverse Holofoil");
+    assert.equal(url.searchParams.get("graded"), "false");
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            id: 1,
+            price: 8,
+            title: "Pikachu 1/10 Reverse Holo",
+            currency: "USD",
+            variant: "Reverse Holofoil",
+            attribution: "exact",
+            sold_at: "2026-09-01",
+            listing_url: "https://www.ebay.com/itm/1",
+          },
+        ],
+      }),
+    );
+  };
+  try {
+    const lookup = {
+      clientId: "card",
+      pkmnpricesId: "123",
+      name: "Pikachu",
+      set: "Test Set",
+      number: "1/10",
+      variant: "reverse_holofoil",
+    };
+    await salesHandler(
+      { method: "GET", query: { lookup: JSON.stringify(lookup) } },
+      response,
+    );
+    assert.equal(response.statusCode, 200);
+    assert.equal(body.sales.length, 1);
+    assert.equal(body.conditionScope, "not_provided");
+    assert.equal(body.sales[0].printing, "Reverse Holofoil");
+    assert.deepEqual(
+      {
+        canonicalValidated: body.validatedContext.canonicalValidated,
+        completedSaleValidated: body.validatedContext.completedSaleValidated,
+        providerCardId: body.validatedContext.providerCardId,
+        variant: body.validatedContext.variant,
+      },
+      {
+        canonicalValidated: true,
+        completedSaleValidated: true,
+        providerCardId: "123",
+        variant: "reverse_holofoil",
+      },
+    );
+    await salesHandler(
+      {
+        method: "GET",
+        query: { lookup: JSON.stringify({ ...lookup, grader: "<script>" }) },
+      },
+      response,
+    );
+    assert.equal(response.statusCode, 400);
+    assert.equal(calls, 2);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;
+    else process.env.PKMNPRICES_API_KEY = originalKey;
+  }
+});
+
 test("sold endpoint reports a missing PkmnPrices plan entitlement honestly", async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.PKMNPRICES_API_KEY;
@@ -1665,4 +2487,294 @@ test("sold endpoint reports a missing PkmnPrices plan entitlement honestly", asy
     if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;
     else process.env.PKMNPRICES_API_KEY = originalKey;
   }
+});
+
+test("sold API distinguishes empty, invalid-key, and rate-limited states", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = process.env.PKMNPRICES_API_KEY;
+  const originalError = console.error;
+  process.env.PKMNPRICES_API_KEY = "synthetic-sales-secret";
+  console.error = () => {};
+  const lookup = JSON.stringify({
+    clientId: "card-123",
+    pkmnpricesId: "123",
+    language: "en",
+    variant: "Holofoil",
+    grader: "PSA",
+    grade: "10",
+  });
+  const invoke = async () => {
+    let body;
+    const response = {
+      setHeader() {},
+      status(status) {
+        this.statusCode = status;
+        return this;
+      },
+      json(value) {
+        body = value;
+        return value;
+      },
+    };
+    await salesHandler({ method: "GET", query: { lookup } }, response);
+    return { status: response.statusCode, body };
+  };
+  try {
+    let listingResponse = () =>
+      new Response(JSON.stringify({ data: [] }), { status: 200 });
+    globalThis.fetch = async (input) => {
+      const url = new URL(input);
+      if (!url.pathname.endsWith("/listings/ebay"))
+        return new Response(JSON.stringify({ id: 123, language: "English" }));
+      return listingResponse();
+    };
+    const empty = await invoke();
+    assert.equal(empty.status, 200);
+    assert.equal(empty.body.capabilityStatus, "missing");
+    assert.deepEqual(empty.body.sales, []);
+
+    listingResponse = () =>
+      new Response(JSON.stringify({ error: { code: "invalid_key" } }), {
+        status: 403,
+      });
+    const invalid = await invoke();
+    assert.equal(invalid.status, 502);
+    assert.equal(invalid.body.code, "provider_authentication_failed");
+
+    listingResponse = () =>
+      new Response(JSON.stringify({ error: { code: "rate_limited" } }), {
+        status: 429,
+      });
+    const limited = await invoke();
+    assert.equal(limited.status, 429);
+    assert.equal(limited.body.code, "provider_rate_limited");
+    assert.equal(
+      JSON.stringify(limited.body).includes("synthetic-sales-secret"),
+      false,
+    );
+  } finally {
+    console.error = originalError;
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;
+    else process.env.PKMNPRICES_API_KEY = originalKey;
+  }
+});
+
+test("history follows scoped pagination instead of treating row limit as days", async () => {
+  const original = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    requests.push(u);
+    if (!u.pathname.endsWith("/prices/history"))
+      return new Response(JSON.stringify({ id: 99, prices: [] }));
+    const page = Number(u.searchParams.get("page"));
+    return new Response(
+      JSON.stringify({
+        data: [
+          {
+            date: `2026-09-0${page}`,
+            source: "tcgplayer",
+            currency: "USD",
+            condition: "Near Mint",
+            variant: "Holofoil",
+            avg: 10 + page,
+          },
+        ],
+        pagination: { page, total_pages: 3 },
+      }),
+    );
+  };
+  try {
+    const result = await fetchPkmnPricesLookup(
+      "fixture",
+      { pkmnpricesId: "99", variant: "Holofoil", condition: "Near Mint" },
+      undefined,
+      { historyPeriod: "365d", historyLimit: 365 },
+    );
+    const pages = requests.filter((u) =>
+      u.pathname.endsWith("/prices/history"),
+    );
+    assert.equal(pages.length, 3);
+    assert.equal(result.history.length, 3);
+    assert.equal(result.historyStatus, "live");
+    for (const u of pages) {
+      assert.equal(u.searchParams.get("variant"), "Holofoil");
+      assert.equal(u.searchParams.get("condition"), "Near Mint");
+      assert.equal(u.searchParams.get("period"), "365d");
+    }
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("history retains current prices and collected rows when a later page is unavailable", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    if (!u.pathname.endsWith("/prices/history"))
+      return new Response(
+        JSON.stringify({ id: 99, prices: [{ market_price: 12 }] }),
+      );
+    if (u.searchParams.get("page") === "2")
+      return new Response("{}", { status: 403 });
+    return new Response(
+      JSON.stringify({
+        data: [{ date: "2026-09-01", avg: 10 }],
+        pagination: { page: 1, total_pages: 2 },
+      }),
+    );
+  };
+  try {
+    const result = await fetchPkmnPricesLookup("fixture", {
+      pkmnpricesId: "99",
+    });
+    assert.equal(result.card.prices[0].market_price, 12);
+    assert.equal(result.history.length, 1);
+    assert.equal(result.historyStatus, "partial");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("history bounds excessive pagination and rejects impossible dates without losing a card", async () => {
+  const original = globalThis.fetch;
+  let pages = 0;
+  globalThis.fetch = async (url) => {
+    if (!String(url).includes("/prices/history"))
+      return new Response(JSON.stringify({ id: 99, prices: [] }));
+    pages++;
+    return new Response(
+      JSON.stringify({
+        data: [{ date: `2026-09-0${pages}`, avg: 10 }],
+        pagination: { page: pages, total_pages: 99999 },
+      }),
+    );
+  };
+  try {
+    const result = await fetchPkmnPricesLookup("fixture", {
+      pkmnpricesId: "99",
+    });
+    assert.equal(pages, 4);
+    assert.equal(result.historyStatus, "partial");
+    const normalized = normalizePkmnPricesCard(
+      result.card,
+      [
+        { date: "garbage", avg: 10 },
+        { date: "2026-02-30", avg: 10 },
+        { date: "2026-09-01", avg: 12 },
+      ],
+      new Date().toISOString(),
+      "99",
+    );
+    assert.equal(normalized.history.length, 1);
+    assert.equal(normalized.history[0].amount, 12);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("PSA sale summaries retain evidence but exclude wrong grades, duplicates and flagged prices", () => {
+  const sale = {
+    gradingCompany: "PSA",
+    grade: "10",
+    attribution: "exact",
+    printing: "Holofoil",
+    amount: 100,
+    currency: "USD",
+    soldAt: "2026-09-01",
+    sourceUrl: "https://www.ebay.com/itm/123",
+    providerSaleId: "1",
+  };
+  const rows = [
+    sale,
+    { ...sale },
+    {
+      ...sale,
+      amount: 200,
+      providerSaleId: "2",
+      sourceUrl: "https://www.ebay.com/itm/456",
+    },
+    {
+      ...sale,
+      amount: 9999,
+      providerSaleId: "3",
+      sourceUrl: "https://www.ebay.com/itm/789",
+      outlierReview: { flagged: true },
+    },
+    { ...sale, grade: "9" },
+    { ...sale, gradeQualifier: "Pristine" },
+    { ...sale, attribution: "shared" },
+    { ...sale, sourceUrl: "javascript:alert(1)" },
+    { ...sale, soldAt: "2035-01-01" },
+  ];
+  const result = summarizePsaSales(rows, 10, Date.parse("2026-09-06"));
+  assert.equal(result.median, 150);
+  assert.equal(result.count, 2);
+  assert.equal(result.excluded, 1);
+  assert.equal(result.rows.length, 3);
+  assert.equal(summarizePsaSales([], 9).median, null);
+});
+
+test("PSA sale samples count one listing across title and regional URLs", () => {
+  const sale = {
+    gradingCompany: "PSA",
+    grade: "10",
+    attribution: "exact",
+    amount: 100,
+    currency: "USD",
+    soldAt: "2026-09-01",
+    sourceUrl: "https://www.ebay.com/itm/123456789012",
+    providerSaleId: "first",
+  };
+  const rows = [
+    sale,
+    {
+      ...sale,
+      amount: 999,
+      providerSaleId: "second",
+      sourceUrl:
+        "https://www.ebay.com/itm/Pikachu-PSA-10/123456789012?tracking=abc",
+    },
+    {
+      ...sale,
+      amount: 999,
+      providerSaleId: "third",
+      sourceUrl: "https://www.ebay.co.uk/itm/123456789012/",
+    },
+    {
+      ...sale,
+      amount: 200,
+      providerSaleId: "fourth",
+      sourceUrl: "https://www.ebay.com/itm/Pikachu/123456789013",
+    },
+  ];
+  const result = summarizePsaSales(rows, 10, Date.parse("2026-09-06"));
+  assert.equal(result.count, 2);
+  assert.equal(result.median, 150);
+  assert.equal(result.rows.length, 2);
+});
+
+test("PSA sale samples require direct identifiable listing links", () => {
+  const urls = [
+    "https://www.ebay.com/",
+    "https://www.ebay.com/sch/i.html?_nkw=pikachu",
+    "https://www.ebay.com/itm/unknown",
+    "https://www.ebay.com/itm/123/extra",
+    "https://user:password@www.ebay.com/itm/123",
+    "https://www.ebay.com:8443/itm/123",
+  ];
+  const rows = urls.map((sourceUrl, index) => ({
+    gradingCompany: "PSA",
+    grade: "10",
+    attribution: "exact",
+    amount: 100,
+    currency: "USD",
+    soldAt: "2026-09-01",
+    sourceUrl,
+    providerSaleId: String(index),
+  }));
+  const result = summarizePsaSales(rows, 10, Date.parse("2026-09-06"));
+  assert.equal(result.count, 0);
+  assert.equal(result.median, null);
 });

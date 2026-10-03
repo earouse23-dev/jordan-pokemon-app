@@ -1,13 +1,13 @@
-const SHELL_CACHE = "mica-shell-v111";
+const SHELL_CACHE = "mica-shell-activation-04";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=88",
+  "./styles.css?v=91",
   "./themes.css?v=83",
   "./app-config.js?v=69",
-  "./app.js?v=108",
+  "./app.js?v=111",
   "./manifest.webmanifest",
   "./icons/icon.svg",
   "./icons/icon-192.png",
@@ -143,17 +143,105 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-self.addEventListener("notificationclick", (event) => {
+// The browser subscription belongs to one signed-in owner on this device. Keep
+// that binding across worker restarts, but never display a queued prior-owner
+// push after logout. Storage failures fail closed.
+function pushOwnerStorage(value) {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("mica-push-binding", 1);
+    request.onupgradeneeded = () => request.result.createObjectStore("binding");
+    request.onerror = () => reject(new Error("Push binding unavailable"));
+    request.onblocked = () => reject(new Error("Push binding unavailable"));
+    request.onsuccess = () => {
+      const database = request.result;
+      const write = value !== undefined;
+      const transaction = database.transaction("binding", write ? "readwrite" : "readonly");
+      const store = transaction.objectStore("binding");
+      const operation = write ? store.put(value, "owner") : store.get("owner");
+      transaction.oncomplete = () => { database.close(); resolve(write ? value : operation.result || ""); };
+      transaction.onerror = transaction.onabort = () => { database.close(); reject(new Error("Push binding unavailable")); };
+    };
+  });
+}
+
+let pushOwnerWork = Promise.resolve();
+function serializePushOwner(work) {
+  const result = pushOwnerWork.then(work);
+  pushOwnerWork = result.catch(() => {});
+  return result;
+}
+
+function localNotificationUrl(value) {
+  try {
+    const url = new URL(value || "./", self.registration.scope);
+    if (url.origin === self.location.origin && ["/", "/profile"].includes(url.pathname) && !url.username && !url.password)
+      return url.href;
+  } catch {}
+  return self.registration.scope;
+}
+
+self.addEventListener("message", event => {
+  const type = event.data?.type;
+  if (!["MICA_PUSH_OWNER", "MICA_PUSH_OWNER_STATUS"].includes(type)) return;
+  let origin;
+  try { origin = new URL(event.source?.url).origin; } catch { return; }
+  if (origin !== self.location.origin) return;
+  const reply = value => event.ports?.[0]?.postMessage(value);
+  event.waitUntil(serializePushOwner(async () => {
+    if (type === "MICA_PUSH_OWNER_STATUS") {
+      reply({ ok: true, ownerId: await pushOwnerStorage() });
+      return;
+    }
+    const ownerId = event.data.ownerId || "";
+    if (typeof ownerId !== "string" || ownerId.length > 100) throw new Error("Invalid binding");
+    const previous = await pushOwnerStorage();
+    await pushOwnerStorage(ownerId);
+    if (previous !== ownerId || !ownerId) {
+      const notifications = await self.registration.getNotifications();
+      notifications.forEach(notification => notification.close());
+    }
+    reply({ ok: true, ownerId });
+  }).catch(() => reply({ ok: false })));
+});
+
+self.addEventListener("push", event => {
+  event.waitUntil(serializePushOwner(async () => {
+    let payload;
+    try {
+      const raw = event.data?.text() || "";
+      if (raw.length > 4096) return;
+      payload = JSON.parse(raw);
+    } catch { return; }
+    const ownerId = payload?.data?.ownerId;
+    if (typeof ownerId !== "string" || !ownerId || ownerId !== await pushOwnerStorage()) return;
+    const tag = typeof payload.tag === "string" ? payload.tag.slice(0, 120) : "update";
+    await self.registration.showNotification("Mica", {
+      body: "You have a new collection update. Open Mica to review it.",
+      icon: new URL("./icons/icon-192.png", self.registration.scope).href,
+      badge: new URL("./icons/icon-192.png", self.registration.scope).href,
+      tag: `mica:${tag}`,
+      renotify: false,
+      data: { ownerId, url: localNotificationUrl(payload.data.url) },
+    });
+  }).catch(() => {}));
+});
+
+self.addEventListener("notificationclick", event => {
   event.notification.close();
-  event.waitUntil(
-    clients
-      .matchAll({ type: "window", includeUncontrolled: true })
-      .then(
-        (openClients) =>
-          openClients[0]?.focus() ||
-          clients.openWindow(
-            event.notification.data?.url || self.registration.scope,
-          ),
-      ),
-  );
+  event.waitUntil(serializePushOwner(async () => {
+    const ownerId = event.notification.data?.ownerId;
+    if (ownerId && ownerId !== await pushOwnerStorage()) return;
+    const url = localNotificationUrl(event.notification.data?.url);
+    const windows = await clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = windows.find(client => {
+      try { return new URL(client.url).origin === self.location.origin; } catch { return false; }
+    });
+    if (existing?.navigate) {
+      try {
+        const navigated = await existing.navigate(url);
+        if (navigated) { await navigated.focus(); return; }
+      } catch {}
+    }
+    await clients.openWindow(url);
+  }).catch(() => {}));
 });

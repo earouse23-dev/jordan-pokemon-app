@@ -1,3 +1,5 @@
+import { releaseHold } from "../lib/release-hold.js";
+import { withNativeCors } from "../lib/native-cors.js";
 import { fetchPkmnPricesOffers } from "../lib/providers/pkmnprices.js";
 import { serverEnvironment } from "../lib/env.js";
 
@@ -71,7 +73,7 @@ function parseLookup(request) {
   return lookup.clientId && filters && (direct || search) ? lookup : null;
 }
 
-export default async function handler(request, response) {
+async function handler(request, response) {
   if (request.method !== "GET") {
     response.setHeader("Allow", "GET");
     return send(response, 405, { error: "Method not allowed" });
@@ -159,3 +161,5 @@ export default async function handler(request, response) {
     clearTimeout(timeout);
   }
 }
+
+export default withNativeCors(releaseHold, ["GET"]);

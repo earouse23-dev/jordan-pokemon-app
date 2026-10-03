@@ -68,9 +68,28 @@ npm run release:check
 
 Provider responses are normalized before reaching portfolio calculations or UI components. Current observations, history, source, market, currency, condition/grader/grade, and freshness remain explicit. Provider disagreements are shown separately and are not averaged by default.
 
+## Collection organization
+
+- Digital folders contain owned positions. Flexible labels describe them,
+  saved views store reusable filters/sort/grouping, watchlists remain buying
+  intent, and physical locations describe the real room, shelf, box, case,
+  binder, page, or display.
+- Goals derive from the current collection. Exact checklists use canonical or
+  provider variant aliases and show unavailable when catalog evidence is
+  incomplete instead of counting a close printing.
+- Owner-defined custom fields are bounded typed scalars. Per-position photos
+  and PDFs use a private owner-first Storage path.
+- Bulk changes show an exact preview, write one audit receipt, and can be undone
+  only while no later edit would be overwritten.
+- Accounts above 10,000 positions use bounded owner-scoped server pages. A
+  partial page never becomes a whole-account valuation or profitability total.
+
+See [Step 8 organization audit](docs/MICA_STEP8_COLLECTION_ORGANIZATION_AUDIT.md)
+for the schema boundaries, performance evidence, and remaining acceptance work.
+
 ## AI-assisted intake
 
-Authenticated users can photograph a card or slab for identity suggestions, add front and back photos for a conservative raw-grade range, or scan a receipt/order confirmation for purchase facts. Images are resized and converted on-device, sent once through the server-only Vercel AI Gateway path, and are not written to Supabase, object storage, application logs, or portfolio records. The upstream request sets `store: false`.
+Authenticated users can photograph a card or slab for identity suggestions, add front and back photos for a conservative raw-grade range, or scan a receipt/order confirmation for purchase facts. Images are resized and converted on-device and may be processed by several private model checks through the server-only Vercel AI Gateway path. They are not written to Supabase, object storage, application logs, or portfolio records. Every upstream request sets `store: false`.
 
 AI output is an untrusted draft. Mica always requires the user to choose the
 exact catalog printing and confirm raw or professionally graded state, quantity,
@@ -157,5 +176,7 @@ If a value is unavailable, inspect exact identity/variant mapping, state, condit
 - [Digital grading benchmark](docs/digital-grading-benchmark.md)
 - [Evidence-first grading implementation](docs/digital-grading-implementation.md)
 - [Boards 01–06 implementation and verification](docs/boards-01-06-verification.md)
+- [Mica software roadmap](docs/MICA_SOFTWARE_ROADMAP.md)
+- [Step 8 collection organization](docs/MICA_STEP8_COLLECTION_ORGANIZATION_AUDIT.md)
 
 Mica is independent and is not affiliated with or endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak, TCGplayer, Cardmarket, eBay, PSA, CGC, Beckett, SGC, Alt, or Card Ladder.

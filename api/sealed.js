@@ -1,3 +1,5 @@
+import { releaseHold } from "../lib/release-hold.js";
+import { withNativeCors } from "../lib/native-cors.js";
 import {
   fetchPkmnPricesSealedProduct,
   fetchPkmnPricesSealedSearch,
@@ -27,7 +29,7 @@ function isRateLimited(request) {
   return current.count > 20;
 }
 
-export default async function handler(request, response) {
+async function handler(request, response) {
   if (request.method !== "GET") {
     response.setHeader("Allow", "GET");
     return send(response, 405, { error: "Method not allowed" });
@@ -46,8 +48,10 @@ export default async function handler(request, response) {
     return send(response, 400, {
       error: "Provide a sealed product ID or a search of 2 to 100 characters.",
     });
-  if (!new Set(["en", "ja", "jp"]).has(language))
-    return send(response, 400, { error: "Choose English or Japanese." });
+  if (!new Set(["en", "ja", "jp", "de"]).has(language))
+    return send(response, 400, {
+      error: "Choose English, Japanese, or German.",
+    });
   const apiKey = process.env.PKMNPRICES_API_KEY;
   if (!apiKey)
     return send(response, 503, {
@@ -134,3 +138,5 @@ export default async function handler(request, response) {
     clearTimeout(timeout);
   }
 }
+
+export default withNativeCors(releaseHold, ["GET"]);

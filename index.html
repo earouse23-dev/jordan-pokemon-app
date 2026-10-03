@@ -21,7 +21,7 @@
       sizes="180x180"
       href="icons/apple-touch-icon.png"
     />
-    <link rel="stylesheet" href="styles.css?v=88" />
+    <link rel="stylesheet" href="styles.css?v=91" />
     <link rel="stylesheet" href="themes.css?v=83" />
     <title>Mica — Pokémon Card Library</title>
   </head>
@@ -41,9 +41,10 @@
         <p class="eyebrow">Your private card collection</p>
         <h1 id="authTitle">Sign in to your collection</h1>
         <p>
-          Your cards, purchases, sales, and value history stay private and
-          follow you across devices.
+          Your collection, wherever you are.
         </p>
+        <button class="primary" type="button" id="tryCardSearch">Try card search</button>
+        <p class="auth-preview-note">Find your cards before creating an account.</p>
         <form id="passwordAuthForm" class="auth-form">
           <div class="field">
             <label for="authEmail">Email</label
@@ -110,6 +111,19 @@
           Resend confirmation email
         </button>
       </div>
+      <section id="publicCatalog" class="public-catalog" hidden aria-labelledby="publicCatalogTitle">
+        <button type="button" class="secondary" id="publicCatalogBack">Back to sign in</button>
+        <h1 id="publicCatalogTitle">Find your cards</h1>
+        <p>Explore card versions. Create an account when you’re ready to save your collection.</p>
+        <form id="publicCatalogForm" class="form-grid">
+          <div class="field full"><label for="publicCatalogQuery">Card name or number</label><input id="publicCatalogQuery" type="search" placeholder="Pikachu 58/102" minlength="2" maxlength="80" required></div>
+          <div class="field"><label for="publicCatalogLanguage">Language</label><select id="publicCatalogLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="de">German</option><option value="fr">French</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div>
+          <div class="field"><label for="publicCatalogSet">Set name · optional</label><input id="publicCatalogSet" type="search" placeholder="All sets"></div>
+          <button class="primary" type="submit">Search cards</button>
+        </form>
+        <p id="publicCatalogStatus" role="status" aria-live="polite"></p>
+        <div id="publicCatalogResults"></div>
+      </section>
     </section>
     <dialog
       class="auth-dialog"
@@ -246,6 +260,14 @@
           ><span id="headerSubtitle">Your collection at a glance</span>
         </div>
         <div class="header-actions">
+          <label class="header-mode-picker">
+            <span class="sr-only">Choose your home view</span>
+            <select id="softwareModeSelect" aria-label="Software mode">
+              <option value="collector">Collector</option>
+              <option value="investor">Investor</option>
+              <option value="seller">Seller</option>
+            </select>
+          </label>
           <button
             class="avatar"
             type="button"
@@ -265,11 +287,11 @@
         >
           <div class="collection-heading">
             <div>
-              <p class="eyebrow">Portfolio</p>
+              <p class="eyebrow" id="dashboardEyebrow">Your collection</p>
               <h1 id="dashboardTitle">Welcome back</h1>
-              <p class="collection-subtitle">
-                Here’s your collection overview.
-              </p>
+              <span class="sr-only" id="dashboardModeLabel"
+                >Collector home</span
+              >
             </div>
             <div class="collection-actions">
               <button class="quick-add" type="button" data-sidebar-target="add">
@@ -290,31 +312,7 @@
             </div>
           </div>
 
-          <section class="dashboard-kpis" aria-label="Collection summary">
-            <article class="dashboard-kpi primary">
-              <div class="portfolio-topline">
-                <span>Estimated collection value</span
-                ><span class="status-label" aria-live="polite"
-                  ><i></i> Checking prices</span
-                >
-              </div>
-              <strong class="portfolio-value" id="portfolioValue">$0.00</strong
-              ><small class="portfolio-change" id="portfolioChange"></small>
-            </article>
-            <article class="dashboard-kpi">
-              <span>Items you own</span><strong id="ownedCount">0</strong
-              ><small id="freshCoverage">Across your saved entries</small>
-            </article>
-            <article class="dashboard-kpi advanced-workspace">
-              <span>What you paid</span
-              ><strong id="gradedOwnedCount">$0.00</strong
-              ><small id="gradedShare">Cash still invested</small>
-            </article>
-            <article class="dashboard-kpi advanced-workspace">
-              <span>Profit or loss</span><strong id="sealedOwnedCount">—</strong
-              ><small id="sealedShare">Current value minus paid</small>
-            </article>
-          </section>
+
           <div class="dashboard-analytics-grid">
             <section
               class="portfolio-history-panel"
@@ -325,8 +323,7 @@
               <div class="portfolio-history-empty">
                 <strong>Collection value over time</strong
                 ><span
-                  >This chart appears after Mica records prices for the same
-                  cards on more than one day.</span
+                  >Your history will appear as prices update.</span
                 >
               </div>
             </section>
@@ -365,6 +362,42 @@
               </p>
             </section>
           </div>
+          <section class="dashboard-kpis" aria-label="Collection summary">
+            <article class="dashboard-kpi primary">
+              <div class="portfolio-topline">
+                <span id="portfolioToplineLabel"
+                  >Estimated collection value</span
+                ><span class="status-label" aria-live="polite"
+                  ><i></i> Checking prices</span
+                >
+              </div>
+              <strong class="portfolio-value" id="portfolioValue">$0.00</strong
+              ><small class="portfolio-change" id="portfolioChange"></small>
+            </article>
+            <article class="dashboard-kpi">
+              <span>Items you own</span><strong id="ownedCount">0</strong
+              ><small id="freshCoverage">Across your saved entries</small>
+            </article>
+            <article class="dashboard-kpi advanced-workspace">
+              <span>What you paid</span
+              ><strong id="gradedOwnedCount">$0.00</strong
+              ><small id="gradedShare">Cash still invested</small>
+            </article>
+            <article class="dashboard-kpi advanced-workspace">
+              <span>Profit or loss</span><strong id="sealedOwnedCount">—</strong
+              ><small id="sealedShare">Current value minus paid</small>
+            </article>
+          </section>
+          <section
+            class="software-mode-home"
+            id="softwareModeHome"
+            aria-label="Focused mode summary"
+            aria-live="polite"
+          ></section>
+          <details id="dashboardMoneyDetails" class="dashboard-money-details">
+            <summary>Collection value &amp; money details</summary>
+            <div id="dashboardAccountingKpis" class="dashboard-kpis"></div>
+          </details>
           <div class="dashboard-owned-tools">
             <section aria-labelledby="dashboardHighestTitle">
               <div class="panel-heading">
@@ -413,9 +446,6 @@
             <div>
               <p class="eyebrow">Your cards</p>
               <h1 id="collectionTitle">Collection</h1>
-              <p class="collection-subtitle">
-                Browse, filter, and manage every item you own.
-              </p>
             </div>
             <div class="collection-actions">
               <button class="quick-add" type="button" data-sidebar-target="add">
@@ -499,6 +529,47 @@
             </details>
           </div>
 
+          <details
+            class="collection-organization"
+            id="collectionOrganization"
+            aria-labelledby="collectionOrganizationTitle"
+          >
+            <summary class="collection-organization-summary">
+              <strong>Folders and goals</strong>
+              <span id="collectionOrganizationContext">All folders</span>
+            </summary>
+            <div class="collection-organization-heading">
+              <div>
+                <span>Folders, views, and goals</span>
+                <h2 id="collectionOrganizationTitle">
+                  Keep every card findable
+                </h2>
+              </div>
+              <div>
+                <button id="saveCollectionViewButton" type="button">
+                  Save this view
+                </button>
+                <button id="manageCollectionOrganizationButton" type="button">
+                  Organize
+                </button>
+              </div>
+            </div>
+            <p
+              class="collection-organization-status"
+              id="collectionOrganizationStatus"
+              role="status"
+              aria-live="polite"
+            >
+              Loading your organization…
+            </p>
+            <div
+              class="organization-chip-list"
+              id="collectionSavedViews"
+              aria-label="Saved collection views"
+            ></div>
+            <div class="organization-goal-list" id="collectionGoals"></div>
+          </details>
+
           <section class="seller-desk hidden" id="sellerDesk"></section>
 
           <div class="ledger-tools">
@@ -563,37 +634,6 @@
             <p id="collectionEmptyCopy">
               Try clearing the search or changing your filters.
             </p>
-            <ol
-              class="first-card-guide hidden"
-              id="firstCardGuide"
-              aria-label="How to add your first item"
-            >
-              <li>
-                <b>1</b
-                ><span
-                  ><strong>Find the right item</strong
-                  ><small>Search a card or unopened product.</small></span
-                >
-              </li>
-              <li>
-                <b>2</b
-                ><span
-                  ><strong>Answer a few simple questions</strong
-                  ><small
-                    >Tell Mica whether the card is professionally graded.</small
-                  ></span
-                >
-              </li>
-              <li>
-                <b>3</b
-                ><span
-                  ><strong>Enter the total you paid</strong
-                  ><small
-                    >Use one amount including tax, shipping, and fees.</small
-                  ></span
-                >
-              </li>
-            </ol>
             <button class="quick-add hidden" id="emptyAddCard" type="button">
               Add your first item
             </button>
@@ -618,9 +658,7 @@
                 <p class="eyebrow">Mica condition lab</p>
                 <h2 id="collectionGradingTitle">Digitally grade a card</h2>
                 <p>
-                  Photograph a raw card for a digital condition estimate. You
-                  confirm the exact printing and which eligible Collection card
-                  receives the estimate.
+                  See your card’s condition with a guided photo scan.
                 </p>
               </div>
             </div>
@@ -639,9 +677,9 @@
               <span>
                 <small>Digital grader</small>
                 <strong>Open the camera</strong>
-                <em>You confirm identity before an estimate is attached</em>
+                <em>Photo estimate · not a professional grade</em>
               </span>
-              <b>Start 4-view scan →</b>
+              <b>Start scan →</b>
             </button>
             <section
               class="grading-activity"
@@ -654,9 +692,7 @@
                   <span>Saved to your account</span>
                   <h2 id="gradingActivityTitle">Recent grading</h2>
                   <small
-                    >When available, a small card-only report thumbnail is
-                    stored privately; normal grading photos are deleted after
-                    analysis.</small
+                    >Your saved reports</small
                   >
                 </div>
                 <button type="button" data-refresh-grading-activity>
@@ -682,12 +718,11 @@
           <div class="add-cards-heading">
             <p class="eyebrow">Add to Mica</p>
             <h1 id="scanTitle">Add cards</h1>
-            <p>Search the printed details or identify one card with a photo.</p>
+            <p>Find a card by name, number, or photo.</p>
           </div>
           <div class="add-cards-layout">
             <section class="add-search-panel" aria-labelledby="addSearchTitle">
               <div class="add-panel-heading">
-                <span>Fastest for most cards</span>
                 <h2 id="addSearchTitle">Search for a card</h2>
               </div>
               <label class="find-search"
@@ -697,6 +732,7 @@
                 ><input
                   id="quickCardSearch"
                   type="search"
+                  enterkeyhint="search"
                   placeholder="Try Mew ex 151/165"
                   autocomplete="off"
                   aria-label="Search by card name, set, or the card number printed at the bottom"
@@ -706,8 +742,17 @@
                 ><select id="quickSearchLanguage">
                   <option value="en">English</option>
                   <option value="ja">Japanese</option>
+                  <option value="de">German</option>
+                  <option value="fr">French</option>
+                  <option value="es">Spanish</option>
+                  <option value="it">Italian</option>
+                  <option value="pt">Portuguese</option>
+                  <option value="zh-tw">Traditional Chinese</option>
+                  <option value="id">Indonesian</option>
+                  <option value="th">Thai</option>
                 </select>
               </div>
+              <details class="catalog-set-filter"><summary>Filter by set</summary><label for="quickSearchSet">Set name</label><input id="quickSearchSet" type="search" placeholder="For example, Base Set" autocomplete="off"><small>Leave blank to search every set.</small></details>
               <div
                 class="search-examples"
                 role="group"
@@ -732,19 +777,26 @@
                 role="status"
                 aria-live="polite"
               ></p>
+              <div class="intake-queue-bar" id="intakeQueueBar" hidden>
+                <div>
+                  <span>Ready to add</span>
+                  <strong id="intakeQueueCount">0 cards</strong>
+                </div>
+                <button id="reviewIntakeQueue" type="button">
+                  Review queue
+                </button>
+              </div>
               <div class="quick-results" id="quickSearchResults">
                 <div class="find-empty compact">
-                  <strong>Type the name or card number</strong
+                  <strong>Find your next card</strong
                   ><span
-                    >The set and bottom number help Mica find the right
-                    version.</span
+                    >Search by name or the number at the bottom of your card.</span
                   >
                 </div>
               </div>
             </section>
             <aside class="add-capture-panel" aria-labelledby="addCaptureTitle">
               <div class="add-panel-heading">
-                <span>Don’t know the card?</span>
                 <h2 id="addCaptureTitle">Identify with a photo</h2>
               </div>
               <div class="find-actions">
@@ -787,8 +839,7 @@
                 ><b>→</b>
               </button>
               <p class="simple-privacy">
-                Photos are analyzed once and are not saved. You confirm every
-                result.
+                Photos aren’t saved. You choose the match.
               </p>
             </aside>
           </div>
@@ -852,9 +903,7 @@
               <path d="M8 10V7a4 4 0 0 1 8 0v3" />
             </svg>
             <p>
-              <strong>Your photo is temporary.</strong> Mica sends it once for
-              AI analysis, does not write it to storage, and saves nothing until
-              you confirm the result.
+              Photos aren’t saved. You choose the match.
             </p>
           </div>
           <div class="manual-divider"><span>or</span></div>
@@ -1214,6 +1263,46 @@
             </div>
           </div>
           <div
+            class="settings-group software-mode-settings"
+            id="softwareModeSettings"
+          >
+            <p class="eyebrow">Focused home</p>
+            <h2>Make Mica yours</h2>
+            <p>
+              Choose what you see first. Switch anytime.
+            </p>
+            <div
+              class="software-mode-options"
+              role="group"
+              aria-label="Choose your home view"
+            >
+              <button
+                type="button"
+                data-software-mode="collector"
+                aria-pressed="true"
+              >
+                <strong>Collector</strong
+                ><small>Cards, sets, and grading</small>
+              </button>
+              <button
+                type="button"
+                data-software-mode="investor"
+                aria-pressed="false"
+              >
+                <strong>Investor</strong
+                ><small>Value, trends, and alerts</small>
+              </button>
+              <button
+                type="button"
+                data-software-mode="seller"
+                aria-pressed="false"
+              >
+                <strong>Seller</strong
+                ><small>Inventory, sales, and profit</small>
+              </button>
+            </div>
+          </div>
+          <div
             class="settings-group workflow-defaults advanced-workspace"
             id="advancedSettings"
           >
@@ -1281,6 +1370,22 @@
             </button>
             <p id="workflowDefaultsStatus" role="status" aria-live="polite"></p>
           </div>
+          <div
+            class="settings-group grading-calibration"
+            id="gradingCalibration"
+          >
+            <p class="eyebrow">Your returned grades</p>
+            <h2>Prediction calibration</h2>
+            <p>
+              Private accuracy results grouped by grading company and capture
+              quality. A digital estimate is never an official grade.
+            </p>
+            <div id="gradingCalibrationSummary" aria-live="polite">
+              <div class="compact-empty">
+                <strong>Checking linked grading returns…</strong>
+              </div>
+            </div>
+          </div>
           <div class="settings-group" id="collectionDataSettings">
             <h2>Collection &amp; data</h2>
             <button type="button" id="sharePortfolioButton">
@@ -1294,6 +1399,14 @@
               <span
                 >Import a collection spreadsheet<small
                   >Add up to 5,000 saved entries from a CSV file</small
+                ></span
+              ><b>›</b>
+            </button>
+            <button type="button" id="importHistoryButton">
+              <span
+                >Spreadsheet import history<small
+                  >Review receipts or safely roll back an untouched
+                  import</small
                 ></span
               ><b>›</b>
             </button>
@@ -1351,8 +1464,8 @@
             <h2>Notifications</h2>
             <button type="button" id="targetAlertButton">
               <span
-                >Buy target alerts<small id="targetAlertHelp"
-                  >Alert while Mica is open and prices refresh</small
+                >Action alerts<small id="targetAlertHelp"
+                  >Free in-app alerts; optional delivery stays off</small
                 ></span
               ><strong id="targetAlertState">Off</strong>
             </button>
@@ -1445,6 +1558,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=108"></script>
+    <script type="module" src="app.js?v=111"></script>
   </body>
 </html>

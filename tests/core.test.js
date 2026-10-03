@@ -16,6 +16,7 @@ import {
   portfolioSnapshot,
   runBoundedTasks,
   sameCatalogCard,
+  sameCatalogPrinting,
   safeCsvCell,
   selectedInventoryShare,
   transactionReportCsv,
@@ -82,7 +83,9 @@ test("TCGplayer CSV exports map exact identity without inventing acquisition cos
     cost: null,
     price: 0.73,
     tags: [],
+    folder: "",
     location: "",
+    customFields: {},
     notes: "",
     source: "TCGplayer",
   });
@@ -170,6 +173,129 @@ test("catalog ownership matches provider IDs and exact fallback identity", () =>
   );
 });
 
+test("catalog ownership never matches a different language through shared IDs", () => {
+  const english = {
+    id: "base1-4",
+    language: "en",
+    externalIds: { tcgdex: "base1-4", tcgplayer: "123" },
+  };
+  assert.equal(sameCatalogCard(english, { ...english, language: "ja" }), false);
+  assert.equal(
+    sameCatalogCard(english, { ...english, id: "other", language: "Japanese" }),
+    false,
+  );
+  assert.equal(
+    sameCatalogCard(english, { ...english, language: "English" }),
+    true,
+  );
+});
+
+test("exact printing distinguishes finish, edition, promo, and unknown versions", () => {
+  const normal = { id: "base1-58", language: "en", variant: "Normal" };
+  assert.equal(
+    sameCatalogPrinting(normal, { ...normal, variant: "Non-holo" }),
+    true,
+  );
+  assert.equal(
+    sameCatalogPrinting(normal, { ...normal, variant: "Reverse Holofoil" }),
+    false,
+  );
+  assert.equal(
+    sameCatalogPrinting(normal, { ...normal, edition: "1st edition" }),
+    false,
+  );
+  assert.equal(
+    sameCatalogPrinting(normal, { ...normal, promoType: "staff" }),
+    false,
+  );
+  assert.equal(sameCatalogPrinting(normal, { ...normal, variant: "" }), false);
+  assert.equal(
+    sameCatalogPrinting(
+      { ...normal, variant: "Unknown" },
+      { ...normal, variant: "Unknown" },
+    ),
+    false,
+  );
+  assert.equal(
+    sameCatalogPrinting(normal, { ...normal, language: "ja" }),
+    false,
+  );
+  assert.equal(
+    sameCatalogPrinting(
+      { ...normal, language: "" },
+      { ...normal, language: "" },
+    ),
+    false,
+  );
+});
+
+test("exact printing resolves selected catalog options and respects canonical IDs", () => {
+  const collectibleId = "11111111-1111-4111-8111-111111111111";
+  const holding = {
+    id: "base1-4",
+    language: "en",
+    variant: "Holofoil",
+    edition: "first_edition",
+    collectibleId,
+  };
+  const result = {
+    id: "base1-4",
+    language: "en",
+    variantId: collectibleId,
+    variantOptions: [
+      { id: "unlimited", finish: "holofoil", edition: "unlimited" },
+      { id: collectibleId, finish: "holofoil", edition: "1st edition" },
+    ],
+  };
+  assert.equal(sameCatalogPrinting(holding, result), true);
+  assert.equal(
+    sameCatalogPrinting(holding, {
+      ...holding,
+      collectibleId: "22222222-2222-4222-8222-222222222222",
+    }),
+    false,
+  );
+  assert.equal(
+    sameCatalogPrinting(holding, { ...result, variantId: "" }),
+    false,
+  );
+  assert.equal(
+    sameCatalogPrinting(holding, {
+      ...holding,
+      collectibleId: null,
+      variantId: "22222222-2222-4222-8222-222222222222",
+    }),
+    false,
+  );
+});
+
+test("exact ownership counts only matching printings and retains default grouping", () => {
+  const card = {
+    id: "base1-58",
+    language: "en",
+    variant: "Normal",
+    externalIds: { tcgdex: "base1-58" },
+  };
+  const items = [
+    { ...card, id: "position-1", quantity: 2 },
+    { ...card, id: "position-2", quantity: 3, variant: "Non-holo" },
+    { ...card, quantity: 4, variant: "Reverse Holofoil" },
+    { ...card, quantity: 6, edition: "first_edition" },
+    { ...card, quantity: 8, promoType: "staff" },
+    { ...card, quantity: 10, variant: "Unknown" },
+    { ...card, quantity: 12, language: "ja" },
+    { ...card, quantity: 0 },
+  ];
+  assert.deepEqual(ownedCardSummary(card, items, { exactPrinting: true }), {
+    quantity: 5,
+    positions: 2,
+  });
+  assert.deepEqual(ownedCardSummary(card, items), {
+    quantity: 33,
+    positions: 6,
+  });
+});
+
 test("portfolio totals respect quantity and exclude unpriced values", () => {
   const totals = calculateTotals([
     { quantity: 2, cost: 10, price: 15 },
@@ -240,13 +366,23 @@ test("share snapshot omits private fields and only includes performance by opt i
       quantity: 1,
       cost: 100,
       price: 150,
+      pricingStatus: "live",
+      referenceProvider: "TCGplayer",
+      referenceAggregator: "PkmnPrices",
+      referenceObservedAt: "2026-07-16T12:00:00Z",
+      pricingConfidence: "Moderate evidence",
       notes: "private note",
       location: "safe",
       certificationNumber: "123",
     },
   ];
   const standard = portfolioSnapshot(items, { date: "2026-07-17" });
-  assert.match(standard, /Estimated market value: \$150\.00/);
+  assert.match(standard, /Estimated collection value: \$150\.00/);
+  assert.match(standard, /1 live automatic · 0 owner-entered/);
+  assert.match(
+    standard,
+    /TCGplayer via PkmnPrices · live · observed 2026-07-16 · Moderate evidence/,
+  );
   assert.doesNotMatch(standard, /private note|safe|123|cost basis|gain\/loss/i);
   const performance = portfolioSnapshot(items, {
     includePerformance: true,
@@ -401,6 +537,11 @@ test("CSV backup round-trips owned records without turning blank costs into zero
       quantity: 2,
       cost: null,
       price: 9.25,
+      pricingStatus: "live",
+      referenceProvider: "TCGplayer",
+      referenceAggregator: "PkmnPrices",
+      referenceObservedAt: "2026-07-20T12:00:00Z",
+      pricingConfidence: "Moderate evidence",
       tags: ["Favorites"],
       location: "Binder 1",
       notes: "Clean, centered",
@@ -415,6 +556,12 @@ test("CSV backup round-trips owned records without turning blank costs into zero
   assert.equal(parsed.records[0].purchaseDate, "2025-06-25");
   assert.equal(parsed.records[0].cardState, "raw");
   assert.deepEqual(parsed.records[0].tags, ["Favorites"]);
+  const csv = collectionToCsv(source);
+  assert.match(
+    csv,
+    /market_reference_status,market_reference_provider,market_reference_aggregator,market_reference_observed_at,market_reference_confidence/,
+  );
+  assert.match(csv, /"live","TCGplayer","PkmnPrices"/);
 });
 test("CSV backup preserves exact total acquisition cost instead of multiplying a rounded unit basis", () => {
   const source = [
@@ -474,6 +621,12 @@ test("complete account backup includes private ledger, lots, and watchlist witho
         quantity: 1,
         costBasis: 100,
         price: 150,
+        pricingStatus: "live",
+        referenceProvider: "TCGplayer",
+        referenceAggregator: "PkmnPrices",
+        referenceObservedAt: "2026-07-16T12:00:00Z",
+        pricingConfidence: "Moderate evidence",
+        pricingConfidenceScore: 0.7,
         tags: ["Favorites"],
         location: "Safe A1",
         notes: "Private position note",
@@ -529,6 +682,15 @@ test("complete account backup includes private ledger, lots, and watchlist witho
   assert.equal(backup.account.email, "collector@example.com");
   assert.equal(backup.collection[0].transactions[1].fifoSoldBasis, 100);
   assert.equal(backup.collection[0].purchaseLots[0].quantityRemaining, 0);
+  assert.deepEqual(backup.collection[0].marketReferenceEvidence, {
+    status: "live",
+    provider: "TCGplayer",
+    aggregator: "PkmnPrices",
+    observedAt: "2026-07-16T12:00:00Z",
+    retrievedAt: null,
+    confidence: "Moderate evidence",
+    confidenceScore: 0.7,
+  });
   assert.equal(backup.watchlist[0].targetPrice, 25);
   assert.match(json, /Private position note|Receipt 1|Buy a clean copy/);
   assert.doesNotMatch(json, /must-not-leak|access_token/);

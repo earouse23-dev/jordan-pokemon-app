@@ -5,6 +5,8 @@ import { CardLadderProvider } from "../lib/providers/cardladder.js";
 import {
   canonicalCardFingerprint,
   detectPriceAnomaly,
+  gradedCopyContextKey,
+  gradedCopyGroup,
   graderCertificationLookup,
   isCompatibleObservation,
   normalizeGrade,
@@ -46,12 +48,15 @@ import {
 } from "../lib/portfolio.js";
 import {
   bulkOrganizePositions,
+  createPosition,
   createImportedPosition,
   createWatchlistEntry,
   deleteGradingOutcomeProof,
   deletePosition,
   hydratePosition,
   hydrateWatchlistEntry,
+  loadCollectionPositionCount,
+  loadCollectionSearchPage,
   loadRowsInChunks,
   loadRowsInPages,
   loadIdentityCorrections,
@@ -60,6 +65,7 @@ import {
   recordGradingSubmission,
   recordPurchaseLot,
   recordPortfolioValuationSnapshot,
+  recordSale,
   remapCollectionPosition,
   revertIdentityCorrection,
   saveDigitalGradeAssessment,
@@ -77,6 +83,10 @@ test("normalizes provider raw conditions while retaining the original label", ()
   assert.deepEqual(normalizeRawCondition("Lightly Played"), {
     normalized: "lightly_played",
     original: "Lightly Played",
+  });
+  assert.deepEqual(normalizeRawCondition("unknown"), {
+    normalized: "unknown",
+    original: "unknown",
   });
 });
 
@@ -1343,15 +1353,12 @@ test("bulk organization only calls the owner-scoped RPC with allowed fields", as
     async rpc(name, values) {
       called = { name, values };
       return {
-        data: [
-          { collection_item_id: "position-1" },
-          { collection_item_id: "position-2" },
-        ],
+        data: "operation-1",
         error: null,
       };
     },
   };
-  const ids = await bulkOrganizePositions(client, {
+  const result = await bulkOrganizePositions(client, {
     ids: ["position-1", "position-2", "position-1"],
     labelMode: "add",
     label: "Trade binder",
@@ -1360,9 +1367,12 @@ test("bulk organization only calls the owner-scoped RPC with allowed fields", as
     status: "owned",
     quantity: 999,
   });
-  assert.deepEqual(ids, ["position-1", "position-2"]);
+  assert.deepEqual(result, {
+    operationId: "operation-1",
+    updatedIds: ["position-1", "position-2"],
+  });
   assert.deepEqual(called, {
-    name: "bulk_organize_collection_items",
+    name: "bulk_organize_collection_items_v2",
     values: {
       p_ids: ["position-1", "position-2"],
       p_label: "Trade binder",
@@ -1370,6 +1380,11 @@ test("bulk organization only calls the owner-scoped RPC with allowed fields", as
       p_location: "Case A",
       p_location_mode: "set",
       p_status: "owned",
+      p_collection_id: null,
+      p_collection_mode: "keep",
+      p_custom_field_key: null,
+      p_custom_field_value: null,
+      p_custom_field_mode: "keep",
     },
   });
 });
@@ -1471,6 +1486,95 @@ test("large portfolios page past the API row limit with stable ordering", async 
   ]);
 });
 
+test("server collection pages hydrate only returned positions and retain the cursor", async () => {
+  const rpcCalls = [];
+  const relatedTables = [];
+  const positionRow = {
+    id: "11111111-1111-4111-8111-111111111111",
+    identity_snapshot: { name: "Pikachu", language: "ja" },
+    card_state: "raw",
+    raw_condition: "near_mint",
+    quantity: 1,
+    status: "owned",
+    currency: "USD",
+    custom_fields: {},
+    tags: [],
+  };
+  const client = {
+    async rpc(name, values) {
+      rpcCalls.push([name, values]);
+      if (name === "get_portfolio_price_history")
+        assert.fail("a bounded page must not load whole-portfolio history");
+      assert.equal(name, "search_collection_positions");
+      return {
+        data: Array.from({ length: 100 }, (_, index) => ({
+          position_row: {
+            ...positionRow,
+            id: `11111111-1111-4111-8111-${String(index).padStart(12, "0")}`,
+            identity_snapshot: { name: `Card ${index}`, language: "ja" },
+          },
+          total_count: 250,
+          sort_value: `card ${String(index).padStart(3, "0")}`,
+        })),
+        error: null,
+      };
+    },
+    from(table) {
+      relatedTables.push(table);
+      return {
+        select() {
+          return this;
+        },
+        in(_key, ids) {
+          assert.ok(ids.length <= 200);
+          return this;
+        },
+        async order() {
+          return { data: [], error: null };
+        },
+      };
+    },
+  };
+  const result = await loadCollectionSearchPage(client, {
+    query: "pikachu",
+    filters: { language: "ja" },
+    sort: "name",
+    limit: 100,
+  });
+  assert.equal(result.positions.length, 100);
+  assert.equal(result.positions[0].name, "Card 0");
+  assert.equal(result.positions[0].costBasis, null);
+  assert.equal(result.totalCount, 250);
+  assert.deepEqual(result.nextCursor, {
+    value: "card 099",
+    id: "11111111-1111-4111-8111-000000000099",
+  });
+  assert.deepEqual(rpcCalls, [
+    [
+      "search_collection_positions",
+      {
+        p_query: "pikachu",
+        p_filters: { language: "ja" },
+        p_sort: "name",
+        p_limit: 100,
+        p_after_value: null,
+        p_after_id: null,
+      },
+    ],
+  ]);
+  assert.deepEqual(
+    new Set(relatedTables),
+    new Set([
+      "collection_transactions",
+      "purchase_lots",
+      "grading_submissions",
+      "digital_grade_assessments",
+      "grading_predictions",
+      "grading_lifecycle_events",
+    ]),
+  );
+});
+
 test("owned portfolio pages add an explicit owner filter as defense in depth", async () => {
   const filters = [];
   const client = {
@@ -1497,6 +1601,28 @@ test("owned portfolio pages add an explicit owner filter as defense in depth", a
     table: "collection_items",
     equals: { user_id: "owner-1" },
   });
+  assert.deepEqual(filters, [["user_id", "owner-1"]]);
+});
+
+test("large-inventory selection counts historical positions with an owner filter", async () => {
+  const filters = [];
+  const client = {
+    from(table) {
+      assert.equal(table, "collection_items");
+      return {
+        select(columns, options) {
+          assert.equal(columns, "id");
+          assert.deepEqual(options, { count: "exact", head: true });
+          return this;
+        },
+        async eq(column, value) {
+          filters.push([column, value]);
+          return { count: 10_501, error: null };
+        },
+      };
+    },
+  };
+  assert.equal(await loadCollectionPositionCount(client, "owner-1"), 10_501);
   assert.deepEqual(filters, [["user_id", "owner-1"]]);
 });
 
@@ -1548,6 +1674,229 @@ test("seller listing fields hydrate and update without leaking into unrelated wr
     listed_at: "2026-07-19",
     price_reviewed_at: "2026-07-20",
   });
+});
+
+test("graded physical copies group by exact printing, grader, grade, and qualifier", () => {
+  const base = {
+    collectibleId: "printing-1",
+    cardState: "graded",
+    gradingCompany: "PSA",
+    grade: "10",
+    gradeQualifier: "",
+    quantity: 1,
+  };
+  const copies = [
+    {
+      ...base,
+      uid: "copy-a",
+      certificationNumber: "000001",
+      createdAt: "2026-01-01",
+    },
+    {
+      ...base,
+      uid: "copy-b",
+      certificationNumber: "000002",
+      createdAt: "2026-01-02",
+    },
+    {
+      ...base,
+      uid: "copy-c",
+      certificationNumber: "000003",
+      createdAt: "2026-01-03",
+      quantity: 0,
+    },
+    { ...base, uid: "qualified", gradeQualifier: "OC" },
+    { ...base, uid: "other-printing", collectibleId: "printing-2" },
+    { ...base, uid: "other-language", language: "ja" },
+    { ...base, uid: "other-variant", variant: "Reverse Holo" },
+    { ...base, uid: "half-grade", gradingCompany: "BGS", grade: "9.5" },
+  ];
+
+  const group = gradedCopyGroup(copies, copies[1]);
+  assert.deepEqual(
+    group.copies.map((copy) => copy.uid),
+    ["copy-a", "copy-b", "copy-c"],
+  );
+  assert.equal(group.activeCount, 2);
+  assert.equal(group.selectedIndex, 1);
+  assert.equal(gradedCopyContextKey(copies[3]) === group.key, false);
+  assert.equal(gradedCopyContextKey(copies[4]) === group.key, false);
+  assert.equal(gradedCopyContextKey(copies[5]) === group.key, false);
+  assert.equal(gradedCopyContextKey(copies[6]) === group.key, false);
+  assert.equal(gradedCopyContextKey(copies[7]) === group.key, false);
+  assert.equal(
+    gradedCopyContextKey({ ...base, uid: "bulk", quantity: 2 }),
+    null,
+  );
+  const noCertCopies = [
+    { ...base, uid: "no-cert-a", certificationNumber: "" },
+    { ...base, uid: "no-cert-b", certificationNumber: "" },
+  ];
+  assert.deepEqual(
+    gradedCopyGroup(noCertCopies, noCertCopies[0]).copies.map(
+      (copy) => copy.uid,
+    ),
+    ["no-cert-a", "no-cert-b"],
+  );
+});
+
+test("graded-copy hydration preserves exact identity and honest per-copy money", () => {
+  const position = hydratePosition(
+    {
+      id: "copy-b",
+      identity_snapshot: {
+        name: "Pikachu",
+        gradeQualifier: "Black Label",
+        gradeClaimSource: "user",
+      },
+      card_state: "graded",
+      grader: "BGS",
+      grade: 9.5,
+      certification_number: "001234",
+      quantity: 0,
+      status: "owned",
+      currency: "USD",
+    },
+    [
+      {
+        id: "purchase-b",
+        transaction_type: "purchase",
+        transaction_date: "2026-01-10",
+        quantity: 1,
+        unit_price: 0,
+        total_cost: 0,
+        currency: "USD",
+      },
+      {
+        id: "sale-b",
+        transaction_type: "sale",
+        transaction_date: "2026-02-10",
+        quantity: 1,
+        unit_price: 100,
+        marketplace_fees: 10,
+        shipping: 5,
+        net_proceeds: 85,
+        currency: "USD",
+      },
+    ],
+    [
+      {
+        id: "lot-b",
+        purchase_transaction_id: "purchase-b",
+        acquired_at: "2026-01-10",
+        quantity_acquired: 1,
+        quantity_remaining: 0,
+        total_cost: 0,
+        remaining_cost: 0,
+        cost_basis_known: true,
+        currency: "USD",
+      },
+    ],
+    [
+      {
+        sale_transaction_id: "sale-b",
+        purchase_lot_id: "lot-b",
+        allocated_cost: 0,
+        cost_basis_known: true,
+      },
+    ],
+  );
+
+  assert.equal(position.certificationNumber, "001234");
+  assert.equal(position.grade, "9.5");
+  assert.equal(position.gradeQualifier, "Black Label");
+  assert.equal(position.gradeClaimSource, "user");
+  assert.equal(position.transactions[0].totalCost, 0);
+  assert.equal(position.transactions[1].allocatedCost, 0);
+  assert.equal(position.transactions[1].realizedGain, 85);
+});
+
+test("sale gain stays unknown when a copy's purchase and sale currencies differ", () => {
+  const position = hydratePosition(
+    {
+      id: "copy-currency",
+      identity_snapshot: { name: "Pikachu" },
+      card_state: "graded",
+      grader: "PSA",
+      grade: 10,
+      quantity: 0,
+      currency: "USD",
+    },
+    [
+      {
+        id: "sale-currency",
+        transaction_type: "sale",
+        transaction_date: "2026-02-10",
+        quantity: 1,
+        net_proceeds: 90,
+        currency: "USD",
+      },
+    ],
+    [
+      {
+        id: "lot-currency",
+        quantity_acquired: 1,
+        quantity_remaining: 0,
+        cost_basis_known: true,
+        currency: "EUR",
+      },
+    ],
+    [
+      {
+        sale_transaction_id: "sale-currency",
+        purchase_lot_id: "lot-currency",
+        allocated_cost: 50,
+        cost_basis_known: true,
+      },
+    ],
+  );
+
+  assert.equal(position.allocatedSoldCost, null);
+  assert.equal(position.realizedGain, null);
+  assert.equal(position.transactions[0].allocatedCost, null);
+  assert.equal(position.transactions[0].realizedGain, null);
+});
+
+test("graded create and sale calls use the quantity-one copy RPCs", async () => {
+  const calls = [];
+  const client = {
+    async rpc(name, input) {
+      calls.push({ name, input });
+      return { data: `${name}-result`, error: null };
+    },
+  };
+  const createInput = {
+    identity: { name: "Pikachu", gradeClaimSource: "user" },
+    cardState: "graded",
+    grader: "PSA",
+    grade: "10",
+    certificationNumber: "000123",
+    quantity: 3,
+    transactionDate: "2026-01-01",
+    unitPrice: 25,
+    currency: "USD",
+    idempotencyKey: "create-copy-1",
+  };
+
+  await createPosition(client, createInput);
+  await recordSale(client, {
+    collectionItemId: "copy-b",
+    cardState: "graded",
+    transactionDate: "2026-02-01",
+    quantity: 1,
+    unitPrice: 100,
+    currency: "USD",
+    idempotencyKey: "sale-copy-b",
+  });
+
+  assert.equal(calls[0].name, "create_graded_copy_position");
+  assert.equal(calls[0].input.p_quantity, 1);
+  assert.equal(calls[0].input.p_certification_number, "000123");
+  assert.equal(calls[0].input.p_idempotency_key, "create-copy-1");
+  assert.equal(calls[1].name, "record_graded_copy_sale");
+  assert.equal(calls[1].input.p_collection_item_id, "copy-b");
+  assert.equal(calls[1].input.p_quantity, 1);
+  assert.equal(calls[1].input.p_idempotency_key, "sale-copy-b");
 });
 
 test("canonical identity separates same-name cards by set, language, number, and variant", () => {

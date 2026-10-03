@@ -455,7 +455,7 @@ body[data-ui-theme="clean"] .find-search {
   border-color: #8eb0ff;
   box-shadow: 0 8px 24px rgba(37, 99, 235, 0.09);
 }
-body[data-ui-theme="clean"] .queue-card-button {
+body[data-ui-theme="clean"] .quick-card-actions button {
   border-color: #bfd2ff;
   background: #edf3ff;
   color: #1d4ed8;
@@ -575,7 +575,7 @@ body[data-ui-theme="analytics"] .find-action.primary-find {
 body[data-ui-theme="analytics"] .find-action.primary-find small {
   color: #59615e;
 }
-body[data-ui-theme="analytics"] .queue-card-button {
+body[data-ui-theme="analytics"] .quick-card-actions button {
   border-color: #3a493e;
   background: #18231b;
   color: #8ddd93;
@@ -5913,5 +5913,39 @@ body[data-ui-theme="mica"] .saved-grade-findings small {
 
   body[data-ui-theme="mica"] .saved-grade-findings {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Keep the mobile intake hierarchy compact enough to reach the first result. */
+@media (max-width: 759px) {
+  body[data-ui-theme="mica"] #view-scan {
+    padding-top: 20px;
+  }
+  body[data-ui-theme="mica"] #view-scan .add-cards-heading {
+    padding-left: 0;
+    margin-bottom: 16px;
+  }
+  body[data-ui-theme="mica"] #view-scan .add-cards-heading::before,
+  body[data-ui-theme="mica"] #view-scan .add-cards-heading .eyebrow {
+    display: none;
+  }
+  body[data-ui-theme="mica"] #view-scan .add-cards-heading h1 {
+    font-size: 30px;
+  }
+  body[data-ui-theme="mica"] #view-scan .add-cards-heading > p:last-child {
+    font-size: 14px;
+  }
+  body[data-ui-theme="mica"] #view-scan .add-capture-panel .find-action svg {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  body[data-ui-theme="mica"] #view-scan .quick-card-result {
+    border-radius: 8px;
+    box-shadow: none;
   }
 }
