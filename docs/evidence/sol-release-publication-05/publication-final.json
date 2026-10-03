@@ -1,0 +1,32 @@
+{
+  "releaseSourceCommit": "fc0ad313ce6759c39f85664d00e0eb6cbe3ecf11",
+  "releaseSourceCommitUrl": "https://github.com/earouse23-dev/jordan-pokemon-app/commit/fc0ad313ce6759c39f85664d00e0eb6cbe3ecf11",
+  "branch": "codex/mica-baseline-reconciliation",
+  "remoteCommitMatchedAtSourcePublication": true,
+  "githubAutomation": {
+    "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/37091670713",
+    "status": "completed",
+    "conclusion": "success",
+    "scope": "isolated GitHub-runner database only; no hosted SQL"
+  },
+  "production": {
+    "id": "dpl_FQ1EmvSNWPFH83esaKFTW9YQT973",
+    "state": "READY",
+    "aliases": [
+      "jordan-pokemon-app-earouse23-devs-projects.vercel.app"
+    ],
+    "crons": [
+      {
+        "path": "/api/capabilities?surface=grading-deletion",
+        "schedule": "15 5 * * *"
+      }
+    ]
+  },
+  "gitTriggeredVercelReplacement": false,
+  "all47UploadedRemoteContentIdsVerified": true,
+  "holdsActuallyLive": true,
+  "deletionOnlyActuallyLive": true,
+  "supabaseHostedSqlReruns": 0,
+  "providerCallsPaid": 0,
+  "appStoreActions": 0
+}
