@@ -4,7 +4,8 @@ import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
 import accountHandler from "../api/account.js";
 import capabilitiesHandler from "../api/capabilities.js";
-import priceSyncHandler, {
+import {
+  retainedHandler as priceSyncHandler,
   compatibleHistory,
   loadPriceSyncBatch,
   positionObservationRow,
@@ -594,7 +595,7 @@ test("Mica uses one approved cream and sage interface across focused modes", () 
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
   assert.match(themes, /--canvas:\s*#f5f0e4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
-  assert.match(serviceWorker, /mica-shell-v131/);
+  assert.match(serviceWorker, /mica-shell-activation-04/);
   assert.match(serviceWorker, /themes\.css\?v=83/);
 });
 
@@ -772,9 +773,12 @@ test("public capability status is explicit and never exposes provider secrets", 
   try {
     capabilitiesHandler({ method: "GET" }, response);
     assert.equal(response.statusCode, 200);
-    assert.equal(body.pricing.status, "configured_unverified");
+    assert.equal(body.pricing.status, "public_fallback");
     assert.equal(body.pricing.capabilityAuthority, "runtime_endpoint_response");
-    assert.equal(body.pricing.features.graded, "pending_runtime_verification");
+    assert.equal(body.pricing.features.graded, "not_requested");
+    assert.equal(body.vision.status, "release_hold");
+    assert.equal(body.advisor.status, "release_hold");
+    assert.deepEqual(body.notifications, { inApp: "active", email: "release_hold", webPush: "release_hold" });
     assert.equal(JSON.stringify(body).includes("secret-never-returned"), false);
   } finally {
     if (originalKey === undefined) delete process.env.PKMNPRICES_API_KEY;

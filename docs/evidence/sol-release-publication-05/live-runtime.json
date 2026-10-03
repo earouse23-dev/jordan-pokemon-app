@@ -1,0 +1,16 @@
+{
+  "deploymentId": "dpl_FQ1EmvSNWPFH83esaKFTW9YQT973",
+  "liveUrl": "https://jordan-pokemon-app.vercel.app",
+  "holdRoutes": 8,
+  "nativePreflight": 8,
+  "hostileOrigins": 8,
+  "unknownPaths": 3,
+  "staticHashes": 3,
+  "health": "pass",
+  "capabilities": "pass",
+  "authBoundary": "account/delete 401",
+  "publicPricingOnly": "tcgdex",
+  "deletionOnlySchedule": true,
+  "noPaidProviderCalls": true,
+  "noAuthenticatedOrCustomerWrites": true
+}

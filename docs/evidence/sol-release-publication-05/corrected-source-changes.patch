@@ -1,0 +1,331 @@
+--- a/api/cards.js
++++ b/api/cards.js
+@@ -106,7 +106,7 @@
+   return lookups.length ? lookups : null;
+ }
+ 
+-async function handler(request, response) {
++export async function retainedHandler(request, response, publicOnly = false) {
+   if (request.method !== "GET") {
+     response.setHeader("Allow", "GET");
+     return send(response, 405, { error: "Method not allowed" });
+@@ -124,8 +124,23 @@
+     return send(response, 400, { error: "Provide 1 to 8 valid card lookups." });
+ 
+   // Provider credentials cannot enable paid lookup in this release.
+-  const pkmnPricesKey = "";
+-  const justTcgKey = "";
++  const pkmnPricesKey = publicOnly
++    ? ""
++    : process.env.PKMNPRICES_API_KEY ||
++      (process.env.PRICING_PROVIDER === "pkmnprices"
++        ? process.env.PRICING_PROVIDER_API_KEY
++        : "");
++  const justTcgApproved =
++    String(
++      process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED || "",
++    ).toLowerCase() === "true";
++  const justTcgKey =
++    publicOnly || !justTcgApproved
++      ? ""
++      : process.env.JUSTTCG_API_KEY ||
++        (process.env.PRICING_PROVIDER === "justtcg"
++          ? process.env.PRICING_PROVIDER_API_KEY
++          : "");
+   const configuredPlan = String(
+     process.env.PKMNPRICES_PLAN || "free",
+   ).toLowerCase();
+@@ -253,4 +268,7 @@
+   }
+ }
+ 
+-export default withNativeCors(handler, ["GET"]);
++export default withNativeCors(
++  (request, response) => retainedHandler(request, response, true),
++  ["GET"],
++);
+--- a/api/maintenance.js
++++ b/api/maintenance.js
+@@ -22,14 +22,20 @@
+     workerKey = `worker:maintenance:${randomUUID()}`,
+     actionLimit = 100,
+     deliveryLimit = 5,
+-    deliver = (claim, settings) => deliverActionNotification(claim, settings, { webPushAdapter: (pushClaim, pushConfig) => deliverPushToDevices(database, pushClaim, pushConfig) }),
++    deliver = (claim, settings) =>
++      deliverActionNotification(claim, settings, {
++        webPushAdapter: (pushClaim, pushConfig) =>
++          deliverPushToDevices(database, pushClaim, pushConfig),
++      }),
+     materialize = true,
+   } = {},
+ ) {
+-  const materialized = materialize ? await database.rpc("materialize_action_center_service", {
+-    p_worker_key: workerKey,
+-    p_limit: actionLimit,
+-  }) : { data: { generated: 0 }, error: null };
++  const materialized = materialize
++    ? await database.rpc("materialize_action_center_service", {
++        p_worker_key: workerKey,
++        p_limit: actionLimit,
++      })
++    : { data: { generated: 0 }, error: null };
+   if (materialized.error) throw materialized.error;
+   const claimed = await database.rpc("claim_action_deliveries_service", {
+     p_worker_key: workerKey,
+@@ -130,4 +136,6 @@
+   }
+ }
+ 
++// Retained implementation is exercised offline; the shipping export stays held.
++export { handler as retainedHandler };
+ export default withNativeCors(releaseHold, ["GET"]);
+--- a/api/offers.js
++++ b/api/offers.js
+@@ -162,4 +162,6 @@
+   }
+ }
+ 
++// Retained implementation is exercised offline; the shipping export stays held.
++export { handler as retainedHandler };
+ export default withNativeCors(releaseHold, ["GET"]);
+--- a/api/price-sync.js
++++ b/api/price-sync.js
+@@ -610,4 +610,6 @@
+   });
+ }
+ 
++// Retained implementation is exercised offline; the shipping export stays held.
++export { handler as retainedHandler };
+ export default withNativeCors(releaseHold, ["GET", "POST"]);
+--- a/api/sales.js
++++ b/api/sales.js
+@@ -186,4 +186,6 @@
+   }
+ }
+ 
++// Retained implementation is exercised offline; the shipping export stays held.
++export { handler as retainedHandler };
+ export default withNativeCors(releaseHold, ["GET"]);
+--- a/api/sealed.js
++++ b/api/sealed.js
+@@ -139,4 +139,6 @@
+   }
+ }
+ 
++// Retained implementation is exercised offline; the shipping export stays held.
++export { handler as retainedHandler };
+ export default withNativeCors(releaseHold, ["GET"]);
+--- a/docs/evidence/sol-release-activation-04/public-config.json
++++ b/docs/evidence/sol-release-activation-04/public-config.json
+@@ -0,0 +1 @@
++{"supabaseUrl":"https://kdkzdflrxajfdcithrfj.supabase.co","supabasePublishableKey":"sb_publishable_6d_HAKME9cYNVSA3OX8Vlg_qATf9M2N","apiOrigin":"https://jordan-pokemon-app.vercel.app"}
+--- a/lib/held-routes.js
++++ b/lib/held-routes.js
+@@ -0,0 +1,24 @@
++import { releaseHold } from "./release-hold.js";
++import { withNativeCors } from "./native-cors.js";
++
++export const heldRoutes = Object.freeze({
++  vision: ["POST"],
++  "graded-valuation": ["POST"],
++  sales: ["GET"],
++  offers: ["GET"],
++  sealed: ["GET"],
++  "price-sync": ["GET", "POST"],
++  maintenance: ["GET"],
++  "alert-delivery": ["GET"],
++});
++
++// Build Output routes set the observed request path; query/header values cannot select a route.
++export default function heldRouteHandler(request, response) {
++  const path = new URL(request.url || "/", "https://local.invalid").pathname;
++  const name = /^\/api\/([a-z-]+)$/.exec(path)?.[1];
++  if (!Object.hasOwn(heldRoutes, name)) {
++    response.setHeader("Cache-Control", "private, no-store");
++    return response.status(404).json({ error: "Not found" });
++  }
++  return withNativeCors(releaseHold, heldRoutes[name])(request, response);
++}
+--- a/package.json
++++ b/package.json
+@@ -30,7 +30,7 @@
+     "format": "prettier --write lib/grading-capture.js tests/grading-capture.test.js app-config.js api/card-image.js api/catalog.js api/capabilities.js api/health.js api/maintenance.js api/price-sync.js api/vision.js lib/action-center.js lib/advisor.js lib/capture-precision.js lib/catalog-db.js lib/collection-organization.js lib/domain.js lib/env.js lib/gateway-models.js lib/grading-dataset-v3.js lib/grading-lifecycle.js lib/grading-pilot-api.js lib/grading-v3.js lib/grading.js lib/identity.js lib/image-source.js lib/notification-delivery.js lib/portfolio.js lib/psa-calibration.js lib/psa-pilot.js lib/software-modes.js lib/supabase-data.js lib/vision.js lib/vision-evaluation.js lib/providers/alt.js lib/providers/base.js lib/providers/cardladder.js lib/providers/index.js lib/providers/tcgdex.js playwright.config.js scripts/benchmark-collection-organization.mjs scripts/benchmark-grading-models.mjs scripts/build-psa-pilot.mjs scripts/build.mjs scripts/evaluate-grading-shadow-v3.mjs scripts/evaluate-identity-benchmark.mjs scripts/evaluate-vision.mjs scripts/export-grading-dataset-v3.mjs scripts/lint.mjs scripts/publish-psa-calibration.mjs scripts/serve.mjs scripts/train-psa-calibration.mjs scripts/validate-schema.mjs scripts/verify-action-center.mjs scripts/verify-collection-organization.mjs scripts/verify-grading-lifecycle.mjs scripts/verify-identity-migration.mjs scripts/verify-software-modes.mjs scripts/verify-pkmnprices.mjs scripts/verify-preview-artifact.mjs tests/action-center.test.js tests/advisor.test.js tests/browser/ui-regression.spec.js tests/capture-precision.test.js tests/catalog.test.js tests/collection-organization.test.js tests/domain.test.js tests/grading-dataset-v3.test.js tests/grading-lifecycle.test.js tests/grading-pilot.test.js tests/grading-v3.test.js tests/grading.test.js tests/health.test.js tests/identity.test.js tests/image.test.js tests/maintenance.test.js tests/notification-delivery.test.js tests/psa-calibration.test.js tests/psa-pilot.test.js tests/software-modes.test.js tests/security.test.js tests/vision.test.js README.md docs/architecture.md docs/digital-grading-benchmark.md docs/digital-grading-implementation.md docs/grading-engine-v3.md docs/implementation-plan-market-portfolio.md docs/prelaunch-checklist.md docs/pricing-foundation.md docs/production-readiness.md docs/qa-report.md docs/release-operations.md docs/release-pass-2026-07-25.md docs/security-review.md package.json vercel.json .github/workflows/ci.yml",
+     "typecheck": "node --check lib/grading-capture.js && node --check lib/grading-economics.js && node --check app.js && node --check internal/certificates.js && node --check internal/certificate-fixtures.js && node --check scripts/verify-certificate-exclusion.mjs && node --check api/account.js && node --check api/capabilities.js && node --check api/card-image.js && node --check api/health.js && node --check api/cards.js && node --check api/catalog.js && node --check api/set.js && node --check api/offers.js && node --check api/sealed.js && node --check api/sales.js && node --check api/graded-valuation.js && node --check api/fx.js && node --check api/vision.js && node --check api/price-sync.js && node --check api/maintenance.js && node --check lib/action-center.js && node --check lib/advisor.js && node --check lib/capture-precision.js && node --check lib/catalog-db.js && node --check lib/collection-organization.js && node --check lib/core.js && node --check lib/domain.js && node --check lib/env.js && node --check lib/gateway-models.js && node --check lib/grading-dataset-v3.js && node --check lib/grading-lifecycle.js && node --check lib/grading-pilot-api.js && node --check lib/grading-v3.js && node --check lib/grading.js && node --check lib/identity.js && node --check lib/image-source.js && node --check lib/ingestion.js && node --check lib/notification-delivery.js && node --check lib/portfolio.js && node --check lib/graded-valuation.js && node --check lib/pricing.js && node --check lib/fx.js && node --check lib/psa-calibration.js && node --check lib/psa-pilot.js && node --check lib/software-modes.js && node --check lib/supabase-data.js && node --check lib/vision.js && node --check lib/vision-evaluation.js && node --check lib/providers/base.js && node --check lib/providers/index.js && node --check lib/providers/justtcg.js && node --check lib/providers/pkmnprices.js && node --check lib/providers/tcgdex.js && node --check scripts/benchmark-collection-organization.mjs && node --check scripts/benchmark-grading-models.mjs && node --check scripts/build-psa-pilot.mjs && node --check scripts/check-production-migration-baseline.mjs && node --check scripts/evaluate-grading-shadow-v3.mjs && node --check scripts/evaluate-identity-benchmark.mjs && node --check scripts/evaluate-pricing-outliers.mjs && node --check scripts/evaluate-vision.mjs && node --check scripts/export-grading-dataset-v3.mjs && node --check scripts/publish-psa-calibration.mjs && node --check scripts/serve.mjs && node --check scripts/train-psa-calibration.mjs && node --check scripts/verify-action-center.mjs && node --check scripts/verify-collection-organization.mjs && node --check scripts/verify-grading-lifecycle.mjs && node --check scripts/verify-identity-migration.mjs && node --check scripts/verify-ingestion-migration.mjs && node --check scripts/verify-pricing-migration.mjs && node --check scripts/verify-software-modes.mjs && node --check scripts/verify-pkmnprices.mjs && node --check scripts/verify-preview-artifact.mjs && node --check lib/native-runtime.js && node --check lib/web-push-client.js && node --check scripts/verify-native-artifact.mjs",
+     "lint": "node scripts/lint.mjs",
+-    "build": "node scripts/build.mjs",
++    "build": "node scripts/build.mjs --release-config",
+     "build:preview-artifact": "node scripts/build.mjs --neutral-public-config",
+     "verify:preview-artifact": "node scripts/verify-preview-artifact.mjs",
+     "test:browser": "playwright test",
+@@ -38,7 +38,9 @@
+     "build:native": "node scripts/build.mjs --native --neutral-public-config",
+     "sync:native": "cap sync ios",
+     "verify:native": "node scripts/verify-native-artifact.mjs",
+-    "test:native": "node --test tests/native-runtime.test.js"
++    "test:native": "node --test tests/native-runtime.test.js",
++    "build:release": "node scripts/build-release.mjs",
++    "verify:release-routing": "node scripts/verify-release-routing.mjs"
+   },
+   "engines": {
+     "node": "24.x"
+--- a/scripts/build.mjs
++++ b/scripts/build.mjs
+@@ -7,6 +7,7 @@
+ 
+ const native = process.argv.includes("--native");
+ const noEnv =
++  process.argv.includes("--release-config") ||
+   native ||
+   process.argv.includes("--neutral-public-config") ||
+   process.argv.includes("--internal-certificates");
+@@ -52,7 +53,8 @@
+ );
+ const neutralPublicConfig =
+   internalCertificates || process.argv.includes("--neutral-public-config");
+-if (neutralPublicConfig || native) process.env.MICA_SOURCE_MAPS = "false";
++if (neutralPublicConfig || native || process.argv.includes("--release-config"))
++  process.env.MICA_SOURCE_MAPS = "false";
+ await rm(dist, { recursive: true, force: true });
+ await mkdir(dist, { recursive: true });
+ for (const item of [
+@@ -94,16 +96,36 @@
+     __MICA_NATIVE__: String(native),
+   },
+ });
+-const publicConfig = native
+-  ? nativeConfig
+-  : {
+-      supabaseUrl: neutralPublicConfig
+-        ? ""
+-        : process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+-      supabasePublishableKey: neutralPublicConfig
+-        ? ""
+-        : process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "",
+-    };
++const releaseConfig = process.argv.includes("--release-config")
++  ? publicNativeConfig({
++      ...JSON.parse(
++        await readFile(
++          new URL(
++            "../docs/evidence/sol-release-activation-04/public-config.json",
++            import.meta.url,
++          ),
++          "utf8",
++        ),
++      ),
++      authCallback: "https://jordan-pokemon-app.vercel.app/auth/native-return",
++    })
++  : null;
++const publicConfig = releaseConfig
++  ? {
++      supabaseUrl: releaseConfig.supabaseUrl,
++      supabasePublishableKey: releaseConfig.supabasePublishableKey,
++      apiOrigin: releaseConfig.apiOrigin,
++    }
++  : native
++    ? nativeConfig
++    : {
++        supabaseUrl: neutralPublicConfig
++          ? ""
++          : process.env.NEXT_PUBLIC_SUPABASE_URL || "",
++        supabasePublishableKey: neutralPublicConfig
++          ? ""
++          : process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "",
++      };
+ await writeFile(
+   new URL("app-config.js", dist),
+   `globalThis.__APP_CONFIG__=Object.freeze(${JSON.stringify(publicConfig)});\n`,
+--- a/vercel.json
++++ b/vercel.json
+@@ -4,30 +4,66 @@
+   "devCommand": "npm run dev",
+   "outputDirectory": "dist",
+   "cleanUrls": true,
+-  "rewrites": [{ "source": "/profile", "destination": "/index.html" }],
++  "rewrites": [
++    {
++      "source": "/profile",
++      "destination": "/index.html"
++    }
++  ],
+   "functions": {
+-    "api/capabilities.js": { "maxDuration": 60 },
+-    "api/card-image.js": { "maxDuration": 10 },
+-    "api/health.js": { "maxDuration": 10 },
+-    "api/cards.js": { "maxDuration": 10 },
+-    "api/catalog.js": { "maxDuration": 10 },
+-    "api/sales.js": { "maxDuration": 10 },
+-    "api/graded-valuation.js": { "maxDuration": 15 },
+-    "api/fx.js": { "maxDuration": 10 },
+-    "api/vision.js": { "maxDuration": 60 },
+-    "api/price-sync.js": { "maxDuration": 60 },
+-    "api/maintenance.js": { "maxDuration": 60 }
++    "api/capabilities.js": {
++      "maxDuration": 60
++    },
++    "api/card-image.js": {
++      "maxDuration": 10
++    },
++    "api/health.js": {
++      "maxDuration": 10
++    },
++    "api/cards.js": {
++      "maxDuration": 10
++    },
++    "api/catalog.js": {
++      "maxDuration": 10
++    },
++    "api/sales.js": {
++      "maxDuration": 10
++    },
++    "api/graded-valuation.js": {
++      "maxDuration": 15
++    },
++    "api/fx.js": {
++      "maxDuration": 10
++    },
++    "api/vision.js": {
++      "maxDuration": 60
++    },
++    "api/price-sync.js": {
++      "maxDuration": 60
++    },
++    "api/maintenance.js": {
++      "maxDuration": 60
++    }
+   },
+   "crons": [
+-    { "path": "/api/capabilities?surface=grading-deletion", "schedule": "15 5 * * *" }
++    {
++      "path": "/api/capabilities?surface=grading-deletion",
++      "schedule": "15 5 * * *"
++    }
+   ],
+   "headers": [
+     {
+       "source": "/(.*)",
+       "headers": [
+-        { "key": "X-Content-Type-Options", "value": "nosniff" },
+-        { "key": "X-Frame-Options", "value": "DENY" },
+         {
++          "key": "X-Content-Type-Options",
++          "value": "nosniff"
++        },
++        {
++          "key": "X-Frame-Options",
++          "value": "DENY"
++        },
++        {
+           "key": "Referrer-Policy",
+           "value": "strict-origin-when-cross-origin"
+         },
+@@ -50,5 +86,8 @@
+         }
+       ]
+     }
+-  ]
++  ],
++  "git": {
++    "deploymentEnabled": false
++  }
+ }

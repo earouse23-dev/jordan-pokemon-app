@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import visionHandler, {
+import {
+  visionHandler,
   visionHandler as visionHandlerWithDependencies,
 } from "../api/vision.js";
 import {

@@ -1,13 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import handler from "../api/cards.js";
+import { retainedHandler as handler } from "../api/cards.js";
 import {
   positionObservationRow,
   pricingCreditPlan,
 } from "../api/price-sync.js";
-import offersHandler from "../api/offers.js";
-import sealedHandler from "../api/sealed.js";
-import salesHandler from "../api/sales.js";
+import { retainedHandler as offersHandler } from "../api/offers.js";
+import { retainedHandler as sealedHandler } from "../api/sealed.js";
+import { retainedHandler as salesHandler } from "../api/sales.js";
 import {
   PRICE_EVIDENCE_RULE_VERSION,
   finishForVariant,

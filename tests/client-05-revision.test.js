@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import salesHandler from "../api/sales.js";
+import { retainedHandler as salesHandler } from "../api/sales.js";
 import { exactSoldValuation } from "../lib/pricing.js";
 
 const now = Date.parse("2026-09-24T12:00:00Z");

@@ -1,0 +1,47 @@
+{
+  "unit": {
+    "tests": 473,
+    "passed": 471,
+    "failed": 0,
+    "skipped": 2
+  },
+  "affected": {
+    "tests": 160,
+    "passed": 160,
+    "failed": 0
+  },
+  "routing": {
+    "functionCount": 9,
+    "observedLimit": 12,
+    "paths": 8,
+    "ordinaryMethods": 40,
+    "preflightMethods": 24,
+    "unknownPaths": 4,
+    "zeroOutbound": true
+  },
+  "reproducibleBuilds": 2,
+  "credentialScanFiles": 137,
+  "staticActivation04FilesUnchanged": 28,
+  "actualFunctions": 9,
+  "candidateState": "READY/STAGED before promotion",
+  "candidateRuntimeChecks": 42,
+  "liveHolds": true,
+  "deletionOnlyLive": true,
+  "runtimeErrorScan": {
+    "applicationExceptions": 0,
+    "deprecationWarning": "DEP0169 from Node/Vercel/Supabase dependency request handling",
+    "loggedWarnings": 2
+  },
+  "stagingAliasObservation": {
+    "configuredProductionDomains": [
+      "jordan-pokemon-app.vercel.app"
+    ],
+    "automaticAlias": "jordan-pokemon-app-earouse23-devs-projects.vercel.app",
+    "automaticAliasMovedDuringStaging": true,
+    "automaticAliasProtected": true,
+    "primaryAndCronsHeldUntilPromotion": true
+  },
+  "sqlReruns": 0,
+  "paidProviderCalls": 0,
+  "authenticatedAcceptanceNotClaimed": true
+}

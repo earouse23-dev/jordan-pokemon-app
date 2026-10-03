@@ -10,7 +10,7 @@ import {
   hydrateWatchlistEntry,
 } from "../lib/supabase-data.js";
 import { exactSoldValuation } from "../lib/pricing.js";
-import salesHandler from "../api/sales.js";
+import { retainedHandler as salesHandler } from "../api/sales.js";
 
 const source = (detailed, overrides = {}) => ({
   id: "synthetic-25",
@@ -369,7 +369,7 @@ test("unknowns, conflicts, unsupported geometry and independent flags never gain
   );
 });
 
-test("explicit synthetic printing reaches current sales API and estimator; wrong pools stay separate", async () => {
+test("explicit synthetic printing reaches retained sales implementation and estimator; wrong pools stay separate", async () => {
   const normalized = card([
     variant("plain", { languages: ["en"] }),
     firstVariant("first"),

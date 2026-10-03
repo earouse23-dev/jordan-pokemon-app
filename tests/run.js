@@ -43,3 +43,4 @@ import "./grading-economics.test.js";
 import "./grading-capture.test.js";
 
 import "./native-runtime.test.js";
+import './release-routing.test.js';

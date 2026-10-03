@@ -1,0 +1,218 @@
+{
+  "deploymentId": "dpl_FQ1EmvSNWPFH83esaKFTW9YQT973",
+  "checks": [
+    {
+      "path": "/_release-hold?route=vision",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "path": "/_release-hold",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "path": "/api/account",
+      "method": "DELETE",
+      "status": 401
+    },
+    {
+      "path": "/api/alert-delivery",
+      "method": "GET",
+      "status": 503
+    },
+    {
+      "path": "/api/alert-delivery",
+      "method": "GET",
+      "status": 403
+    },
+    {
+      "path": "/api/alert-delivery",
+      "method": "OPTIONS",
+      "status": 204
+    },
+    {
+      "path": "/api/alert-delivery",
+      "method": "OPTIONS",
+      "status": 403
+    },
+    {
+      "path": "/api/capabilities?surface=grading-deletion",
+      "method": "GET",
+      "status": 401
+    },
+    {
+      "path": "/api/capabilities",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/graded-valuation",
+      "method": "GET",
+      "status": 403
+    },
+    {
+      "path": "/api/graded-valuation",
+      "method": "OPTIONS",
+      "status": 204
+    },
+    {
+      "path": "/api/graded-valuation",
+      "method": "OPTIONS",
+      "status": 403
+    },
+    {
+      "path": "/api/graded-valuation",
+      "method": "POST",
+      "status": 503
+    },
+    {
+      "path": "/api/health",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/maintenance",
+      "method": "GET",
+      "status": 503
+    },
+    {
+      "path": "/api/maintenance",
+      "method": "GET",
+      "status": 403
+    },
+    {
+      "path": "/api/maintenance",
+      "method": "OPTIONS",
+      "status": 204
+    },
+    {
+      "path": "/api/maintenance",
+      "method": "OPTIONS",
+      "status": 403
+    },
+    {
+      "path": "/api/no-such-endpoint",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "path": "/api/offers",
+      "method": "GET",
+      "status": 503
+    },
+    {
+      "path": "/api/offers",
+      "method": "GET",
+      "status": 403
+    },
+    {
+      "path": "/api/offers",
+      "method": "OPTIONS",
+      "status": 204
+    },
+    {
+      "path": "/api/offers",
+      "method": "OPTIONS",
+      "status": 403
+    },
+    {
+      "path": "/api/price-sync",
+      "method": "GET",
+      "status": 503
+    },
+    {
+      "path": "/api/price-sync",
+      "method": "GET",
+      "status": 403
+    },
+    {
+      "path": "/api/price-sync",
+      "method": "OPTIONS",
+      "status": 204
+    },
+    {
+      "path": "/api/price-sync",
+      "method": "OPTIONS",
+      "status": 403
+    },
+    {
+      "path": "/api/sales",
+      "method": "GET",
+      "status": 403
+    },
+    {
+      "path": "/api/sales",
+      "method": "GET",
+      "status": 503
+    },
+    {
+      "path": "/api/sales",
+      "method": "OPTIONS",
+      "status": 204
+    },
+    {
+      "path": "/api/sales",
+      "method": "OPTIONS",
+      "status": 403
+    },
+    {
+      "path": "/api/sealed",
+      "method": "GET",
+      "status": 403
+    },
+    {
+      "path": "/api/sealed",
+      "method": "GET",
+      "status": 503
+    },
+    {
+      "path": "/api/sealed",
+      "method": "OPTIONS",
+      "status": 204
+    },
+    {
+      "path": "/api/sealed",
+      "method": "OPTIONS",
+      "status": 403
+    },
+    {
+      "path": "/api/vision?route=price-sync",
+      "method": "OPTIONS",
+      "status": 403
+    },
+    {
+      "path": "/api/vision/extra",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "path": "/api/vision",
+      "method": "GET",
+      "status": 403
+    },
+    {
+      "path": "/api/Vision",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "path": "/api/vision",
+      "method": "OPTIONS",
+      "status": 403
+    },
+    {
+      "path": "/api/vision",
+      "method": "OPTIONS",
+      "status": 204
+    },
+    {
+      "path": "/api/vision",
+      "method": "POST",
+      "status": 503
+    }
+  ],
+  "publicConfigAndStaticHashes": 3,
+  "noPaidProviderRequests": true,
+  "noSyntheticAccountOrCustomerWrites": true
+}

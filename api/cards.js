@@ -106,7 +106,7 @@ function parseLookups(request) {
   return lookups.length ? lookups : null;
 }
 
-async function handler(request, response) {
+export async function retainedHandler(request, response, publicOnly = false) {
   if (request.method !== "GET") {
     response.setHeader("Allow", "GET");
     return send(response, 405, { error: "Method not allowed" });
@@ -124,8 +124,23 @@ async function handler(request, response) {
     return send(response, 400, { error: "Provide 1 to 8 valid card lookups." });
 
   // Provider credentials cannot enable paid lookup in this release.
-  const pkmnPricesKey = "";
-  const justTcgKey = "";
+  const pkmnPricesKey = publicOnly
+    ? ""
+    : process.env.PKMNPRICES_API_KEY ||
+      (process.env.PRICING_PROVIDER === "pkmnprices"
+        ? process.env.PRICING_PROVIDER_API_KEY
+        : "");
+  const justTcgApproved =
+    String(
+      process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED || "",
+    ).toLowerCase() === "true";
+  const justTcgKey =
+    publicOnly || !justTcgApproved
+      ? ""
+      : process.env.JUSTTCG_API_KEY ||
+        (process.env.PRICING_PROVIDER === "justtcg"
+          ? process.env.PRICING_PROVIDER_API_KEY
+          : "");
   const configuredPlan = String(
     process.env.PKMNPRICES_PLAN || "free",
   ).toLowerCase();
@@ -253,4 +268,7 @@ async function handler(request, response) {
   }
 }
 
-export default withNativeCors(handler, ["GET"]);
+export default withNativeCors(
+  (request, response) => retainedHandler(request, response, true),
+  ["GET"],
+);

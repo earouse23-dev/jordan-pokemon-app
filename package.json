@@ -38,7 +38,9 @@
     "build:native": "node scripts/build.mjs --native --neutral-public-config",
     "sync:native": "cap sync ios",
     "verify:native": "node scripts/verify-native-artifact.mjs",
-    "test:native": "node --test tests/native-runtime.test.js"
+    "test:native": "node --test tests/native-runtime.test.js",
+    "build:release": "node scripts/build-release.mjs",
+    "verify:release-routing": "node scripts/verify-release-routing.mjs"
   },
   "engines": {
     "node": "24.x"

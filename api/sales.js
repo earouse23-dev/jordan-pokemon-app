@@ -186,4 +186,6 @@ async function handler(request, response) {
   }
 }
 
+// Retained implementation is exercised offline; the shipping export stays held.
+export { handler as retainedHandler };
 export default withNativeCors(releaseHold, ["GET"]);

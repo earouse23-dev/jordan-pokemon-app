@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import maintenanceHandler, {
+import {
+  retainedHandler as maintenanceHandler,
   processActionCenterMaintenance,
 } from "../api/maintenance.js";
 import { notificationDestinationUrl } from "../lib/notification-delivery.js";

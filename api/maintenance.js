@@ -22,14 +22,20 @@ export async function processActionCenterMaintenance(
     workerKey = `worker:maintenance:${randomUUID()}`,
     actionLimit = 100,
     deliveryLimit = 5,
-    deliver = (claim, settings) => deliverActionNotification(claim, settings, { webPushAdapter: (pushClaim, pushConfig) => deliverPushToDevices(database, pushClaim, pushConfig) }),
+    deliver = (claim, settings) =>
+      deliverActionNotification(claim, settings, {
+        webPushAdapter: (pushClaim, pushConfig) =>
+          deliverPushToDevices(database, pushClaim, pushConfig),
+      }),
     materialize = true,
   } = {},
 ) {
-  const materialized = materialize ? await database.rpc("materialize_action_center_service", {
-    p_worker_key: workerKey,
-    p_limit: actionLimit,
-  }) : { data: { generated: 0 }, error: null };
+  const materialized = materialize
+    ? await database.rpc("materialize_action_center_service", {
+        p_worker_key: workerKey,
+        p_limit: actionLimit,
+      })
+    : { data: { generated: 0 }, error: null };
   if (materialized.error) throw materialized.error;
   const claimed = await database.rpc("claim_action_deliveries_service", {
     p_worker_key: workerKey,
@@ -130,4 +136,6 @@ async function handler(request, response) {
   }
 }
 
+// Retained implementation is exercised offline; the shipping export stays held.
+export { handler as retainedHandler };
 export default withNativeCors(releaseHold, ["GET"]);
