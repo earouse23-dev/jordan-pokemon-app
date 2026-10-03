@@ -1,0 +1,582 @@
+{
+  "description": "07G curated local web/API source and neutral static output; not a deployable native signed app",
+  "schema": {
+    "collectorSqlSha256": "ee45c20b673437deeab7728ce035530a58fd7eeacbdde063599e00dbba8c6fe6",
+    "retainedSurfaceDeltaSha256": "6827663e43d47e6b40debff2625b1fa38377358736fd72e6f70cb593bb6f7162"
+  },
+  "config": "empty public Supabase URL/key; activation requires approved exact public values",
+  "excluded": [
+    ".env*",
+    "tests/",
+    "internal/",
+    "docs/",
+    "supabase/",
+    ".artifacts/",
+    "dist-internal/",
+    "provider numeric payloads"
+  ],
+  "inputs": [
+    {
+      "path": "app.js",
+      "sha256": "3a6148a8a9b99733300b7f592168dcaf7f2671193030c05657cddf0b0a6b60bf",
+      "bytes": 976093
+    },
+    {
+      "path": "index.html",
+      "sha256": "dffaae3d64e6ae5fe1eced62288534827738f9b3b019645513d9002f051e446b",
+      "bytes": 59492
+    },
+    {
+      "path": "styles.css",
+      "sha256": "ae443ce2f06cc0153e5d10957160aa19dbe3fcf7335b18a35e65750588d0dec8",
+      "bytes": 239041
+    },
+    {
+      "path": "themes.css",
+      "sha256": "133ec660fb80588f4889c02fed4545b468ae3fa181fc4fc7a4b60bb40386ebfe",
+      "bytes": 150963
+    },
+    {
+      "path": "manifest.webmanifest",
+      "sha256": "2db940851dc90775bea5a33dc838fc518481839de996f6503a1f06545c8f9bbe",
+      "bytes": 568
+    },
+    {
+      "path": "sw.js",
+      "sha256": "def84d5b92af624ca83b285b79d28bec8374f5eeba9a4363bf340e9201fe93f9",
+      "bytes": 8513
+    },
+    {
+      "path": "capacitor.config.json",
+      "sha256": "c9ef13bec35f2f6373a502fab5eb3d00adb8d72ac747e745acf420f5318c8df6",
+      "bytes": 131
+    },
+    {
+      "path": "vercel.json",
+      "sha256": "d040684c71b0e702986f5af9125a567eb9d5b5641cc7ce716b3780a785d1a653",
+      "bytes": 2145
+    },
+    {
+      "path": "package.json",
+      "sha256": "186c7b26c8fc67216f315df514ad81367deff80ca10d7e3fea3c1b39f9ef636e",
+      "bytes": 8950
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "d845a0e912c5e7f444cacaf622c84e0f72c83b42edb8d966b7ecfc689f8c36e2",
+      "bytes": 3516
+    },
+    {
+      "path": "scripts/serve.mjs",
+      "sha256": "a7121a27d3d4dfb729465a2f64e679a6c106e0c45631ad9d3ef9fefcbf334042",
+      "bytes": 2764
+    },
+    {
+      "path": "api/account.js",
+      "sha256": "b36217648ee00360e4f240e5f7e3745388c37f4df350f50a6044161ef5716bf5",
+      "bytes": 4653
+    },
+    {
+      "path": "api/alert-delivery.js",
+      "sha256": "f3b0f116444d01467533acbb3949fc76b62238f5195bd221d91136140e48396d",
+      "bytes": 1449
+    },
+    {
+      "path": "api/capabilities.js",
+      "sha256": "08d7e4ce3fba9b563731b5c79b020f52c9aeb9eb95bc1779f41c330f2e6b2e52",
+      "bytes": 2750
+    },
+    {
+      "path": "api/card-image.js",
+      "sha256": "054676a4dc505528bce11aa2ae35f06cf133195444b07496d3fd4e5edbc02f5d",
+      "bytes": 4339
+    },
+    {
+      "path": "api/cards.js",
+      "sha256": "2e87750170358ee72e6612f4aac722fce9e9790cc6b23325c217eb3d9e3ed202",
+      "bytes": 8702
+    },
+    {
+      "path": "api/catalog.js",
+      "sha256": "89c3d9306a4181dcf3ba530462af26d17c72e0853d3115dbfe2b021d07a49f78",
+      "bytes": 4788
+    },
+    {
+      "path": "api/fx.js",
+      "sha256": "d23465f88906bb18ce5ed748fc53a33ca1504b70a6c5f1d179fd78c3089552ba",
+      "bytes": 3753
+    },
+    {
+      "path": "api/graded-valuation.js",
+      "sha256": "74a21999c9fda24ea9850c2663606f7404c51fb99d34f05af2bf9881504a3d17",
+      "bytes": 8480
+    },
+    {
+      "path": "api/health.js",
+      "sha256": "8edfbd50d0c1d2cbe92aec16c87d5b46e462f1c0937e0e05f4ac274b88be224f",
+      "bytes": 2366
+    },
+    {
+      "path": "api/maintenance.js",
+      "sha256": "01cc7515eb7f87771db2322eee6e1413f88457ee1db2443ac651913895f8cef9",
+      "bytes": 4550
+    },
+    {
+      "path": "api/offers.js",
+      "sha256": "7a99ed574cc9e7074ba99e4df3be913f5017974b3a76dbdc02f9cfc769f87908",
+      "bytes": 5252
+    },
+    {
+      "path": "api/price-sync.js",
+      "sha256": "41b10a089949e7aadb20c2aa72d5e1e637c924490f5481880733e14fc68de7ac",
+      "bytes": 20921
+    },
+    {
+      "path": "api/sales.js",
+      "sha256": "3b77fb8d6f730fa5bf742505542342f51655578d12ae9a46f62c76893b01737e",
+      "bytes": 6577
+    },
+    {
+      "path": "api/sealed.js",
+      "sha256": "2c04dd4ee7e213d3ab735282c7f62bd39646dfe28b2c3f8d6250eabe71d2e046",
+      "bytes": 4410
+    },
+    {
+      "path": "api/set.js",
+      "sha256": "f592f45954a63ee0ed1067028b3bfb2a51d375ee1f3141c04cb93dccfb679a72",
+      "bytes": 1836
+    },
+    {
+      "path": "api/vision.js",
+      "sha256": "8ca82d08cda1e2bf8973a941808c7d20550f82139bcedaed62366314458aaad6",
+      "bytes": 27159
+    },
+    {
+      "path": "lib/action-center.js",
+      "sha256": "7615b268d58d96b3c0bbda3f89bca8c7830acf8faa5f712efdf45be8ede96f4f",
+      "bytes": 23384
+    },
+    {
+      "path": "lib/advisor.js",
+      "sha256": "840e6a8ac92951c76ae80db61baed6cc78357b0f01ab349684373382ded590f5",
+      "bytes": 7356
+    },
+    {
+      "path": "lib/capture-precision.js",
+      "sha256": "5835a48aef55b0718bb50b0314c3f7526e75893836e3a9557364dce72fcf3522",
+      "bytes": 38307
+    },
+    {
+      "path": "lib/catalog-db.js",
+      "sha256": "3b62c0980809ad4d746554dc9605bd21f74981610d180c3bd7ac092e8783c124",
+      "bytes": 10811
+    },
+    {
+      "path": "lib/collection-organization.js",
+      "sha256": "5d4c4e592b8d9710b2eb64f0416bb4ea4aac917a447020bc3f7769b7b5bbca48",
+      "bytes": 13711
+    },
+    {
+      "path": "lib/core.js",
+      "sha256": "9cc486bb2a50eeaa679cafc990ba963580be8fe1ea7fc5590bdfdf72c92b5889",
+      "bytes": 41761
+    },
+    {
+      "path": "lib/domain.js",
+      "sha256": "3872603d2ae54f6068cd8352ce82b443e4f5ac67bf1ace2125f36d03063c1b4e",
+      "bytes": 11423
+    },
+    {
+      "path": "lib/env.js",
+      "sha256": "61dec8faf018d886d890f726f8282d24c3f05599d15b358b0b14ec39ffcf5b0f",
+      "bytes": 4045
+    },
+    {
+      "path": "lib/fx.js",
+      "sha256": "2596780a21c0a9146c1f7138ad5805f422606246c6ba544b86091a73db63608d",
+      "bytes": 6423
+    },
+    {
+      "path": "lib/gateway-models.js",
+      "sha256": "a91f1319908e1aa9f916d86315fe9b7238294bd1f5aef8ec9d597045acab7ca4",
+      "bytes": 2143
+    },
+    {
+      "path": "lib/graded-valuation.js",
+      "sha256": "ae024a5734a935d164877b053e0b2fc8ae240b637fbef8a5322afc186414e753",
+      "bytes": 8344
+    },
+    {
+      "path": "lib/grading-capture.js",
+      "sha256": "c384c2fee77e1221e09590629cd04ab16cfbc8a98b1a9c2b7e2456d4bfd53ac3",
+      "bytes": 1419
+    },
+    {
+      "path": "lib/grading-dataset-v3.js",
+      "sha256": "4d2cdbe2ba226b08f6ca8f7fb2c346d26360f46e64a70e2f8180946da5c1e789",
+      "bytes": 22969
+    },
+    {
+      "path": "lib/grading-economics.js",
+      "sha256": "fdf4af9ef90863ce8e0ab1cae19ab0adba49724dab6135918ddba9bdb746eb02",
+      "bytes": 1293
+    },
+    {
+      "path": "lib/grading-lifecycle.js",
+      "sha256": "1cbfcfab80e994f2d23cedce269230d52c6a50c8eb37eeba247a763d3ae48a99",
+      "bytes": 13733
+    },
+    {
+      "path": "lib/grading-pilot-api.js",
+      "sha256": "9bef202b2673feb87f34bb93f2fadd9c25e6adfaf026947f0f727254b3daa5e1",
+      "bytes": 18258
+    },
+    {
+      "path": "lib/grading-v3.js",
+      "sha256": "a3d81c7152c4ca6988d1876426541d624475cbea9e03f9d24791107b71cfc16e",
+      "bytes": 12867
+    },
+    {
+      "path": "lib/grading.js",
+      "sha256": "1fbd5055a388ae9714307e43187434ea667f3cac8f1b813800a675016b647958",
+      "bytes": 32960
+    },
+    {
+      "path": "lib/identity.js",
+      "sha256": "f91925728338d63879e6ebae8fed59e733bc56850b44e6ad4bf70086da38bda3",
+      "bytes": 18087
+    },
+    {
+      "path": "lib/image-source.js",
+      "sha256": "886b3b6cec9da5ef2591cc7a38cfdf4814437f3155ce78f9c2a0ced62bb8f2ec",
+      "bytes": 800
+    },
+    {
+      "path": "lib/ingestion.js",
+      "sha256": "7a869714a06f4b25956fd8f5e3c5cc29564a9e2ae8f783db9f762b7cf5a1fcf6",
+      "bytes": 6403
+    },
+    {
+      "path": "lib/native-cors.js",
+      "sha256": "c1635c0aae723fae086d08f494ee986600629bade25aa63894209844c19c225a",
+      "bytes": 1813
+    },
+    {
+      "path": "lib/native-runtime.js",
+      "sha256": "3870fe9a3e2c74333cca811afbec29dc5ad808bb10fabc775cd089eb8efb357c",
+      "bytes": 10279
+    },
+    {
+      "path": "lib/notification-delivery.js",
+      "sha256": "590d0a1d7a1f229b11299c47f425f342230f5ba3f58e6800c28ec0cd6afc0f0f",
+      "bytes": 5406
+    },
+    {
+      "path": "lib/pkmnprices-readiness.js",
+      "sha256": "6eaf5321c0ee9257d8fa572af2859315d437bf1192e2d5c7b97f8482e399d2be",
+      "bytes": 13525
+    },
+    {
+      "path": "lib/portfolio.js",
+      "sha256": "7ab27e08b0cfb84f1c911a5d70dadcbe8df8073e84ed732d571cff5d0b618af2",
+      "bytes": 49924
+    },
+    {
+      "path": "lib/price-history.js",
+      "sha256": "249a952a4435e521fa0e8d69e5aeb4b27962749e8a69e74a7fe2f460b3b85383",
+      "bytes": 3917
+    },
+    {
+      "path": "lib/pricing.js",
+      "sha256": "73026edce545db2ee3569bef5d09bb8acca29e079bb09a7d028c3b124191cf8a",
+      "bytes": 39833
+    },
+    {
+      "path": "lib/providers/alt.js",
+      "sha256": "f2852f64a335c14fc29910d89c81a96feaea1941508d444b3c9a135863aba7ba",
+      "bytes": 243
+    },
+    {
+      "path": "lib/providers/base.js",
+      "sha256": "b0168e4e6dee21a53ef643bb7eacb119f708245d118dcd9afe539c52ce87609e",
+      "bytes": 1332
+    },
+    {
+      "path": "lib/providers/cardladder.js",
+      "sha256": "9dd9bad38a7a4760df974724f3fc4a063067345675ea127545e0c6d7ae13263b",
+      "bytes": 265
+    },
+    {
+      "path": "lib/providers/index.js",
+      "sha256": "b5bff7ef201f03c25e626fb75542ec644f76ef6fb9981522866b77a75ed4e1d4",
+      "bytes": 2928
+    },
+    {
+      "path": "lib/providers/justtcg.js",
+      "sha256": "3c78adc0bcbd598625de2bc0a08bca02ee3573f9960e523733d31d8c0b986294",
+      "bytes": 5958
+    },
+    {
+      "path": "lib/providers/pkmnprices.js",
+      "sha256": "eef0b0269f3ebec03f291f2af7412bdd58fcdb2370d653bc557b2b77e6e7f430",
+      "bytes": 39951
+    },
+    {
+      "path": "lib/providers/tcgdex.js",
+      "sha256": "bbf702ad73e53160ddff9e6c36b92454e81f8726923cae5b1f9bb09c92682944",
+      "bytes": 29678
+    },
+    {
+      "path": "lib/psa-calibration.js",
+      "sha256": "7ce6af83d58de49515557597c791a145c8fbf95920c2b5d8e61ada30025cadbd",
+      "bytes": 16217
+    },
+    {
+      "path": "lib/psa-pilot.js",
+      "sha256": "f0a9003c013a250d76362389cc96a56a603111b550f668e5225c1e0ee8659adb",
+      "bytes": 4039
+    },
+    {
+      "path": "lib/software-modes.js",
+      "sha256": "ecc61a16009c0f7b2b4960c92b8542e8cda37dd82c5e0f12f2ab77bad416fef3",
+      "bytes": 3577
+    },
+    {
+      "path": "lib/supabase-data.js",
+      "sha256": "90026852dc00e93536881800f8c7e4ddcc1c85ac94fb89e69809ef0860773793",
+      "bytes": 90478
+    },
+    {
+      "path": "lib/vision-evaluation.js",
+      "sha256": "71a5d48cf9dbca58230983f6114c31a30e50c5b0577b9ee6187f6a1c4c3edb7e",
+      "bytes": 28475
+    },
+    {
+      "path": "lib/vision.js",
+      "sha256": "c13b039b1c476990ecf6a1ab01c1f8f4c7cf0f0c34987e81363ef59ba0a722f8",
+      "bytes": 54419
+    },
+    {
+      "path": "lib/web-push-client.js",
+      "sha256": "de21ea30f60a24f1d5d83ca50980ae9145d34e0715b8e2c0b4a0211fe6e29be4",
+      "bytes": 5799
+    },
+    {
+      "path": "lib/web-push.js",
+      "sha256": "513eba26745e07651fc991cbed3135626f26f3ca94953f79c01731da92feb5f3",
+      "bytes": 8036
+    },
+    {
+      "path": "assets/coach-background-pass.jpg",
+      "sha256": "ee2bf1579c20bdc5be015ef965ca20af71a04c9a3d747689e8730d1013fb3694",
+      "bytes": 90399
+    },
+    {
+      "path": "assets/coach-background-retake.jpg",
+      "sha256": "fa4a70c9fb65d0e53e50f99b36df30e092553433787e1cd02c9d6c87cae87101",
+      "bytes": 211159
+    },
+    {
+      "path": "assets/coach-frame-pass.jpg",
+      "sha256": "3407a7743f7f5773ed4f4d6e8cf4a70b8eba1d4267865a57f494bb6e6e44930f",
+      "bytes": 109699
+    },
+    {
+      "path": "assets/coach-frame-retake.jpg",
+      "sha256": "7549d544b9f92f5fe422f2ff6eeb750bd7815c616fc66f0b8ff272468d87b695",
+      "bytes": 92261
+    },
+    {
+      "path": "assets/coach-light-pass.jpg",
+      "sha256": "4f84fdf28b260c1340d04e235e4dd7514482e7206ca2db846b73085ad0b7e42c",
+      "bytes": 109887
+    },
+    {
+      "path": "assets/coach-light-retake.jpg",
+      "sha256": "6710b4edf27d9049192723b866c1aaf5092ca4521764b7003820ed454fe3d6b3",
+      "bytes": 115902
+    },
+    {
+      "path": "assets/coach-parallel-pass.jpg",
+      "sha256": "dd5e0f1bfb31791b2fca9508cc6ab33eb900607d235add4ab91ee9b1fcbcb037",
+      "bytes": 76415
+    },
+    {
+      "path": "assets/coach-parallel-retake.jpg",
+      "sha256": "78d80edee1b6341016d7957ccaf87ca4a60d67c8c799c141009a15c7cc08ac73",
+      "bytes": 85024
+    },
+    {
+      "path": "assets/mica-collection-ornament.jpg",
+      "sha256": "0ec64cd1a9f930157f31d9b50b2b4db03e820da11150ccd6b956285f408397aa",
+      "bytes": 336641
+    },
+    {
+      "path": "assets/mica-mineral-paper.jpg",
+      "sha256": "9d733caea14da0bdda8231d6f491ba04e2388bbeedb41baed4d5665bbaee9759",
+      "bytes": 228861
+    },
+    {
+      "path": "icons/apple-touch-icon.png",
+      "sha256": "6c3f06a32100d27bf052ec464d8e396ca55a1977efbff89e126eb560b2c18b32",
+      "bytes": 4867
+    },
+    {
+      "path": "icons/icon-192.png",
+      "sha256": "a41e0f47e99823aed2b6267db94176a8600542eadfd0113a2f3907a2ff73568f",
+      "bytes": 5207
+    },
+    {
+      "path": "icons/icon-512.png",
+      "sha256": "3b285a525ff42de9a27b522be01b046b6ad1de44a48e794726aa5fbb29041227",
+      "bytes": 17885
+    },
+    {
+      "path": "icons/icon.svg",
+      "sha256": "924acc1d5c054eaecba7947403764f77aeb14b0a17600954fa5d2a0a7287714a",
+      "bytes": 457
+    }
+  ],
+  "outputs": [
+    {
+      "path": "dist/app-config.js",
+      "sha256": "49a205505cd8fe54392ff3e2e4dd238d1aaf11791a4747392cd3d739e89d66e2",
+      "bytes": 89
+    },
+    {
+      "path": "dist/app.js",
+      "sha256": "d55ffa1b53690d6d23f83776c3c18184f35bfe7d681c886f6bc4009671d513a8",
+      "bytes": 1002852
+    },
+    {
+      "path": "dist/assets/coach-background-pass.jpg",
+      "sha256": "ee2bf1579c20bdc5be015ef965ca20af71a04c9a3d747689e8730d1013fb3694",
+      "bytes": 90399
+    },
+    {
+      "path": "dist/assets/coach-background-retake.jpg",
+      "sha256": "fa4a70c9fb65d0e53e50f99b36df30e092553433787e1cd02c9d6c87cae87101",
+      "bytes": 211159
+    },
+    {
+      "path": "dist/assets/coach-frame-pass.jpg",
+      "sha256": "3407a7743f7f5773ed4f4d6e8cf4a70b8eba1d4267865a57f494bb6e6e44930f",
+      "bytes": 109699
+    },
+    {
+      "path": "dist/assets/coach-frame-retake.jpg",
+      "sha256": "7549d544b9f92f5fe422f2ff6eeb750bd7815c616fc66f0b8ff272468d87b695",
+      "bytes": 92261
+    },
+    {
+      "path": "dist/assets/coach-light-pass.jpg",
+      "sha256": "4f84fdf28b260c1340d04e235e4dd7514482e7206ca2db846b73085ad0b7e42c",
+      "bytes": 109887
+    },
+    {
+      "path": "dist/assets/coach-light-retake.jpg",
+      "sha256": "6710b4edf27d9049192723b866c1aaf5092ca4521764b7003820ed454fe3d6b3",
+      "bytes": 115902
+    },
+    {
+      "path": "dist/assets/coach-parallel-pass.jpg",
+      "sha256": "dd5e0f1bfb31791b2fca9508cc6ab33eb900607d235add4ab91ee9b1fcbcb037",
+      "bytes": 76415
+    },
+    {
+      "path": "dist/assets/coach-parallel-retake.jpg",
+      "sha256": "78d80edee1b6341016d7957ccaf87ca4a60d67c8c799c141009a15c7cc08ac73",
+      "bytes": 85024
+    },
+    {
+      "path": "dist/assets/mica-collection-ornament.jpg",
+      "sha256": "0ec64cd1a9f930157f31d9b50b2b4db03e820da11150ccd6b956285f408397aa",
+      "bytes": 336641
+    },
+    {
+      "path": "dist/assets/mica-mineral-paper.jpg",
+      "sha256": "9d733caea14da0bdda8231d6f491ba04e2388bbeedb41baed4d5665bbaee9759",
+      "bytes": 228861
+    },
+    {
+      "path": "dist/chunks/auto-3VVBLW4X.js",
+      "sha256": "7179480966e052f96c506fcbded9a883f4f744f38e214698529a4f29b84541d0",
+      "bytes": 205312
+    },
+    {
+      "path": "dist/chunks/chunk-K74TEEVY.js",
+      "sha256": "56b93ce794652099c52173b128bfa69d46c51750e1c959821a9a14350ed3bf5b",
+      "bytes": 8248
+    },
+    {
+      "path": "dist/chunks/dist-ST2LRX2T.js",
+      "sha256": "da32976195b229da1de5a823f78828ecd4537d05de5d0a50817cadae43926189",
+      "bytes": 291
+    },
+    {
+      "path": "dist/chunks/esm-4WOYDAPL.js",
+      "sha256": "67ebbc9ade2bdbfb5c84b1a661889ea4993c84e6a84b6229ad0c74c7ea33b5ea",
+      "bytes": 157
+    },
+    {
+      "path": "dist/chunks/esm-64YJGOOE.js",
+      "sha256": "c153bf1b44d8ead401d07f789a5e35b4689aa68338edb155b283e01f97b0daca",
+      "bytes": 133
+    },
+    {
+      "path": "dist/chunks/web-QQJPYETW.js",
+      "sha256": "933f56828a4bdbc762920058672bd563306a0bb2376532feda3976700d607d78",
+      "bytes": 840
+    },
+    {
+      "path": "dist/chunks/web-TPAXWGUK.js",
+      "sha256": "21f8a18bb69e65bc5dba1a9df138bb38aabe17f85b43fa3eac4c166af32ed878",
+      "bytes": 1238
+    },
+    {
+      "path": "dist/icons/apple-touch-icon.png",
+      "sha256": "6c3f06a32100d27bf052ec464d8e396ca55a1977efbff89e126eb560b2c18b32",
+      "bytes": 4867
+    },
+    {
+      "path": "dist/icons/icon-192.png",
+      "sha256": "a41e0f47e99823aed2b6267db94176a8600542eadfd0113a2f3907a2ff73568f",
+      "bytes": 5207
+    },
+    {
+      "path": "dist/icons/icon-512.png",
+      "sha256": "3b285a525ff42de9a27b522be01b046b6ad1de44a48e794726aa5fbb29041227",
+      "bytes": 17885
+    },
+    {
+      "path": "dist/icons/icon.svg",
+      "sha256": "924acc1d5c054eaecba7947403764f77aeb14b0a17600954fa5d2a0a7287714a",
+      "bytes": 457
+    },
+    {
+      "path": "dist/index.html",
+      "sha256": "dffaae3d64e6ae5fe1eced62288534827738f9b3b019645513d9002f051e446b",
+      "bytes": 59492
+    },
+    {
+      "path": "dist/manifest.webmanifest",
+      "sha256": "2db940851dc90775bea5a33dc838fc518481839de996f6503a1f06545c8f9bbe",
+      "bytes": 568
+    },
+    {
+      "path": "dist/styles.css",
+      "sha256": "ae443ce2f06cc0153e5d10957160aa19dbe3fcf7335b18a35e65750588d0dec8",
+      "bytes": 239041
+    },
+    {
+      "path": "dist/sw.js",
+      "sha256": "def84d5b92af624ca83b285b79d28bec8374f5eeba9a4363bf340e9201fe93f9",
+      "bytes": 8513
+    },
+    {
+      "path": "dist/themes.css",
+      "sha256": "133ec660fb80588f4889c02fed4545b468ae3fa181fc4fc7a4b60bb40386ebfe",
+      "bytes": 150963
+    }
+  ]
+}
