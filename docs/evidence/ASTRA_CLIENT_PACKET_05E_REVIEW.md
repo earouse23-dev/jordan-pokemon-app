@@ -1,0 +1,13 @@
+# Astra CLIENT-05E review — implementation design accepted; client approval pending
+
+Accept the proposal as the implementation design for a small USD/EUR indicative display feature. This does not activate FX or complete Step 5. The pending CLIENT-05F packet is prepared so approval is the last prerequisite before Sol implements.
+
+Approved technical design for client decision: fixed ECB daily XML source; EUR base/USD quote; native-first explicit equivalent toggle; no mixed sale pools or transaction conversion; dated immutable in-memory rate references; one-hour success cache; usable age 0–4 UTC calendar days, stale at 5; fail closed while preserving native value; attribution; no new dependency/schema/service purchase. No historical conversion, profile persistence, portfolio graphs, deployment or CLIENT-06.
+
+Implementation clarification: `exactSoldValuation` computes an evaluation timestamp when rendered. Do not use a freshly generated render timestamp alone as the native-result identity: it would invalidate every in-flight FX request on an unrelated rerender. Reuse the accepted sales request/result generation and a stable native-result fingerprint (context, native amount, contributing evidence, rule version and relevant freshness status). Recompute genuine result changes and reevaluate freshness at the date boundary without creating a rerender/fetch loop. Preserve user intent only inside the same detail context; toggle-off and account/copy/context changes invalidate pending display.
+
+Strict XML extraction must validate the complete small supported structure rather than search arbitrary text for a USD-looking fragment. Reject ambiguity and hostile constructs, accept harmless serialization differences with focused tests, and use the smallest existing runtime facilities. Do not build a general XML parser or add a production dependency. All tests use fixtures; source-contract change means unavailable, not guessed parsing.
+
+No application tests were run for this design review. Sol's one public feed inspection is schema evidence, not implemented behavior. Actual application acceptance requires the specified unit/API/browser tests after approval.
+
+Explicit client approval is still required by `docs/MICA_SOFTWARE_ROADMAP.md`, approved pricing decision: “Do not add an FX conversion or mix currencies without separate approval.” This is a repository requirement, not a newly inferred risk. The next prepared prompt is `docs/SOL_CLIENT_PACKET_05F_FX_DISPLAY.md`; it must remain inactive until Elliott explicitly approves this scope (including by sending its approval-bearing prompt to Sol).

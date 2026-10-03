@@ -1,0 +1,50 @@
+{
+  "outcome": "STOPPED: existing Hobby plan function limit",
+  "attempts": 1,
+  "deploymentId": "dpl_JCgstuVpRo6nvKXB9rvaPXP7KNzJ",
+  "candidateState": "ERROR",
+  "errorCode": "exceeded_serverless_functions_per_deployment",
+  "reviewedFunctions": 16,
+  "existingPlanFunctionLimit": 12,
+  "uploadedPaths": 61,
+  "uploadedBytes": 5173020,
+  "approvedHashes": {
+    "configured-deployment.zip": "d9a1ac3e908b4f01106841ff70eadd96ae219d74e64b849bbaec0cfcc5f26b09",
+    "configured-source.zip": "44a1c4793a3820f5ee7337dc2eccd178dc98af92d967e0c8be10ecdaa212d7fb",
+    "configured-manifest.json": "8966004f6297f2bad4089edd3644da271bf6b622d09ad68c61a5927263a8758c",
+    "source-changes.patch": "21c8b59d2740788ef5062b69766d88e4bc3f8cd136396a4e15f6a3857286f7b7"
+  },
+  "promoted": false,
+  "pushed": false,
+  "retried": false,
+  "sqlExecuted": false,
+  "providerInvoked": false,
+  "planChanged": false,
+  "aliasesUnchanged": true,
+  "originalProductionId": "dpl_5rZyi9juErBWXNjzKYtetDb2DYap",
+  "supabaseReadOnly": {
+    "publicTables": 83,
+    "rlsTables": 83,
+    "buckets": 4,
+    "publicBuckets": 0,
+    "trainingExamples": 0,
+    "researchPartitions": 0,
+    "migrationInventory": 58,
+    "clientRefreshExecute": false
+  },
+  "checks": {
+    "committedReleaseHolds": "pass: 8 routes, zero network, public config, deletion auth/cron, git guard",
+    "certificateExclusion": "pass",
+    "priorConfiguredVerification": "Astra accepted; reused unchanged",
+    "sourceUnitSuite": {
+      "passed": 450,
+      "failed": 18,
+      "tests": 470,
+      "reason": "prior provider-route/cache assertions disagree with accepted intentional overlay; assertions preserved"
+    },
+    "dryUploadManifest": "pass",
+    "candidateRuntime": "not run: candidate never READY",
+    "liveReleaseAcceptance": "not claimed",
+    "existingLiveStaticPage": "HTTP 200; release runtime checks not possible"
+  }
+}

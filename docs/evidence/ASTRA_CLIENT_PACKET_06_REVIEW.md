@@ -1,0 +1,14 @@
+# CLIENT-06 — Astra review
+
+2026-09-25. **REVISE.** The A/B/C scenario and persistence evidence are useful but do not establish the full required boundaries. Astra independently passed the two new portfolio-history tests and two existing price-history tests, then reproduced uncovered cases in `sol-client-06-astra-probe.mjs`.
+
+## Findings
+
+1. **Valuation provenance:** `portfolioProfitLoss` accepts `item.price` whenever `pricingStatus === 'live'`. Application `quotePricingFields` sets those fields from a selected reference quote; this is not proof of a ready exact-sold estimate. The new snapshot writer persists those totals. Likewise P/L history takes `historyForItem`, a selected source quote series, without establishing sold-estimate provenance. CLIENT-06 explicitly prohibits substituting a provider market index for exact sold-derived graded value. Existing synthetic tests provide raw live prices and do not prove that separation. Trace and close this boundary across totals, snapshot writes, history and filters; do not simply rename index values.
+2. **Event-only dates disappear:** `portfolioProfitLossHistory` collects dates only from observations. A copy observed September 10 and fully sold September 15 has no September 15 point; its chart's latest realized P/L remains zero. The hand-reconciled scenario masks this because another copy has a price observation on the sale day. Include dated ledger events without inventing missing price observations.
+3. **Historical unknowns can look complete:** a held copy with an unknown acquisition date is omitted from membership and all uncertainty counts. A separate case with `totalCost:null` and an optimistic known-cost flag becomes zero basis because the sum uses `toMinorUnits(...) || 0`. Both need explicit incomplete/unavailable semantics. Absence or invalid numeric data cannot mean free inventory, even when flags disagree.
+4. **EUR history is inaccessible:** `renderPortfolioHistory` hard-codes USD for P/L and value history. Separating current EUR totals does not provide native EUR history/ranges/P&L. Add a concise native-currency selection to the existing history view, preserving separation and no historical FX. Also ensure the Value view distinguishes partial coverage just as the new P/L view does; the current complete/partial claim is broader than the evidence shown.
+
+Astra did not recreate the cleaned-up database or rerun the three browsers; those remain Sol-reported controlled evidence. No live requests, database operations, environment-file reads or application changes occurred during this review. Existing dirty work remains preserved.
+
+Issue `docs/SOL_CLIENT_PACKET_06_REVISION.md` as the sole active packet, under Elliott's existing CLIENT-06 scheduling exception. No CLIENT-07, provider spending or release is authorized.

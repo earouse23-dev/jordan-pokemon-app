@@ -1,0 +1,26 @@
+{
+  "projectId": "prj_ICSEVLitTA6RdwTTy14BThiAvPEQ",
+  "productionId": "dpl_5rZyi9juErBWXNjzKYtetDb2DYap",
+  "productionUrl": "jordan-pokemon-4m8d11k0l-earouse23-devs-projects.vercel.app",
+  "productionReadyState": "READY",
+  "aliases": [
+    "jordan-pokemon-app.vercel.app",
+    "jordan-pokemon-app-earouse23-devs-projects.vercel.app"
+  ],
+  "crons": {
+    "deploymentId": "dpl_5rZyi9juErBWXNjzKYtetDb2DYap",
+    "definitions": [
+      {
+        "host": "jordan-pokemon-4m8d11k0l-earouse23-devs-projects.vercel.app",
+        "path": "/api/capabilities?surface=grading-deletion",
+        "schedule": "15 5 * * *"
+      },
+      {
+        "host": "jordan-pokemon-4m8d11k0l-earouse23-devs-projects.vercel.app",
+        "path": "/api/price-sync",
+        "schedule": "0 5 * * *"
+      }
+    ]
+  },
+  "gitProductionBranch": "main"
+}

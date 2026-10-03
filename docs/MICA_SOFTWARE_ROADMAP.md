@@ -1,5 +1,7 @@
 # Mica Codex Software Handoff
 
+> Current priority update (2026-09-17): read `MICA_CLIENT_PIVOT_2026-09-17.md` alongside this handoff. It translates the latest client meeting into the active numbered implementation sequence and supersedes conflicting feature priorities. Preserve this handoff's safety requirements and historical evidence; do not restart completed steps.
+
 ## Scope
 
 This roadmap covers the Mica software only. It does not assign product vision, customer selection, business model, subscription pricing, marketing, or company strategy. Those decisions belong to the client.

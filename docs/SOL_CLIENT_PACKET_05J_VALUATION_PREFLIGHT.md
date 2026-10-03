@@ -1,0 +1,27 @@
+# CLIENT-05J — Real valuation preflight
+
+Owner: Astra. Implementer: Sol. Sole active packet within client Step 5. Research/evidence only; stop for Astra review.
+
+## Required approach
+
+Use `ponytail:ponytail` in **full mode**. Read its installed `SKILL.md` before task work, reuse existing implementation first and choose the smallest correct change. If unavailable, report that fact. Apply its scope/reuse principles without inventing code work. Do not reduce client-required functionality, official certificate integration, data preservation, security, accessibility, acceptance tests, evidence reporting or approval gates.
+
+Read AGENTS.md, both Mica roadmaps, `docs/evidence/ASTRA_CLIENT_PACKET_05I_ACCEPTANCE.md`, the 05C/05D/05G/05H reports and Astra decisions, and existing provider-rights documentation. Reuse prior source findings. Do not repeat a finished test suite or reopen accepted persistence/FX work.
+
+## Client outcome and remaining problem
+
+The client wants a defensible value for the exact slab. Synthetic tests now cover identity, estimation, currency display and durable reopen. The prior live sample produced too few qualifying sales and did not resolve canonical context. Production storage/display permissions remain unresolved. This packet prepares a concrete next validation attempt; it does not claim those gates passed or authorize that attempt.
+
+## Work
+
+1. Build a short Step 5 gate table: requirement, accepted evidence, remaining proof, dependency. Distinguish estimator correctness, canonical source/provider mapping, positive real numeric result, retained evidence for independent reconstruction, and production display/retention rights. Preserve the existing CLIENT-05D insufficiency and unknown Pikachu facts. Do not fold device/certificate/release gates into Step 5 acceptance.
+2. Identify **one** real candidate whose exact printing can be established without omission-to-exact inference. Start with existing records/evidence; if needed inspect at most three public catalog card-detail records and their first-party source/schema documentation. No image downloads, broad catalog crawl, marketplace scraping or paid API calls. Choose by completeness of printing evidence before looking at price outcomes, not by a favorable price. Record language, set/number, finish, edition, stamp/promo, stable source IDs and grader/grade context. Separate real source facts from proposed test-context assumptions. No physical slab ownership or authentic certificate is implied by a catalog record.
+3. Feed any eligible public record through the unchanged production normalizer/identity path using a temporary offline check. Record whether it actually reaches exact status and which facts justify each discriminator. Unsupported, absent or conflicting facts stay unresolved. Do not edit mappings, add aliases, fabricate subtype/stamp fields or lower eligibility to create a candidate. If none of the bounded candidates qualifies, return a precise blocked result and the smallest missing source fact/decision; do not keep searching indefinitely.
+4. Establish the current published PkmnPrices permissions relevant to this next test: transient internal evaluation, retention of source sale amounts/IDs/URLs, derived estimates, screenshots and production display. Use official terms/docs only; retain links, access dates and brief supporting excerpts. Label silence/ambiguity unresolved. A subscription or endpoint entitlement is not proof of all reuse rights, and prior internal-evaluation authorization is not production permission. If provider clarification is necessary, prepare a short exact question for Elliott to send; **do not send messages or contact the provider**.
+5. Prepare a single proposed live experiment only if identity prerequisites can be described honestly. Specify preflight facts, endpoint order and parameters, max requests/credits from endpoint-specific published docs, no retry/pagination/sample substitution, and stop conditions. Provider ID matching must be a gate before fetching sale rows when not already established. Freeze the unchanged estimator policy and an independent reconstruction method before any future measurement. Define exactly what evidence could be retained under established permissions; if those permissions do not allow a reconstructable ledger, keep that gate blocked rather than claiming an ephemeral comparison closes it. A sparse result is valid evidence of insufficiency, never permission to relax the minimum or try more cards.
+
+## Deliverable and boundaries
+
+Write `docs/evidence/SOL_CLIENT_PACKET_05J_REPORT.md` with the compact gate table, inspected-source/request ledger, one candidate dossier or bounded blocked finding, permission matrix, proposed experiment budget and exact missing decisions. Include a draft provider clarification only if needed. State which prerequisite prevents execution, if any. Do not write another application implementation packet or start CLIENT-06.
+
+Public documentation/catalog reads are allowed only within the scope above. **Paid-provider request budget is zero**, including existing included credits. No environment-file access, account-dashboard access, secrets, database requests, hosted mutation, app/schema/dependency changes, deployment, commit, provider messages or paid services. Preserve the dirty worktree. No full unit/browser suite is required for this research-only packet. Stop for Astra review; any live experiment needs a separately issued concrete authorization.

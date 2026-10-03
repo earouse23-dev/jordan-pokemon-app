@@ -1,0 +1,19 @@
+# Sol release recovery 01 — proposed, awaiting owner approval
+
+Read the installed ponytail:ponytail SKILL.md first and use FULL mode. Current path: /Users/elliottrouse/.codex/plugins/cache/ponytail/ponytail/4.10.0/skills/ponytail/SKILL.md. Report if unavailable. Reuse existing implementation and choose the smallest correct solution without reducing client functionality, official integrations, data preservation, security, accessibility, tests, evidence or approval gates. Read AGENTS.md, current roadmap/pivot, Astra's 07G review and the installed Supabase skill. Preserve the dirty worktree.
+
+07G local preparation is accepted. Do not repeat its implementation/full suites. Private recovery work below is conditional on explicit Elliott approval; absent approval, stop before accessing/exporting private data.
+
+## Exact proposed scope
+
+Read-only recovery export from existing Mica Supabase project kdkzdflrxajfdcithrfj, including database/Auth records and Storage bytes; encrypted local retention outside Git under ~/Mica Recovery/<UTC>/; isolated local restore validation. No hosted writes, write pause, settings changes, SQL activation, deployment, cloud upload, paid service, provider calls, credential rotation or commit. Existing environment-file restrictions remain. Use approved access or secure user credential entry; never ask for secrets in chat.
+
+## Execution after approval
+
+1. Prefer validating an existing backup if Elliott supplies its location. Otherwise create the approved recovery set. Check space and verify encryption before exporting. Use an encrypted owner-unlocked disk image if destination encryption cannot be verified. Dumps, private objects, logs and restored database runtime storage must stay encrypted and owner-access restricted; no plaintext temporary copies elsewhere.
+2. Correct the old proposal's secret-bearing --db-url commands. Verify current official docs and installed tool help, and use supported credential handling without secrets in argv, generated subprocess arguments, tracing, logs or repository files. Identify any necessary user-only unlock/credential action precisely.
+3. Export required schema/data, Auth, migration history, policies/functions and all Storage bytes, with checksums and coverage metadata. Verify coverage rather than assuming success means completeness. Record configuration/key recovery dependencies without exposing values. Check database/Storage consistency and concurrent changes. If a consistent recovery point cannot be established without a hosted write pause, explain the exact pause for separate approval; do not perform it or claim consistency.
+4. Restore only in a uniquely owned local environment. Disable outbound jobs, email, webhooks and provider traffic before loading private data. Verify preservation and representative object bytes with redacted/aggregate evidence. Test access boundaries with disposable synthetic identities; never use customer passwords/sessions or expose customer rows. Preserve shared local stacks.
+5. Retain the encrypted backup for Elliott, stop the isolated restore runtime, and clear temporary credentials. Report source project, timestamps, checksums, coverage, restore outcome, limitations and retained local paths without sensitive object names/rows. Produce one recovery report and the next concrete activation approval request tied to frozen 07F/07G SQL and 07G release hashes. Account for current baseline drift/backfill risks before recommending execution. Stop for Astra review; SQL/deployment require separate approval.
+
+Do not select subscription prices/entitlements, install subscription dependencies, create Apple identities/products, start CLIENT-08 or claim configured-native/device/provider proof. This packet executes the approved recovery action, not another generic readiness cycle.

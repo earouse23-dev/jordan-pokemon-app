@@ -1,0 +1,11 @@
+# CLIENT-06C — Local CLIENT-06 gate accepted
+
+2026-09-25. Accept the scoped local portfolio/history/P&L implementation including durable graded evidence. CLIENT-06 may hand off to CLIENT-07 preparation; hosted migration/activation and beta release are separate gates.
+
+Astra reviewed the consolidated report and validated SQL artifact, independently passed 15 focused graded-valuation/portfolio/price-history tests and checked the retained artifact hash manifest. Sol's enabled real-database race/revocation/duplicate/disable tests and three-browser fresh-login evidence are accepted as reviewed controlled proof; Astra did not recreate the cleaned-up stack. Synthetic provider transport is not positive live-price coverage.
+
+The final RPC returns and revalidates stored data, preserves first observation time on equivalent retries, rejects conflicting same-ID contents and uses real session/copy locks. The report distinguishes both serialization orders and actual Auth-session deletion. The graph uses attributable per-position observations and ledger membership; a new aggregate table is unnecessary. Existing indexes remain reference-only. The reviewed additive migration remains outside the automatic migration directory and has not been activated on any shared/hosted database.
+
+Elliott requests moving into CLIENT-07 to target a beta about one week from now. Proceed with the prepared iPhone integration packet, retaining Step 5 live-price/display and other release gates. The earlier Capacitor decision approved the direction, but explicitly left new dependencies/native project implementation approval separate. That concrete approval is requested with the CLIENT-07 packet; no paid Apple enrollment or upload is inferred.
+
+Environment preflight: active developer directory is `/Library/Developer/CommandLineTools`; `xcrun --find simctl` failed. A full Xcode toolchain is not currently usable from the selected environment. This does not prove no Xcode exists elsewhere. Verify before any installation or global toolchain change. Current Capacitor 8 documentation requires Xcode 26+ and supports iOS 15+: https://capacitorjs.com/docs/ios . Signing team, app identity, backend activation and a physical iPhone remain necessary to establish a real TestFlight-ready build.

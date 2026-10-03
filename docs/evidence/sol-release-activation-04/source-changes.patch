@@ -1,0 +1,271 @@
+--- frozen/api/alert-delivery.js
++++ configured/api/alert-delivery.js
+@@ -1,9 +1,11 @@
++import { withNativeCors } from "../lib/native-cors.js";
++import { releaseHold } from "../lib/release-hold.js";
+ import { createClient } from "@supabase/supabase-js";
+ import { timingSafeEqual } from "node:crypto";
+ import { serverEnvironment } from "../lib/env.js";
+ import { processActionCenterMaintenance } from "./maintenance.js";
+ 
+-export default async function handler(request, response) {
++async function handler(request, response) {
+   response.setHeader("Cache-Control", "private, no-store");
+   if (request.method !== "GET") { response.setHeader("Allow", "GET"); return response.status(405).json({ error: "Method not allowed" }); }
+   let config;
+@@ -19,3 +21,5 @@
+     return response.status(200).json(result);
+   } catch { return response.status(503).json({ error: "Delivery could not finish" }); }
+ }
++
++export default withNativeCors(releaseHold, ["GET"]);
+--- frozen/api/capabilities.js
++++ configured/api/capabilities.js
+@@ -17,7 +17,7 @@
+   }
+   try {
+     const config = serverEnvironment();
+-    const pricingConnected = Boolean(config.pkmnpricesApiKey);
++    const pricingConnected = false;
+     const expandedPricingRequested =
+       pricingConnected && ["pro", "business"].includes(config.pkmnpricesPlan);
+     const requestedCapabilityStatus = expandedPricingRequested
+@@ -46,20 +46,12 @@
+           german: requestedCapabilityStatus,
+         },
+       },
+-      notifications: notificationDeliveryCapabilities(config),
++      notifications: { inApp: "active", email: "release_hold", webPush: "release_hold" },
+       vision: {
+-        status: config.aiGatewayApiKey
+-          ? "connected"
+-          : process.env.VERCEL
+-            ? "vercel_managed"
+-            : "setup_required",
++        status: "release_hold",
+       },
+       advisor: {
+-        status: config.aiGatewayApiKey
+-          ? "connected"
+-          : process.env.VERCEL
+-            ? "vercel_managed"
+-            : "setup_required",
++        status: "release_hold",
+         privacy: "aggregate_signals_only",
+       },
+       push: { status: "development_only" },
+--- frozen/api/cards.js
++++ configured/api/cards.js
+@@ -123,21 +123,9 @@
+   if (!lookups)
+     return send(response, 400, { error: "Provide 1 to 8 valid card lookups." });
+ 
+-  const pkmnPricesKey =
+-    process.env.PKMNPRICES_API_KEY ||
+-    (process.env.PRICING_PROVIDER === "pkmnprices"
+-      ? process.env.PRICING_PROVIDER_API_KEY
+-      : "");
+-  const justTcgApproved =
+-    String(
+-      process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED || "",
+-    ).toLowerCase() === "true";
+-  const justTcgKey = justTcgApproved
+-    ? process.env.JUSTTCG_API_KEY ||
+-      (process.env.PRICING_PROVIDER === "justtcg"
+-        ? process.env.PRICING_PROVIDER_API_KEY
+-        : "")
+-    : "";
++  // Provider credentials cannot enable paid lookup in this release.
++  const pkmnPricesKey = "";
++  const justTcgKey = "";
+   const configuredPlan = String(
+     process.env.PKMNPRICES_PLAN || "free",
+   ).toLowerCase();
+--- frozen/api/graded-valuation.js
++++ configured/api/graded-valuation.js
+@@ -1,3 +1,4 @@
++import { releaseHold } from "../lib/release-hold.js";
+ import { withNativeCors } from "../lib/native-cors.js";
+ import { createHash } from "node:crypto";
+ import { createClient } from "@supabase/supabase-js";
+@@ -242,4 +243,4 @@
+   };
+ }
+ 
+-export default withNativeCors(createGradedValuationHandler(), ["POST"]);
++export default withNativeCors(releaseHold, ["POST"]);
+--- frozen/api/health.js
++++ configured/api/health.js
+@@ -1,6 +1,6 @@
+ import { serverEnvironment } from "../lib/env.js";
+ 
+-async function probe(url, headers = {}) {
++async function probe(url, headers = {}, privateTable = false) {
+   const controller = new AbortController();
+   const timeout = setTimeout(() => controller.abort(), 3000);
+   try {
+@@ -8,6 +8,8 @@
+       headers: { Accept: "application/json", ...headers },
+       signal: controller.signal,
+     });
++    if (privateTable && response.status === 401 &&
++      (await response.json()).code === "42501") return "access_restricted";
+     return response.ok ? "healthy" : "degraded";
+   } catch {
+     return "unreachable";
+@@ -46,12 +48,13 @@
+       ? probe(`${config.supabaseUrl}/rest/v1/collections?select=id&limit=0`, {
+           apikey: config.supabasePublishableKey,
+           Authorization: `Bearer ${config.supabasePublishableKey}`,
+-        })
++        }, true)
+       : Promise.resolve("not_configured"),
+-    probe("https://api.pkmnprices.com/health"),
++    Promise.resolve("release_hold"),
+   ]);
+   const database =
+-    auth === "healthy" && appSchema === "healthy" ? "healthy" : "degraded";
++    auth === "healthy" && ["healthy", "access_restricted"].includes(appSchema)
++      ? "healthy" : "degraded";
+   const status = database === "healthy" ? "healthy" : "degraded";
+   return response.status(status === "healthy" ? 200 : 503).json({
+     status,
+@@ -61,13 +64,11 @@
+       database,
+       auth,
+       appSchema,
++      schemaVerification: "requires_authenticated_acceptance",
+       catalog: "configured",
+       pricingProvider,
+-      paidPricing: config.pkmnpricesApiKey ? "configured" : "public_fallback",
+-      vision:
+-        config.aiGatewayApiKey || config.vercelOidcToken || process.env.VERCEL
+-          ? "configured"
+-          : "not_configured",
++      paidPricing: "release_hold",
++      vision: "release_hold",
+     },
+   });
+ }
+--- frozen/api/maintenance.js
++++ configured/api/maintenance.js
+@@ -1,3 +1,5 @@
++import { withNativeCors } from "../lib/native-cors.js";
++import { releaseHold } from "../lib/release-hold.js";
+ import { randomUUID } from "node:crypto";
+ import { deliverPushToDevices } from "../lib/web-push.js";
+ import { createClient } from "@supabase/supabase-js";
+@@ -99,7 +101,7 @@
+   };
+ }
+ 
+-export default async function handler(request, response) {
++async function handler(request, response) {
+   if (request.method !== "GET") {
+     response.setHeader("Allow", "GET");
+     return send(response, 405, { error: "Method not allowed" });
+@@ -127,3 +129,5 @@
+     return send(response, 500, { error: "Maintenance worker failed" });
+   }
+ }
++
++export default withNativeCors(releaseHold, ["GET"]);
+--- frozen/api/offers.js
++++ configured/api/offers.js
+@@ -1,3 +1,4 @@
++import { releaseHold } from "../lib/release-hold.js";
+ import { withNativeCors } from "../lib/native-cors.js";
+ import { fetchPkmnPricesOffers } from "../lib/providers/pkmnprices.js";
+ import { serverEnvironment } from "../lib/env.js";
+@@ -161,4 +162,4 @@
+   }
+ }
+ 
+-export default withNativeCors(handler, ["GET"]);
++export default withNativeCors(releaseHold, ["GET"]);
+--- frozen/api/price-sync.js
++++ configured/api/price-sync.js
+@@ -1,3 +1,4 @@
++import { releaseHold } from "../lib/release-hold.js";
+ import { withNativeCors } from "../lib/native-cors.js";
+ import { createClient } from "@supabase/supabase-js";
+ import { normalizeRawCondition } from "../lib/domain.js";
+@@ -609,4 +610,4 @@
+   });
+ }
+ 
+-export default withNativeCors(handler, ["GET", "POST"]);
++export default withNativeCors(releaseHold, ["GET", "POST"]);
+--- frozen/api/sales.js
++++ configured/api/sales.js
+@@ -1,3 +1,4 @@
++import { releaseHold } from "../lib/release-hold.js";
+ import { withNativeCors } from "../lib/native-cors.js";
+ import { fetchPkmnPricesSales } from "../lib/providers/pkmnprices.js";
+ import { serverEnvironment } from "../lib/env.js";
+@@ -185,4 +186,4 @@
+   }
+ }
+ 
+-export default withNativeCors(handler, ["GET"]);
++export default withNativeCors(releaseHold, ["GET"]);
+--- frozen/api/sealed.js
++++ configured/api/sealed.js
+@@ -1,3 +1,4 @@
++import { releaseHold } from "../lib/release-hold.js";
+ import { withNativeCors } from "../lib/native-cors.js";
+ import {
+   fetchPkmnPricesSealedProduct,
+@@ -138,4 +139,4 @@
+   }
+ }
+ 
+-export default withNativeCors(handler, ["GET"]);
++export default withNativeCors(releaseHold, ["GET"]);
+--- frozen/api/vision.js
++++ configured/api/vision.js
+@@ -1,3 +1,4 @@
++import { releaseHold } from "../lib/release-hold.js";
+ import { withNativeCors } from "../lib/native-cors.js";
+ import { createHash } from "node:crypto";
+ import { createClient } from "@supabase/supabase-js";
+@@ -792,4 +793,4 @@
+   return visionHandler(request, response);
+ }
+ 
+-export default withNativeCors(handler, ["POST"]);
++export default withNativeCors(releaseHold, ["POST"]);
+--- frozen/lib/release-hold.js
++++ configured/lib/release-hold.js
+@@ -0,0 +1,8 @@
++// Reviewed release hold: no environment flag can enable provider spending.
++export function releaseHold(request, response) {
++  response.setHeader("Cache-Control", "private, no-store");
++  return response.status(503).json({
++    error: "This service is unavailable in this release.",
++    code: "release_hold",
++  });
++}
+--- frozen/sw.js
++++ configured/sw.js
+@@ -1,4 +1,4 @@
+-const SHELL_CACHE = "mica-shell-v131";
++const SHELL_CACHE = "mica-shell-activation-04";
+ const RUNTIME_CACHE = "mica-runtime-v2";
+ const RUNTIME_LIMIT = 80;
+ const CORE_SHELL = [
+--- frozen/vercel.json
++++ configured/vercel.json
+@@ -19,11 +19,7 @@
+     "api/maintenance.js": { "maxDuration": 60 }
+   },
+   "crons": [
+-    { "path": "/api/price-sync", "schedule": "0 5 * * *" },
+-    {
+-      "path": "/api/maintenance",
+-      "schedule": "15 5 * * *"
+-    }
++    { "path": "/api/capabilities?surface=grading-deletion", "schedule": "15 5 * * *" }
+   ],
+   "headers": [
+     {

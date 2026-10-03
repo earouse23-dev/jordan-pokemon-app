@@ -1,0 +1,43 @@
+# SOL CLIENT-05F — indicative USD/EUR display conversion
+
+**Status:** Implemented locally for Astra review on 2026-09-24. Elliott explicitly approved the ECB USD/EUR display-conversion scope by sending “I approve the ECB-based USD/EUR display-conversion scope in `docs/SOL_CLIENT_PACKET_05F_FX_DISPLAY.md`. Execute that packet.” This satisfies the separate FX approval boundary for this packet. It is not deployment or release approval. I used `ponytail:ponytail` in full mode after reading its installed SKILL.md, and read `AGENTS.md`, both roadmaps, the 05E proposal and Astra's 05E review. No commit, deployment, hosted mutation, paid-provider request, fresh live ECB probe, transaction conversion or CLIENT-06 work occurred.
+
+## Implemented slice
+
+| Requirement | Local result |
+| --- | --- |
+| Fixed ECB source and provenance | New `api/fx.js` fetches only [ECB daily XML](https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml), with no caller-provided upstream URL/date/currency. `lib/fx.js` validates the complete supported envelope, date and rate structure, rejects hostile/ambiguous XML, and returns EUR base, USD quote, USD-per-EUR rate, effective calendar date, actual UTC fetch time, SHA-256 source-content hash and stable rate reference. The prior [05E source inspection](SOL_CLIENT_PACKET_05E_REPORT.md) established the observed schema; this packet used only synthetic XML in tests. |
+| Bounded transport/cache | Five-second abort, redirects disabled, HTTP 200 and XML type required, 16 KiB streamed cap, strict UTF-8, no-store errors. Successful public cache is at most one hour and also ends before a 0–4-day rate crosses its UTC stale boundary. In-process reuse preserves the original `fetchedAt`; the route does not convert an old response into a new observation. Last validated record remains in memory after failure, never as a fresh failed-refresh display. No key, new production dependency, cron or schema. |
+| Correct conversion and separation | `USD→EUR = amount/rate`; `EUR→USD = amount×rate`; same currency is identity without rate fetch. Amounts stay unrounded until existing `money` display formatting. Only a positive, eligible `exactSoldValuation` result can expose the toggle. Native sales remain their own USD/EUR pools, with original evidence IDs, native currency, range, confidence and sale freshness unchanged. No transaction, profile, portfolio or provider-market-index write/conversion was added. |
+| Existing detail card | `app.js` adds a native-default “Show [other currency] equivalent” control inside the graded sold-derived estimate. A secondary line gives the indicative amount and ECB date; optional details disclose the native evidence market, 1 EUR-to-USD rate and linked [ECB source page](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html). The source link opens in a new full window. Loading, stale/error/unavailable and retry leave the native result visible. The existing `#detailValuationCurrency` still selects the **native evidence currency**; FX toggles/retries do not request more sales. |
+| Race/freshness handling | FX state is scoped to owner/session version, selected item/copy, exact context, request generation and a stable native-result fingerprint rather than each render's new evaluation timestamp. A conversion snapshot pairs native amount/currency/evaluation with the rate reference and unrounded equivalent. Native result refresh replaces this pair atomically; unrelated rerenders do not invalidate an in-flight request. Toggle-off, context/copy/account/route change rejects delayed FX display. One timer reevaluates age at the next UTC midnight while the detail stays open; it does not fetch in a loop. |
+
+**Synthetic arithmetic proof:** At `1 EUR = 1.25 USD`, an eligible native `$120.00` estimate displays `About €96.00` while retaining USD sale links and confidence. The reverse native `€100.00` estimate displays `About $125.00`. At a synthetic 1.20 rate, `$100.01 ÷ 1.20 = €83.341666…`, formatted `€83.34`; the original `$100.01` is never reconstructed from the rounded equivalent. These are deterministic fixtures, **not current ECB rates or real sale estimates**. The ECB rate is a dated informational reference, not an executable transaction quote; attribution and modification disclosure follow the [ECB usage terms](https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html). Paid-document notice implications remain as documented in 05E.
+
+## Files changed in this packet
+
+- Added `lib/fx.js` (strict source parser, calendar-age/record checks, pure conversion), `api/fx.js` (fixed-source bounded read-only route), `tests/fx.test.js` and `tests/fx-api.test.js`.
+- Updated `app.js` and `styles.css` for the existing detail-card control, immutable in-memory conversion pairing, guarded fetch and UTC-midnight expiry.
+- Updated `tests/browser/physical-copies.spec.js` for desktop Chromium, mobile Chromium and mobile WebKit workflows; added `docs/evidence/sol-client-05f/` screenshots.
+- Registered the new source files in `scripts/lint.mjs` and the `package.json` typecheck command, imported the new unit tests in `tests/run.js`, and added the 10-second function entry to `vercel.json`. No dependency or lockfile change was made by this packet.
+
+The worktree was already substantially dirty. I did not reset, stash or commit it. Running the existing physical-copy browser suite also regenerated its pre-existing synthetic screenshot outputs under `docs/evidence/sol-client-05/`; those paths are test artifacts from the older suite, and I did not use them as new FX evidence. The new FX screenshots are isolated under `sol-client-05f/`.
+
+## Verification
+
+| Command / check | Result |
+| --- | --- |
+| `node --test tests/fx.test.js tests/fx-api.test.js tests/exact-sold-valuation.test.js tests/pricing.test.js tests/client-05-revision.test.js` | **68 passed, 0 failed**. Synthetic conversion/structure, malformed/future/duplicate rate, UTC age, identity, rounding, route cache/error/size/redirect and native valuation tests. |
+| `npx playwright test tests/browser/physical-copies.spec.js --grep CLIENT-05F --workers=1` | **12 passed, 0 failed**, four cases on each of desktop Chromium, mobile Chromium and mobile WebKit. Covers both directions, native pool exclusion, no write, failure/retry, refreshed estimate pairing, pending unrelated rerender, midnight expiry without request loop, toggle/copy/account/route guards. |
+| `npx playwright test tests/browser/physical-copies.spec.js tests/browser/price-evidence.spec.js --workers=1` | **57 passed, 0 failed, 0 skipped** across the same three browser targets, including existing physical-copy and price-evidence regression workflows. |
+| `npm test` | **439 passed, 0 failed, 1 skipped** (existing isolated local-Supabase guard). |
+| `npm run lint`; `npm run typecheck`; `npm run build`; `node scripts/verify-certificate-exclusion.mjs` | All passed; shipping certificate exclusion passed across **25 build files**. |
+| Scoped `npx prettier --check` and `git diff --check` | Passed. Existing worktree changes remain; review the packet files separately from the pre-existing broad dirty diff. |
+
+The source/parser and route checks use local stubs only. In the new browser tests, actual ECB and paid-provider domains are blocked, `/api/fx` and `/api/sales` are intercepted, and write requests are counted. The actual fixed-source route was not contacted against ECB in this packet; current ECB availability and live source-contract continuity are therefore unproved here.
+
+**Screenshots (synthetic rate and sale evidence):** [desktop Chromium](sol-client-05f/desktop-chromium-usd-equivalent.png), [mobile Chromium](sol-client-05f/mobile-chromium-usd-equivalent.png), [mobile WebKit](sol-client-05f/mobile-webkit-usd-equivalent.png). I visually inspected desktop and mobile WebKit captures; they show the native USD estimate first, dated EUR equivalent as secondary, original-market disclosure and retained sale links. No live price or physical-device claim is attached to these images.
+
+## Outstanding gates and stop
+
+CLIENT-05D's capped real sample had two contributors and no positive numeric validation; this synthetic FX work does not fix that insufficiency or resolve production canonical mapping, row-level reconstruction, provider retention/display rights or source-wide coverage. Real iPhone, consented real-image/live-recognition, official certificate integration and release gates remain open. FX here is only current indicative detail-card display, not historical cash-flow/transaction conversion or portfolio/P&L conversion. No deployment or CLIENT-06 is authorized. **Stop for Astra review.**

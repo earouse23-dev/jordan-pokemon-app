@@ -1,0 +1,33 @@
+# CLIENT-06C — Validate the atomic graded valuation write
+
+2026-09-25. Sole active Astra packet. Local implementation/validation under Elliott's existing CLIENT-06 scheduling exception. The reviewed RPC is approved **only for a new disposable local database**, not deployment or application to any existing database.
+
+Use `ponytail:ponytail` in **full mode**. Read its installed `SKILL.md` before work; reuse existing implementation first and choose the smallest correct change. Report if unavailable. Do not reduce client-required functionality, official certificate integration, data preservation, security, accessibility, acceptance tests, evidence reporting or approval gates.
+
+Read AGENTS.md, both roadmaps, CLIENT-06B report, `docs/evidence/ASTRA_CLIENT_PACKET_06B_REVIEW.md` and `docs/evidence/sol-client-06b/PERSIST_VERIFIED_GRADED_VALUATION_PROPOSAL.sql`. Read installed Supabase skill and current relevant official docs before database work. Reuse existing guarded disposable tooling and all 06B fixtures/tests.
+
+## Authorized change
+
+Create a separately owned disposable local stack on unused ports, verify its identity before any request, and apply the existing migrations there. Then apply/compile the reviewed function/grants in that disposable database. Do not use, stop, reset or modify mica-dev. No hosted database/config/environment files. Use generated disposable credentials privately.
+
+Narrow SQL/route/contract fixes necessary to make the reviewed atomic design correct are authorized. No new tables, generic persistence framework, relaxed grants or valuation-policy changes. Preserve the original proposal as review history or record its before hash and exact changes. After validation, author one additive migration artifact with the installed CLI's supported migration creation workflow, for Astra review only. Do not repair the historical migration baseline or apply this artifact to an existing/shared/hosted database.
+
+## Required real proof
+
+1. Call the actual authenticated route with a real disposable user/session and position. Fake only provider transport, using qualifying synthetic responses through the existing adapter/estimator. The route must execute the real preflight RPC, reserve only local synthetic budget and execute the final RPC. No independent fixture insertion of the final observation can substitute for this chain. Record zero external provider traffic.
+2. Verify unauthenticated/second-owner requests, missing/revoked EXECUTE and invalid/expired/revoked session conditions reject at the intended boundary, with no observation write. Preflight failures must reserve no credits and make no provider request. Test browser anon/authenticated direct RPC and INSERT/UPDATE denial against actual grants/RLS, not mocked errors. Service role remains server-only.
+3. Use real independent database transactions and controlled barriers to race a grade/identity/currency/ownership/status change against final persistence. Demonstrate each serialization order: a completed conflicting change prevents a stale write; a write that locks/commits first belongs to its original context and later changes make it ineligible as a current estimate. Test session revocation similarly; a completed revocation before final validation must prevent persistence. Do not use sleeps alone as evidence of an ordering guarantee. Verify no deadlock or leaked held transaction after cleanup.
+4. Prove deterministic duplicate semantics: retry the same observation, race two identical requests and replay reordered equivalent evidence. Retain one correct observation when semantics say duplicate; do not invent a new observed time. If a new evaluation legitimately differs, retain its independent date/rule/evidence rather than silently overwriting old history. Check that an existing same-ID record with conflicting owner/position/context/data cannot produce a false success through `ON CONFLICT DO NOTHING`. The API response must agree with the actual persisted record/time.
+5. Verify malformed provenance/type/context, wrong currency/grade, mismatched evidence IDs and invalid times fail closed where the contract assigns validation. Do not duplicate the full estimator in SQL; the server remains the trusted producer, while the RPC enforces the atomic owner/context/storage invariants. Document which layer rejects each case.
+6. Through the real route, persist graded A/B/C USD and separate EUR estimates; perform B's normal sale; sign out and use a new authenticated session/browser. Reopen production hydration/detail/history/P&L in desktop Chromium, mobile Chromium and mobile WebKit. Reconcile the frozen 06B numbers and original raw scenario. No trusted valuation fixture insertion and no paid fetch on login/reopen. Advance time to prove stale-current versus valid historical evidence, and preserve unknown/index-only rows as unavailable.
+7. Exercise local disable/rollback: revoke service execution, prove preflight stops before reservation/transport, then restore only within this disposable test if required. Verify records survive disabling/removing the new function. Clean up all run-owned users, sessions, containers, volumes, listeners and temporary files; leave existing services untouched.
+
+## Scope closure and evidence
+
+Revisit the remaining aggregate-history boundary explicitly. If per-position validated observations already drive the client graph correctly, explain that lineage and keep old generic aggregates separate; do not add redundant aggregate storage merely to fill a checkbox. If a required screen still depends on unsupported graded aggregates, report it as unfinished with a concrete minimal next change. Do not claim full CLIENT-06 acceptance solely from an RPC pass.
+
+Write `docs/evidence/SOL_CLIENT_PACKET_06C_REPORT.md` with applied SQL/migration hashes, actual grants/effective schema, before/after fixes, deterministic race results, route→DB→fresh-login evidence, hand calculations, browser screenshots using synthetic data, cleanup and remaining gates. Report SQL errors and their resolutions, not just the final test count.
+
+Run focused contract/database/concurrency tests, retained Astra probes, affected unit/browser regressions, lint/typecheck and neutral no-env-file build/shipping exclusion for changed application scope. One final consolidated pass is sufficient absent new failures. No unrelated repeated full suites.
+
+Zero real provider/FX calls or credits; local reservation rows are synthetic only. No paid service, dependency/platform change, production environment access, hosted migration, deployment, commit or CLIENT-07. Preserve the dirty worktree and existing records. Stop for Astra review with the concrete validated migration available; do not activate it elsewhere.

@@ -1,0 +1,11 @@
+# Astra recovery review — 2026-09-30
+
+Accepted: bounded database/Auth export, retained Storage bytes and isolated PostgreSQL restore evidence. Astra independently verified the database archive, globals export and redacted restore-summary SHA-256 values against Sol's report, plus both frozen activation SQL hashes. Restore counts, synthetic isolation and runtime cleanup are Sol-reported evidence, not independently rerun by Astra.
+
+This acceptance is not a complete configured Supabase-service recovery certification. Storage was captured earlier than the database; later metadata/byte comparisons and restored object references matched, but no atomic cross-service snapshot was established. Auth/Storage service configuration and encryption-root dependencies remain documented limitations. Do not repeat export merely to achieve cosmetic completeness. The owner must explicitly accept these limits for activation or approve recapture under a bounded write pause.
+
+Next proposed action: exact 07F then 07G hosted SQL activation on kdkzdflrxajfdcithrfj, conditional on Elliott's explicit approval. Before any hosted mutation, Sol must check current baseline drift, rehearse the frozen SQL against a disposable copy of the actual retained database, assess affected existing records and current deployed-app compatibility, and report only redacted results. Preserve the original archive and restored baseline. Keep the local environment isolated with outbound jobs disabled. No full unrelated suites required.
+
+If preflight reveals material drift, data loss, duplicate/collision risk, incompatible deployed behavior, new recovery dependency or required SQL changes, stop for review rather than expanding authority. Both existing SQL hashes must stay exact. Each script is its own transaction: failure of the second does not roll back the first. Never retry a successful single-run backfill or promise automatic reversal. Check lock/timeout behavior and stop on transaction failure. No deployment, provider calls, subscription changes or CLIENT-08 authority is included.
+
+Recovery approval did not authorize hosted activation. Ask Elliott to approve the two exact scripts with the documented recovery limits; if approved, complete preflight and execution in one bounded Sol handoff and stop for Astra review afterward.

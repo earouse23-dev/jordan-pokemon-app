@@ -1,0 +1,36 @@
+# CLIENT-05M — Documented language membership and retained sale proof
+
+2026-09-25. Sole active Astra packet. Complete this bounded attempt, independent reconstruction, screen replay and gate assessment together; stop for Astra review.
+
+Use `ponytail:ponytail` in **full mode**. Read its installed `SKILL.md` before task work; reuse existing implementation first and choose the smallest correct change. Report if unavailable. Do not reduce client-required functionality, official certificate integration, data preservation, security, accessibility, acceptance tests, evidence reporting or approval gates.
+
+Read AGENTS.md, both roadmaps, the 05L packet/report, `docs/evidence/ASTRA_CLIENT_PACKET_05L_REVIEW.md`, revised 05K evidence and provider retention confirmation. Apply the 05L private storage, minimal evidence, secret handling and independent reconstruction boundaries. Do not reopen accepted printing, FX or persistence work.
+
+## Exact authority and evidence rule
+
+The original 05L attempt is closed; do not unlock, overwrite or rerun it. This is a **new single attempt**, capped at **two provider requests and eleven existing-plan credits**: one language-filtered list request (maximum one row) and conditionally one sold request (maximum ten rows). No new subscription, top-up/overage purchase, retry, pagination, replacement card or follow-up request. Errors/timeouts count as spent request slots. Keep a separate durable one-shot ledger before transport so process restarts cannot renew this authorization.
+
+Astra approves membership in the documented English-filtered list as provider-language evidence **only for returned ID 20618**, corroborated by exact returned name/set/collector number/total and the retained 05L direct identity. A missing per-row language field is acceptable because the documented filter supplies that scope; a present contradictory field is not. Do not infer language from text/currency. Do not change production matching or install a global alias.
+
+## Prepare offline, then perform the one attempt
+
+1. Reuse the retained 05L ledger read-only. Verify its hash and frozen production hashes and the matching direct ID/name/Jungle/01-of-64/first-edition holo association. Retain the original observation time; do not relabel it as fresh. If material production or source facts changed, stop and report rather than silently updating the frozen contract. Do not run `client-05l-proof.mjs --live`.
+2. Use the already reviewed official card endpoint documentation; public documentation checks are allowed if needed, but no public catalog refetch or images. Prepare the smallest candidate-scoped runner and tests reusing 05K/05L code patterns. Avoid importing a test file that executes tests or any live entry point. Keep historical runners/ledgers unchanged. Demonstrate fake-transport guards before obtaining credentials.
+3. Freeze the first GET request to `https://api.pkmnprices.com/v1/cards` with exactly these parameters: `name=Clefable (1)`, `number=01`, `total_set_number=64`, `language=English`, `per_page=1`, `page=1`. URL-encode normally; no invented `id` list filter or `limit` parameter. Reserve one credit. No extra direct-card request. Require a successful documented list envelope containing exactly one row: ID 20618, reviewed `Clefable (1)` name, Jungle set, number 01 and total 64 (allow only the existing numeric padding equivalence), with no explicit language contradiction. A different ID, empty/oversized result, malformed envelope or missing/conflicting identity fields stops the attempt. More results being available is not permission to paginate and does not replace the exact returned-ID checks.
+4. Only after that membership gate passes, allow `GET https://api.pkmnprices.com/v1/cards/20618/listings/ebay?limit=10&sort=date_desc&graded=true&variant=1st+Edition+Holofoil&grader=PSA&grade=10`, reserving ten credits. Freeze English/first-edition holo/PSA10/no qualifier/USD context and evaluation time. Run the actual sales API/adapter/estimator behind the guard, supplying the retained direct identity observation in-process if its direct lookup runs; label this as replayed direct evidence rather than a new request. Never make up a missing provider language field on the response: keep membership evidence separate in the harness. Block all automatic searches, retries, redirects and extra calls before transport.
+
+Use the process key first; if absent, only `PKMNPRICES_API_KEY` may be read programmatically from `.env.local`, with no output of secrets or other values. No `.env.production.local` or hosted configuration access. Missing credentials means blocked, not permission to seek other accounts. No live key is needed for preparation/tests.
+
+## Preserve and independently verify the observation
+
+Store minimal language membership and sale evidence in a separate private local owner-only directory outside repo/web assets. Follow 05L's private ledger specification, now including list request filters, returned candidate facts, old direct-ledger hash and separate observation dates. Retain every returned sale needed to reproduce exclusions/calculation, not just accepted rows; omit unrelated personal data, images and secrets. Record reported charges independently of reservations. Preserve failures/empty results too.
+
+Implement and run a zero-network independent replay from the retained ledger. Unlike 05L's stop-only replay, it must support the actual outcome: identity blocked, insufficient, numeric result or disagreement. Compare row-by-row inclusion/exclusion, underlying-transaction deduplication, date/freshness, outliers, currency separation, count, median/range and evidence IDs with production. No imports of production filtering/median helpers in the independent calculator. The existing minimum of three contributors and all policy thresholds remain unchanged. Do not choose another grade or repeat if sparse; report the observed limitation.
+
+Replay the observed result through the existing detail screen on desktop Chromium and mobile WebKit with all external traffic blocked and no database writes. Reuse retained ECB evidence only if an offline FX check is applicable. No additional ECB/provider call. Keep real data/screenshots private; repository report contains sanitized outcomes and paths/hashes, not raw numeric rows. No evidence becomes a shipping fixture.
+
+## Consolidated output and stop
+
+Write `docs/evidence/SOL_CLIENT_PACKET_05M_REPORT.md`: result, request/reservation/charge totals, private evidence paths/hashes, source/membership/direct observation provenance, repeatable independent offline command, browser checks and Step 5 exit table. Distinguish a candidate-scoped harness crosswalk from production mapping. Private retention is resolved; broader production display scope remains a release question. If any gate fails, finish all safe offline diagnosis and name the exact remaining prerequisite without creating another speculative framework.
+
+Run focused guard/runner/affected tests and format/diff checks. No unrelated full suite for unchanged application code. No production code/rule changes, database mutation, provider messages, dependencies, deployment, commit or CLIENT-06. No additional live work after the cap or any stop condition. Return the consolidated evidence for Astra review.

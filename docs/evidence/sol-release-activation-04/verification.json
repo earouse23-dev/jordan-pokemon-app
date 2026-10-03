@@ -1,0 +1,46 @@
+{
+  "frozenFilesVerified": 112,
+  "sourceFiles": 85,
+  "changedSourceFiles": [
+    "api/alert-delivery.js",
+    "api/capabilities.js",
+    "api/cards.js",
+    "api/graded-valuation.js",
+    "api/health.js",
+    "api/maintenance.js",
+    "api/offers.js",
+    "api/price-sync.js",
+    "api/sales.js",
+    "api/sealed.js",
+    "api/vision.js",
+    "lib/release-hold.js",
+    "sw.js",
+    "vercel.json"
+  ],
+  "staticFiles": 28,
+  "functions": 16,
+  "uploadFiles": 61,
+  "uploadBytes": 5173020,
+  "localControlFiles": 2,
+  "dryRunFilesMatch": true,
+  "outputTreeSha256": "72d8311677adbcdc799f56bb5cb788a7b833ad48cbe6dd51ac3f68b1f65baee7",
+  "staticTreeSha256": "a918453f96a3c91b67ad8587377cc4252faf95b347821209cdcf76d9ca35f3df",
+  "providerHoldTests": 8,
+  "hostileOriginTests": 8,
+  "healthRestrictedInvalidKeyAndOutageTests": true,
+  "publicCardsOnlyWithPaidCredentials": true,
+  "allFunctionImportsAndSourceSyntax": true,
+  "certificateExclusion": true,
+  "privilegedKeyScan": true,
+  "builtHealthReadOnlyHosted": {
+    "httpStatus": 200,
+    "auth": "healthy",
+    "appSchema": "access_restricted",
+    "schemaVerification": "requires_authenticated_acceptance"
+  },
+  "serverEnvMetadata": {
+    "SUPABASE_SECRET_KEY": "present for production",
+    "CRON_SECRET": "present for production"
+  },
+  "noHostedWrites": true
+}
