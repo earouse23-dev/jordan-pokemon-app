@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-10-07T04:49:49.093Z",
+  "verifiedPublishedSourceAndEvidenceCommit": "03408c7c77c7d2b4163d9eeec0d7662ab625fc79",
+  "sourceCorrectionCommit": "2b601652f2fbec5e0eb22d50e36115b03a4a938a",
+  "remoteMatches": true,
+  "branch": "codex/mica-baseline-reconciliation",
+  "githubCommitUrl": "https://github.com/earouse23-dev/jordan-pokemon-app/commit/03408c7c77c7d2b4163d9eeec0d7662ab625fc79",
+  "production": "dpl_6pxc7X4P5zs4fjR1Xsr4KdHieTqD",
+  "canonicalAlias": "jordan-pokemon-app.vercel.app",
+  "uniqueUrl": "jordan-pokemon-czhuanw3b-earouse23-devs-projects.vercel.app",
+  "ready": true,
+  "liveAssetHashesMatched": true,
+  "cronDeployment": "dpl_6pxc7X4P5zs4fjR1Xsr4KdHieTqD",
+  "cron": {
+    "path": "/api/capabilities?surface=grading-deletion",
+    "schedule": "15 5 * * *"
+  },
+  "gitBuildGuard": "exit 0",
+  "gitDeploymentSuppression": true,
+  "noNewerGitTriggeredDeployment": true,
+  "paidProvidersHeld": true,
+  "deletionOnlyScheduleActuallyLive": true,
+  "unrelatedWorkPreserved": true,
+  "weeklyUsageUsedPercent": 13
+}
