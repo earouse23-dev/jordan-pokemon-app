@@ -2105,6 +2105,8 @@ test("portfolio reads one graded context and detail charts actual matching sales
   await expect(page.locator("#detailContent")).toContainText("Matching completed-sale prices");
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(3);
+  await page.evaluate(async url=>{const {state,renderDetail}=await import(url);state.items=state.items.map(item=>({...item,exactSaleEvidence:null}));renderDetail();},appUrl);
+  await expect(page.locator(".detail-performance")).not.toContainText("Purchase cost or matching value missing");
   expect(valuationWrites).toBe(0);
   // One collection read plus one independent detail read; copies never fan out.
   expect(reads).toBe(2);

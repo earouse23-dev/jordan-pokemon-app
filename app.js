@@ -3113,7 +3113,10 @@ function exactSaleContext(item, context) {
 }
 
 function soldValuationForItem(item) {
-  const evidence = item.exactSaleEvidence;
+  const detail = state.detailSales;
+  const evidence = detail?.salesStatus === "live" && detail.selectionKey === detailIdentityKey(item) && detail.contextKey === detailContextKey(valuationContextForItem(item))
+    ? detail
+    : item.exactSaleEvidence;
   if (evidence?.salesStatus !== "live") {
     const saved = (item.gradedValuations || [])
       .filter(
