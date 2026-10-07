@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-10-07T04:46:22.932Z",
+  "stage": "/tmp/mica-client-reset-corrected",
+  "functions": 9,
+  "deployEntries": 49,
+  "sourceEntries": 90,
+  "deploymentZipSha256": "7d01272281f2984579b5196a6248e4ec52645c047c7880baf90bdafa826172d9",
+  "sourceZipSha256": "14c252c6ce0555f7499ea0ff653f169063c42ea3c37bcce05627ff13636f74e2",
+  "manifestSha256": "c54ac63ff39496bc2e69c0477701e3fee18719ed06471ad674f8c742372c14ef",
+  "twoCleanBuildsIdentical": true,
+  "unit": {
+    "passed": 536,
+    "failed": 0,
+    "skipped": 3
+  },
+  "fullAffectedBrowserBeforeFinalCentAndFailureIsolation": {
+    "passed": 156,
+    "failed": 0,
+    "skipped": 3
+  },
+  "finalRaceExactGradeRealCentAndFailedLookupBrowser": {
+    "passed": 12,
+    "failed": 0,
+    "engines": 3
+  },
+  "routing": {
+    "artifactEntries": 49,
+    "functionCount": 9,
+    "limit": 12,
+    "exactHeldRoutes": 4,
+    "ordinaryMethods": 20,
+    "preflightMethods": 12,
+    "hostileOrigins": 4,
+    "activeProRoutes": 4,
+    "proAuthenticationChecks": 4,
+    "proPreflightChecks": 12,
+    "unknownPaths": 4,
+    "realOutboundCalls": 0,
+    "independentDeletion": true
+  },
+  "credentialScan": {
+    "entries": 139,
+    "findings": 0
+  },
+  "certificateFixtureExclusion": true,
+  "originalArtifactsPreserved": true,
+  "sqlExecuted": false
+}

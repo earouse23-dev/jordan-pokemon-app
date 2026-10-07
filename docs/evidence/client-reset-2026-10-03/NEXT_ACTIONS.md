@@ -1,3 +1,23 @@
+# Current next actions — checkpoint67
+
+Exact Pro raw/current/history, PSA title matching, cent-safe graded P/L, metadata preservation and per-card failure isolation are fixed. Real authenticated raw USD6.41/EUR6.00/101 history rows and PSA10 USD220.23/10 sales are verified; final real browser and publication evidence accompany PUBLICATION_CHECKPOINT_67.md. Known missing customer printing remains explicit. No customer rewrite, SQL replay or paid AI activation.
+
+1. Owner confirms missing legacy finish/edition/promo/qualifier using the visible audited confirmation action. Expand representative language/grader/product accuracy acceptance from actual data.
+2. Resolve the separate AI recognition/pregrading/advisor allowance and authoritative certificate/population access; keep provider holds.
+3. Elliott tests physical iPhone Safari capture/library and recovery→new-password/sign-in. Reuse prior demo save/photo/sale proof; preserve existing records.
+
+Historical next actions follow unchanged:
+
+# Current next actions — checkpoint64
+
+Exact Pro raw/current/history and recent PSA sale matching corrections are published in the final64 artifact. Real staged Mew raw USD6.41/EUR6.00 with101 history rows and PSA10 USD220.23 with10 matching sales pass. Final browser/P/L and remote/alias evidence accompany PUBLICATION_CHECKPOINT_64.md. No customer rewrite, SQL replay or paid AI activation.
+
+1. Owner confirms missing legacy finish/edition/promo/qualifier using the visible audited confirmation action. Never guess customer printing. Expand representative language/grader/product accuracy acceptance from actual available evidence.
+2. Resolve the separate AI recognition/pregrading/advisor allowance and authoritative certificate/population access; retain provider holds.
+3. Elliott tests physical iPhone Safari capture/library and recovery→new-password/sign-in. Reuse prior demo save/photo/sale proof; preserve existing customer/demo records.
+
+Historical next actions follow unchanged for provenance:
+
 # Current next actions — checkpoint62
 
 Dashboard value/solid trace/disappearing lead dot/green-red P/L/visible collection and shared Pro matching correction are live as dpl_84wFDPRAUryX27AsptDBLYC5Fv5k. Actual staged raw quotes and dated PSA9 estimate pass; full unit531, dashboard/history60, physical-copy44 checks pass with documented skips. Holds and deletion-only scheduling are actually live. No SQL/customer write or paid AI activation.

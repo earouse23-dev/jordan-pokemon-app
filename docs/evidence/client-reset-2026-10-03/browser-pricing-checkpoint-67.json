@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-07T04:47:36.799Z",
+  "realBrowserAuth": true,
+  "rawCurrentPriceAnd101HistoryRows": true,
+  "psa10EstimateAndActualSaleChart": true,
+  "rawAndGradedPurchasePerformance": true,
+  "dashboardKnownValueAndVisibleCollection": true,
+  "conversionRetry": false,
+  "uncaughtErrors": [],
+  "customerWrites": 0,
+  "syntheticDemoPositionsAdded": 2,
+  "sqlExecuted": false
+}
