@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-10-07T22:17:31.983Z",
+  "unit": {
+    "passed": 538,
+    "failed": 0,
+    "skipped": 3
+  },
+  "browser": {
+    "desktopMobileAndWebkitAffected": 187,
+    "skipped": 2,
+    "additionalDesktop": 54,
+    "additionalSkipped": 1,
+    "unchangedNavigationFailureRerunDesktopWebkit": 2,
+    "tooltipMobileAndVisual": 2,
+    "deadlineDesktopWebkit": 4
+  },
+  "diagnostics": {
+    "extraRunNavigationContextDestroyed": 1,
+    "standaloneUnchangedRerunPassed": true,
+    "concurrentReadChecksHit429": true,
+    "coldFxResponseRetryAvailable": true,
+    "browserHarnessWaitedForInitialOnePointInsteadOfCompletedHistory": true,
+    "finalHistoryAssertionUnchanged": true
+  },
+  "realBrowserProof": "browser-pricing-checkpoint-69.json",
+  "reusedProviderProof": "staged-provider-checkpoint-68.json",
+  "correctedCatalogProof": "staged-provider-checkpoint-70.json",
+  "outboundAiCalls": 0,
+  "newDependencies": 0,
+  "sqlReplayed": false
+}

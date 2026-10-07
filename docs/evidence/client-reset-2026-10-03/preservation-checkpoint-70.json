@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-10-07T22:11:08.337Z",
+  "beforeAndAfterEqual": true,
+  "surfaces": [
+    {
+      "surface": "items",
+      "rows": 19,
+      "digest": "679326839d0fb677e9c443d6cee9e96d"
+    },
+    {
+      "surface": "transactions",
+      "rows": 23,
+      "digest": "e276a965209840ce108469f9d68a2171"
+    },
+    {
+      "surface": "attachments",
+      "rows": 2,
+      "digest": "ec78e383b802ce4c978025306dbb8fbe"
+    }
+  ],
+  "customerInventoryWrites": 0,
+  "sqlExecuted": false
+}

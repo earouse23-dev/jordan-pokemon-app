@@ -1,0 +1,12 @@
+{
+  "state": "prepared",
+  "checkedAt": "2026-10-07T22:15:59.148Z",
+  "rollback": "dpl_EmAckxwPU3QKsAG68Hz28Ehge5eM",
+  "project": "prj_ICSEVLitTA6RdwTTy14BThiAvPEQ",
+  "entries": 139,
+  "secretFindings": 0,
+  "reproducedBuilds": 2,
+  "functionCount": 9,
+  "gitGuard": "exit 0",
+  "deletionOnlyCron": true
+}

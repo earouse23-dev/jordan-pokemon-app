@@ -1,5 +1,7 @@
 # Mica — Astra context handoff
 
+Current client reset handoff: [October 7 verified publication](MICA_CURRENT_HANDOFF_2026-10-07.md). It supersedes the historical next-action and review-gate statements below.
+
 Updated 2026-09-29. Read this before taking action. Repository: `/Users/elliottrouse/App repos/jordan-pokemon-app`.
 
 ## Latest continuation — supersedes older next-action statements below

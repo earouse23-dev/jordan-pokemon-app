@@ -1,0 +1,143 @@
+{
+  "checkedAt": "2026-10-07T22:04:34.421Z",
+  "cards": [
+    {
+      "name": "Charizard ex",
+      "number": "199/165",
+      "hasQuote": true,
+      "amount": 336.78,
+      "historyRows": 0,
+      "capabilities": {
+        "current": "live",
+        "raw": "live",
+        "graded": "missing",
+        "history": "not_requested",
+        "eur": "live",
+        "completedSales": "not_requested",
+        "askingPrices": "not_requested",
+        "sealed": "not_requested"
+      }
+    },
+    {
+      "name": "Detective Pikachu",
+      "number": "10/18",
+      "hasQuote": true,
+      "amount": 15.73,
+      "historyRows": 0,
+      "capabilities": {
+        "current": "live",
+        "raw": "live",
+        "graded": "missing",
+        "history": "not_requested",
+        "eur": "live",
+        "completedSales": "not_requested",
+        "askingPrices": "not_requested",
+        "sealed": "not_requested"
+      }
+    },
+    {
+      "name": "Giratina V",
+      "number": "186/196",
+      "hasQuote": true,
+      "amount": 847.55,
+      "historyRows": 0,
+      "capabilities": {
+        "current": "live",
+        "raw": "live",
+        "graded": "unsupported",
+        "history": "unsupported",
+        "eur": "live",
+        "completedSales": "unsupported",
+        "askingPrices": "unsupported",
+        "sealed": "unsupported"
+      }
+    },
+    {
+      "name": "Greninja ex",
+      "number": "214/167",
+      "hasQuote": true,
+      "amount": 329.67,
+      "historyRows": 0,
+      "capabilities": {
+        "current": "live",
+        "raw": "live",
+        "graded": "missing",
+        "history": "not_requested",
+        "eur": "live",
+        "completedSales": "not_requested",
+        "askingPrices": "not_requested",
+        "sealed": "not_requested"
+      }
+    },
+    {
+      "name": "Mew ex",
+      "number": "193/165",
+      "hasQuote": true,
+      "amount": 27.07,
+      "historyRows": 0,
+      "capabilities": {
+        "current": "live",
+        "raw": "live",
+        "graded": "missing",
+        "history": "not_requested",
+        "eur": "live",
+        "completedSales": "not_requested",
+        "askingPrices": "not_requested",
+        "sealed": "not_requested"
+      }
+    },
+    {
+      "name": "Mew ex",
+      "number": "151/165",
+      "hasQuote": true,
+      "amount": 6.41,
+      "historyRows": 0,
+      "capabilities": {
+        "current": "live",
+        "raw": "live",
+        "graded": "missing",
+        "history": "not_requested",
+        "eur": "live",
+        "completedSales": "not_requested",
+        "askingPrices": "not_requested",
+        "sealed": "not_requested"
+      }
+    },
+    {
+      "name": "Pikachu ex",
+      "number": "238/191",
+      "hasQuote": true,
+      "amount": 283.48,
+      "historyRows": 0,
+      "capabilities": {
+        "current": "live",
+        "raw": "live",
+        "graded": "missing",
+        "history": "not_requested",
+        "eur": "live",
+        "completedSales": "not_requested",
+        "askingPrices": "not_requested",
+        "sealed": "not_requested"
+      }
+    },
+    {
+      "name": "Venusaur",
+      "number": "15/102",
+      "hasQuote": true,
+      "amount": 168.98,
+      "historyRows": 0,
+      "capabilities": {
+        "current": "live",
+        "raw": "live",
+        "graded": "missing",
+        "history": "not_requested",
+        "eur": "live",
+        "completedSales": "not_requested",
+        "askingPrices": "not_requested",
+        "sealed": "not_requested"
+      }
+    }
+  ],
+  "customerWrites": 0,
+  "sqlExecuted": false
+}

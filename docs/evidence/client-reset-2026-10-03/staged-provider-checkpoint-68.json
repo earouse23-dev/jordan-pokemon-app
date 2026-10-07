@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-10-07T22:04:08.853Z",
+  "deployment": "dpl_BYLtdaUk6HGuwmw23TW9TqTVUAYY",
+  "realDemoAuth": true,
+  "rawCard": {
+    "currentUSD": 6.41,
+    "historyRows": 101
+  },
+  "graded": {
+    "received": 10,
+    "accepted": 10,
+    "excluded": 0,
+    "status": "ready",
+    "estimate": 220.23,
+    "newestSoldAt": "2026-10-03",
+    "soldDates": [
+      "2026-10-03",
+      "2026-09-15",
+      "2026-09-08",
+      "2026-09-08",
+      "2026-09-04",
+      "2026-09-02",
+      "2026-08-26",
+      "2026-08-23",
+      "2026-08-15",
+      "2026-08-07"
+    ]
+  },
+  "paidAiCalls": 0,
+  "customerWrites": 0,
+  "sqlExecuted": false
+}

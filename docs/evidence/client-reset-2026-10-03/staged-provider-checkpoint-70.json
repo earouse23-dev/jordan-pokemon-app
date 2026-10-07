@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-10-07T22:17:10.433Z",
+  "deployment": "dpl_5GdUqK6HMHSzxAVPAc9N7dZmfq66",
+  "publicCard": "Giratina V 186/196",
+  "providerId": 16577,
+  "matchingCurrentUSD": 847.55,
+  "historyRows": 104,
+  "historyStatus": "live",
+  "provider": "pkmnprices",
+  "customerWrites": 0,
+  "sqlExecuted": false
+}
