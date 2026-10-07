@@ -1784,6 +1784,7 @@ function friendlyObservedAt(value) {
 }
 
 function priceStatusText(item) {
+  if (item.pricingReason === "printing_confirmation_required") return "Confirm card version for graded pricing";
   if (item.price == null)
     return item.pricingStatus === "unsupported"
       ? item.gradingCompany
@@ -2302,7 +2303,7 @@ function providerRequestHeaders() {
 
 async function fetchSaleEvidence(lookup) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
+  const timeout = setTimeout(() => controller.abort(), 55_000);
   try {
     const response = await fetch(
       `/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}`,
@@ -3983,7 +3984,7 @@ async function loadSales(item, force = false) {
     const { response, payload } = durable
       ? await (async () => {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 15000);
+          const timeout = setTimeout(() => controller.abort(), 55_000);
           try {
             const response = await fetch("/api/graded-valuation", {
               method: "POST",
@@ -5478,28 +5479,14 @@ async function mountPortfolioHistoryChart({
           backgroundColor: paper,
           borderColor: line,
           borderWidth: 1,
-          titleColor: muted,
-          bodyColor: ink,
-          padding: 11,
+          titleColor: "#276443",
+          titleFont: { size: 24, weight: "700" },
+          bodyColor: muted,
+          bodyFont: { size: 12 },
+          padding: 12,
           callbacks: {
-            title(items) {
-              return shortPortfolioDate(points[items[0]?.dataIndex]?.date || "", true);
-            },
-            label(context) {
-              const value = Number(context.parsed.y);
-              const delta = value - firstValue;
-              if (coverageMode) {
-                const point = points[context.dataIndex];
-                return [
-                  `${context.datasetIndex ? "Partial known" : "Known"} ${pnlMode ? "P/L" : "value"}: ${money(value, currency)}`,
-                  `${point.comparableUnits} comparable · ${point.missingUnits} missing price · ${point.unknownBasisUnits} unknown cost · ${point.unknownMembershipUnits} unknown date · ${point.unknownRealizedSales} unknown sale`,
-                ];
-              }
-              return [
-                `${marketMode ? "Price change" : "Value"}: ${money(value, currency)}`,
-                `Selected range: ${delta >= 0 ? "+" : ""}${money(delta, currency)}`,
-              ];
-            },
+            title(items) { return items.length ? money(items[0].parsed.y, currency) : ""; },
+            label(context) { return shortPortfolioDate(points[context.dataIndex]?.date || "", true); },
           },
         },
       },
@@ -8809,6 +8796,7 @@ function renderDetail() {
   const productType = String(item.productType || "sealed product")
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const moreToolsOpen = $("#detailMoreToolsButton")?.getAttribute("aria-expanded") === "true";
   const identityNeedsReview =
     !sealed &&
     (printing.status !== "exact" ||
@@ -8835,14 +8823,21 @@ function renderDetail() {
     ${action}
     ${listingSection}
     ${gradingSubmissionSection}
-    <details class="detail-tool-group" data-detail-tool="prices"><summary><span><strong>Price details</strong><small>Matching sources and price history</small></span><b>Details</b></summary><div class="detail-tool-content"><section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
-    ${!sealed ? `<details data-detail-tool="grade-prices"><summary>Compare PSA grades</summary>${renderGradedPriceLadder(valuationItem)}</details>` : ""}${!sealed ? `<details id="marketProofDetails" data-detail-tool="sales"><summary>Recent sold listings</summary><section class="detail-section" aria-label="Recent sold listings">${renderSales(valuationItem)}</section></details>` : ""}</div></details>
-    ${renderGradingComparison(valuationItem)}
     ${renderCardMetadata(item) ? `<details class="detail-tool-group" data-detail-tool="card"><summary><span><strong>Card information</strong><small>Character, artist, moves, and set details</small></span><b>Open details</b></summary><div class="detail-tool-content">${renderCardMetadata(item)}</div></details>` : ""}
     ${owned && !sealed ? `<details class="detail-tool-group" data-detail-tool="grading"><summary><span><strong>Grading history</strong><small>Photo estimates, reports, and professional grades</small></span><b>Details</b></summary><div class="detail-tool-content">${gradingLifecycleMarkup(item)}${!item.gradingCompany ? gradingReportHistoryMarkup(item) : ""}</div></details>` : ""}
     ${owned ? `<details class="detail-tool-group" data-detail-tool="purchases"><summary><span><strong>Purchases, sales &amp; notes</strong><small>What you paid, activity, and copies</small></span><b>Open</b></summary><div class="detail-tool-content">${positionSection}${ownedSection}</div></details>` : ""}
-    ${owned ? collectionAttachmentMarkup(item) : ""}
+    <button class="secondary" id="detailMoreToolsButton" type="button" aria-controls="detailMoreTools" aria-expanded="false">More options</button>
+    <div id="detailMoreTools" hidden>    <details class="detail-tool-group" data-detail-tool="prices"><summary><span><strong>Price details</strong><small>Matching sources and price history</small></span><b>Details</b></summary><div class="detail-tool-content"><section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
+    ${!sealed ? `<details data-detail-tool="grade-prices"><summary>Compare PSA grades</summary>${renderGradedPriceLadder(valuationItem)}</details>` : ""}${!sealed ? `<details id="marketProofDetails" data-detail-tool="sales"><summary>Recent sold listings</summary><section class="detail-section" aria-label="Recent sold listings">${renderSales(valuationItem)}</section></details>` : ""}</div></details>
+    ${renderGradingComparison(valuationItem)}
+
+    ${owned ? collectionAttachmentMarkup(item) : ""}</div>
     <p class="legal-copy">Prices are estimates, not guaranteed sale amounts. ${sealed ? "The box and seal" : "Wear on the card"} can change what someone will pay.</p>`;
+  $("#detailMoreToolsButton")?.addEventListener("click", () => {
+    const tools = $("#detailMoreTools"); tools.hidden = !tools.hidden;
+    $("#detailMoreToolsButton").setAttribute("aria-expanded", String(!tools.hidden));
+  });
+  if (moreToolsOpen) { $("#detailMoreTools").hidden = false; $("#detailMoreToolsButton").setAttribute("aria-expanded", "true"); }
   bindDetailValuationControls(baseItem);
   bindGradingComparison(valuationItem);
   detailRoot.querySelectorAll("details[data-detail-tool]").forEach((tool) => {
@@ -9260,6 +9255,8 @@ function renderDetail() {
   $("#openRecentSalesButton")?.addEventListener("click", () => {
     const prices = $('[data-detail-tool="prices"]');
     const salesDetails = $("#marketProofDetails");
+    $("#detailMoreTools").hidden = false;
+    $("#detailMoreToolsButton").setAttribute("aria-expanded", "true");
     prices.open = true;
     focusRecentSales = true;
     salesDetails.open = true;
@@ -11885,6 +11882,7 @@ async function openDeviceCamera({
     $("#bottomSheet").dataset.experience = "intake";
     $(".camera-top-actions")?.remove();
     $(".camera-edge-levels")?.remove();
+    $(".camera-scan-line")?.remove();
     $("#deviceCameraTimer")?.remove();
     const back = $("#sheetContent .sheet-close");
     back.setAttribute("aria-label", "Back");
@@ -12130,6 +12128,7 @@ async function openDeviceCamera({
     help.hidden = true;
     retryButton.hidden = true;
     useButton.disabled = true;
+    status.hidden = false;
     status.textContent =
       copy.guide === "detail"
         ? "Photo captured · review it"
@@ -12159,6 +12158,10 @@ async function openDeviceCamera({
         manualGeometry = prepared.geometry;
         review.src = prepared.dataUrl;
         status.textContent = `Corrected ${prepared.documentKind === "slab" ? "full slab" : "card"} preview · confirm or adjust`;
+        if (experience === "intake" && file.micaCaptureMetadata?.captureMethod === "automatic_live_best_frame_v2") {
+          deliverPhoto(file);
+          return;
+        }
       } else {
         previewUrl = URL.createObjectURL(file);
         $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
@@ -12200,6 +12203,7 @@ async function openDeviceCamera({
     const shotVersion = reviewVersion;
     captureInFlight = true;
     captureButton.disabled = true;
+    status.hidden = false;
     status.textContent = "Photo captured · review before continuing";
     const source = candidate?.canvas || video;
     const file = await autoCaptureImage(source);
@@ -12432,7 +12436,10 @@ async function openDeviceCamera({
       cameraReady = frameSequenceSummary.ready && Boolean(bestAutomaticFrame);
       captureButton.disabled = captureInFlight;
       const percent = Math.round(assessment.score * 100);
-      status.textContent = cameraReady
+      status.hidden = experience === "intake" && !cameraReady && !geometryReading.detected;
+      status.textContent = experience === "intake"
+        ? cameraReady ? "Scanning card…" : "Hold steady"
+        : cameraReady
         ? timerEnabled
           ? `Frame ready · ${percent}% · press the shutter`
           : `Frame ready · ${percent}% · capturing`
@@ -12459,6 +12466,7 @@ async function openDeviceCamera({
     captureButton.disabled = true;
     retryButton.hidden = true;
     help.hidden = true;
+    status.hidden = false;
     status.textContent = "Requesting camera permission…";
     let stream;
     try {
@@ -12527,6 +12535,7 @@ async function openDeviceCamera({
       stream?.getTracks().forEach((track) => track.stop());
       if (activeCameraStream === stream) activeCameraStream = null;
       if (!operationIsCurrent() || currentStart !== cameraStartVersion) return;
+      status.hidden = false;
       status.textContent = cameraErrorMessage(error);
       help.hidden = false;
       help.innerHTML =
@@ -17100,9 +17109,9 @@ async function refreshLivePricing(positionIds = null) {
     let partial = false;
     let rateLimited = false;
     let retrievedAt = null;
-    for (let start = 0; start < lookups.length; start += 1) {
+    for (let start = 0; start < lookups.length; start += 2) {
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-      const batch = lookups.slice(start, start + 1);
+      const batch = lookups.slice(start, start + 2);
       const response = await fetch(
         `/api/cards?lookups=${encodeURIComponent(JSON.stringify(batch))}`,
         { headers: providerRequestHeaders() },
@@ -17222,7 +17231,10 @@ async function refreshLivePricing(positionIds = null) {
     for (const item of state.items) {
       if (!(item.cardState === "graded" || item.gradingCompany) || (selectedPositions && !selectedPositions.has(item.uid))) continue;
       const printing = selectedPrinting(item);
-      if (printing.status !== "exact" || [printing.finish, printing.edition, printing.promoType].includes("unknown") || item.gradeQualifier == null) continue;
+      if (printing.status !== "exact" || [printing.finish, printing.edition, printing.promoType].includes("unknown") || item.gradeQualifier == null) {
+        item.pricingStatus = "missing"; item.pricingReason = "printing_confirmation_required";
+        continue;
+      }
       const key = detailIdentityKey(item) + "|" + detailContextKey(valuationContextForItem(item));
       if (!gradedGroups.has(key)) gradedGroups.set(key, item);
     }

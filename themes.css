@@ -6089,3 +6089,25 @@ body[data-ui-theme="mica"] #view-profile .profile-card { border: 0; background: 
 
 body[data-ui-theme="mica"] #everydaySettings .primary { border-radius: 10px; justify-content: center; text-align: center; font-weight: 700; }
 body[data-ui-theme="mica"] #profileDisplayCurrency { min-height: 44px; padding: 10px; border: 1px solid var(--line-dark); border-radius: 10px; background-color: var(--paper); color: var(--ink); font: inherit; }
+
+/* Current client reset: compact mobile typography and secondary evidence tools. */
+body[data-ui-theme="mica"] { --font-sans: "Avenir Next", Avenir, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; --display: var(--font-sans); }
+body[data-ui-theme="mica"] #detailContent .detail-section { margin-block: 16px; }
+body[data-ui-theme="mica"] .detail-tool-group > summary { padding: 14px 16px; }
+body[data-ui-theme="mica"] .detail-tool-content { padding: 14px 16px; }
+body[data-ui-theme="mica"] .grading-lifecycle-track { gap: 6px; margin: 10px 0; }
+body[data-ui-theme="mica"] .grading-lifecycle-track li.pending { display: none; }
+body[data-ui-theme="mica"] .grading-lifecycle-summary { gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+body[data-ui-theme="mica"] .grading-lifecycle-summary > div { padding: 10px 12px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; gap: 2px; }
+body[data-ui-theme="mica"] .grading-lifecycle-summary strong { font-size: 14px; }
+body[data-ui-theme="mica"] #detailMoreTools[hidden] { display: none; }
+body[data-ui-theme="mica"] #detailMoreToolsButton { min-height: 44px; border-radius: 10px; margin-top: 12px; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .auto-capture-guide > i { display: none; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .auto-capture-guide { inset: 0; width: 100%; height: 100%; transform: none; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .auto-capture-state[hidden] { display: none; }
+@media (max-width: 759px) {
+  body[data-ui-theme="mica"] #detailContent .detail-identity { gap: 12px; margin-bottom: 16px; }
+  body[data-ui-theme="mica"] #detailContent h1 { font-size: 26px; }
+  body[data-ui-theme="mica"] .detail-tool-group { margin-block: 10px; }
+  body[data-ui-theme="mica"] .grading-lifecycle-summary { grid-template-columns: 1fr; }
+}

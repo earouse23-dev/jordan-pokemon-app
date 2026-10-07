@@ -1164,12 +1164,16 @@ for (const automatic of [false, true]) test('full-screen intake '+(automatic?'au
     await page.screenshot({path:testInfo.outputPath('full-screen-live-camera-fixture.png')});
     await page.getByRole('button',{name:'Take photo',exact:true}).click();
   }
+  if (!automatic) {
   await expect(page.locator('#deviceCameraState')).toContainText('Corrected full slab preview',{timeout:20000});
   await expect(page.locator('#deviceCameraReview')).toBeVisible();
   await expect(page.getByRole('button',{name:'Use photo',exact:true})).toBeEnabled();
   expect(await page.evaluate(()=>globalThis.__photosDelivered)).toBe(0);
   await page.screenshot({path:testInfo.outputPath('full-screen-live-'+(automatic?'automatic':'shutter')+'-fixture.png')});
   await page.getByRole('button',{name:'Use photo',exact:true}).click();
+  } else {
+    await expect(page.locator('#bottomSheet[data-experience="intake"]')).toBeHidden({timeout:20000});
+  }
   expect(await page.evaluate(()=>globalThis.__photosDelivered)).toBe(1);
   expect(await page.evaluate(()=>globalThis.__mediaStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended')))).toBe(true);
   await expect(page.locator('#positionCertification')).toHaveValue('00012345');

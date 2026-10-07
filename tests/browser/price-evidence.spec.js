@@ -29,6 +29,10 @@ test.beforeAll(async () => {
   instrumentedApp = result.outputFiles[0].text;
 });
 
+async function openSecondaryTools(page) {
+  if (await page.locator("#detailMoreTools").isHidden()) await page.locator("#detailMoreToolsButton").click();
+}
+
 async function openDetail(page, overrides = {}) {
   await page.route("**/app.js?v=111", (route) =>
     route.fulfill({
@@ -137,7 +141,8 @@ for (const surface of ["sold", "psa"]) {
         });
     });
     await openDetail(page);
-    await page.locator('[data-detail-tool="prices"] > summary').click();
+    await openSecondaryTools(page);
+  await page.locator('[data-detail-tool="prices"] > summary').click();
     await page.clock.install({ time: new Date("2026-09-06T12:00:00Z") });
     await page.clock.pauseAt(new Date("2026-09-07T12:00:00Z"));
     if (surface === "sold")
@@ -147,7 +152,7 @@ for (const surface of ["sold", "psa"]) {
       await page.locator('[data-psa-price="10"]').click();
     }
     await expect.poll(() => requests.length).toBe(1);
-    await page.clock.runFor(15001);
+    await page.clock.runFor(55_001);
     const retry =
       surface === "sold"
         ? page.getByRole("button", { name: "Try sales again" })
@@ -190,6 +195,7 @@ test("consecutive daily prices retain their connecting trend line", async ({
       condition: "Near Mint",
     })),
   });
+  await openSecondaryTools(page);
   await page.locator('[data-detail-tool="prices"] > summary').click();
   await expect
     .poll(() =>
@@ -219,6 +225,7 @@ test("dated chart uses elapsed time and range-consistent values, including empty
     priceHistory: [point(60, 10), point(6, 30), point(2, 50)],
     historyStatus: "partial",
   });
+  await openSecondaryTools(page);
   await page.locator('[data-detail-tool="prices"] > summary').click();
   await expect
     .poll(() =>
@@ -303,6 +310,7 @@ test("sold evidence loads on demand, retains printing context and retries withou
   });
   await openDetail(page);
   expect(lookups).toHaveLength(0);
+  await openSecondaryTools(page);
   await page.locator('[data-detail-tool="prices"] > summary').click();
   await page.locator("#marketProofDetails > summary").click();
   await expect(
@@ -336,6 +344,7 @@ test("card detail links only validated marketplace sources and the latest matchi
     provider: "tcgplayer", aggregator: "pokemon_tcg_api", market: "tcgplayer", currency: "USD", finish: "holofoil", priceType: "market", amount: 125,
     observedAt: "2026-09-28T12:00:00Z", retrievedAt: "2026-09-29T12:00:00Z", providerUrl: "https://www.tcgplayer.com/product/12345/synthetic", attribution: "TCGplayer reference price",
   }] });
+  await openSecondaryTools(page);
   await page.locator('[data-detail-tool="prices"] > summary').click();
   await expect(page.getByRole("link", { name: "TCGplayer market source" })).toHaveAttribute("href", "https://www.tcgplayer.com/product/12345/synthetic");
   await page.context().route("https://www.tcgplayer.com/**", (route) => route.fulfill({ contentType: "text/html", body: "<title>Synthetic external page</title>" }));
@@ -388,6 +397,7 @@ test("sold response survives a price refresh replacing the card object", async (
     });
   });
   await openDetail(page);
+  await openSecondaryTools(page);
   await page.locator('[data-detail-tool="prices"] > summary').click();
   await page.locator("#marketProofDetails > summary").click();
   await expect(page.locator("#marketProofDetails")).toContainText(
@@ -445,6 +455,7 @@ test("PSA comparison keeps grades separate and exposes the dated source evidence
     });
   });
   await openDetail(page);
+  await openSecondaryTools(page);
   await page.locator('[data-detail-tool="prices"] > summary').click();
   await page.locator('[data-detail-tool="grade-prices"] > summary').click();
   expect(requests).toHaveLength(0);
@@ -500,6 +511,8 @@ test("grading scenarios keep missing data blank and preserve entered costs on re
   page,
 }, testInfo) => {
   await openDetail(page);
+  await openSecondaryTools(page);
+  await openSecondaryTools(page);
   await page
     .locator('[data-detail-tool="grading-comparison"] > summary')
     .click();
@@ -586,6 +599,8 @@ test("grading comparison prefills only current matching market evidence", async 
       { ...quote, gradingCompany: "BGS", grade: "9", amount: 999 },
     ],
   });
+  await openSecondaryTools(page);
+  await openSecondaryTools(page);
   await page
     .locator('[data-detail-tool="grading-comparison"] > summary')
     .click();

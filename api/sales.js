@@ -98,7 +98,7 @@ async function handler(request, response) {
   if (!(await pkmnPricesRequests.authenticate(request, response))) return;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 9_000);
+  const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
     const result = await fetchPkmnPricesSales(
       apiKey,

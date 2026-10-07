@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments };`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments }; export { hydratePosition } from "./lib/supabase-data.js";`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -28,6 +28,10 @@ test.beforeAll(async () => {
   });
   instrumentedApp = result.outputFiles[0].text;
 });
+
+async function openSecondaryTools(page) {
+  if (await page.locator("#detailMoreTools").isHidden()) await page.locator("#detailMoreToolsButton").click();
+}
 
 async function openDetail(page, overrides = {}) {
   await page.route("**/app.js?v=111", (route) =>
@@ -440,6 +444,14 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
   await expect(page.locator(".dashboard-owned-tools")).toBeVisible();
   await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.scales.x.type)).toBe("linear");
   expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.data.datasets.every(dataset => dataset.pointRadius === 0))).toBe(true);
+  const tooltip = await page.evaluate(() => {
+    const tooltip = globalThis.fixtureApp.portfolioChartInstance.options.plugins.tooltip;
+    return { value: tooltip.callbacks.title([{ parsed: { y: 130 } }]), date: tooltip.callbacks.label({ dataIndex: 0 }), color: tooltip.titleColor, size: tooltip.titleFont.size };
+  });
+  expect(tooltip.value).toBe("$130.00");
+  expect(tooltip.date).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/);
+  expect(tooltip.color).toBe("#276443");
+  expect(tooltip.size).toBe(24);
   expect(await page.evaluate(() => {
     const labels = globalThis.fixtureApp.portfolioChartInstance.scales.x.ticks.map(tick => tick.label);
     return new Set(labels).size === labels.length;
@@ -533,6 +545,7 @@ for (const scenario of ["same owner", "changed owner"]) test(`signed private pho
   }, appUrl);
   let pending;
   await page.route("https://mica-detail-test.supabase.co/storage/v1/object/sign/**", route => { pending = route; });
+  await openSecondaryTools(page);
   await page.locator('[data-detail-tool="attachments"] > summary').click();
   await page.locator('[data-open-collection-attachment="photo"]').click();
   await expect.poll(() => Boolean(pending)).toBe(true);
@@ -560,6 +573,7 @@ for (const scenario of ["same owner", "changed owner", "changed owner failure"])
     if (route.request().method() === "POST") pending = route;
     else return route.fulfill({ contentType: "application/json", body: "[]" });
   });
+  await openSecondaryTools(page);
   await page.locator('[data-detail-tool="attachments"] > summary').click();
   await page.locator("#collectionAttachmentInput").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: Buffer.from([255,216,255,217]) });
   await expect.poll(() => Boolean(pending)).toBe(true);
@@ -587,6 +601,7 @@ test("private deletion cannot continue or show success under a switched account"
   let pending, removals = 0;
   await page.route("https://mica-detail-test.supabase.co/rest/v1/collection_item_attachments**", route => { pending = route; });
   await page.route("https://mica-detail-test.supabase.co/storage/v1/object/**", route => { removals++; return route.fulfill({ contentType: "application/json", body: "[]" }); });
+  await openSecondaryTools(page);
   await page.locator('[data-detail-tool="attachments"] > summary').click();
   await page.locator('[data-delete-collection-attachment="photo"]').click();
   await expect.poll(() => Boolean(pending)).toBe(true);
@@ -655,4 +670,32 @@ test("missing saved printing requires explicit choices and preserves the copy th
   expect(correction.p_card_id).toBeNull(); expect(correction.p_variant_id).toBeNull();
   expect(correction.p_identity.variantMetadata.identityEvidence).toBe("owner_confirmed_printing");
   expect(correction.p_identity).not.toHaveProperty("quantity"); expect(correction.p_identity).not.toHaveProperty("notes");
+});
+
+test('primary detail hides extra evidence tools and retains them through an explicit secondary entry', async ({page},testInfo) => {
+  await openDetail(page);
+  for (const tool of ['prices','grading-comparison','attachments']) await expect(page.locator(`[data-detail-tool="${tool}"]`)).toBeHidden();
+  await expect(page.locator('[data-detail-tool="grading"]')).toBeVisible();
+  expect(await page.locator('#detailTitle').evaluate(node=>getComputedStyle(node).fontFamily)).toContain('Avenir');
+  await page.screenshot({path:testInfo.outputPath('compact-detail-fixture.png')});
+  await openSecondaryTools(page);
+  for (const tool of ['prices','grading-comparison','attachments']) await expect(page.locator(`[data-detail-tool="${tool}"]`)).toBeVisible();
+  await assertFits(page);
+});
+
+test('thirteen saved raw entries refresh in seven bounded requests and feed real position totals', async ({page}) => {
+  await openCollection(page); let requests=0;
+  await page.route('**/api/cards?**', async route => {
+    requests++; const lookups=JSON.parse(new URL(route.request().url()).searchParams.get('lookups'));
+    expect(lookups.length).toBeLessThanOrEqual(2);
+    await route.fulfill({contentType:'application/json',body:JSON.stringify({cards:lookups.map(lookup=>({providerCardId:lookup.clientId,externalIds:{pkmnprices:100},quotes:[{provider:'tcgplayer',currency:'USD',finish:'holofoil',condition:'Near Mint',priceType:'market',amount:100,observedAt:new Date().toISOString(),retrievedAt:new Date().toISOString()}],capabilities:{raw:'live'},history:[]}))})});
+  });
+  const result=await page.evaluate(async url=>{
+    const {state,refreshLivePricing,hydratePosition}=await import(url);
+    state.items=Array.from({length:13},(_,i)=>hydratePosition({id:`synthetic-copy-${i}`,card_state:'raw',raw_condition:'near_mint',currency:'USD',quantity:1,status:'owned',identity_snapshot:{id:`synthetic-card-${i}`,name:'Mew ex',set:'151',number:'151/165',variant:'Holofoil',language:'en'}}));
+    await refreshLivePricing();return state.items.map(item=>({price:item.price,finish:item.finish,edition:item.edition}));
+  },appUrl);
+  expect(requests).toBe(7); expect(result).toHaveLength(13);
+  for(const item of result) {expect(item.price).toBe(100);expect(item.finish).toBe('holofoil');expect(item.edition).toBe('unknown');}
+  expect(await page.locator('.ledger-row').count()).toBe(13);
 });

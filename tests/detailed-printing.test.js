@@ -562,3 +562,15 @@ test("explicit synthetic printing reaches retained sales implementation and esti
     else process.env.PKMNPRICES_API_KEY = originalKey;
   }
 });
+
+ test("legacy saved finish labels restore raw quote selection without inventing edition or overwriting explicit unknowns", async () => {
+ const {selectReferenceQuote} = await import("../lib/pricing.js");
+ const row={id:"synthetic-copy",card_id:"synthetic-card",card_state:"raw",raw_condition:"near_mint",currency:"USD",quantity:2,identity_snapshot:{id:"card",name:"Charizard ex",set:"151",number:"199/165",variant:"Holofoil",language:"en"}};
+ const item=hydratePosition(row);
+ assert.equal(item.finish,"holofoil"); assert.equal(item.edition,"unknown"); assert.equal(item.promoType,"unknown"); assert.equal(item.identityStatus,"needs_review");
+ const quote={provider:"tcgplayer",currency:"USD",condition:"Near Mint",finish:"holofoil",priceType:"market",amount:320};
+ assert.equal(selectReferenceQuote([quote],item.variant,item.currency,item)?.amount,320);
+ assert.equal(hydratePosition({...row,identity_snapshot:{...row.identity_snapshot,finish:"unknown"}}).finish,"unknown");
+ assert.equal(hydratePosition({...row,identity_snapshot:{...row.identity_snapshot,variant:"Unknown printing"}}).finish,"unknown");
+ assert.equal(row.identity_snapshot.finish,undefined); assert.equal(item.quantity,2);
+ });

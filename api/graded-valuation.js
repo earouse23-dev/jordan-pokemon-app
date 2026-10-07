@@ -154,7 +154,7 @@ export function createGradedValuationHandler({
     // The shared adapter reserves each bounded outbound request, including retries.
     let provider;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 9000);
+    const timeout = setTimeout(() => controller.abort(), 45_000);
     try {
       provider = await fetchSales(
         config.pkmnpricesApiKey,
