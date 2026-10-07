@@ -223,6 +223,8 @@ test("dated chart uses elapsed time and range-consistent values, including empty
   });
   await openDetail(page, {
     priceHistory: [point(60, 10), point(6, 30), point(2, 50)],
+    costBasis: 5,
+    transactions: [{ type: "purchase", date: new Date(now - 6 * 86400000).toISOString().slice(0, 10), currency: "USD", totalCost: 5, quantity: 1 }],
     historyStatus: "partial",
   });
   await openSecondaryTools(page);
@@ -242,6 +244,13 @@ test("dated chart uses elapsed time and range-consistent values, including empty
     const { chartInstance: c } = await import(url);
     return {
       type: c.options.scales.x.type,
+      datasetCount: c.data.datasets.length,
+      radius: c.data.datasets[0].pointRadius,
+      hoverRadius: c.data.datasets[0].pointHoverRadius,
+      interpolation: c.data.datasets[0].cubicInterpolationMode,
+      tension: c.data.datasets[0].tension,
+      tooltipValue: c.options.plugins.tooltip.callbacks.title([{ parsed: { y: 10 } }]),
+      tooltipDate: c.options.plugins.tooltip.callbacks.label({ parsed: { x: c.data.datasets[0].data[0].x } }),
       points: c.data.datasets[0].data.map((p) => p.x),
       pixels: c.getDatasetMeta(0).data.map((p) => p.x),
       segments: c
@@ -250,9 +259,16 @@ test("dated chart uses elapsed time and range-consistent values, including empty
     };
   }, appUrl);
   expect(plot.type).toBe("linear");
-  expect(plot.segments.every(({ start, end }) => start === end)).toBe(true);
+  expect(plot.datasetCount).toBe(1);
+  expect(plot.radius).toBe(0);
+  expect(plot.hoverRadius).toBe(0);
+  expect(plot.interpolation).toBe("monotone");
+  expect(plot.tension).toBe(0.28);
+  expect(plot.tooltipValue).toBe("$10.00");
+  expect(plot.tooltipDate).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/);
+  expect(plot.segments).toEqual([{ start: 0, end: 2 }]);
   await expect(page.locator("#cardPriceHistory")).toContainText(
-    "Lines leave gaps longer than two days",
+    "The line connects available records",
   );
   expect(plot.points.every(Number.isFinite)).toBe(true);
   expect(
@@ -265,6 +281,7 @@ test("dated chart uses elapsed time and range-consistent values, including empty
   ).toBeFocused();
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(2);
+  await expect(page.locator(".history-purchases")).toContainText("Bought 1");
   await page.getByRole("button", { name: "1 day", exact: true }).click();
   await expect(page.locator("#cardPriceHistory")).toContainText(
     "No matching prices recorded in this range",
@@ -275,7 +292,7 @@ test("dated chart uses elapsed time and range-consistent values, including empty
   await expect(page.locator("#positionChart")).toBeVisible();
   await assertFits(page);
   await page
-    .locator("[data-detail-tool=prices]")
+    .locator("#cardPriceHistory")
     .screenshot({ path: `/tmp/mica-prices-${page.viewportSize().width}.png` });
 });
 

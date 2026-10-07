@@ -2893,7 +2893,7 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
     ? `<p class="chart-purchases-note">${model.purchases.length} purchase${model.purchases.length === 1 ? "" : "s"} with a known date and amount in this range.</p>`
     : "";
   return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}"><div class="history-controls" role="group" aria-label="Price history range">${controls}</div>${item.cardState !== "graded" && ["partial", "unavailable", "error"].includes(item.historyStatus) && points.length ? '<p class="chart-context">Some historical prices could not be loaded. This chart shows the available records.</p>' : ""}
-    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. Lines leave gaps longer than two days.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : ""}</p>${points.length === 1 ? '<p class="chart-context">One recorded price in this range. More prices are needed to show a trend.</p>' : ""}<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}</div>`;
+    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : ""}</p>${points.length === 1 ? '<p class="chart-context">One recorded price in this range. More prices are needed to show a trend.</p>' : ""}<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}</div>`;
 }
 
 async function mountPriceChart(item, history = historyForItem(item)) {
@@ -2928,47 +2928,22 @@ async function mountPriceChart(item, history = historyForItem(item)) {
   const collapsedPrices = canvas?.closest('[data-detail-tool="prices"]');
   if (!canvas || (collapsedPrices && !collapsedPrices.open)) return;
   const model = displayHistoryCurrency(cardPriceHistoryWindow(item, history, state.chartRange), displayCurrency(), lastValidatedFxRate);
-  const providers = [
-    ...new Set(
-      model.points.map((point) => point.provider || "Recorded source"),
-    ),
-  ];
-  const colors = ["#1f4f43", "#9a6b2f", "#315f86", "#744f79"];
-  const datasets = providers.map((provider, index) => ({
-    label: provider,
-    data: model.points
-      .filter((point) => (point.provider || "Recorded source") === provider)
-      .map((point) => ({ x: point.x, y: point.amount, point })),
-    borderColor: colors[index % colors.length],
-    backgroundColor: colors[index % colors.length],
-    pointRadius: 3,
-    pointHoverRadius: 6,
-    tension: 0,
-    spanGaps: 2 * 86_400_000,
-  }));
-  if (model.purchases.length)
-    datasets.push({
-      label: "Your purchases",
-      type: "scatter",
-      data: model.purchases,
-      pointRadius: 7,
-      pointStyle: "triangle",
-      backgroundColor: "#b14e43",
-      borderColor: "#fff",
-      borderWidth: 1,
-    });
-  if (model.basis !== null)
-    datasets.push({
-      label: "What you paid per card",
-      data: [
-        { x: model.start, y: model.basis },
-        { x: model.end, y: model.basis },
-      ],
-      borderColor: "#7a746a",
-      borderDash: [5, 5],
-      pointRadius: 0,
-      borderWidth: 1,
-    });
+  const styles = getComputedStyle(document.body);
+  const accent = styles.getPropertyValue("--pine-2").trim() || "#1f4f43";
+  const muted = styles.getPropertyValue("--muted").trim() || "#7a746a";
+  const line = styles.getPropertyValue("--line").trim() || "#ded8cc";
+  const paper = styles.getPropertyValue("--paper").trim() || "#faf7ef";
+  const datasets = [{
+    label: "Recorded price",
+    data: model.points.map(point => ({ x: point.x, y: point.amount, point })),
+    borderColor: accent,
+    borderWidth: 2.25,
+    pointRadius: 0,
+    pointHoverRadius: 0,
+    tension: 0.28,
+    cubicInterpolationMode: "monotone",
+    spanGaps: true,
+  }];
   let Chart;
   try {
     ({ default: Chart } = await import("chart.js/auto"));
@@ -3003,19 +2978,22 @@ async function mountPriceChart(item, history = historyForItem(item)) {
       interaction: { mode: "nearest", intersect: false },
       plugins: {
         legend: {
-          display: true,
+          display: false,
           labels: { usePointStyle: true, boxWidth: 8, font: { size: 12 } },
         },
         tooltip: {
+          displayColors: false,
+          backgroundColor: paper,
+          borderColor: line,
+          borderWidth: 1,
+          titleColor: "#276443",
+          titleFont: { size: 24, weight: "700" },
+          bodyColor: muted,
+          bodyFont: { size: 12 },
+          padding: 12,
           callbacks: {
-            title: (items) =>
-              items.length ? dateLabel(items[0].parsed.x, true) : "",
-            label(context) {
-              const transaction = context.raw?.transaction;
-              if (transaction)
-                return `Bought ${Number(transaction.quantity)} · ${money(transaction.totalCost, transaction.currency)} total`;
-              return `${context.dataset.label}: ${money(context.parsed.y, model.currency)}`;
-            },
+            title: items => items.length ? money(items[0].parsed.y, model.currency) : "",
+            label: context => shortPortfolioDate(new Date(context.parsed.x).toISOString().slice(0, 10), true),
           },
         },
       },
