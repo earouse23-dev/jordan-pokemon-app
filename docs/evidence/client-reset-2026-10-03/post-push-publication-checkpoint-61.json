@@ -1,0 +1,50 @@
+{
+  "checkedAt": "2026-10-07T03:19:10.308Z",
+  "remoteCommit": "3fe3c40a1459395914c1f6e50ab9f598f64c653d",
+  "remoteVerified": true,
+  "forcePush": false,
+  "production": "dpl_CzPwhscjzScd5N2MRiyvM6Tndp63",
+  "publicAlias": "jordan-pokemon-app.vercel.app",
+  "aliasDeploymentId": "dpl_CzPwhscjzScd5N2MRiyvM6Tndp63",
+  "cronDeployment": "dpl_CzPwhscjzScd5N2MRiyvM6Tndp63",
+  "soleCron": [
+    {
+      "host": "jordan-pokemon-77b5wqsgt-earouse23-devs-projects.vercel.app",
+      "path": "/api/capabilities?surface=grading-deletion",
+      "schedule": "15 5 * * *"
+    }
+  ],
+  "gitBuildGuard": "exit 0",
+  "latestDeployments": [
+    {
+      "id": "dpl_CzPwhscjzScd5N2MRiyvM6Tndp63",
+      "state": "READY",
+      "source": "cli",
+      "target": "production"
+    },
+    {
+      "id": "dpl_8muy4Fn3PtbN1CrGLZTuvJcx2Qo5",
+      "state": "READY",
+      "source": "cli",
+      "target": "production"
+    },
+    {
+      "id": "dpl_FQ1EmvSNWPFH83esaKFTW9YQT973",
+      "state": "READY",
+      "source": "cli",
+      "target": "production"
+    },
+    {
+      "id": "dpl_JCgstuVpRo6nvKXB9rvaPXP7KNzJ",
+      "state": "ERROR",
+      "source": "cli",
+      "target": "production"
+    },
+    {
+      "id": "dpl_5rZyi9juErBWXNjzKYtetDb2DYap",
+      "state": "READY",
+      "source": "redeploy",
+      "target": "production"
+    }
+  ]
+}

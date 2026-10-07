@@ -2,6 +2,10 @@
 
 Live: https://jordan-pokemon-app.vercel.app, deployment `dpl_CzPwhscjzScd5N2MRiyvM6Tndp63`. The preceding checkpoint60 release and original checkpoint48/ACTIVATION-04 artifacts remain preserved. No SQL replay, customer write tests, provider purchase, new dependency or platform change.
 
+Product/test source commit: `e6a8822aead38f77495bb8a9fc5d779555e98154`. Publication/evidence commit `3fe3c40a1459395914c1f6e50ab9f598f64c653d` is remotely verified; subsequent evidence commits do not change packaged product source.
+
+Prior rendered fixture comparison: [before dashboard](before-portfolio-mobile-fixture.png), [flowing chart after](smooth-chart-final-mobile-fixture.png). These are fixture visuals, not live pricing/device proof.
+
 ## Root correction and exact delta
 
 Actual demo Add Copy exposed a genuine legacy-printing defect: a missing catalog option list caused the form to infer edition from the saved display label. The shared selection path now preserves saved printing facts, retains unknown fields and `needs_review`, and never turns an unresolved collectible identifier into a variant identifier. Explicit empty/removed catalog options remain authoritative. Existing saved records were not rewritten or merged.
