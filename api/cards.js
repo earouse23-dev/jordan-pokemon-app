@@ -82,10 +82,12 @@ function parseLookups(request) {
       number: String(raw?.number || "").trim(),
       variant: String(raw?.variant || "").trim(),
       condition: String(raw?.condition || "").trim(),
+      currency: String(raw?.currency || "").toUpperCase(),
       language: String(raw?.language || "en")
         .trim()
         .toLowerCase(),
     };
+    if (lookup.currency && !["USD", "EUR"].includes(lookup.currency)) return null;
     if (!lookup.clientId || seen.has(lookup.clientId)) continue;
     if (
       (lookup.variant && !SAFE_TEXT.test(lookup.variant)) ||
@@ -172,6 +174,7 @@ export async function retainedHandler(request, response, publicOnly = false, pro
             historyLimit: proHistory ? 365 : 90,
             includeEur: proHistory,
             includeEurHistory: fullHistory && proHistory,
+            currencies: fullHistory && lookup.currency ? [lookup.currency.toLowerCase()] : undefined,
           }),
       );
       primary.forEach((result, index) => {

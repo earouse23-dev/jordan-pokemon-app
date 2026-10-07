@@ -353,7 +353,7 @@ test.beforeAll(async () => {
   );
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderCollection, renderDetail, routeTo, bindEvents, catalogItem, openCardDetail, openPurchaseLotSheet };`,
+      contents: `${source}\nexport { state, renderCollection, renderDetail, routeTo, bindEvents, catalogItem, openCardDetail, openPurchaseLotSheet, refreshLivePricing };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -2085,3 +2085,28 @@ for (const cardState of ["raw", "sealed"]) {
     await expect(page.locator("#purchaseLotForm")).toBeHidden();
   });
 }
+
+test("portfolio reads one graded context and detail charts actual matching sales without valuation writes", async ({page}) => {
+  await setup(page);
+  let reads=0, valuationWrites=0;
+  page.on("request",request=>{if(request.url().includes("/api/graded-valuation"))valuationWrites++;});
+  await page.route("**/api/cards?*",async route=>{await new Promise(resolve=>setTimeout(resolve,300));const lookup=JSON.parse(new URL(route.request().url()).searchParams.get("lookups"))[0];return route.fulfill({contentType:"application/json",body:JSON.stringify({cards:[{providerCardId:lookup.clientId,quotes:[],history:[],capabilities:{graded:"missing"}}]})});});
+  await page.route("**/api/sales?*",route=>{
+    reads++; const lookup=JSON.parse(new URL(route.request().url()).searchParams.get("lookup"));
+    const sales=soldRows(lookup,[100,110,120],new Date(Date.now()-86400000).toISOString().slice(0,10));
+    sales.forEach((sale,index)=>sale.soldAt=new Date(Date.now()-(index+1)*86400000).toISOString().slice(0,10));
+    return route.fulfill({contentType:"application/json",body:JSON.stringify(soldPayload(lookup,sales))});
+  });
+  await page.evaluate(async ({appUrl,copies})=>{const {state,refreshLivePricing,openCardDetail}=await import(appUrl);state.session={...state.session,access_token:"fixture-read-token"};state.items=copies;await refreshLivePricing();state.items.forEach(item=>delete item.exactSaleEvidence);openCardDetail(state.items[0],true);},{appUrl,copies:[gradedCopy("a"),gradedCopy("b")]});
+  await expect(page.locator(".exact-sold-value")).toContainText("$110.00");
+  await expect(page.locator("#positionChart")).toBeVisible();
+  await page.waitForTimeout(500);
+  await expect(page.locator(".detail-performance")).not.toContainText("Purchase cost or matching value missing");
+  await expect(page.locator("#detailContent")).toContainText("Matching completed-sale prices");
+  await page.locator(".history-values > summary").click();
+  await expect(page.locator(".history-values tbody tr")).toHaveCount(3);
+  expect(valuationWrites).toBe(0);
+  // One collection read plus one independent detail read; copies never fan out.
+  expect(reads).toBe(2);
+  expect(await page.evaluate(async url=>(await import(url)).state.items.every(item=>item.price===110),appUrl)).toBe(true);
+});

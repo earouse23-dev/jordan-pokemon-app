@@ -70,6 +70,7 @@ const changes = [
   "index.html",
   "themes.css",
   "lib/price-history.js",
+  "lib/pricing.js",
   "lib/portfolio.js",
   "lib/supabase-data.js",
   "lib/identity.js",

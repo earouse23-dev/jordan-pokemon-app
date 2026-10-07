@@ -3162,6 +3162,12 @@ function savedSaleEvidenceForContext(item, context) {
   return saved && savedContextKey === detailContextKey(context) ? saved : null;
 }
 
+function completedSaleHistory(item, context, sales) {
+  if (sales?.salesStatus !== "live") return [];
+  const result = exactSoldValuation(sales.sales || [], exactSaleContext(item, context), { validatedContext: sales.validatedContext, retrievedAt: sales.retrievedAt, hasMore: sales.hasMore });
+  return result.evidence.filter(sale => result.contributingEvidenceIds.includes(sale.transactionKey)).map(sale => ({ amount: sale.amount, currency: sale.currency, recordedAt: sale.soldAt, provider: "eBay completed sale", providerVariantId: sale.transactionKey, gradingCompany: context.gradingCompany, grade: context.grade, sourceUrl: sale.sourceUrl, granularity: "transaction" }));
+}
+
 function renderExactSoldValue(item, context, sales) {
   sales = sales || savedSaleEvidenceForContext(item, context);
   const result = exactSoldValuation(
@@ -3898,6 +3904,25 @@ function openBatchGradingPlanner(selectedIds = state.bulkSelected) {
   fillServices();
 }
 
+function saleLookupForItem(item) {
+  return {
+    clientId: item.id,
+    pkmnpricesId: item.externalIds?.pkmnprices || "",
+    name: item.name,
+    set: item.set,
+    number: item.number,
+    language: item.language || "en",
+    variant: item.variant || "",
+    finish: selectedPrinting(item).finish,
+    edition: selectedPrinting(item).edition,
+    promoType: selectedPrinting(item).promoType,
+    currency: item.currency || "USD",
+    grader: item.gradingCompany || "",
+    grade: item.gradingCompany ? String(item.grade || "") : "",
+    gradeQualifier: item.gradeQualifier || "",
+  };
+}
+
 async function loadSales(item, force = false) {
   // Opening a graded copy reads comps; only an explicit refresh persists them.
   const savedGraded = Boolean(
@@ -3951,22 +3976,7 @@ async function loadSales(item, force = false) {
     detailContextKey(state.detailValuationContext) === contextKey
   )
     renderDetail();
-  const lookup = {
-    clientId: item.id,
-    pkmnpricesId: item.externalIds?.pkmnprices || "",
-    name: item.name,
-    set: item.set,
-    number: item.number,
-    language: item.language || "en",
-    variant: item.variant || "",
-    finish: selectedPrinting(item).finish,
-    edition: selectedPrinting(item).edition,
-    promoType: selectedPrinting(item).promoType,
-    currency: item.currency || "USD",
-    grader: item.gradingCompany || "",
-    grade: item.gradingCompany ? String(item.grade || "") : "",
-    gradeQualifier: item.gradeQualifier || "",
-  };
+  const lookup = saleLookupForItem(item);
   let result;
   try {
     const durable = savedGraded && force;
@@ -7980,6 +7990,7 @@ async function loadCardPreviewPricing(
       language: card.language || "en",
       variant: card.variant || "",
       condition: context.cardState === "raw" ? context.condition || "" : "",
+      currency: context.currency || card.currency || "USD",
       grader:
         context.cardState === "graded" ? context.gradingCompany || "" : "",
       grade: context.cardState === "graded" ? String(context.grade || "") : "",
@@ -7987,7 +7998,7 @@ async function loadCardPreviewPricing(
   ];
   try {
     const response = await fetch(
-      `/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(lookup))}`,
+      `/api/cards?${context.cardState === "graded" ? "" : "history=full&"}lookups=${encodeURIComponent(JSON.stringify(lookup))}`,
       { headers: providerRequestHeaders() },
     );
     if (!response.ok) {
@@ -8092,11 +8103,12 @@ async function loadOwnedDetailPricing(
       language: item.language || "en",
       variant: item.variant || "",
       condition: item.gradingCompany ? "" : item.condition || "",
+      currency: item.currency || "USD",
     },
   ];
   try {
     const response = await fetch(
-      `/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(lookup))}`,
+      `/api/cards?${item.cardState === "graded" || item.gradingCompany ? "" : "history=full&"}lookups=${encodeURIComponent(JSON.stringify(lookup))}`,
       { headers: providerRequestHeaders() },
     );
     if (!response.ok) return;
@@ -8106,14 +8118,14 @@ async function loadOwnedDetailPricing(
     const quote = selectPositionQuote(priced.quotes, item);
     const pricing = quotePricingFields(quote, priced, item);
     const pricedItem = {
-      ...item,
+      ...(state.items.find(candidate => candidate.uid === item.uid) || item),
       externalIds: {
         ...(item.externalIds || {}),
         ...(priced.externalIds || {}),
       },
       metadata: priced.metadata || item.metadata || null,
       priceCapabilities: priced.capabilities || null,
-      ...pricing,
+      ...(item.cardState === "graded" || item.gradingCompany ? {} : pricing),
       quotes: priced.quotes || [],
       historyStatus: priced.historyStatus || null,
       priceHistory: recordPriceObservation(
@@ -8460,6 +8472,8 @@ function bindDetailValuationControls(item) {
     if (!detailContextReady(state.detailValuationContext)) return;
     const guard = beginDetailRequest(item, state.detailValuationContext);
     void loadCardPreviewPricing(item, state.detailValuationContext, guard);
+    if (state.session?.access_token && state.detailValuationContext.cardState === "graded")
+      void loadSales({ ...item, ...state.detailValuationContext, uid: null });
   };
   stateControl.addEventListener("change", () => apply("#detailValuationState"));
   $("#detailValuationCondition")?.addEventListener("change", () =>
@@ -8576,8 +8590,10 @@ function renderDetail() {
   };
   const detailHistory = context.cardState === "graded"
     ? detailContextKey(valuationContextForItem(baseItem)) === detailContextKey(context)
-      ? (baseItem.gradedValuations || []).filter(point => point.contextValidated && point.currency === context.currency)
-      : []
+      ? ((baseItem.gradedValuations || []).filter(point => point.contextValidated && point.currency === context.currency).length
+        ? (baseItem.gradedValuations || []).filter(point => point.contextValidated && point.currency === context.currency)
+        : completedSaleHistory(baseItem, context, sales || savedSaleEvidenceForContext(baseItem, context)))
+      : completedSaleHistory(baseItem, context, sales)
     : historyForItem(valuationItem);
   const detailRoot = $("#detailContent");
   const detailKey = String(item.uid || item.id || state.detailId);
@@ -8805,11 +8821,11 @@ function renderDetail() {
   const releaseYear = /^(\d{4})(?:$|-\d{2}-\d{2}(?:T|$))/.exec(String(item.release || item.releaseYear || ""))?.[1] || "Unknown";
   const identityDetails = sealed
     ? ""
-    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Unknown fields stay unassigned until the printing is confirmed.</p>" : ""}</details>`;
+    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
     <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name || "Printed name unknown")}</h1><p class="detail-set">${esc(item.set || "Set unknown")}${sealed ? "" : item.number ? ` · card ${esc(item.number)}` : " · collector number unknown"}</p><div class="detail-meta">${detailMeta}</div>${identityDetails}</div></div>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? "Recorded sold-derived estimates" : "Provider-recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "transaction") ? "Matching completed-sale prices" : "Recorded sold-derived estimates") : "Provider-recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${item.currency !== displayCurrency() ? `<p class="detail-currency-note">Display values in ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable.")} Purchase and sale records retain their original currencies.</p>` : ""}
     ${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) + '<details class="provider-index-details" data-detail-tool="provider-index"><summary>Provider reference index</summary>' : ""}<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD")}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<small class="price-provenance">${esc(provenance)}</small>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button">View recent eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>
@@ -8837,6 +8853,7 @@ function renderDetail() {
       ? history.back()
       : routeTo(state.detailReturnRoute || (owned ? "collection" : "scan")),
   );
+  $("#confirmPrintingButton")?.addEventListener("click", () => openPrintingConfirmationSheet(owned));
   $("#editCopyButton")?.addEventListener("click", () =>
     openPositionEditSheet(item),
   );
@@ -11259,6 +11276,28 @@ function openDeleteCopySheet(item) {
       button.disabled = false;
       toast(`Could not remove this card: ${error.message || "Unknown error"}`);
     }
+  });
+}
+
+function openPrintingConfirmationSheet(item) {
+  const choices = (id, label, values) => `<div class="field"><label for="${id}">${label}</label><select id="${id}" name="${id}" required><option value="">Choose from your card</option>${values.map(([value,text]) => `<option value="${value}">${text}</option>`).join("")}</select></div>`;
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm card version</h2><p>${esc(item.name)} · ${esc(item.set)} · ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="confirmPrintingForm"><div class="form-grid">${choices("printingFinish","Finish",[["holofoil","Holofoil"],["non_holo","Non-holo"],["reverse_holofoil","Reverse holofoil"]])}${choices("printingEdition","Edition / stamp",[["unlimited","Regular / unlimited"],["first_edition","1st Edition"],["shadowless","Shadowless"]])}${choices("printingPromo","Promo marking",[["none","No promo marking"],["black_star","Black Star promo"],["prerelease","Prerelease"],["staff","Staff"],["league","League"]])}${item.gradingCompany ? choices("printingQualifier","Grade qualifier",[["none","No qualifier on label"],["OC","OC"],["MC","MC"],["ST","ST"],["PD","PD"],["OF","OF"],["MK","MK"]]) : ""}<p class="form-error" id="printingError" role="alert"></p></div><p>Check the actual card or slab. Purchases, sales and notes stay with this copy; previous price observations remain in correction history.</p><div class="sheet-actions"><button class="secondary" type="button" id="printingCancel">Cancel</button><button class="primary" type="submit">Confirm version</button></div></form>`);
+  $("#printingCancel").addEventListener("click", closeSheet);
+  $("#confirmPrintingForm").addEventListener("submit", async event => {
+    event.preventDefault(); const owner = state.session?.user?.id, version = sessionLoadVersion;
+    if (!owner || !accountRequestIsCurrent(owner, version)) return;
+    const data = Object.fromEntries(new FormData(event.currentTarget));
+    const button = event.currentTarget.querySelector('[type="submit"]'); button.disabled = true;
+    const option = normalizeVariantOption({ finish: data.printingFinish, edition: data.printingEdition, promoType: data.printingPromo, language: item.language, status: "exact", metadata: { identityEvidence: "owner_confirmed_printing" } });
+    const printingLabel = { holofoil: "Holofoil", non_holo: "Normal", reverse_holofoil: "Reverse Holofoil" }[option.finish];
+    option.label = (option.edition === "first_edition" ? "1st Edition " : "") + printingLabel;
+    const identity = { ...identitySnapshot(item, option), variantId: null, collectibleId: null, gradeQualifier: data.printingQualifier === "none" ? "" : data.printingQualifier || item.gradeQualifier || "" };
+    try {
+      await remapCollectionPosition(supabase, { collectionItemId: item.uid, identity });
+      if (!accountRequestIsCurrent(owner, version)) return;
+      state.portfolioHistory = []; state.portfolioHistoryStatus = "idle";
+      closeSheet({ discardHistory: true }); await reloadPortfolio(item.uid); toast("Card version confirmed");
+    } catch(error) { if (accountRequestIsCurrent(owner, version)) { $("#printingError").textContent = error.message || "Could not confirm this version. Your card is unchanged."; button.disabled = false; } }
   });
 }
 
@@ -17175,6 +17214,25 @@ async function refreshLivePricing(positionIds = null) {
     catalog = catalog.map((item) =>
       cards.has(item.id) ? applyPricing(item) : item,
     );
+    const gradedGroups = new Map();
+    for (const item of state.items) {
+      if (!(item.cardState === "graded" || item.gradingCompany) || (selectedPositions && !selectedPositions.has(item.uid))) continue;
+      const printing = selectedPrinting(item);
+      if (printing.status !== "exact" || [printing.finish, printing.edition, printing.promoType].includes("unknown") || item.gradeQualifier == null) continue;
+      const key = detailIdentityKey(item) + "|" + detailContextKey(valuationContextForItem(item));
+      if (!gradedGroups.has(key)) gradedGroups.set(key, item);
+    }
+    for (const [key, item] of gradedGroups) {
+      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+      try {
+        const { response, payload } = await fetchSaleEvidence(saleLookupForItem(item));
+        if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+        if (!response.ok) { partial = true; if (response.status === 429) break; continue; }
+        const evidence = { ...payload, salesStatus: "live", selectionKey: detailIdentityKey(item), contextKey: detailContextKey(valuationContextForItem(item)) };
+        const result = exactSoldValuation(evidence.sales || [], exactSaleContext(item, valuationContextForItem(item)), { validatedContext: evidence.validatedContext, retrievedAt: evidence.retrievedAt, hasMore: evidence.hasMore });
+        state.items = state.items.map(copy => detailIdentityKey(copy) + "|" + detailContextKey(valuationContextForItem(copy)) === key ? { ...copy, exactSaleEvidence: evidence, price: result.status === "ready" ? result.estimate : null, referencePrice: result.estimate, pricingStatus: result.status === "ready" ? "live" : result.status === "stale" ? "stale" : "missing", pricingUpdatedAt: result.newestSoldAt } : copy);
+      } catch { partial = true; }
+    }
     const coverage = portfolioPriceCoverage(state.items);
     state.pricingStatus =
       partial || coverage.liveAutomaticUnits < coverage.totalUnits

@@ -631,3 +631,28 @@ test("dialog keyboard loop includes native disclosures and excludes their closed
   await expect(page.locator("#bottomSheet")).toBeHidden();
   expect(await page.locator("#appShell").evaluate(el=>el.inert)).toBe(false);
 });
+
+test("missing saved printing requires explicit choices and preserves the copy through audited correction", async ({page}) => {
+  await openDetail(page,{finish:"unknown",edition:"unknown",promoType:"unknown",identityStatus:"needs_review",cardState:"graded",gradingCompany:"PSA",grade:"9",gradeQualifier:null,notes:"Keep original"});
+  await page.evaluate(() => { globalThis.fixtureApp.state.session={access_token:"fixture-session",user:{id:"confirmation-owner"}}; });
+  let correction;
+  await page.route("https://mica-detail-test.supabase.co/rest/v1/rpc/remap_collection_position",async route => { correction=route.request().postDataJSON(); await route.fulfill({contentType:"application/json",body:JSON.stringify("fixture-correction")}); });
+  await page.locator(".identity-details > summary").click();
+  await page.locator("#confirmPrintingButton").click();
+  await expect(page.locator("#printingFinish")).toHaveValue("");
+  await expect(page.locator("#printingEdition")).toHaveValue("");
+  await expect(page.locator("#printingPromo")).toHaveValue("");
+  await page.locator('#confirmPrintingForm [type=submit]').click();
+  expect(correction).toBeUndefined();
+  await page.locator("#printingFinish").selectOption("holofoil");
+  await page.locator("#printingEdition").selectOption("unlimited");
+  await page.locator("#printingPromo").selectOption("none");
+  await page.locator("#printingQualifier").selectOption("none");
+  await page.locator('#confirmPrintingForm [type=submit]').click();
+  await expect.poll(()=>correction?.p_identity?.identityStatus).toBe("exact");
+  expect(correction.p_collection_item_id).toBe("11111111-1111-4111-8111-111111111111");
+  expect(correction.p_identity).toMatchObject({name:"Charizard",set:"Base Set",number:"4/102",variant:"Holofoil",finish:"holofoil",edition:"unlimited",promoType:"none",gradeQualifier:"",variantId:null,collectibleId:null});
+  expect(correction.p_card_id).toBeNull(); expect(correction.p_variant_id).toBeNull();
+  expect(correction.p_identity.variantMetadata.identityEvidence).toBe("owner_confirmed_printing");
+  expect(correction.p_identity).not.toHaveProperty("quantity"); expect(correction.p_identity).not.toHaveProperty("notes");
+});

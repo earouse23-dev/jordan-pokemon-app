@@ -2829,3 +2829,40 @@ test("exact identity search never prices ambiguous candidates and preserves Japa
     assert.equal(calls[0].searchParams.get("number"), "76"); assert.equal(calls[0].searchParams.get("total_set_number"), "73");
   } finally { globalThis.fetch = original; }
 });
+
+test("EUR raw references select exact Cardmarket condition without USD or graded substitution", () => {
+  const quote = { provider:"cardmarket",currency:"EUR",finish:"holofoil",condition:"Near Mint",priceType:"market",amount:6,gradingCompany:null,grade:null };
+  const context = { finish:"holofoil",edition:"unlimited",condition:"Near Mint" };
+  assert.equal(selectReferenceQuote([quote],"Holofoil","EUR",context)?.amount,6);
+  assert.equal(selectReferenceQuote([quote],"Holofoil","USD",context),null);
+  assert.equal(selectReferenceQuote([quote],"Holofoil","EUR",{...context,condition:"Excellent"}),null);
+  assert.equal(selectReferenceQuote([{...quote,gradingCompany:"PSA",grade:"10"}],"Holofoil","EUR",context),null);
+  assert.equal(selectReferenceQuote([quote],"Holofoil","EUR",{...context,finish:"unknown"}),null);
+});
+
+test("history uses the exact provider printing label for a known display alias", async () => {
+  const original = globalThis.fetch, requests = [];
+  globalThis.fetch = async input => {
+    const url = new URL(input); requests.push(url);
+    return new Response(JSON.stringify(url.pathname.endsWith('/prices/history')
+      ? {data:[{date:"2026-10-06",source:"tcgplayer",currency:"USD",condition:"Near Mint",variant:"Holofoil",avg:6.41}],pagination:{page:1,total_pages:1}}
+      : {id:30269,name:"Mew ex",number:"151",total_set_number:"165",set:{name:"151"},language:"English",prices:[{currency:"USD",source:"tcgplayer",condition:"Near Mint",variant:"Holofoil",market_price:6.41}]}),{status:200});
+  };
+  try {
+    const result = await fetchPkmnPricesLookup("printing-label-fixture",{pkmnpricesId:"30269",name:"Mew ex",set:"151",number:"151/165",language:"en",variant:"holo",condition:"Near Mint"},undefined,{includeHistory:true,historyLimit:7,currencies:["usd"]});
+    assert.equal(result.history.length,1);
+    const history=requests.find(url=>url.pathname.endsWith('/prices/history'));
+    assert.equal(history.searchParams.get('variant'),'Holofoil');
+    assert.equal(history.searchParams.get('condition'),'Near Mint');
+    assert.equal(requests.length,2);
+  } finally { globalThis.fetch = original; }
+});
+
+test("resolved provider set and rarity explain real PSA titles without admitting conflicting identities", () => {
+  const card={id:30485,name:"Mew ex - 193/165",number:"193",total_set_number:"165",set:{name:"SV: Scarlet & Violet 151"},rarity:"Ultra Rare",language:"English"};
+  const lookup={name:"Mew ex",set:"151",number:"193/165",language:"en",edition:"unlimited"};
+  for(const title of ["2023 Pokemon Scarlet & Violet 151 Mew ex Ultra Rare Holo #193 PSA 10","Pokemon PSA 10 Mew ex Full Art 193/165 Scarlet & Violet 151","Pokemon TCG PSA 10 Mew ex Sv: Scarlet & Violet 151 193/165 Ultra Rare Holo ENG 193/165"])
+    assert.equal(saleMatchesCanonicalIdentity({title},card,lookup),true,title);
+  for(const title of ["Pokemon Mew ex Ultra Rare 151/165 PSA 10","Pokemon Mew ex 193/165 Celebrations PSA 10","Pokemon Mew ex 193/165 151 Metal PSA 10","Pokemon Mew ex 193/165 Japanese 151 PSA 10"])
+    assert.equal(saleMatchesCanonicalIdentity({title},card,lookup),false,title);
+});
