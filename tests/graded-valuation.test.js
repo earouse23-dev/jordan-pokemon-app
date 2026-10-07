@@ -1,3 +1,5 @@
+import "./pkmnprices-fixture.mjs";
+import { pkmnPricesRequests } from "../lib/pkmnprices-requests.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -62,7 +64,7 @@ function harness({
   rows = [position()],
   returnedSales = sales(),
   delayed = null,
-  allowance = 11,
+  allowance = true,
   providerError = false,
   beforeWrite = null,
   guardAvailable = true,
@@ -133,10 +135,7 @@ function harness({
         }
         return { data: row ? observations.get(row.id) : null, error: null };
       }
-      assert.equal(name, "reserve_provider_daily_credits");
-      assert.equal(args.p_requested, 11);
-      calls.reserve += 1;
-      return { data: allowance, error: null };
+      assert.fail(`Unexpected RPC: ${name}; adapter owns credit reservations`);
     },
   };
   const handler = createGradedValuationHandler({
@@ -149,6 +148,7 @@ function harness({
     }),
     now: () => at,
     fetchSales: async (_key, lookup) => {
+      if (!allowance) throw Object.assign(new Error("shared allowance denied"), { status: 429 });
       calls.provider += 1;
       assert.equal(lookup.pkmnpricesId, "20618");
       if (delayed) await delayed();
@@ -202,7 +202,7 @@ test("server ignores forged browser amounts and source flags; retry is idempoten
   assert.equal(run.observations.size, 1);
   assert.equal([...run.observations.values()][0].amount, 120);
   assert.equal(run.calls.provider, 2);
-  assert.equal(run.calls.reserve, 2);
+  assert.equal(run.calls.reserve, 0, "no duplicate route-level reservation");
   returnedSales[0].amount = 110;
   assert.equal((await run.request(row.id)).status, 200);
   assert.equal(
@@ -493,6 +493,7 @@ test("actual adapter uses one direct identity request plus one ten-row sales req
       120,
     );
     calls.length = 0;
+    pkmnPricesRequests.cache.clear();
     globalThis.fetch = async (input) => {
       calls.push(String(input));
       return Response.json({ error: "synthetic failure" }, { status: 503 });

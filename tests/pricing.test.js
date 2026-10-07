@@ -1,4 +1,6 @@
+import "./pkmnprices-fixture.mjs";
 import test from "node:test";
+import { pkmnPricesRequests } from "../lib/pkmnprices-requests.js";
 import assert from "node:assert/strict";
 import { retainedHandler as handler } from "../api/cards.js";
 import {
@@ -27,9 +29,23 @@ import {
 } from "../lib/pricing.js";
 
 test("market source links require the returned HTTPS marketplace host", () => {
-  assert.equal(safeMarketSourceUrl("https://www.tcgplayer.com/product/123", "tcgplayer"), "https://www.tcgplayer.com/product/123");
-  assert.equal(safeMarketSourceUrl("https://www.cardmarket.com/en/Pokemon/Products", "cardmarket"), "https://www.cardmarket.com/en/Pokemon/Products");
-  for (const url of ["javascript:alert(1)", "https://tcgplayer.com.evil.example/product/123", "https://user@www.tcgplayer.com/product/123", "http://www.tcgplayer.com/product/123"])
+  assert.equal(
+    safeMarketSourceUrl("https://www.tcgplayer.com/product/123", "tcgplayer"),
+    "https://www.tcgplayer.com/product/123",
+  );
+  assert.equal(
+    safeMarketSourceUrl(
+      "https://www.cardmarket.com/en/Pokemon/Products",
+      "cardmarket",
+    ),
+    "https://www.cardmarket.com/en/Pokemon/Products",
+  );
+  for (const url of [
+    "javascript:alert(1)",
+    "https://tcgplayer.com.evil.example/product/123",
+    "https://user@www.tcgplayer.com/product/123",
+    "http://www.tcgplayer.com/product/123",
+  ])
     assert.equal(safeMarketSourceUrl(url, "tcgplayer"), null);
 });
 import {
@@ -455,24 +471,16 @@ test("portfolio coverage reports confidence, manual values, and excluded gaps se
   assert.equal(coverage.displayedValue, 260);
 });
 
-test("scheduled pricing reserves a conservative provider allowance for every plan", () => {
+test("scheduled pricing declares plan capabilities; shared requests own reservations", () => {
   assert.deepEqual(pricingCreditPlan("free"), {
     dailyBudget: 100,
-    upperBoundPerGroup: 50,
     expanded: false,
   });
   assert.deepEqual(pricingCreditPlan("pro"), {
     dailyBudget: 20_000,
-    upperBoundPerGroup: 800,
     expanded: true,
   });
-  assert.equal(
-    Math.floor(
-      pricingCreditPlan("pro").dailyBudget /
-        pricingCreditPlan("pro").upperBoundPerGroup,
-    ),
-    25,
-  );
+  assert.equal("upperBoundPerGroup" in pricingCreditPlan("pro"), false, "no guessed group reservation on top of actual requests");
   assert.equal(pricingCreditPlan("business").dailyBudget, 200_000);
 });
 
@@ -1165,7 +1173,7 @@ test("sealed search preserves the requested Pro language contract", async () => 
   }
 });
 
-test("PkmnPrices bounds Retry-After and aborts an in-flight retry delay", async () => {
+test("PkmnPrices bounds server Retry-After and aborts an in-flight retry delay", async () => {
   const originalFetch = globalThis.fetch;
   const now = Date.parse("2026-08-19T12:00:00.000Z");
   assert.equal(pkmnPricesRetryDelayMs({ retryAfter: "120" }, 0, now), 2_000);
@@ -1184,7 +1192,7 @@ test("PkmnPrices bounds Retry-After and aborts an in-flight retry delay", async 
   globalThis.fetch = async () => {
     calls += 1;
     return new Response(JSON.stringify({ error: { message: "Slow down" } }), {
-      status: 429,
+      status: 503,
       headers: { "Retry-After": "120" },
     });
   };
@@ -1203,7 +1211,7 @@ test("PkmnPrices bounds Retry-After and aborts an in-flight retry delay", async 
   }
 });
 
-test("PkmnPrices applies the bounded Retry-After delay before retrying", async () => {
+test("PkmnPrices applies bounded server retry delay before retrying", async () => {
   const originalFetch = globalThis.fetch;
   const originalSetTimeout = globalThis.setTimeout;
   const delays = [];
@@ -1217,7 +1225,7 @@ test("PkmnPrices applies the bounded Retry-After delay before retrying", async (
     calls += 1;
     if (calls === 1)
       return new Response(JSON.stringify({ error: { message: "Slow down" } }), {
-        status: 429,
+        status: 503,
         headers: { "Retry-After": "120" },
       });
     return new Response(JSON.stringify({ data: [] }), { status: 200 });
@@ -1477,8 +1485,8 @@ test("requests Japanese search, USD and EUR prices, and 365-day Pro history", as
       true,
     );
     assert.equal(
-      requested.filter((url) => /\/cards\/99\?currency=/.test(url)).length,
-      2,
+      requested.filter((url) => new URL(url).pathname === "/v1/cards/99").length,
+      1,
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -1889,7 +1897,7 @@ test("a PkmnPrices timeout does not abort the TCGdex fallback tier", async () =>
     },
   };
   globalThis.setTimeout = (callback, delay, ...args) =>
-    originalSetTimeout(callback, delay === 4_500 ? 5 : delay, ...args);
+    originalSetTimeout(callback, delay === 45_000 ? 5 : delay, ...args);
   globalThis.fetch = async (url, options = {}) => {
     if (String(url).includes("api.pkmnprices.com")) {
       paidSignal = options.signal;
@@ -2533,6 +2541,8 @@ test("sold API distinguishes empty, invalid-key, and rate-limited states", async
     assert.equal(empty.body.capabilityStatus, "missing");
     assert.deepEqual(empty.body.sales, []);
 
+    // Each error scenario represents an uncached read, rather than a cached success.
+    pkmnPricesRequests.cache.clear();
     listingResponse = () =>
       new Response(JSON.stringify({ error: { code: "invalid_key" } }), {
         status: 403,
@@ -2541,6 +2551,7 @@ test("sold API distinguishes empty, invalid-key, and rate-limited states", async
     assert.equal(invalid.status, 502);
     assert.equal(invalid.body.code, "provider_authentication_failed");
 
+    pkmnPricesRequests.cache.clear();
     listingResponse = () =>
       new Response(JSON.stringify({ error: { code: "rate_limited" } }), {
         status: 429,
@@ -2777,4 +2788,29 @@ test("PSA sale samples require direct identifiable listing links", () => {
   const result = summarizePsaSales(rows, 10, Date.parse("2026-09-06"));
   assert.equal(result.count, 0);
   assert.equal(result.median, null);
+});
+
+for (const [language, name, set] of [["en", "Mewtwo GX", "Shining Legends"], ["ja", "ミュウツーGX", "ひかる伝説"], ["de", "Mewtu GX", "Schimmernde Legenden"]]) test(`confirmed ${language} card current prices use one detail request for USD and EUR`, async () => {
+  const original = globalThis.fetch, calls = [];
+  const prices = [{ currency: "USD", market_price: 100 }, { currency: "EUR", market_price: 90 }];
+  globalThis.fetch = async url => { calls.push(new URL(url)); return new Response(JSON.stringify({ id: 76, name, number: "76", total_set_number: "73", set: { name: set }, language: ({ en: "English", ja: "Japanese", de: "German" })[language], prices })); };
+  try {
+    const result = await fetchPkmnPricesLookup("single-detail-" + language, { pkmnpricesId: "76", name, set, number: "76/73", language }, undefined, { includeEur: true, includeHistory: false });
+    assert.equal(calls.length, 1); assert.equal(calls[0].pathname, "/v1/cards/76");
+    assert.equal(calls[0].searchParams.has("currency"), false);
+    assert.deepEqual(result.card.prices, prices); assert.deepEqual(result.history, []);
+  } finally { globalThis.fetch = original; }
+});
+
+test("exact identity search never prices ambiguous candidates and preserves Japanese names", async () => {
+  assert.equal(matchesPkmnPricesIdentity({ name: "ミュウツーGX", number: "76", language: "Japanese" }, { name: "リザードンGX", number: "76", language: "ja" }), false);
+  assert.equal(matchesPkmnPricesIdentity({ name: "Mewtwo GX", number: "76", total_set_number: "100" }, { name: "Mewtwo GX", number: "76/73" }), false);
+  const original = globalThis.fetch, calls = [];
+  globalThis.fetch = async url => { calls.push(new URL(url)); return new Response(JSON.stringify({ data: [1,2].map(id => ({ id, name: "Mewtwo GX", number: "76", total_set_number: "73", set: { name: "Shining Legends" }, language: "English" })) })); };
+  try {
+    const result = await fetchPkmnPricesLookup("ambiguous-only", { name: "Mewtwo GX", set: "Shining Legends", number: "76/73", language: "en" }, undefined, { includeEur: true, includeHistory: false });
+    assert.equal(result.card, null); assert.equal(calls.length, 1);
+    assert.equal(calls[0].pathname, "/v1/cards");
+    assert.equal(calls[0].searchParams.get("number"), "76"); assert.equal(calls[0].searchParams.get("total_set_number"), "73");
+  } finally { globalThis.fetch = original; }
 });

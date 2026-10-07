@@ -50,7 +50,9 @@ export default async function handler(request, response) {
           Authorization: `Bearer ${config.supabasePublishableKey}`,
         }, true)
       : Promise.resolve("not_configured"),
-    Promise.resolve("release_hold"),
+    config.pkmnpricesApiKey && config.pkmnpricesPlan === "pro" && config.supabaseSecretKey
+      ? probe("https://api.pkmnprices.com/health")
+      : Promise.resolve("not_configured"),
   ]);
   const database =
     auth === "healthy" && ["healthy", "access_restricted"].includes(appSchema)
@@ -67,7 +69,7 @@ export default async function handler(request, response) {
       schemaVerification: "requires_authenticated_acceptance",
       catalog: "configured",
       pricingProvider,
-      paidPricing: "release_hold",
+      paidPricing: config.pkmnpricesApiKey && config.pkmnpricesPlan === "pro" && config.supabaseSecretKey ? "configured_unverified" : "not_configured",
       vision: "release_hold",
     },
   });

@@ -14,6 +14,7 @@ import {
   sealedProductMatches,
   selectVariantOption,
   variantDifferenceFields,
+  variantOptionSummary,
 } from "../lib/identity.js";
 
 test("sealed provider refresh cannot substitute language, type or package variant", () => {
@@ -188,4 +189,20 @@ test("profile action snapshots keep language, finish, and unknown distinctions e
       { language: "ja", finish: "holofoil", edition: "unknown", promoType: "unknown" },
     ],
   );
+});
+
+test("variant summary removes repeated display fragments without clearing printing facts", () => {
+  const option = normalizeVariantOption({ label: "Holofoil", finish: "holofoil", language: "en", edition: "first_edition", promoType: "stamped", status: "needs_review" });
+  const before = structuredClone(option);
+  const summary = variantOptionSummary(option);
+  assert.equal(summary.split(" · ").filter(value => value === "Holofoil").length, 1);
+  assert.match(summary, /EN/); assert.match(summary, /confirm details/);
+  assert.deepEqual(option, before);
+  assert.equal(option.edition, "first_edition"); assert.equal(option.promoType, "stamped");
+});
+
+test("identity snapshots retain an explicit release year without deriving purchase dates", () => {
+  assert.equal(collectibleIdentitySnapshot({ releaseYear: 1999 }).release, 1999);
+  assert.equal(collectibleIdentitySnapshot({ release: "2000-04-01", releaseYear: 1999 }).release, "2000-04-01");
+  assert.equal(collectibleIdentitySnapshot({ purchaseDate: "2026-01-01" }).release, null);
 });

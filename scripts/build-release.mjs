@@ -1,15 +1,15 @@
-// Repackage the accepted release, retaining its exact static bytes and eight independent active APIs.
+// Rebuild curated client-reset source over the accepted snapshot; never package the dirty worktree.
 import fs from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { build } from "esbuild";
-import { heldRoutes } from "../lib/held-routes.js";
+import { heldRoutes, proRoutes, routedRoutes } from "../lib/held-routes.js";
 const repo = path.resolve(import.meta.dirname, ".."),
-  evidence = path.join(repo, "docs/evidence/sol-release-publication-05"),
+  evidence = path.join(repo, "docs/evidence/client-reset-2026-10-03"),
   old = path.join(repo, "docs/evidence/sol-release-activation-04");
-const stage = "/tmp/mica-publication-05-corrected",
+const stage = "/tmp/mica-client-reset-corrected",
   source = path.join(stage, "source");
 const digest = (b) => createHash("sha256").update(b).digest("hex");
 const hash = async (f) => digest(await fs.readFile(f));
@@ -66,11 +66,28 @@ for (const f of baseline.deployment)
 for (const f of baseline.source)
   assert.equal(await hash(path.join(source, f.path)), f.sha256, f.path);
 const changes = [
+  "app.js",
+  "index.html",
+  "themes.css",
+  "lib/price-history.js",
+  "lib/portfolio.js",
+  "lib/supabase-data.js",
+  "lib/identity.js",
+  "lib/providers/pkmnprices.js",
+  "lib/pkmnprices-requests.js",
+  "lib/native-cors.js",
+  "lib/pkmnprices-readiness.js",
+  "scripts/verify-pkmnprices.mjs",
+  "scripts/build-release.mjs",
   "api/cards.js",
+  "api/health.js",
+  "api/capabilities.js",
+  "api/vision.js",
   "api/sales.js",
   "api/offers.js",
   "api/sealed.js",
   "api/price-sync.js",
+  "api/graded-valuation.js",
   "api/maintenance.js",
   "lib/held-routes.js",
   "package.json",
@@ -87,9 +104,17 @@ await fs.symlink(
   path.join(source, "node_modules"),
   "dir",
 );
+execFileSync(process.execPath, ["scripts/build.mjs", "--release-config"], {
+  cwd: source,
+  stdio: "pipe",
+});
 const output = path.join(stage, ".vercel/output"),
   functions = path.join(output, "functions");
-for (const n of Object.keys(heldRoutes))
+await fs.rm(path.join(output, "static"), { recursive: true });
+await fs.cp(path.join(source, "dist"), path.join(output, "static"), {
+  recursive: true,
+});
+for (const n of Object.keys(routedRoutes))
   await fs.rm(path.join(functions, "api", n + ".func"), { recursive: true });
 const shared = path.join(functions, "_release-hold.func");
 await fs.mkdir(shared);
@@ -116,13 +141,31 @@ await write(path.join(shared, ".vc-config.json"), {
   handler: "index.mjs",
   launcherType: "Nodejs",
   shouldAddHelpers: true,
-  maxDuration: 10,
+  maxDuration: 60,
 });
-// Public-only wrapper remains the default; retained named implementation is only offline test coverage.
-await bundle(
-  path.join(source, "api/cards.js"),
-  path.join(functions, "api/cards.func/index.mjs"),
-);
+// Public configuration remains separate from the server-only Pro request gate.
+for (const name of [
+  "account",
+  "capabilities",
+  "card-image",
+  "cards",
+  "catalog",
+  "fx",
+  "health",
+  "set",
+])
+  {
+    await bundle(
+      path.join(source, `api/${name}.js`),
+      path.join(functions, `api/${name}.func/index.mjs`),
+    );
+    if (name === "cards") {
+      const runtimePath = path.join(functions, `api/${name}.func/.vc-config.json`);
+      const runtime = await json(runtimePath);
+      runtime.maxDuration = 60;
+      await write(runtimePath, runtime);
+    }
+  }
 const config = await json(path.join(output, "config.json"));
 const start = config.routes.findIndex((r) => r.src === "^/profile/?$");
 assert(start >= 0);
@@ -130,7 +173,7 @@ config.routes.splice(
   start,
   0,
   { src: "^/_release-hold(?:/.*)?$", status: 404, caseSensitive: true },
-  ...Object.keys(heldRoutes).map((n) => ({
+  ...Object.keys(routedRoutes).map((n) => ({
     src: `^/api/${n}$`,
     dest: "/_release-hold",
     caseSensitive: true,
@@ -186,14 +229,27 @@ const delta = {
     )
     .map((f) => f.path),
 };
-for (const f of baseline.deployment.filter((f) =>
-  f.path.startsWith(".vercel/output/static/"),
-))
+// Every static byte must come from the just-built, explicit source overlay.
+const builtStatic = await files(path.join(source, "dist"));
+assert.equal(
+  deployment.filter((f) => f.path.startsWith(".vercel/output/static/")).length,
+  builtStatic.length,
+);
+for (const f of builtStatic)
   assert.equal(
-    deployment.find((n) => n.path === f.path).sha256,
-    f.sha256,
-    f.path,
+    await hash(path.join(output, "static", f)),
+    await hash(path.join(source, "dist", f)),
+    f,
   );
+const webConfig = JSON.parse(
+  (await fs.readFile(path.join(output, "static/app-config.js"), "utf8"))
+    .match(/^globalThis\.__APP_CONFIG__=Object\.freeze\((\{.*\})\);\s*$/)[1],
+);
+assert.deepEqual(Object.keys(webConfig).sort(), ["apiOrigin", "authReturnOrigin", "supabasePublishableKey", "supabaseUrl"]);
+assert.equal(webConfig.authReturnOrigin, "https://jordan-pokemon-app.vercel.app");
+assert.equal(webConfig.supabaseUrl, baseline.configuration.supabaseUrl);
+assert.equal(webConfig.apiOrigin, baseline.configuration.apiOrigin);
+assert.equal(digest(webConfig.supabasePublishableKey), baseline.configuration.publishableKeySha256);
 const manifest = {
   activation04ManifestSha256: await hash(
     path.join(old, "configured-manifest.json"),
@@ -202,10 +258,12 @@ const manifest = {
   node: process.version,
   dependencies: baseline.dependencies,
   publicConfigSha256: baseline.publicConfigSha256,
-  configuration: baseline.configuration,
+  configuration: { ...baseline.configuration, authReturnOrigin: webConfig.authReturnOrigin },
+  configuredPublicAssetSha256: await hash(path.join(output, "static/app-config.js")),
   functionCount: 9,
   observedFunctionLimit: 12,
   heldRoutes,
+  proRoutes,
   crons: config.crons,
   source: sources,
   deployment,

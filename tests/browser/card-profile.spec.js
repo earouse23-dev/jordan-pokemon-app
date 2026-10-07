@@ -208,7 +208,7 @@ async function setup(
           const input = route.request().postDataJSON();
           const completedAt =
             input.onboarding_completed_at || "2026-09-17T12:00:00.000Z";
-          accountProfiles[input.id] = { onboardingCompletedAt: completedAt };
+          accountProfiles[input.id] = { ...accountProfiles[input.id], onboardingCompletedAt: completedAt, preferences: input.preferences, displayCurrency: input.display_currency || accountProfiles[input.id]?.displayCurrency || "USD" };
           await route.fulfill({
             contentType: "application/json",
             body: JSON.stringify({
@@ -228,8 +228,8 @@ async function setup(
           body: JSON.stringify({
             id: requestedOwner,
             display_name: "Fixture collector",
-            display_currency: "USD",
-            preferences: {},
+            display_currency: fixture.displayCurrency || "USD",
+            preferences: fixture.preferences || {},
             onboarding_completed_at: fixture.onboardingCompletedAt || null,
           }),
         });
@@ -284,8 +284,11 @@ async function openCard(page, card = exactCard(), preferOwned = false) {
 }
 
 async function chooseGraded(page, grader, grade) {
+  await openValueContext(page);
   await page.locator("#detailValuationState").selectOption("graded");
+  await openValueContext(page);
   await page.locator("#detailValuationGrader").selectOption(grader);
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").fill(String(grade));
   await page.locator("#detailValuationGrade").dispatchEvent("change");
 }
@@ -391,6 +394,7 @@ test("profile keeps unknown identity and condition explicit, then matches raw an
   );
   expect(lookups).toHaveLength(0);
 
+  await openValueContext(page);
   await page.locator("#detailValuationCondition").selectOption("Near Mint");
   await expect(page.locator(".market-hero")).toContainText("$10.00");
   await expect(page.locator(".market-hero")).toContainText("TCGplayer");
@@ -406,7 +410,9 @@ test("profile keeps unknown identity and condition explicit, then matches raw an
   await expect(page.locator(".market-hero")).toContainText("$200.00");
   expect(lookups.at(-1)).toMatchObject({ grader: "PSA", grade: "10" });
 
+  await openValueContext(page);
   await page.locator("#detailValuationGrader").selectOption("BGS");
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").fill("9.5");
   await page.locator("#detailValuationGrade").dispatchEvent("change");
   await expect(page.locator(".market-hero")).toContainText("$150.00");
@@ -446,6 +452,7 @@ test("raw profile rejects graded-only evidence, then prices the matching slab co
     collectibleId: "44444444-4444-4444-8444-444444444444",
   });
   await openCard(page, card);
+  await openValueContext(page);
   await page.locator("#detailValuationCondition").selectOption("Near Mint");
   await expect(page.locator(".market-hero")).toContainText("Price unavailable");
   await expect(page.locator(".market-hero")).toContainText(
@@ -853,15 +860,17 @@ test("a different account cannot see an interrupted private Add purchase draft",
   expect(actionWrites).toEqual([]);
 });
 
-test("same-owner Watch draft waits for onboarding and resumes after completion", async ({
+test("same-owner Watch draft waits for automatic account setup and preserves stored preferences", async ({
   page,
 }) => {
   const actionWrites = [];
-  const accountProfiles = { [ownerId]: { onboardingCompletedAt: null } };
+  let pendingProfile;
+  const accountProfiles = { [ownerId]: { onboardingCompletedAt: null, preferences: { softwareMode: "seller", collectorGoal: "selling", experienceLevel: "professional", tradeValuePercent: 73 } } };
   await setup(page, {
     accountProfiles,
     onSupabase: async (route) => {
       const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/rest/v1/profiles") && route.request().method() === "POST") { pendingProfile = route; return true; }
       if (
         route.request().method() !== "GET" &&
         (url.pathname.endsWith("/rest/v1/card_watchlist") ||
@@ -882,7 +891,9 @@ test("same-owner Watch draft waits for onboarding and resumes after completion",
   }, appUrl);
 
   await initializeAccount(page, ownerId);
-  await expect(page.locator("#onboardingDialog")).toBeVisible();
+  await expect.poll(() => Boolean(pendingProfile)).toBe(true);
+  await expect(page.locator("#onboardingDialog")).not.toBeVisible();
+  await expect(page.locator('input[name="softwareMode"], input[name="experience"]')).toHaveCount(0);
   await expect(page.locator("#watchlistForm")).toHaveCount(0);
   expect(
     await page.evaluate(() =>
@@ -890,7 +901,10 @@ test("same-owner Watch draft waits for onboarding and resumes after completion",
     ),
   ).toMatchObject({ ownerId, notes: "Resume after onboarding" });
 
-  await page.getByRole("button", { name: "Get started" }).click();
+  const profileWrite = pendingProfile.request().postDataJSON();
+  expect(profileWrite.preferences).toMatchObject(accountProfiles[ownerId].preferences);
+  expect(profileWrite.onboarding_completed_at).toBeTruthy();
+  await pendingProfile.fulfill({ contentType: "application/json", body: JSON.stringify(profileWrite) });
   await expect(page.locator("#onboardingDialog")).toHaveCount(0);
   await expect(page.locator("#watchState")).toHaveValue("graded");
   await expect(page.locator("#watchGrader")).toHaveValue("PSA");
@@ -900,6 +914,141 @@ test("same-owner Watch draft waits for onboarding and resumes after completion",
     "Resume after onboarding",
   );
   expect(actionWrites).toEqual([]);
+});
+
+test("late account setup cannot replace another owner's profile or reopen a private draft", async ({ page }) => {
+  let pendingProfile;
+  const accountProfiles = {
+    [ownerId]: { onboardingCompletedAt: null },
+    [otherOwnerId]: { onboardingCompletedAt: "2026-09-01T12:00:00.000Z", preferences: { sellingFeePercent: 7 } },
+  };
+  await setup(page, { accountProfiles, onSupabase: async route => {
+    if (new URL(route.request().url()).pathname.endsWith("/rest/v1/profiles") && route.request().method() === "POST") { pendingProfile = route; return true; }
+    return false;
+  } });
+  await openCard(page);
+  await chooseGraded(page, "PSA", "10");
+  await page.locator("#watchCardButton").click();
+  await page.locator("#watchNotes").fill("Private account A draft");
+  await page.evaluate(async url => (await import(url)).applySession(null), appUrl);
+  await initializeAccount(page, ownerId);
+  await expect.poll(() => Boolean(pendingProfile)).toBe(true);
+  await initializeAccount(page, otherOwnerId);
+  await expect(page.locator("#onboardingDialog")).toHaveCount(0);
+  await expect(page.locator("#appShell")).not.toHaveAttribute("aria-hidden", "true");
+  expect(await page.locator("#appShell").evaluate(node => node.inert)).toBe(false);
+  await pendingProfile.fulfill({ contentType: "application/json", body: JSON.stringify(pendingProfile.request().postDataJSON()) });
+  await expect.poll(() => page.evaluate(async url => (await import(url)).state.profile?.id, appUrl)).toBe(otherOwnerId);
+  expect(await page.evaluate(async url => (await import(url)).state.preferences.sellingFeePercent, appUrl)).toBe(7);
+  await expect(page.locator("#watchlistForm")).toHaveCount(0);
+  await expect(page.getByText("Private account A draft")).toHaveCount(0);
+});
+
+test("visible fee preference saves preserve hidden mode and trade values", async ({ page }, testInfo) => {
+  const writes = [];
+  const preferences = { softwareMode: "seller", collectorGoal: "selling", experienceLevel: "professional", tradeValuePercent: 73, quickSalePercent: 61, sellingFeePercent: 7 };
+  await setup(page, { accountProfiles: { [ownerId]: { onboardingCompletedAt: "2026-09-01T12:00:00.000Z", preferences } }, onSupabase: async route => {
+    if (new URL(route.request().url()).pathname.endsWith("/rest/v1/profiles") && route.request().method() === "POST") writes.push(route.request().postDataJSON());
+    return false;
+  } });
+  await initializeAccount(page, ownerId);
+  await page.evaluate(async url => (await import(url)).routeTo("profile"), appUrl);
+  for (const id of ["defaultTradePercent", "defaultQuickSalePercent", "sharePortfolioButton", "insuranceReportButton", "softwareModeSettings"])
+    await expect(page.locator("#" + id)).toBeHidden();
+  await page.evaluate(() => {
+    document.querySelector("#defaultTradePercent").value = "1";
+    document.querySelector("#defaultQuickSalePercent").value = "2";
+    document.querySelector("#defaultSellingFeePercent").value = "9";
+    document.querySelector("#saveWorkflowDefaults").click();
+  });
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].preferences).toMatchObject({ ...preferences, sellingFeePercent: 9 });
+  expect(writes[0]).not.toHaveProperty("display_currency");
+  await expect(page.locator("#workflowDefaultsStatus")).toHaveText("Saved to your Mica account.");
+  await expect(page.locator("#gradingCalibration")).not.toHaveAttribute("open", "");
+  const heading = await page.locator("#profileTitle").boundingBox();
+  for (const id of ["collectionInsights", "gradingCalibration"]) {
+    const secondary = await page.locator("#"+id).boundingBox();
+    expect(secondary.y).toBeGreaterThan(heading.y + heading.height);
+  }
+  await page.screenshot({path:testInfo.outputPath("profile-viewport-fixture.png"),animations:"disabled"});
+  await page.locator("#gradingCalibration > summary").click();
+  await expect(page.locator("#gradingCalibrationSummary")).toBeVisible();
+});
+
+test("saved display currency converts the portfolio and survives profile reload without changing native items", async ({ page }, testInfo) => {
+  const writes = [];
+  const preferences = { softwareMode: "seller", tradeValuePercent: 73, sellingFeePercent: 7 };
+  await setup(page, { accountProfiles: { [ownerId]: { onboardingCompletedAt: "2026-09-01T12:00:00.000Z", preferences } }, onSupabase: async route => {
+    if (new URL(route.request().url()).pathname.endsWith("/rest/v1/profiles") && route.request().method() === "POST") writes.push(route.request().postDataJSON());
+    return false;
+  } });
+  const date = new Date().toISOString().slice(0,10); const hash = "a".repeat(64);
+  let rateCalls = 0;
+  await page.route("**/api/fx", route => {
+    if (++rateCalls === 1) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ code: "rate_unavailable" }) });
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ sourceId: "ecb-eurofxref-daily", sourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", base: "EUR", quote: "USD", units: "USD per EUR", rate: 1.25, effectiveDate: date, fetchedAt: new Date().toISOString(), contentSha256: hash, rateRef: "ecb-eurofxref-daily:"+date+":"+hash }) }); });
+  await initializeAccount(page, ownerId);
+  await page.evaluate(async url => {
+    const { state, renderCollection, routeTo } = await import(url);
+    state.items = [
+      { uid: "currency-usd", id: "sealed:usd", name: "USD sealed", cardState: "sealed", status: "owned", currency: "USD", quantity: 1, price: 100, pricingStatus: "live", costBasis: 60, quotes: [], transactions: [], lots: [], tags: [], thumb: "/icons/icon.svg" },
+      { uid: "currency-eur", id: "sealed:eur", name: "EUR sealed", cardState: "sealed", status: "owned", currency: "EUR", quantity: 1, price: 100, pricingStatus: "live", costBasis: 90, quotes: [], transactions: [], lots: [], tags: [], thumb: "/icons/icon.svg" },
+    ];
+    renderCollection(); routeTo("dashboard");
+  }, appUrl);
+  await expect(page.locator("#retryDisplayFx")).toBeVisible();
+  await expect(page.locator("#portfolioValue")).toHaveText("$100.00");
+  await expect(page.locator("#portfolioChange")).toContainText("1 awaiting conversion");
+  await page.locator("#retryDisplayFx").click();
+  await expect(page.locator("#portfolioValue")).toHaveText("$225.00");
+  await expect(page.locator("#retryDisplayFx")).toBeHidden();
+  expect(rateCalls).toBe(2);
+  await expect(page.locator("#portfolioChange")).toContainText("ECB rate " + date);
+  await page.evaluate(async url => (await import(url)).routeTo("profile"), appUrl);
+  await expect(page.locator("#currencyButton")).toHaveCount(0);
+  await expect(page.locator("#everydaySettings #profileDisplayCurrency")).toBeVisible();
+  await expect(page.locator("#everydaySettings #saveWorkflowDefaults")).toBeVisible();
+  for (const id of ["profileDisplayCurrency", "saveWorkflowDefaults"]) expect(await page.locator("#"+id).evaluate(el=>parseFloat(getComputedStyle(el).borderTopRightRadius))).toBeGreaterThanOrEqual(10);
+  await page.locator("#profileDisplayCurrency").selectOption("EUR");
+  await page.locator("#saveWorkflowDefaults").click();
+  await expect(page.locator("#workflowDefaultsStatus")).toHaveText("Saved to your Mica account.");
+  expect(writes).toHaveLength(1);
+  expect(writes[0].display_currency).toBe("EUR");
+  expect(writes[0].preferences).toMatchObject(preferences);
+  await page.locator("#everydaySettings").scrollIntoViewIfNeeded();
+  await page.screenshot({path:testInfo.outputPath("everyday-currency-fixture.png"),animations:"disabled"});
+  await page.evaluate(async url => (await import(url)).routeTo("dashboard"), appUrl);
+  await expect(page.locator("#portfolioValue")).toHaveText("€180.00");
+  await expect(page.locator("#portfolioToplineLabel")).toHaveText("Known EUR collection value");
+  await expect(page.locator("#costBasis")).toHaveText("€138.00");
+  await expect(page.locator("#gradedOwnedCount")).toHaveText("€138.00");
+  const native = await page.evaluate(async url => (await import(url)).state.items.map(item => ({ currency:item.currency, price:item.price, costBasis:item.costBasis })), appUrl);
+  expect(native).toEqual([{ currency:"USD", price:100, costBasis:60 }, { currency:"EUR", price:100, costBasis:90 }]);
+  await page.evaluate(async url => (await import(url)).routeTo("collection"), appUrl);
+  await expect(page.locator(".ledger-row").filter({ hasText: "USD sealed" }).locator(".position-price-grid")).toContainText("€80.00");
+  await expect(page.locator(".ledger-row").filter({ hasText: "USD sealed" }).locator(".position-price-grid")).toContainText("€48.00");
+  await expect(page.locator(".ledger-row").filter({ hasText: "USD sealed" }).locator(".position-price-grid strong").first()).toHaveAttribute("title", /Original \$100.00.*ECB rate/);
+  await page.evaluate(async url => {
+    const app = await import(url);
+    app.openCardDetail(app.state.items[0], true);
+  }, appUrl);
+  await expect(page.locator(".market-hero > strong")).toHaveText("€80.00");
+  await expect(page.locator(".detail-meta")).not.toContainText("Catalog ID");
+  expect((await page.locator(".market-hero").innerText()).match(/Updated date unavailable/g)).toHaveLength(1);
+  expect(await page.locator(".detail-identity").evaluate(element => getComputedStyle(element).boxShadow)).toBe("none");
+  expect(await page.locator(".market-hero").evaluate(element => getComputedStyle(element).boxShadow)).toBe("none");
+  await expect(page.locator(".owned-banner")).toContainText("€80.00 each");
+  await expect(page.locator(".detail-performance")).toContainText("€32.00");
+  await expect(page.locator(".detail-currency-note")).toContainText("ECB rate dated " + date);
+  await page.screenshot({ path: testInfo.outputPath("selected-currency-detail-fixture.png"), fullPage: true });
+  await page.locator('[data-detail-tool="purchases"] > summary').click();
+  await expect(page.locator(".position-summary")).toContainText("$60.00");
+  await expect(page.locator(".position-summary")).toContainText("€80.00 each");
+  expect(await page.evaluate(async url => (await import(url)).state.items[0].currency, appUrl)).toBe("USD");
+  await initializeAccount(page, ownerId);
+  expect(await page.evaluate(async url => (await import(url)).state.profile.displayCurrency, appUrl)).toBe("EUR");
+  await expect(page.locator("#profileDisplayCurrency")).toHaveValue("EUR");
 });
 
 for (const invalidDraft of [
@@ -1023,7 +1172,9 @@ test("Library row opens the chosen saved position and research does not mutate e
     ),
   ).toBe(graded.uid);
 
+  await openValueContext(page);
   await page.locator("#detailValuationState").selectOption("raw");
+  await openValueContext(page);
   await page
     .locator("#detailValuationCondition")
     .selectOption("Lightly Played");
@@ -1168,6 +1319,7 @@ test("provider-normalized first-edition uncertainty stays unpriced through add a
   await openCard(page, card);
   await expect(page.locator(".detail-meta")).toContainText("1st Edition");
   await expect(page.locator(".detail-meta")).not.toContainText("firstEdition");
+  await openValueContext(page);
   await page.locator("#detailValuationCondition").selectOption("Near Mint");
   await expect(page.locator(".market-hero")).toContainText("Price unavailable");
   await expect(page.locator(".market-hero")).toContainText(
@@ -1287,6 +1439,9 @@ test("owned raw value stays separate through graded loading, failure, and retry"
     "Current price unavailable",
   );
 
+  const providerIndex = page.locator('[data-detail-tool="provider-index"]');
+  if (await providerIndex.count() && !(await providerIndex.evaluate(element => element.open)))
+    await providerIndex.locator("summary").click();
   await page.locator("#retryPricingButton").click();
   await expect.poll(() => gradedRequests.length).toBeGreaterThan(failedCount);
   await Promise.all(
@@ -1337,6 +1492,7 @@ test("late raw pricing cannot replace the newly selected graded context", async 
     },
   });
   await openCard(page);
+  await openValueContext(page);
   await page.locator("#detailValuationCondition").selectOption("Near Mint");
   await expect
     .poll(() => pending.some(({ lookup }) => lookup.condition === "Near Mint"))
@@ -1414,6 +1570,7 @@ test("late raw-condition evidence cannot replace a newer owned research context"
   await openCard(page, owned, true);
   await expect(page.locator(".market-hero")).toContainText("$10.00");
 
+  await openValueContext(page);
   await page
     .locator("#detailValuationCondition")
     .selectOption("Lightly Played");
@@ -1425,6 +1582,7 @@ test("late raw-condition evidence cannot replace a newer owned research context"
   await expect(page.locator(".market-hero")).toContainText("Checking…");
   await expect(page.locator(".market-hero")).not.toContainText("$10.00");
 
+  await openValueContext(page);
   await page.locator("#detailValuationCondition").selectOption("Damaged");
   await expect
     .poll(() => delayed.some(({ lookup }) => lookup.condition === "Damaged"))
@@ -1607,6 +1765,7 @@ test("focused valuation controls stay visible above the sticky actions", async (
 }) => {
   await setup(page);
   await openCard(page);
+  await openValueContext(page);
   await page.locator("#detailValuationCondition").selectOption("Near Mint");
   await expect(page.locator(".market-hero")).toContainText("$10.00");
   const expectAboveActions = async (selector) => {
@@ -1625,8 +1784,10 @@ test("focused valuation controls stay visible above the sticky actions", async (
       .toBe(true);
   };
   await expectAboveActions("#detailValuationCondition");
+  await openValueContext(page);
   await page.locator("#detailValuationState").selectOption("graded");
   await expectAboveActions("#detailValuationState");
+  await openValueContext(page);
   await page.locator("#detailValuationGrader").selectOption("PSA");
   await expectAboveActions("#detailValuationGrader");
   await page.locator("#detailValuationGrade").evaluate((control) => {
@@ -1669,6 +1830,7 @@ test("captures revised normal and uncertain profile viewports", async ({
   ];
   for (const state of states) {
     await openCard(page, state.card);
+    await openValueContext(page);
     await page.locator("#detailValuationCondition").selectOption("Near Mint");
     await expect(page.locator(".market-hero")).toContainText(state.expected);
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: "auto" }));
@@ -1725,7 +1887,7 @@ test("captures Packet 02 PSA action-prefill viewports", async ({ page }) => {
   });
 });
 
-test("captures owner-safe onboarding and resumed Watch viewports", async ({
+test("captures owner-safe automatic account setup and resumed Watch viewports", async ({
   page,
 }) => {
   test.skip(
@@ -1746,14 +1908,7 @@ test("captures owner-safe onboarding and resumed Watch viewports", async ({
   await initializeAccount(page, ownerId);
 
   const width = page.viewportSize().width;
-  await expect(page.locator("#onboardingDialog")).toBeVisible();
-  await expect(page.locator("#watchlistForm")).toHaveCount(0);
-  await page.screenshot({
-    fullPage: false,
-    path: `docs/evidence/sol-packet-02/${packet02RevisionCapture}-onboarding-${width}.png`,
-  });
-
-  await page.getByRole("button", { name: "Get started" }).click();
+  await expect(page.locator("#onboardingDialog")).toHaveCount(0);
   await expect(page.locator("#watchNotes")).toHaveValue(
     "Resume after onboarding",
   );
@@ -1764,3 +1919,9 @@ test("captures owner-safe onboarding and resumed Watch viewports", async ({
     path: `docs/evidence/sol-packet-02/${packet02RevisionCapture}-resumed-watch-${width}.png`,
   });
 });
+
+async function openValueContext(page) {
+  const context = page.locator('[data-detail-tool="valuation-context"]');
+  if (await context.count() && !(await context.evaluate(element => element.open)))
+    await context.locator("summary").click();
+}

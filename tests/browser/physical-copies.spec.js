@@ -239,9 +239,8 @@ test("CLIENT-05I form saves to disposable database and fresh browser login reope
     await page.locator("#authPassword").fill(password);
     await page.locator("#passwordAuthForm button[type=submit]").click();
     await expect(page.locator("#authGate")).toBeHidden();
-    await expect(page.locator("#onboardingDialog")).toBeVisible();
-    await page.locator("[data-skip-onboarding]").click();
-    await expect(page.locator("#onboardingDialog")).toBeHidden();
+    await expect.poll(() => page.evaluate(async (url) => Boolean((await import(url)).state.profile?.onboardingCompletedAt), appUrl)).toBe(true);
+    await expect(page.locator("#onboardingDialog")).toHaveCount(0);
     const card = normalizeTcgdexCard(
       {
         id: "synthetic-25",
@@ -313,8 +312,7 @@ test("CLIENT-05I form saves to disposable database and fresh browser login reope
     await freshPage.locator("#authPassword").fill(password);
     await freshPage.locator("#passwordAuthForm button[type=submit]").click();
     await expect(freshPage.locator("#authGate")).toBeHidden();
-    if (await freshPage.locator("#onboardingDialog").isVisible())
-      await freshPage.locator("[data-skip-onboarding]").click();
+    await expect(freshPage.locator("#onboardingDialog")).toHaveCount(0);
     await expect
       .poll(() =>
         freshPage.evaluate(
@@ -355,7 +353,7 @@ test.beforeAll(async () => {
   );
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderCollection, renderDetail, routeTo, bindEvents, catalogItem, openCardDetail };`,
+      contents: `${source}\nexport { state, renderCollection, renderDetail, routeTo, bindEvents, catalogItem, openCardDetail, openPurchaseLotSheet };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -925,7 +923,7 @@ test("CLIENT-05G replays a captured ECB rate with synthetic sales and no externa
     currency: await page.locator("#detailValuationCurrency").inputValue(),
   }).toEqual(nativeBefore);
   await page.screenshot({
-    path: `${fxSourceEvidenceDir}/${testInfo.project.name}-${accepted ? "real-rate-synthetic-sales" : "source-unavailable"}.png`,
+    path: testInfo.outputPath(`${testInfo.project.name}-${accepted ? "real-rate-synthetic-sales" : "source-unavailable"}.png`),
     fullPage: true,
   });
   expect(saleCalls).toBe(1);
@@ -1035,17 +1033,20 @@ test("CLIENT-05F displays dated ECB equivalent without changing native sale evid
   );
   await mkdir(fxEvidenceDir, { recursive: true });
   await page.screenshot({
-    path: `${fxEvidenceDir}/${testInfo.project.name}-usd-equivalent.png`,
+    path: testInfo.outputPath(`${testInfo.project.name}-usd-equivalent.png`),
     fullPage: true,
   });
   expect(saleCalls).toBe(1);
   expect(fxCalls).toBe(1);
+  await openValueContext(page);
   await page.locator("#detailValuationCurrency").selectOption("EUR");
   await expect(page.locator(".exact-fx")).toHaveCount(0);
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value > strong")).toHaveText(
-    "€100.00",
+    "$125.00",
   );
+  await expect(page.locator(".exact-sold-value")).toContainText("Original €100.00");
+  expect(await page.evaluate(async url => (await import(url)).state.detailValuationContext.currency, appUrl)).toBe("EUR");
   await page.locator("#toggleExactFxButton").click();
   await expect(page.locator(".exact-fx")).toContainText("About $125.00");
   expect(saleCalls).toBe(2);
@@ -1395,22 +1396,25 @@ test("exact sold value follows selected copy, currency and grade without invento
   ).toBeLessThanOrEqual(0);
   await mkdir(valuationEvidenceDir, { recursive: true });
   await page.screenshot({
-    path: `${valuationEvidenceDir}/${testInfo.project.name}-exact-usd.png`,
+    path: testInfo.outputPath(`${testInfo.project.name}-exact-usd.png`),
   });
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText("$120.00");
   await expect(page.locator(".exact-sold-value")).toContainText(
     "Couldn’t refresh",
   );
+  await openValueContext(page);
   await page.locator("#detailValuationCurrency").selectOption("EUR");
   await expect(page.locator(".exact-sold-value")).not.toContainText("$120.00");
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText("€110.00");
   await expect(page.locator(".market-hero")).not.toContainText("Checking…");
   await page.screenshot({
-    path: `${valuationEvidenceDir}/${testInfo.project.name}-exact-eur.png`,
+    path: testInfo.outputPath(`${testInfo.project.name}-exact-eur.png`),
   });
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").fill("9");
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").press("Tab");
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText(
@@ -1419,15 +1423,20 @@ test("exact sold value follows selected copy, currency and grade without invento
   await expect(page.locator(".exact-sold-value")).toContainText(
     "Estimate unavailable",
   );
+  await openValueContext(page);
   await page.locator("#detailValuationCurrency").selectOption("USD");
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").fill("8");
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").press("Tab");
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText("$120.00");
   await expect(page.locator(".exact-sold-value")).toContainText(
     "Older completed sales",
   );
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").fill("7");
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").press("Tab");
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText(
@@ -1436,16 +1445,22 @@ test("exact sold value follows selected copy, currency and grade without invento
   await expect(page.locator(".exact-sold-value")).toContainText(
     "Estimate unavailable",
   );
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").fill("6");
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").press("Tab");
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText(
     "0 eligible sales",
   );
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").fill("10");
+  await openValueContext(page);
   await page.locator("#detailValuationGrade").press("Tab");
   await expect(page.locator("#detailValuationGrade")).toHaveValue("10");
+  await openValueContext(page);
   await page.locator("#detailValuationQualifier").fill("Black Label");
+  await openValueContext(page);
   await page.locator("#detailValuationQualifier").press("Tab");
   await expect(page.locator("#detailValuationQualifier")).toHaveValue(
     "Black Label",
@@ -1525,7 +1540,7 @@ test("provider exclusions remain traceable through retry and clear with context"
   await expect(page.locator("#exactSaleEvidence a")).toHaveCount(3);
   await mkdir(valuationEvidenceDir, { recursive: true });
   await page.screenshot({
-    path: `${valuationEvidenceDir}/${testInfo.project.name}-upstream-exclusions.png`,
+    path: testInfo.outputPath(`${testInfo.project.name}-upstream-exclusions.png`),
     fullPage: true,
   });
   await page.locator("#checkExactSalesButton").click();
@@ -1535,6 +1550,7 @@ test("provider exclusions remain traceable through retry and clear with context"
   await expect(page.locator("#exactSaleEvidence")).toContainText(
     "pkmnprices:9001 (context mismatch)",
   );
+  await openValueContext(page);
   await page.locator("#detailValuationCurrency").selectOption("EUR");
   await expect(page.locator(".exact-sold-value")).not.toContainText("$120.00");
   await expect(page.locator("#exactSaleEvidence")).toHaveCount(0);
@@ -1869,3 +1885,159 @@ test("CLIENT-05M replays retained insufficient sales privately with no external 
   expect(unexpected).toEqual([]);
   expect(writes).toEqual([]);
 });
+
+async function openValueContext(page) {
+  const context = page.locator('[data-detail-tool="valuation-context"]');
+  if (await context.count() && !(await context.evaluate(element => element.open)))
+    await context.locator("summary").click();
+}
+
+test("printing details show the saved release year and keep unknown years truthful", async ({ page }) => {
+  await setup(page);
+  await page.evaluate(async (url) => {
+    const { state } = await import(url);
+    state.items[0].release = "1999-01-09";
+    state.items[1].release = "";
+    state.items[2].release = "unconfirmed";
+  }, appUrl);
+  await page.locator("[data-open-position]").click();
+  const year = page.locator(".identity-secondary > div").filter({ has: page.getByText("Year", { exact: true }) });
+  await expect(page.locator(".identity-details")).not.toHaveAttribute("open");
+  await page.locator(".identity-details > summary").click();
+  await expect(year).toContainText("1999");
+  await expect(year).not.toContainText("2026");
+  await page.locator("#nextCopyButton").click();
+  await page.locator(".identity-details > summary").click();
+  await expect(year).toContainText("Unknown");
+  await page.locator("#nextCopyButton").click();
+  await page.locator(".identity-details > summary").click();
+  await expect(year).toContainText("Unknown");
+});
+
+test("selected-copy sale reloads persisted history and reopens without changing siblings", async ({ page }, testInfo) => {
+  let writes = 0;
+  let committed = false;
+  const copies = [gradedCopy("a"), gradedCopy("b"), gradedCopy("c")];
+  await setup(page, { onSale: async () => { writes++; committed = true; } });
+  await page.route("https://mica-copy-test.supabase.co/rest/v1/**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/record_graded_copy_sale")) {
+      const input = route.request().postDataJSON();
+      expect(input.p_collection_item_id).toBe(copyIds.b);
+      writes++; committed = true;
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify("sale-copy-b") });
+    }
+    const sold = committed;
+    const rows = copies.map((copy, index) => ({
+      id: copy.uid, user_id: ownerId, card_id: copy.cardId, collectible_id: copy.collectibleId,
+      variant_id: copy.variantId, identity_snapshot: copy, card_state: "graded", grader: "PSA", grade: 10,
+      certification_number: copy.certificationNumber, quantity: sold && index === 1 ? 0 : 1,
+      status: sold && index === 1 ? "sold" : "owned", valuation_basis: "market", currency: "USD",
+      notes: `Copy ${index + 1} notes`, storage_location: `Legacy ${index + 1}`, created_at: copy.createdAt,
+    }));
+    const transactions = copies.map((copy) => ({
+      id: `purchase-${copy.uid}`, collection_item_id: copy.uid, transaction_type: "purchase",
+      transaction_date: copy.purchaseDate, quantity: 1, unit_price: copy.costBasis,
+      subtotal: copy.costBasis, total_cost: copy.costBasis, currency: "USD", notes: `Purchase ${copy.certificationNumber} <original>`,
+    }));
+    if (sold) transactions.push({ id: "sale-copy-b", collection_item_id: copyIds.b,
+      transaction_type: "sale", transaction_date: "2026-04-04", quantity: 1, unit_price: 100,
+      subtotal: 100, marketplace_fees: 10, shipping: 5, net_proceeds: 85, currency: "USD", notes: "Sale <receipt>" });
+    const lots = copies.map((copy, index) => ({
+      id: `lot-${copy.uid}`, collection_item_id: copy.uid, purchase_transaction_id: `purchase-${copy.uid}`,
+      acquired_at: copy.purchaseDate, acquired_at_known: true, cost_basis_known: true,
+      quantity_acquired: 1, quantity_remaining: sold && index === 1 ? 0 : 1,
+      total_cost: copy.costBasis, remaining_cost: sold && index === 1 ? 0 : copy.costBasis, currency: "USD",
+    }));
+    const table = url.pathname.split("/").at(-1);
+    const data = table === "collection_items" ? rows
+      : table === "collection_transactions" ? transactions
+      : table === "purchase_lots" ? lots
+      : table === "fifo_lot_allocations" && sold ? [{ sale_transaction_id: "sale-copy-b", purchase_lot_id: `lot-${copyIds.b}`, allocated_cost: 20, cost_basis_known: true }]
+      : table === "get_collection_organization_summary" ? { positionCount: 3 }
+      : [];
+    await route.fulfill({ contentType: "application/json", headers: { "content-range": "0-2/3" }, body: JSON.stringify(data) });
+  });
+  await page.locator("[data-open-position]").click();
+  await page.locator(`[data-copy-id="${copyIds.b}"]`).click();
+  await page.locator('details[data-detail-tool="purchases"] > summary').click();
+  await page.locator("#recordSaleButton").click();
+  await page.locator("#saleDate").fill("2026-04-04");
+  await page.locator("#salePrice").fill("100");
+  await page.locator("#saleFees").fill("10");
+  await page.locator("#saleShipping").fill("5");
+  await page.locator('#saleForm button[type="submit"]').click();
+  await expect(page.locator(".copy-facts")).toContainText("Sold");
+  await expect(page.locator(".copy-facts")).toContainText("000002");
+  await expect(page.locator("#recordSaleButton")).toHaveCount(0);
+  if (!(await page.locator('details[data-detail-tool="purchases"]').evaluate((el) => el.open))) await page.locator('details[data-detail-tool="purchases"] > summary').click();
+  await expect(page.locator(".transaction-list")).toBeVisible();
+  await expect(page.locator(".transaction-list")).toContainText("Sold 2026-04-04");
+  await expect(page.locator(".transaction-list")).toContainText("$85.00");
+  await expect(page.locator(".transaction-notes")).toHaveText(["Purchase 000002 <original>", "Sale <receipt>"]);
+  await expect(page.locator(".transaction-list original, .transaction-list receipt")).toHaveCount(0);
+  const saved = await page.evaluate(async (url) => {
+    const { state } = await import(url);
+    return state.items.map(({ uid, quantity, certificationNumber, costBasis, allocatedSoldCost, notes, location }) => ({ uid, quantity, certificationNumber, costBasis, allocatedSoldCost, notes, location }));
+  }, appUrl);
+  expect(saved.map(({ uid, quantity }) => ({ uid, quantity }))).toEqual([
+    { uid: copyIds.a, quantity: 1 }, { uid: copyIds.b, quantity: 0 }, { uid: copyIds.c, quantity: 1 },
+  ]);
+  expect(saved[0]).toMatchObject({ certificationNumber: "000001", costBasis: 10, notes: "Copy 1 notes", location: "Legacy 1" });
+  expect(saved[1]).toMatchObject({ certificationNumber: "000002", allocatedSoldCost: 20 });
+  expect(saved[2]).toMatchObject({ certificationNumber: "000003", costBasis: 30, notes: "Copy 3 notes", location: "Legacy 3" });
+  await page.evaluate(() => document.activeElement?.blur());
+  if (process.env.MICA_RESET_SALE_CAPTURE === "1") await page.screenshot({ path: `docs/evidence/client-reset-2026-10-03/sold-copy-${testInfo.project.name}-fixture.png`, fullPage: true });
+  await page.evaluate(async (url) => { const { routeTo } = await import(url); routeTo("collection"); }, appUrl);
+  await page.locator("[data-open-position]").click();
+  await page.locator(`[data-copy-id="${copyIds.b}"]`).click();
+  await expect(page.locator(".copy-facts")).toContainText("Sold");
+  if (!(await page.locator('details[data-detail-tool="purchases"]').evaluate((el) => el.open))) await page.locator('details[data-detail-tool="purchases"] > summary').click();
+  await expect(page.locator(".transaction-list")).toBeVisible();
+  await expect(page.locator(".transaction-list")).toContainText("$85.00");
+  await expect(page.locator(".transaction-notes")).toHaveText(["Purchase 000002 <original>", "Sale <receipt>"]);
+  await expect(page.locator(".transaction-list original, .transaction-list receipt")).toHaveCount(0);
+  expect(writes).toBe(1);
+});
+
+for (const cardState of ["raw", "sealed"]) {
+  test(`${cardState} additional purchase keeps notes and stable retry without acquisition clutter`, async ({ page }, testInfo) => {
+    await setup(page);
+    const requests = [];
+    await page.route("**/rest/v1/rpc/record_collection_purchase", (route) => {
+      requests.push(route.request().postDataJSON());
+      return route.fulfill(requests.length === 1
+        ? { status: 403, contentType: "application/json", body: JSON.stringify({ message: "fixture denied", code: "42501" }) }
+        : { contentType: "application/json", body: JSON.stringify("purchase-fixture") });
+    });
+    await page.evaluate(async ({ url, cardState }) => {
+      const { state, openPurchaseLotSheet } = await import(url);
+      const item = { ...state.items[0], cardState, gradingCompany: null, grade: null, currency: "EUR" };
+      openPurchaseLotSheet(item, { notes: 'Original <receipt> & "notes"' });
+    }, { url: appUrl, cardState });
+    await expect(page.locator("#lotAcquisitionMethod")).toBeHidden();
+    await expect(page.locator("#purchaseLotForm select")).toHaveCount(0);
+    await expect(page.locator("#purchaseLotForm")).not.toContainText("Trade");
+    await expect(page.locator("#lotPaidField .money-input > span")).toHaveText("EUR");
+    await page.locator("#lotTotalCost").fill("120.50");
+    await page.locator("#purchaseLotSummary").click();
+    await expect(page.locator("#lotNotes")).toHaveValue('Original <receipt> & "notes"');
+    await expect(page.locator("#lotNotes")).toHaveAttribute("maxlength", "10000");
+    await expect(page.locator("#purchaseLotForm receipt")).toHaveCount(0);
+    await page.locator("#lotQuantity").fill("2");
+    await page.locator("#lotDate").fill("2026-04-01");
+    await page.locator("#lotNotes").fill("Two copies · private receipt");
+    await page.locator('#purchaseLotForm button[type="submit"]').click();
+    await expect(page.locator("#purchaseLotError")).toContainText("Your details are still here");
+    await expect(page.locator("#lotNotes")).toHaveValue("Two copies · private receipt");
+    await expect(page.locator("#lotTotalCost")).toHaveValue("120.50");
+    await expect(page.locator("#lotQuantity")).toHaveValue("2");
+    await expect(page.locator("#lotDate")).toHaveValue("2026-04-01");
+    if (process.env.MICA_RESET_PURCHASE_CAPTURE === "1" && cardState === "sealed") await page.screenshot({ path: `docs/evidence/client-reset-2026-10-03/sealed-purchase-notes-${testInfo.project.name}-fixture.png`, fullPage: true });
+    expect(requests[0]).toMatchObject({ p_collection_item_id: copyIds.a, p_quantity: 2, p_currency: "EUR", p_notes: "Two copies · private receipt", p_acquisition_method: "direct_purchase", p_transaction_date: "2026-04-01" });
+    await page.locator('#purchaseLotForm button[type="submit"]').click();
+    await expect.poll(() => requests.length).toBe(2);
+    expect(requests[1]).toEqual(requests[0]);
+    await expect(page.locator("#purchaseLotForm")).toBeHidden();
+  });
+}

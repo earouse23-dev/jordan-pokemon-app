@@ -36,6 +36,7 @@ export default defineConfig({
       name: "mobile-webkit",
       workers: 1,
       testMatch: [
+        "**/password-reset.spec.js",
         "**/intake-continuity.spec.js",
         "**/search-recovery.spec.js",
         "**/add-save-recovery.spec.js",

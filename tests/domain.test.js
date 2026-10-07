@@ -2896,3 +2896,28 @@ test("Alt and Card Ladder remain disabled without licensed access", () => {
   assert.equal(new AltProvider().isEnabled(), false);
   assert.equal(new CardLadderProvider().isEnabled(), false);
 });
+
+test("private file deletion stays with its authenticated owner across both steps", async () => {
+  const { deleteCollectionPositionAttachment } = await import("../lib/supabase-data.js");
+  for (const scenario of ["same owner", "changed before", "changed after", "foreign path"]) {
+    let authCalls = 0, deletes = 0, removals = 0;
+    const client = {
+      auth: { getUser: async () => ({ data: { user: { id: scenario === "changed before" || (scenario === "changed after" && ++authCalls > 1) ? "other-owner" : "owner" } }, error: null }) },
+      from: () => ({ delete: () => ({ eq: async () => { deletes++; return { error: null }; } }) }),
+      storage: { from: () => ({ remove: async () => { removals++; return { error: null }; } }) },
+    };
+    const attachment = { id: "private-attachment", storage_path: scenario === "foreign path" ? "other-owner/copy/photo.jpg" : "owner/copy/photo.jpg" };
+    if (scenario === "same owner") await deleteCollectionPositionAttachment(client, attachment, "owner");
+    else await assert.rejects(() => deleteCollectionPositionAttachment(client, attachment, "owner"), /File owner changed/);
+    assert.equal(deletes, ["same owner", "changed after"].includes(scenario) ? 1 : 0);
+    assert.equal(removals, scenario === "same owner" ? 1 : 0);
+  }
+});
+
+test("sealed acquisitions retain money/date checks and reject card-only fields", () => {
+  const input = { cardState: "sealed", quantity: 2, transactionDate: "2026-04-01", unitPrice: "60.25" };
+  assert.equal(validateAcquisition(input, "2026-10-04").valid, true);
+  for (const patch of [{ rawCondition: "NM" }, { grader: "PSA" }, { grade: "10" }, { cardState: "invalid" }, { unitPrice: "-1" }, { quantity: 0 }, { transactionDate: "2027-01-01" }]) {
+    assert.equal(validateAcquisition({ ...input, ...patch }, "2026-10-04").valid, false);
+  }
+});

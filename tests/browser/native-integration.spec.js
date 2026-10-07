@@ -111,7 +111,7 @@ async function setup(
     transactions = [],
     lots = [],
     allocations = [];
-  const state = { failure, offline: false, owner: ownerA, failSaveOnce: false };
+  const state = { failure, offline: false, owner: ownerA, failSaveOnce: false, createCalls: 0 };
   if (seedSession)
     secrets.set("mica.auth", JSON.stringify(session(ownerA, expired)));
   await page.exposeBinding(
@@ -162,7 +162,7 @@ async function setup(
           state.owner = body.email.includes("synthetic-b") ? ownerB : ownerA;
         if (url.pathname.endsWith("/token")) return json(session(state.owner));
         if (url.pathname.endsWith("/user"))
-          return json({ user: user(state.owner) });
+          return json(user(state.owner));
         return json({});
       }
       if (url.pathname.endsWith("/profiles"))
@@ -181,6 +181,7 @@ async function setup(
           allPositionCount: rows.length,
         });
       if (url.pathname.endsWith("/rpc/create_graded_copy_position")) {
+        state.createCalls++;
         if (state.rejectSave)
           return json(
             { code: "22023", message: "Synthetic invalid statement" },
@@ -540,6 +541,10 @@ test("native owner-bound queue relaunch, signout and account switch clear privat
 }) => {
   const f = await setup(page);
   await login(page);
+  expect(await page.evaluate(async (url) => {
+    const { state } = await import(url);
+    return [state.portfolioHistoryRange, state.portfolioPnlRange];
+  }, appUrl)).toEqual(["all", "all"]);
   await page.evaluate(async (url) => {
     const app = await import(url);
     await app.queueIntakeCard({
@@ -567,6 +572,8 @@ test("native owner-bound queue relaunch, signout and account switch clear privat
   await expect(page.locator("#intakeQueueBar")).toBeVisible();
   await page.evaluate(async (url) => {
     const app = await import(url);
+    app.state.portfolioHistoryRange = "1m";
+    app.state.portfolioPnlRange = "ytd";
     await app.signOut(app.testSupabase);
   }, appUrl);
   await expect(page.locator("#authGate")).toBeVisible();
@@ -580,6 +587,10 @@ test("native owner-bound queue relaunch, signout and account switch clear privat
       appUrl,
     ),
   ).toBe(ownerB);
+  expect(await page.evaluate(async (url) => {
+    const { state } = await import(url);
+    return [state.portfolioHistoryRange, state.portfolioPnlRange];
+  }, appUrl)).toEqual(["all", "all"]);
 });
 
 test("native secure read/write/delete failures never store tokens in web storage", async ({
@@ -802,4 +813,78 @@ test("native camera background invalidates pending start, stops late tracks and 
   );
   await expect(page.locator("#deviceCameraRetry")).toBeVisible();
   await expect(page.locator("#deviceCameraUpload")).toBeAttached();
+});
+
+test("native saved scan photo survives relaunch as metadata and attaches to the same copy", async ({ page }) => {
+  const f = await setup(page);
+  await login(page);
+  const uploads = [], attachments = [];
+  await page.route(config.supabaseUrl + "/storage/v1/object/**", async route => {
+    uploads.push(route.request().url());
+    await route.fulfill({ status: uploads.length === 1 ? 503 : 200, contentType: "application/json", body: JSON.stringify(uploads.length === 1 ? { message: "Synthetic upload interruption" } : { Key: "synthetic-photo" }) });
+  });
+  await page.route(config.supabaseUrl + "/rest/v1/collection_item_attachments**", async route => {
+    if (route.request().method() === "POST") attachments.push(route.request().postDataJSON());
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(route.request().method() === "POST" ? { id: "synthetic-attachment" } : []) });
+  });
+  const photoDataUrl = await page.evaluate(async url => {
+    const app = await import(url);
+    const canvas = document.createElement("canvas"); canvas.width = 4; canvas.height = 4;
+    const photoDataUrl = canvas.toDataURL("image/jpeg");
+    app.openPositionSheet({ id: "synthetic:en:25", name: "Synthetic photographed copy", set: "Synthetic set", number: "025/100", language: "en", variant: "Holofoil", finish: "holofoil", edition: "unlimited", promoType: "none", identityStatus: "exact" }, { photoDataUrl, prefill: { cardState: "graded", grader: "PSA", grade: "10", certificationNumber: "000123" } });
+    return photoDataUrl;
+  }, appUrl);
+  await page.locator('#positionForm button[type="submit"].primary').click();
+  await expect(page.locator("#retryScanPhoto")).toBeVisible();
+  expect(f.rows).toHaveLength(1); expect(uploads).toHaveLength(1);
+  const journalKey = `mica:position-draft:v1:${ownerA}`;
+  const journal = JSON.parse(f.preferences.get(journalKey));
+  expect(journal.pending.photoRequired).toBe(true);
+  expect(journal.pending.savedItemId).toBe(copyId);
+  expect(JSON.stringify(journal)).not.toMatch(/data:image|photoDataUrl|photoFile/);
+  const operation = f.rows[0].operation;
+  await page.reload();
+  await expect.poll(() => page.evaluate(async url => (await import(url)).state.intakeQueue[0]?.pending?.savedItemId, appUrl)).toBe(copyId);
+  await expect.poll(() => page.evaluate(async url => (await import(url)).state.accountLoading, appUrl)).toBe(false);
+  await page.evaluate(async url => (await import(url)).openNextQueuedCard(), appUrl);
+  await expect(page.locator("#queueRetrySave")).toHaveCount(0);
+  await expect(page.locator("#retryScanPhoto")).toBeVisible();
+  expect(f.rows).toHaveLength(1); expect(f.rows[0].operation).toBe(operation);
+  expect(uploads).toHaveLength(1); // The restored journal contains no image to upload.
+  await expect.poll(() => page.evaluate(async url => (await import(url)).state.intakeQueue.length, appUrl)).toBe(1);
+  await page.locator("#scanPhotoRetryFile").setInputFiles({ name: "original-front.jpg", mimeType: "image/jpeg", buffer: Buffer.from(photoDataUrl.split(",")[1], "base64") });
+  await page.locator("#retryScanPhoto").click();
+  await expect(page.locator("#toastRegion")).toContainText("Card and photo saved");
+  expect(uploads).toHaveLength(2); expect(uploads[1]).toBe(uploads[0]);
+  expect(attachments).toHaveLength(1); expect(attachments[0].user_id).toBe(ownerA);
+  expect(attachments[0].collection_item_id).toBe(copyId);
+  await expect.poll(() => page.evaluate(async url => (await import(url)).state.intakeQueue.length, appUrl)).toBe(0);
+  expect(f.preferences.has(journalKey)).toBe(false);
+  expect(f.rows).toHaveLength(1); expect(f.transactions).toHaveLength(1);
+  expect(f.state.createCalls).toBe(1);
+});
+
+test("saving one confirmed slab prices only that identity with unrelated inventory retained", async ({ page }) => {
+  const f = await setup(page);
+  await login(page);
+  const unrelatedId = "77777777-7777-4777-8777-777777777777";
+  f.rows.push({ id: unrelatedId, user_id: ownerA, identity_snapshot: { catalogId: "unrelated-card", name: "Unrelated card", set: "Other set", number: "100/100", language: "en", variant: "Normal" }, card_state: "raw", quantity: 1, currency: "USD", status: "owned", tags: ["preserved"], custom_fields: { legacy: "preserved" }, created_at: "2026-09-20T12:00:00Z", updated_at: "2026-09-20T12:00:00Z" });
+  const pricing = [], graded = [];
+  await page.route(config.apiOrigin + "/api/graded-valuation", async route => {
+    graded.push(route.request().postDataJSON());
+    await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Fixture release hold" }) });
+  });
+  await page.route(config.apiOrigin + "/api/cards?**", async route => {
+    pricing.push(JSON.parse(new URL(route.request().url()).searchParams.get("lookups")));
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ cards: [] }) });
+  });
+  await page.evaluate(async url => (await import(url)).openPositionSheet({ id: "synthetic-confirmed", name: "Confirmed card", set: "Synthetic set", number: "025/100", language: "en", variant: "Holofoil", finish: "holofoil", edition: "unlimited", promoType: "none", identityStatus: "exact" }, { prefill: { cardState: "graded", grader: "PSA", grade: "10" } }), appUrl);
+  await page.locator('#positionForm button[type="submit"].primary').click();
+  await expect.poll(() => graded.length).toBe(1);
+  expect(graded[0]).toEqual({ positionId: copyId });
+  expect(pricing).toHaveLength(0);
+  expect(f.state.createCalls).toBe(1); expect(f.rows).toHaveLength(2);
+  const untouched = f.rows.find(row => row.id === unrelatedId);
+  expect(untouched.tags).toEqual(["preserved"]); expect(untouched.custom_fields).toEqual({ legacy: "preserved" });
+  await expect.poll(() => page.evaluate(async url => (await import(url)).state.items.length, appUrl)).toBe(2);
 });

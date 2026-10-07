@@ -31,3 +31,21 @@ test("account storage inventory includes root files and recursively paginates fo
   assert.ok(inventory.paths.includes("owner/root-100.jpg"));
   assert.ok(inventory.paths.includes("owner/scan/nested/capture.jpg"));
 });
+
+test("unrelated profile saves preserve an existing currency; explicit supported changes are bounded", async () => {
+  const { saveProfile } = await import("../lib/supabase-data.js");
+  const stored = { id: "fixture-owner", display_currency: "EUR", preferences: {} };
+  const payloads = [];
+  const query = {
+    upsert(row) { payloads.push(row); Object.assign(stored, row); return query; },
+    select() { return query; },
+    async single() { return { data: { ...stored }, error: null }; },
+  };
+  const client = { auth: { getUser: async () => ({ data: { user: { id: stored.id } } }) }, from: table => { assert.equal(table, "profiles"); return query; } };
+  const saved = await saveProfile(client, { displayName: "Fixture name", preferences: {} });
+  assert.equal(saved.displayCurrency, "EUR");
+  assert.equal(Object.hasOwn(payloads[0], "display_currency"), false);
+  assert.equal((await saveProfile(client, { displayCurrency: "USD" })).displayCurrency, "USD");
+  await assert.rejects(saveProfile(client, { displayCurrency: "invalid" }), /Unsupported display currency/);
+  assert.equal(payloads.length, 2, "invalid currency never reaches persistence");
+});

@@ -1,4 +1,3 @@
-import { releaseHold } from "../lib/release-hold.js";
 import { withNativeCors } from "../lib/native-cors.js";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
@@ -11,7 +10,6 @@ import {
   storedGradedContext,
   readExactSoldObservation,
 } from "../lib/graded-valuation.js";
-import { pricingCreditPlan } from "./price-sync.js";
 
 const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
@@ -153,16 +151,7 @@ export function createGradedValuationHandler({
       });
     if (!config.pkmnpricesApiKey)
       return send(response, 503, { error: "Sold-listing data unavailable" });
-    // At most one card detail and ten sale rows. Reserve before provider work.
-    const allowance = await database.rpc("reserve_provider_daily_credits", {
-      p_provider: "pkmnprices",
-      p_daily_budget: pricingCreditPlan(config.pkmnpricesPlan).dailyBudget,
-      p_requested: 11,
-    });
-    if (allowance.error || Number(allowance.data) !== 11)
-      return send(response, 429, {
-        error: "Valuation request allowance unavailable",
-      });
+    // The shared adapter reserves each bounded outbound request, including retries.
     let provider;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 9000);
@@ -173,7 +162,9 @@ export function createGradedValuationHandler({
         controller.signal,
         { directOnly: true, maxAttempts: 1 },
       );
-    } catch {
+    } catch (error) {
+      if (error.status === 429)
+        return send(response, 429, { error: "Valuation request allowance unavailable" });
       return send(response, 502, { error: "Sold-listing data unavailable" });
     } finally {
       clearTimeout(timeout);
@@ -243,4 +234,4 @@ export function createGradedValuationHandler({
   };
 }
 
-export default withNativeCors(releaseHold, ["POST"]);
+export default withNativeCors(createGradedValuationHandler(), ["POST"]);

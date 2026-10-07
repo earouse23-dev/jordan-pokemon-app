@@ -242,10 +242,6 @@ export function pricingCreditPlan(plan) {
         : normalizedPlan === "pro"
           ? 20_000
           : 100,
-    // Conservative returned-item upper bound: direct validation, two searches,
-    // current USD/EUR cards, and USD/EUR daily history. The provider charges
-    // by returned item, so reserving the upper bound fails safely.
-    upperBoundPerGroup: expanded ? 800 : 50,
     expanded,
   };
 }
@@ -433,25 +429,10 @@ async function handler(request, response) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(item);
   }
-  const creditReservation = await database.rpc(
-    "reserve_provider_daily_credits",
-    {
-      p_provider: "pkmnprices",
-      p_daily_budget: dailyCreditBudget,
-      p_requested: groups.size * creditPlan.upperBoundPerGroup,
-    },
-  );
-  if (creditReservation.error)
-    return send(response, 500, {
-      error: "Could not reserve the provider credit allowance",
-    });
-  const reservedCredits = Math.max(0, Number(creditReservation.data) || 0);
-  const permittedGroupCount = Math.min(
-    groups.size,
-    Math.floor(reservedCredits / creditPlan.upperBoundPerGroup),
-  );
-  const permittedGroups = [...groups.entries()].slice(0, permittedGroupCount);
-  const creditBudgetReached = permittedGroupCount < groups.size;
+  // Actual bounded requests reserve in the shared adapter; group estimates
+  // must not reserve a second allowance or truncate valid cached work.
+  const permittedGroups = [...groups.entries()];
+  let creditBudgetReached = false;
   let inserted = 0,
     duplicates = 0,
     failures = 0,
@@ -535,8 +516,12 @@ async function handler(request, response) {
         }
       }
       successfulGroups += 1;
-    } catch {
+    } catch (error) {
       failures += 1;
+      if (error.status === 429) {
+        creditBudgetReached = true;
+        break; // Leave this group before the cursor for the next authorized run.
+      }
     } finally {
       clearTimeout(timeout);
     }
@@ -585,7 +570,7 @@ async function handler(request, response) {
     });
   const fullFailure = permittedGroups.length > 0 && successfulGroups === 0;
   const responseStatus =
-    creditBudgetReached && permittedGroups.length === 0
+    creditBudgetReached && successfulGroups === 0
       ? 429
       : fullFailure
         ? 502
@@ -598,8 +583,7 @@ async function handler(request, response) {
     deferredGroups: groups.size - attemptedLookupKeys.size,
     creditBudgetReached,
     dailyCreditBudget,
-    reservedCredits,
-    creditUpperBoundPerGroup: creditPlan.upperBoundPerGroup,
+    reservations: "shared_per_request",
     inserted,
     duplicates,
     failures,

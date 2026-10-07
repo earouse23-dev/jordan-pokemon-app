@@ -1,6 +1,8 @@
+import "./pkmnprices-fixture.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import salesHandler from "../api/sales.js";
+import { pkmnPricesRequests } from "../lib/pkmnprices-requests.js";
 import { collectibleIdentitySnapshot } from "../lib/identity.js";
 import { exactSoldValuation } from "../lib/pricing.js";
 import { saleMatchesCanonicalIdentity } from "../lib/providers/pkmnprices.js";
@@ -181,6 +183,8 @@ function response() {
 }
 
 async function rehearse(rows, { card = providerCard, catalog = source } = {}) {
+  // Each reconstruction supplies a different provider dataset, not a cached repeat.
+  pkmnPricesRequests.cache.clear();
   const guard = offlineGuard(async (url, options) => {
     assert.equal(options.redirect, "error");
     return Response.json(

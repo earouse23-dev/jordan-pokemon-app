@@ -220,18 +220,6 @@
                 <circle cx="12" cy="12" r="9" /></svg></span
             ><b>Add Cards</b>
           </button>
-          <button
-            class="sidebar-item"
-            type="button"
-            data-sidebar-target="trades"
-          >
-            <span aria-hidden="true"
-              ><svg viewBox="0 0 24 24">
-                <path
-                  d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"
-                /></svg></span
-            ><b>Trades</b>
-          </button>
         </nav>
         <button
           class="sidebar-account"
@@ -260,14 +248,6 @@
           ><span id="headerSubtitle">Your collection at a glance</span>
         </div>
         <div class="header-actions">
-          <label class="header-mode-picker">
-            <span class="sr-only">Choose your home view</span>
-            <select id="softwareModeSelect" aria-label="Software mode">
-              <option value="collector">Collector</option>
-              <option value="investor">Investor</option>
-              <option value="seller">Seller</option>
-            </select>
-          </label>
           <button
             class="avatar"
             type="button"
@@ -347,8 +327,7 @@
                   ><strong id="unrealized">—</strong>
                 </div>
                 <div>
-                  <span>Change since purchase</span
-                  ><strong id="portfolioReturn">—</strong>
+                  <details class="portfolio-pnl-picker"><summary>P/L · <span id="portfolioPnlLabel">All time</span></summary><select id="portfolioPnlRange" aria-label="P/L timeframe"><option value="all">All time</option><option value="1m">Month</option><option value="ytd">YTD</option><option value="1y">Year</option><option value="1d">Day</option></select></details><strong id="portfolioReturn">—</strong><small id="portfolioPnlNote"></small>
                 </div>
                 <div>
                   <span>Profit from cards already sold</span
@@ -373,6 +352,7 @@
               </div>
               <strong class="portfolio-value" id="portfolioValue">$0.00</strong
               ><small class="portfolio-change" id="portfolioChange"></small>
+              <button type="button" id="retryDisplayFx" hidden>Retry currency conversion</button>
             </article>
             <article class="dashboard-kpi">
               <span>Items you own</span><strong id="ownedCount">0</strong
@@ -468,8 +448,7 @@
               type="button"
               aria-pressed="false"
               data-ledger-view="all"
-              data-condition-filter="Raw"
-            >
+              data-condition-filter="Raw" hidden inert>
               Ungraded <span id="rawCount">0</span>
             </button>
             <button
@@ -531,7 +510,7 @@
 
           <details
             class="collection-organization"
-            id="collectionOrganization"
+            id="collectionOrganization" hidden inert data-retired="true"
             aria-labelledby="collectionOrganizationTitle"
           >
             <summary class="collection-organization-summary">
@@ -570,7 +549,7 @@
             <div class="organization-goal-list" id="collectionGoals"></div>
           </details>
 
-          <section class="seller-desk hidden" id="sellerDesk"></section>
+          <section class="seller-desk hidden" id="sellerDesk" hidden inert></section>
 
           <div class="ledger-tools">
             <label class="search-field">
@@ -582,7 +561,7 @@
               <input
                 id="collectionSearch"
                 type="search"
-                placeholder="Search name, card number, grade, or location"
+                placeholder="Search name, card number, or grade"
                 autocomplete="off"
               />
             </label>
@@ -642,10 +621,11 @@
             </button>
           </div>
 
-          <section
+          <details
             class="collection-grading-workspace"
             aria-labelledby="collectionGradingTitle"
           >
+            <summary>Pregrading &amp; grading history</summary>
             <div class="collection-grading-copy">
               <span class="condition-lab-icon" aria-hidden="true">
                 <svg viewBox="0 0 48 48">
@@ -707,7 +687,7 @@
               ></p>
               <div id="gradingActivityList"></div>
             </section>
-          </section>
+          </details>
         </section>
 
         <section
@@ -934,14 +914,6 @@
               leaving your collection.
             </p>
           </div>
-          <div class="insight-feature">
-            <div class="insight-kicker">Prices</div>
-            <strong>Checking matching prices…</strong>
-            <span
-              >Mica only compares the same card version and wear level or
-              professional grade.</span
-            >
-          </div>
           <section
             class="action-center-section"
             aria-labelledby="actionCenterTitle"
@@ -971,10 +943,6 @@
               aria-live="polite"
             ></div>
           </section>
-          <h2 class="section-heading">Price changes</h2>
-          <div id="moversList" class="movers-list"></div>
-          <h2 class="section-heading">Your highest-value cards</h2>
-          <div id="positionRankings" class="movers-list"></div>
           <section
             class="liquidation-planner advanced-workspace"
             aria-labelledby="liquidationTitle"
@@ -1133,7 +1101,7 @@
             </section>
             <div>
               <h2 class="section-heading">Recent activity</h2>
-              <div id="recentActivity" class="movers-list"></div>
+
               <div class="data-boundary">
                 <strong>Recorded activity only</strong>
                 <p>
@@ -1262,9 +1230,25 @@
               <span class="plan-badge">Private beta</span>
             </div>
           </div>
+          <details class="settings-group" id="collectionInsights"><summary>Collection insights</summary>
+          <div class="insight-feature">
+            <div class="insight-kicker">Prices</div>
+            <strong>Checking matching prices…</strong>
+            <span
+              >Mica only compares the same card version and wear level or
+              professional grade.</span
+            >
+          </div>
+          <h2 class="section-heading">Price changes</h2>
+          <div id="moversList" class="movers-list"></div>
+          <h2 class="section-heading">Card values by currency</h2>
+          <div id="positionRankings" class="movers-list"></div>
+            <h2 class="section-heading">Recent activity</h2>
+              <div id="recentActivity" class="movers-list"></div>
+          </details>
           <div
             class="settings-group software-mode-settings"
-            id="softwareModeSettings"
+            id="softwareModeSettings" hidden inert
           >
             <p class="eyebrow">Focused home</p>
             <h2>Make Mica yours</h2>
@@ -1307,8 +1291,7 @@
             id="advancedSettings"
           >
             <p class="eyebrow">Advanced tools</p>
-            <h2>Selling and grading defaults</h2>
-            <p>These estimates save time and remain editable in every deal.</p>
+            <h2>Digital grading</h2>
             <button type="button" id="gradingResearchConsentButton">
               <span
                 >Help improve digital grading<small
@@ -1323,7 +1306,7 @@
               insurance stay at $0 until you enter them for a comparison; verify
               every fee before submitting cards.
             </div>
-            <label
+            <label hidden inert
               >Trade estimate<small
                 >Starting percentage of the matching market price</small
               ><span class="suffix-input"
@@ -1337,7 +1320,7 @@
                 /><i>%</i></span
               ></label
             >
-            <label
+            <label hidden inert
               >Quick-sale estimate<small
                 >Starting percentage for a faster direct sale</small
               ><span class="suffix-input"
@@ -1351,31 +1334,13 @@
                 /><i>%</i></span
               ></label
             >
-            <label
-              >Selling fee<small
-                >Keep at zero for fee-free in-person sales</small
-              ><span class="suffix-input"
-                ><input
-                  id="defaultSellingFeePercent"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value="0"
-                /><i>%</i></span
-              ></label
-            >
-            <button class="primary" id="saveWorkflowDefaults" type="button">
-              Save defaults
-            </button>
-            <p id="workflowDefaultsStatus" role="status" aria-live="polite"></p>
+
           </div>
-          <div
+          <details
             class="settings-group grading-calibration"
             id="gradingCalibration"
           >
-            <p class="eyebrow">Your returned grades</p>
-            <h2>Prediction calibration</h2>
+            <summary>Returned-grade accuracy</summary>
             <p>
               Private accuracy results grouped by grading company and capture
               quality. A digital estimate is never an official grade.
@@ -1385,10 +1350,10 @@
                 <strong>Checking linked grading returns…</strong>
               </div>
             </div>
-          </div>
+          </details>
           <div class="settings-group" id="collectionDataSettings">
             <h2>Collection &amp; data</h2>
-            <button type="button" id="sharePortfolioButton">
+            <button type="button" id="sharePortfolioButton" hidden inert>
               <span
                 >Share a collection summary<small
                   >Preview exactly what will be shared</small
@@ -1424,7 +1389,7 @@
                 ></span
               ><b>›</b>
             </button>
-            <button type="button" id="insuranceReportButton">
+            <button type="button" id="insuranceReportButton" hidden inert>
               <span
                 >Insurance collection report<small
                   >Print or save a private record with values and
@@ -1434,7 +1399,7 @@
             </button>
             <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
           </div>
-          <div class="settings-group" id="everydaySettings">
+          <div class="settings-group workflow-defaults" id="everydaySettings">
             <h2>Everyday preferences</h2>
             <button type="button" id="installAppButton">
               <span
@@ -1444,14 +1409,25 @@
                 ></span
               ><strong id="installAppState">Check</strong>
             </button>
-            <button type="button" id="currencyButton">
-              <span
-                >Display currency<small
-                  >Mica still shows the currency used by each price
-                  source</small
-                ></span
-              ><strong>USD</strong>
+            <label for="profileDisplayCurrency">Display currency<select id="profileDisplayCurrency"><option value="USD">USD · US dollar</option><option value="EUR">EUR · euro</option></select></label>
+            <label
+              >Selling fee<small
+                >Keep at zero for fee-free in-person sales</small
+              ><span class="suffix-input"
+                ><input
+                  id="defaultSellingFeePercent"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value="0"
+                /><i>%</i></span
+              ></label
+            >
+            <button class="primary" id="saveWorkflowDefaults" type="button">
+              Save preferences
             </button>
+            <p id="workflowDefaultsStatus" role="status" aria-live="polite"></p>
             <button type="button" id="motionButton">
               <span
                 >Animations<small id="motionHelp"
@@ -1521,11 +1497,6 @@
               <path d="M12 5v14M5 12h14" /></svg></span
           ><span>Add item</span>
         </button>
-        <button class="nav-item" type="button" data-route="trade">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4" /></svg
-          ><span>Trade</span>
-        </button>
       </nav>
       <div class="bulk-organize-bar" id="bulkOrganizeBar" hidden>
         <strong id="bulkSelectedCount" role="status" aria-live="polite"
@@ -1534,7 +1505,7 @@
         ><button id="bulkShareButton" type="button" disabled>Share list</button
         ><button id="bulkGradeButton" type="button" disabled>
           Plan grading</button
-        ><button id="bulkOrganizeButton" type="button" disabled>Organize</button
+        ><button id="bulkOrganizeButton" hidden inert type="button" disabled>Organize</button
         ><button id="bulkDoneButton" type="button">Done</button>
       </div>
     </div>

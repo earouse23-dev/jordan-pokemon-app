@@ -47,9 +47,14 @@ async function openDetail(page, overrides = {}) {
   );
   await page.goto("/");
   await expect(page.locator("#authGate")).toBeVisible();
+  // Retain the CDP-awaited import; Chromium otherwise collects it during chart initialization.
+  await page.evaluate((url) => {
+    globalThis.fixtureAppImport = import(url);
+    return globalThis.fixtureAppImport.then((module) => { globalThis.fixtureApp = module; });
+  }, appUrl);
   await page.evaluate(
-    async ({ appUrl, overrides }) => {
-      const { state, renderDetail } = await import(appUrl);
+    ({ overrides }) => {
+      const { state, renderDetail } = globalThis.fixtureApp;
       const item = {
         uid: "11111111-1111-4111-8111-111111111111",
         id: "base1-4",

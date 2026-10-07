@@ -1,3 +1,4 @@
+import "./pkmnprices-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -66,7 +67,8 @@ test("readiness budget blocks pagination or retry reservation before overspend",
   assert.equal(budget.reserve(3), false);
   assert.equal(budget.snapshot().plannedUpperBound, 3);
   assert.equal(budget.snapshot().requestedMaximum, 5);
-  assert.equal(createCreditBudget(400).snapshot().requestedMaximum, 40);
+  assert.equal(createCreditBudget(400).snapshot().requestedMaximum, 400);
+  assert.equal(createCreditBudget(30_000).snapshot().requestedMaximum, 20_000);
 });
 
 test("readiness classifies identity ambiguity separately from provider attribution", () => {

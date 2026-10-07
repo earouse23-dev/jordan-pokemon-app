@@ -17,7 +17,7 @@ test.use({ serviceWorkers: "block" });
 test.beforeAll(async () => {
   const source = await readFile(new URL("../../app.js", import.meta.url), "utf8");
   const result = await build({
-    stdin: { contents: `${source}\nexport { state, supabase, openSealedSearch, openSealedPositionSheet, openCardDetail };`, resolveDir: root, sourcefile: "app.js" },
+    stdin: { contents: `${source}\nexport { state, supabase, openSealedSearch, openSealedPositionSheet, openCardDetail, loadSealedDetailPricing, restoreIntakeQueue };`, resolveDir: root, sourcefile: "app.js" },
     bundle: true, format: "esm", platform: "browser", target: "es2022", write: false,
   });
   bundle = result.outputFiles[0].text;
@@ -29,7 +29,9 @@ async function setup(page) {
   await page.route("https://mica-sealed-test.supabase.co/**", (route) => route.fulfill({ contentType: "application/json", body: "[]" }));
   await page.goto("/");
   await page.evaluate(async (url) => {
-    const { state } = await import(url);
+    const module = await import(url);
+    globalThis.fixtureSealedApp = module;
+    const { state } = module;
     state.session = { access_token: "synthetic-token", user: { id: "11111111-1111-4111-8111-111111111111" } };
     state.accountLoading = false;
     document.body.classList.add("authenticated");
@@ -174,10 +176,8 @@ test("07E disposable sealed form survives lost response and fresh login with own
     await page.locator("#passwordAuthForm button[type=submit]").click();
     await expect(page.locator("#authGate")).toBeHidden();
     await expect.poll(() => page.evaluate(async (url) => (await import(url)).state.accountLoading, appUrl)).toBe(false);
-    if (await page.locator("#onboardingDialog").isVisible()) {
-      await page.locator("[data-skip-onboarding]").click();
-      await expect(page.locator("#onboardingDialog")).toBeHidden();
-    }
+    await expect.poll(() => page.evaluate(async (url) => Boolean((await import(url)).state.profile?.onboardingCompletedAt), appUrl)).toBe(true);
+    await expect(page.locator("#onboardingDialog")).toHaveCount(0);
     await page.evaluate(async (url) => (await import(url)).openSealedSearch(), appUrl);
     const photo = await page.evaluate(() => { const canvas = document.createElement("canvas"); canvas.width = 40; canvas.height = 40; canvas.getContext("2d").fillRect(0, 0, 40, 40); return canvas.toDataURL("image/png").split(",")[1]; });
     await page.locator("#sealedPhoto").setInputFiles({ name: "synthetic-etb.png", mimeType: "image/png", buffer: Buffer.from(photo, "base64") });
@@ -263,4 +263,261 @@ test("07E disposable sealed form survives lost response and fresh login with own
     await freshContext?.close();
     for (const id of createdIds) expect((await admin.auth.admin.deleteUser(id)).error).toBeNull();
   }
+});
+
+const historyProduct = {
+  id: "sealed:5678", providerCardId: "sealed:5678", name: "Synthetic ETB", set: "Synthetic Set", language: "en", productType: "elite_trainer_box", cardState: "sealed", variant: "Sealed product", externalIds: { pkmnpricesSealed: 5678 }, quotes: [], historyStatus: "live", capabilities: { history: "live" },
+  history: [1, 2].map(day => ({ provider: "cardmarket", providerVariantId: "5678:cardmarket:sealed", recordedAt: new Date(Date.now() - day * 86400000).toISOString(), currency: "EUR", finish: "sealed", condition: null, amount: day * 100, granularity: "day" })),
+};
+async function openHistoryProduct(page, displayCurrency = "EUR") {
+  await page.evaluate(({ product, displayCurrency }) => {
+    const { state, openCardDetail } = globalThis.fixtureSealedApp;
+    state.profile = { ...state.profile, displayCurrency };
+    const item = { ...product, uid: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", status: "owned", quantity: 1, currency: "EUR", costBasis: null, cost: null, price: null, pricingStatus: "missing", transactions: [], lots: [], tags: [], priceHistory: [] };
+    state.items = [item]; openCardDetail(item, true);
+  }, { product: historyProduct, displayCurrency });
+}
+test("sealed history converts display amounts with dated FX and preserves native records", async ({ page }) => {
+  await setup(page);
+  let rateAvailable = false;
+  const date = new Date().toISOString().slice(0, 10);
+  const hash = "a".repeat(64);
+  await page.route("**/api/fx", route => route.fulfill({ status: rateAvailable ? 200 : 503, contentType: "application/json", body: JSON.stringify(rateAvailable ? { sourceId: "ecb-eurofxref-daily", sourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", base: "EUR", quote: "USD", units: "USD per EUR", rate: 1.25, effectiveDate: date, fetchedAt: new Date().toISOString(), contentSha256: hash, rateRef: "ecb-eurofxref-daily:" + date + ":" + hash } : {}) }));
+  await page.route("**/api/sealed?*", route => route.fulfill({ contentType: "application/json", body: JSON.stringify({ product: historyProduct }) }));
+  await openHistoryProduct(page, "USD");
+  await expect(page.locator("#cardPriceHistory")).toContainText("Currency conversion unavailable");
+  rateAvailable = true;
+  await page.locator("[data-retry-history-fx]").click();
+  await expect(page.locator("#positionChart")).toBeVisible();
+  await page.locator(".history-values > summary").click();
+  await expect(page.locator(".history-values")).toContainText("$125.00 · original €100.00");
+  await expect(page.locator(".chart-context").filter({ hasText: "Display conversion uses ECB" })).toContainText("not historical exchange rates");
+  expect(await page.evaluate(() => globalThis.fixtureSealedApp.state.items[0].currency)).toBe("EUR");
+});
+test("unsupported legacy currency does not trigger repeated FX requests", async ({ page }) => {
+  await setup(page);
+  let rateCalls = 0;
+  await page.route("**/api/fx", route => { rateCalls++; return route.fulfill({ status: 503, contentType: "application/json", body: "{}" }); });
+  await page.evaluate(() => {
+    const { state, openCardDetail } = globalThis.fixtureSealedApp;
+    state.profile = { ...state.profile, displayCurrency: "USD" };
+    const item = { uid: "legacy-gbp", id: "sealed:manual", name: "Legacy sealed", cardState: "sealed", variant: "Sealed", status: "owned", currency: "GBP", quantity: 1, price: null, pricingStatus: "missing", transactions: [], lots: [], tags: [], quotes: [], priceHistory: [], externalIds: {} };
+    state.items = [item]; openCardDetail(item, true);
+  });
+  await expect(page.locator("#cardPriceHistory")).toContainText("not available for this record's currency");
+  await expect(page.locator("[data-retry-history-fx]")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+  expect(rateCalls).toBe(0);
+});
+test("sealed detail charts native EUR aggregate history without inventing current value", async ({ page }, testInfo) => {
+  await setup(page);
+  await page.route("**/api/sealed?*", route => {
+    expect(route.request().headers().authorization).toBe("Bearer synthetic-token");
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ product: historyProduct }) });
+  });
+  await openHistoryProduct(page);
+  await expect(page.locator("#positionChart")).toBeVisible();
+  await expect(page.locator(".market-hero")).toContainText("Price unavailable");
+  await page.locator(".history-values > summary").click();
+  await expect(page.locator(".history-values tbody tr")).toHaveCount(2);
+  await expect(page.locator(".history-values")).toContainText("€100.00");
+  await expect(page.locator(".history-values")).toContainText("cardmarket");
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: testInfo.outputPath("sealed-history-viewport-fixture.png") });
+});
+test("late sealed response cannot overwrite a changed account or selected detail", async ({ page }) => {
+  await setup(page);
+  let pending;
+  await page.route("**/api/sealed?*", route => { pending = route; });
+  await openHistoryProduct(page);
+  await expect.poll(() => Boolean(pending)).toBe(true);
+  await page.evaluate(() => {
+    const { state } = globalThis.fixtureSealedApp;
+    state.session = { user: { id: "22222222-2222-4222-8222-222222222222" } };
+    state.items = []; state.detailCard = { name: "Second account selection" };
+  });
+  await pending.fulfill({ contentType: "application/json", body: JSON.stringify({ product: historyProduct }) });
+  await page.waitForLoadState("networkidle");
+  expect(await page.evaluate(() => ({ count: globalThis.fixtureSealedApp.state.items.length, name: globalThis.fixtureSealedApp.state.detailCard.name }))).toEqual({ count: 0, name: "Second account selection" });
+});
+
+test("late sealed history cannot overwrite a newer selection within the same account", async ({ page }) => {
+  await setup(page);
+  let pending;
+  await page.route("**/api/sealed?*", route => { pending = route; });
+  await openHistoryProduct(page);
+  await expect.poll(() => Boolean(pending)).toBe(true);
+  await page.evaluate(() => {
+    const { state, openCardDetail } = globalThis.fixtureSealedApp;
+    const next = { ...state.items[0], id: "sealed:manual", uid: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", name: "Second selected ETB", externalIds: {} };
+    state.items.push(next); openCardDetail(next, true);
+  });
+  await pending.fulfill({ contentType: "application/json", body: JSON.stringify({ product: historyProduct }) });
+  await page.waitForLoadState("networkidle");
+  await expect(page.locator("#detailTitle")).toHaveText("Second selected ETB");
+  expect(await page.evaluate(() => globalThis.fixtureSealedApp.state.items[0].priceHistory)).toEqual([]);
+});
+
+for (const shared of [false, true]) for (const switched of [false, true]) {
+  test(`sealed ${shared ? "shared add" : "direct add"} photo retry uses the saved product once${switched ? " and stops for a changed owner" : ""}`, async ({ page }) => {
+    await setup(page);
+    const itemId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    let creates = 0;
+    let uploads = 0;
+    const metadata = [];
+    await page.route("**/rest/v1/rpc/create_collection_position", route => {
+      creates++;
+      expect(route.request().postDataJSON()).toMatchObject({ p_card_state: "sealed", p_currency: "EUR", p_notes: "Private box note", p_identity: { ingestion: { channel: "upload" } } });
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify(itemId) });
+    });
+    await page.route("**/storage/v1/object/collection-item-files/**", route => {
+      uploads++;
+      expect(route.request().url()).toContain(`/11111111-1111-4111-8111-111111111111/${itemId}/`);
+      return route.fulfill(uploads === 1 ? { status: 403, contentType: "application/json", body: '{"message":"fixture denied","statusCode":"403"}' } : { contentType: "application/json", body: '{}' });
+    });
+    await page.route("**/rest/v1/collection_item_attachments*", route => {
+      if (route.request().method() === "POST") metadata.push(route.request().postDataJSON());
+      return route.fulfill({ contentType: "application/json", body: JSON.stringify({ id: "fixture-photo" }) });
+    });
+    await page.evaluate(async ({url,shared}) => {
+      const { state, supabase, openSealedPositionSheet, openPositionSheet } = await import(url);
+      supabase.auth.getUser = async () => ({ data: { user: state.session.user }, error: null });
+      (shared ? openPositionSheet : openSealedPositionSheet)({ id: "manual-sealed:test", name: "Fixture ETB", set: "Fixture set", language: "en", cardState: "sealed", productType: "elite_trainer_box", variant: "Sealed product", identityStatus: "needs_review", externalIds: {} }, { ingestionChannel: "upload", photoFile: new File([new Uint8Array([1,2,3])], "fixture-box.png", { type: "image/png" }) });
+    }, {url:appUrl,shared});
+    await page.locator("#sealedCurrency").selectOption("EUR");
+    await page.locator("#sealedTotalCost").fill("60");
+    await page.locator("#sealedMoreSummary").click();
+    await page.locator("#sealedNotes").fill("Private box note");
+    await page.locator('button[name="saveMode"][value="view"]').click();
+    await expect(page.locator("#sheetTitle")).toHaveText("Product saved");
+    expect(creates).toBe(1); expect(uploads).toBe(1); expect(metadata).toHaveLength(0);
+    if (switched) await page.evaluate(async url => { const {state}=await import(url); state.session={user:{id:"22222222-2222-4222-8222-222222222222"}}; }, appUrl);
+    await page.locator("#retryScanPhoto").click();
+    if (switched) {
+      await expect(page.locator("#sheetTitle")).toHaveText("Product saved");
+      expect(uploads).toBe(1); expect(metadata).toHaveLength(0);
+    } else {
+      await expect.poll(() => metadata.length).toBe(1);
+      expect(metadata[0]).toMatchObject({ user_id: "11111111-1111-4111-8111-111111111111", collection_item_id: itemId, caption: "Unopened product identification photo" });
+      await expect(page.locator("#retryScanPhoto")).toBeHidden();
+      expect(uploads).toBe(2);
+    }
+    expect(creates).toBe(1);
+  });
+}
+
+for (const rejected of [false, true]) {
+  test(`sealed changed purchase ${rejected ? "can correct a definite rejection" : "cannot replace an uncertain save"}`, async ({ page }) => {
+    await setup(page);
+    const writes=[];
+    await page.route("**/rest/v1/rpc/create_collection_position", route=>{
+      writes.push(route.request().postDataJSON());
+      return route.fulfill(writes.length===1 || (!rejected && writes.length===2)
+        ? {status:rejected || writes.length===2?403:503,contentType:"application/json",body:JSON.stringify({message:"fixture failure",...(rejected || writes.length===2?{code:"42501"}:{})})}
+        : {contentType:"application/json",body:JSON.stringify("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")});
+    });
+    await page.evaluate(async url => {const {openSealedPositionSheet}=await import(url);openSealedPositionSheet({id:"manual-sealed:test",name:"Fixture ETB",set:"Fixture",language:"en",cardState:"sealed",productType:"elite_trainer_box",variant:"Sealed product",externalIds:{},identityStatus:"needs_review"});},appUrl);
+    await page.locator("#sealedTotalCost").fill("60");
+    await page.locator('button[name="saveMode"][value="view"]').click();
+    await expect(page.locator("#sealedPositionError")).toContainText("Could not add");
+    await page.locator("#sealedTotalCost").fill("70");
+    await page.locator('button[name="saveMode"][value="view"]').click();
+    if(rejected){
+      await expect.poll(()=>writes.length).toBe(2);
+      expect(writes[1].p_idempotency_key).not.toBe(writes[0].p_idempotency_key);
+      expect(writes[1].p_unit_price).toBe("70.00");
+    }else{
+      await expect(page.locator("#sealedPositionError")).toContainText("Retry the original details");
+      expect(writes).toHaveLength(1);
+      await expect(page.locator("#sealedTotalCost")).toHaveValue("70");
+      await page.locator("#sealedTotalCost").fill("60");
+      await page.locator('button[name="saveMode"][value="view"]').click();
+      await expect.poll(()=>writes.length).toBe(2);
+      expect(writes[1]).toEqual(writes[0]);
+      await expect(page.locator("#sealedPositionError")).toContainText("Could not add");
+      await page.locator("#sealedTotalCost").fill("70");
+      await page.locator('button[name="saveMode"][value="view"]').click();
+      await expect(page.locator("#sealedPositionError")).toContainText("Retry the original details");
+      expect(writes).toHaveLength(2);
+      await page.locator("#sealedTotalCost").fill("60");
+      await page.locator('button[name="saveMode"][value="view"]').click();
+      await expect.poll(()=>writes.length).toBe(3);
+      expect(writes[2]).toEqual(writes[0]);
+    }
+    await expect(page.locator("#sealedPositionForm")).toBeHidden();
+  });
+}
+
+
+for (const restart of [false,true]) test('sealed uncertain save survives '+(restart?'page reload':'closing and reopening')+' without a second operation', async ({page})=>{
+  await setup(page);
+  const writes=[];
+  await page.route('**/rest/v1/rpc/create_collection_position',route=>{
+    writes.push(route.request().postDataJSON());
+    return route.fulfill({status:503,contentType:'application/json',body:'{"message":"lost response; commit unknown"}'});
+  });
+  const reopen=()=>page.evaluate(()=>globalThis.fixtureSealedApp.openSealedPositionSheet({id:'manual-sealed:recovery',name:'Fixture recovery ETB',set:'Fixture',language:'en',cardState:'sealed',productType:'elite_trainer_box',variant:'Sealed product',externalIds:{},identityStatus:'needs_review'}));
+  await reopen();
+  await page.locator('#sealedTotalCost').fill('60');
+  await page.locator('button[name="saveMode"][value="view"]').click();
+  await expect(page.locator('#sealedPositionError')).toContainText('Could not add');
+  expect(writes).toHaveLength(1);
+  await page.getByRole('button',{name:'Close',exact:true}).click();
+  const stored=await page.evaluate(()=>localStorage.getItem('mica:intake-queue:v1:11111111-1111-4111-8111-111111111111'));
+  expect(JSON.parse(stored)[0].pending.input.idempotencyKey).toBe(writes[0].p_idempotency_key);
+  expect(stored).not.toContain('data:image');
+  if(restart){
+    await page.reload();
+    await page.evaluate(async url=>{const app=await import(url);globalThis.fixtureSealedApp=app;app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'}};app.state.accountLoading=false;app.state.intakeQueue=app.restoreIntakeQueue();document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;},appUrl);
+  }
+  await reopen();
+  await expect(page.locator('#sealedTotalCost')).toHaveValue('60');
+  // Same confirmed facts: reopening must replay the original operation, never mint a new key.
+  await page.locator('#sealedTotalCost').fill('60');
+  await page.locator('button[name="saveMode"][value="view"]').click();
+  await expect(page.locator('#sealedPositionError')).toContainText('Could not add');
+  expect(writes).toHaveLength(2);
+  expect(writes[1]).toEqual(writes[0]);
+});
+
+
+for (const success of [false,true]) test('closed sealed request retains recovery after late '+(success?'success':'failure')+' without reopening UI',async({page})=>{
+  await setup(page); const errors=[];page.on('pageerror',error=>errors.push(error.message));let pending;
+  await page.route('**/rest/v1/rpc/create_collection_position',route=>{pending=route;});
+  await page.evaluate(()=>globalThis.fixtureSealedApp.openSealedPositionSheet({id:'manual-sealed:late',name:'Fixture late ETB',set:'Fixture',language:'en',cardState:'sealed',productType:'elite_trainer_box',variant:'Sealed product',externalIds:{},identityStatus:'needs_review'}));
+  await page.locator('#sealedTotalCost').fill('60');
+  await page.locator('button[name="saveMode"][value="view"]').click();
+  await expect.poll(()=>Boolean(pending)).toBe(true);
+  const request=pending.request().postDataJSON();
+  await page.getByRole('button',{name:'Close',exact:true}).click();
+  await pending.fulfill(success?{contentType:'application/json',body:'"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"'}:{status:503,contentType:'application/json',body:'{"message":"lost response"}'});
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('#bottomSheet')).toBeHidden();
+  const recovery=await page.evaluate(()=>JSON.parse(localStorage.getItem('mica:intake-queue:v1:11111111-1111-4111-8111-111111111111'))[0]);
+  expect(recovery.pending.input.idempotencyKey).toBe(request.p_idempotency_key);
+  if(success)expect(recovery.pending.savedItemId).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  expect(errors).toEqual([]);
+});
+
+test('sealed save refuses network mutation when device recovery cannot be stored',async({page})=>{
+  await setup(page);let writes=0;
+  await page.route('**/rest/v1/rpc/create_collection_position',route=>{writes++;return route.fulfill({contentType:'application/json',body:'"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"'});});
+  await page.evaluate(()=>{const original=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key.startsWith('mica:intake-queue:'))throw new Error('fixture device storage denied');return original.call(this,key,value);};globalThis.fixtureSealedApp.openSealedPositionSheet({id:'manual-sealed:storage',name:'Fixture storage ETB',set:'Fixture',language:'en',cardState:'sealed',productType:'elite_trainer_box',variant:'Sealed product',externalIds:{},identityStatus:'needs_review'});});
+  await page.locator('#sealedTotalCost').fill('60');
+  await page.locator('button[name="saveMode"][value="view"]').click();
+  await expect(page.locator('#sealedPositionError')).toContainText('Your save has not started');
+  await expect(page.locator('#sealedTotalCost')).toHaveValue('60');expect(writes).toBe(0);
+});
+
+
+test('sealed recovery belongs to its original owner and rejects a mismatched restored journal',async({page})=>{
+  await setup(page);let writes=0;
+  await page.route('**/rest/v1/rpc/create_collection_position',route=>{writes++;return route.fulfill({status:503,contentType:'application/json',body:'{"message":"lost response"}'});});
+  await page.evaluate(()=>globalThis.fixtureSealedApp.openSealedPositionSheet({id:'manual-sealed:owner',name:'Fixture owner ETB',set:'Fixture',language:'en',cardState:'sealed',productType:'elite_trainer_box',variant:'Sealed product',externalIds:{},identityStatus:'needs_review'}));
+  await page.locator('#sealedTotalCost').fill('60');await page.locator('button[name="saveMode"][value="view"]').click();
+  await expect(page.locator('#sealedPositionError')).toContainText('Could not add');
+  await page.getByRole('button',{name:'Close',exact:true}).click();
+  const result=await page.evaluate(()=>{const app=globalThis.fixtureSealedApp;const key='mica:intake-queue:v1:11111111-1111-4111-8111-111111111111';const stored=localStorage.getItem(key),entry=app.state.intakeQueue[0];app.state.session={user:{id:'22222222-2222-4222-8222-222222222222'}};const restored=app.restoreIntakeQueue(stored);app.openSealedPositionSheet(entry.card,{recoveryEntry:entry});return {restored:restored.length,originalUnchanged:localStorage.getItem(key)===stored,newOwnerDraft:localStorage.getItem('mica:intake-queue:v1:22222222-2222-4222-8222-222222222222')};});
+  expect(result).toEqual({restored:0,originalUnchanged:true,newOwnerDraft:null});
+  await expect(page.locator('#bottomSheet')).toBeHidden();expect(writes).toBe(1);
 });

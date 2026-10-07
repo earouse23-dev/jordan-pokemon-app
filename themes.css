@@ -2518,12 +2518,17 @@ body[data-ui-theme="mica"] #privacySettings {
   order: 6;
 }
 
-body[data-ui-theme="mica"] #advancedSettings {
+body[data-ui-theme="mica"] #collectionInsights,
+body[data-ui-theme="mica"] #gradingCalibration {
   order: 7;
 }
 
-body[data-ui-theme="mica"] #view-profile > .legal-copy {
+body[data-ui-theme="mica"] #advancedSettings {
   order: 8;
+}
+
+body[data-ui-theme="mica"] #view-profile > .legal-copy {
+  order: 9;
 }
 
 body[data-ui-theme="mica"] .purchase-notes {
@@ -5949,3 +5954,140 @@ body[data-ui-theme="mica"] .saved-grade-findings small {
     box-shadow: none;
   }
 }
+
+/* Client reset: graph and owned copies lead; supporting detail stays optional. */
+body[data-ui-theme="mica"] #view-dashboard #portfolioHistory,
+body[data-ui-theme="mica"] #view-dashboard .dashboard-kpi,
+body[data-ui-theme="mica"] #view-dashboard .owned-tool-panel {
+  border: 0; border-radius: 0; box-shadow: none; background: transparent;
+}
+body[data-ui-theme="mica"] #view-dashboard #portfolioHistory { padding: 0; }
+body[data-ui-theme="mica"] #view-dashboard .dashboard-kpis { display: flex; flex-direction: column; gap: 12px; }
+body[data-ui-theme="mica"] .portfolio-return-summary { display: flex; align-items: baseline; gap: 12px; }
+body[data-ui-theme="mica"] .portfolio-return-summary strong { font-size: 28px; }
+body[data-ui-theme="mica"] #view-dashboard .dashboard-kpi { padding: 0; }
+body[data-ui-theme="mica"] .portfolio-history-note { font-size: 12px; }
+body[data-ui-theme="mica"] .portfolio-chart-coverage { color: var(--muted); font-size: 12px; margin: 8px 0; }
+body[data-ui-theme="mica"] .portfolio-native-history { margin: 8px 0; font-size: 12px; }
+body[data-ui-theme="mica"] .portfolio-native-history > summary { min-height: 32px; cursor: pointer; color: var(--muted); }
+body[data-ui-theme="mica"] .bottom-nav { grid-template-columns: repeat(3, 1fr); }
+body[data-ui-theme="mica"] #collectionOrganization,
+body[data-ui-theme="mica"] #softwareModeSettings,
+body[data-ui-theme="mica"] #sellerDesk,
+body[data-ui-theme="mica"] #bulkOrganizeButton { display: none; }
+
+body[data-ui-theme="mica"] #view-dashboard .dashboard-owned-tools > section {
+  border: 0; border-radius: 0; box-shadow: none; background: transparent; padding: 20px 0;
+}
+body[data-ui-theme="mica"] #view-dashboard .dashboard-kpi::before,
+body[data-ui-theme="mica"] #view-dashboard .dashboard-kpi::after,
+body[data-ui-theme="mica"] #view-dashboard .portfolio-history-empty::after { display: none; }
+
+body[data-ui-theme="mica"] #detailContent .exact-sold-value,
+body[data-ui-theme="mica"] #detailContent .detail-identity,
+body[data-ui-theme="mica"] #detailContent .market-hero,
+body[data-ui-theme="mica"] #detailContent .copy-navigation,
+body[data-ui-theme="mica"] #detailContent .detail-section,
+body[data-ui-theme="mica"] #detailContent .owned-banner {
+  box-shadow: none; border-radius: 0; border: 0; background: transparent;
+}
+body[data-ui-theme="mica"] .detail-performance { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; padding: 16px 0; border-bottom: 1px solid var(--line); }
+body[data-ui-theme="mica"] .detail-performance strong { font-size: 28px; }
+body[data-ui-theme="mica"] .provider-index-details { margin: 12px 0; }
+body[data-ui-theme="mica"] #detailContent .detail-identity { padding: 0; }
+body[data-ui-theme="mica"] #detailContent .detail-currency-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 12px 0; }
+body[data-ui-theme="mica"] #detailContent .market-hero { padding: 12px 0; }
+
+body[data-ui-theme="mica"] #detailContent .owned-banner,
+body[data-ui-theme="mica"] #detailContent .owned-banner span,
+body[data-ui-theme="mica"] #detailContent .owned-banner strong { color: var(--ink); }
+body[data-ui-theme="mica"] #detailContent .owned-banner button { color: var(--ink); border-color: var(--line); }
+
+/* Secondary insights keep copy identity readable on narrow screens. */
+@media (max-width: 759px) {
+  body[data-ui-theme="mica"] #collectionInsights .mover { grid-template-columns: 40px minmax(0, 1fr); gap: 8px 12px; }
+  body[data-ui-theme="mica"] #collectionInsights .mover img { grid-row: 1 / span 2; width: 40px; }
+  body[data-ui-theme="mica"] #collectionInsights .mover b { grid-column: 2; text-align: left; white-space: normal; }
+}
+
+/* Owner-directed graph-first dashboard; native timeframe controls. */
+body[data-ui-theme="mica"] #portfolioHistory .portfolio-history-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+body[data-ui-theme="mica"] #portfolioChartRange { width: auto; min-width: 105px; min-height: 44px; }
+body[data-ui-theme="mica"] #portfolioChartRange,
+body[data-ui-theme="mica"] #portfolioPnlRange { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background-color: var(--panel); color: var(--ink); font: inherit; }
+body[data-ui-theme="mica"] #portfolioHistory .portfolio-chart-shell { height: clamp(300px, 48vh, 560px); margin: 8px 0; border: 0; background: transparent; }
+body[data-ui-theme="mica"] .portfolio-return-summary { padding: 12px 0; border-bottom: 1px solid var(--line); }
+body[data-ui-theme="mica"] .portfolio-return-summary small { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+body[data-ui-theme="mica"] .portfolio-pnl-picker summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+body[data-ui-theme="mica"] .portfolio-pnl-picker select { min-height: 44px; }
+@keyframes portfolio-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+body[data-ui-theme="mica"] .portfolio-draw { animation: portfolio-draw 1200ms ease-out both; }
+body[data-motion="reduce"] .portfolio-draw { animation: none; }
+@media (prefers-reduced-motion: reduce) { body[data-ui-theme="mica"] .portfolio-draw { animation: none; } }
+body[data-ui-theme="mica"] #portfolioHistory .portfolio-history-head { flex-direction: row; text-align: left; }
+body[data-ui-theme="mica"] #portfolioHistory .portfolio-history-head > strong { font-size: 14px; }
+body[data-ui-theme="mica"] .portfolio-pnl-picker summary { gap: 6px; white-space: nowrap; }
+
+/* Keep retained pregrading secondary to inventory. */
+body[data-ui-theme="mica"] details.collection-grading-workspace { display: block; }
+body[data-ui-theme="mica"] details.collection-grading-workspace > summary { cursor: pointer; font-weight: 600; }
+body[data-ui-theme="mica"] details.collection-grading-workspace:not([open]) { margin: 24px 0 14px; padding: 12px 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+body[data-ui-theme="mica"] details.collection-grading-workspace::before,
+body[data-ui-theme="mica"] details.collection-grading-workspace::after { display: none; }
+
+/* Primary add camera fills the screen; secondary grading capture keeps its tools. */
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] {
+  inset: 0; width: 100%; height: 100dvh; max-height: 100dvh;
+  transform: none; border: 0; border-radius: 0; box-shadow: none;
+  padding: 0; background: #050706; color: #fff;
+  animation: none;
+}
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .sheet-handle,
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .sheet-heading,
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .automation-privacy { display: none; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .auto-capture-stage {
+  position: absolute; inset: 0; height: 100%; min-height: 0; max-height: none; aspect-ratio: auto; border: 0; border-radius: 0;
+}
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-capture-actions {
+  position: absolute; bottom: 0; left: 0; right: 0; margin: 0;
+  padding: 28px 16px calc(24px + var(--safe-bottom));
+  display: grid; grid-template-columns: minmax(48px, 1fr) 72px minmax(48px, 1fr); justify-content: center; gap: 16px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, .65));
+}
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-capture-actions > * { grid-column: 1 / -1; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-capture-actions > .sheet-close { position: fixed; top: calc(16px + var(--safe-top)); left: 16px; width: 48px; height: 48px; border: 0; border-radius: 10px; background: transparent; color: #fff; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-shutter { grid-row: 1; grid-column: 2; width: 72px; height: 72px; border-color: #fff; background: transparent; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-upload-fallback { grid-row: 1; grid-column: 1; width: 48px; min-height: 48px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #fff; justify-self: start; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-capture-actions svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; }
+
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .auto-capture-stage > video,
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .auto-capture-stage > img,
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] #deviceCameraAdjustmentOutline { height: 100%; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-capture-actions > [hidden] { display: none; }
+
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] #sheetContent { height: 100%; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .device-camera { position: relative; height: 100%; display: flex; flex-direction: column; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-capture-actions,
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-permission-help { flex-shrink: 0; }
+
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-shutter i { background: transparent; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .auto-capture-guide { border: 0; box-shadow: none; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .auto-capture-state { bottom: calc(160px + var(--safe-bottom)); }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-permission-help { position: absolute; bottom: calc(130px + var(--safe-bottom)); left: 16px; right: 16px; margin: 0; background: rgba(0,0,0,.8); color: #fff; border: 0; border-radius: 10px; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"]:has(#deviceCameraHelp:not([hidden])) .auto-capture-state { bottom: calc(230px + var(--safe-bottom)); }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"]:has(#deviceCameraUse:not([hidden])) .auto-capture-state { bottom: calc(300px + var(--safe-bottom)); }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-capture-actions > button:not(.sheet-close):not(.camera-shutter) { color: #fff; border-color: rgba(255,255,255,.4); background: rgba(0,0,0,.65); border-radius: 10px; }
+
+/* Keep confirmation notes gently curved without adding another container. */
+body[data-ui-theme="mica"] .simple-note { border-radius: 8px; }
+
+/* Let inventory content lead instead of repeated nested boxes. */
+body[data-ui-theme="mica"] #view-collection .view-tabs,
+body[data-ui-theme="mica"] #view-collection .ledger-tools { border: 0; background: transparent; box-shadow: none; padding: 0; }
+body[data-ui-theme="mica"] #view-collection .position-price-grid.compact span { border: 0; background: transparent; box-shadow: none; padding: 8px 0; }
+body[data-ui-theme="mica"] #view-collection .ledger-row,
+body[data-ui-theme="mica"] #view-profile .settings-group { box-shadow: none; }
+body[data-ui-theme="mica"] #view-profile .profile-card { border: 0; background: transparent; box-shadow: none; }
+
+body[data-ui-theme="mica"] #everydaySettings .primary { border-radius: 10px; justify-content: center; text-align: center; font-weight: 700; }
+body[data-ui-theme="mica"] #profileDisplayCurrency { min-height: 44px; padding: 10px; border: 1px solid var(--line-dark); border-radius: 10px; background-color: var(--paper); color: var(--ink); font: inherit; }

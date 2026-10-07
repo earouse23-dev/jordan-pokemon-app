@@ -17,7 +17,7 @@ async function handler(request, response) {
   }
   try {
     const config = serverEnvironment();
-    const pricingConnected = false;
+    const pricingConnected = Boolean(config.pkmnpricesApiKey && config.pkmnpricesPlan === "pro" && config.supabaseUrl && config.supabaseSecretKey);
     const expandedPricingRequested =
       pricingConnected && ["pro", "business"].includes(config.pkmnpricesPlan);
     const requestedCapabilityStatus = expandedPricingRequested

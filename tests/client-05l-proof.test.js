@@ -1,3 +1,4 @@
+import "./pkmnprices-fixture.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtempSync, readFileSync } from "node:fs";

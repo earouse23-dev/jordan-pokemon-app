@@ -112,6 +112,7 @@ async function setup(page, { deferWrite = false, failRefreshes = 0, failWrites =
         },
         {
           ingestionChannel: "search",
+          prefill: {cardState:"raw"},
           afterSave: () => {
             globalThis.__savedCallbacks += 1;
           },
@@ -215,6 +216,8 @@ test("queue survives reload and retries the identical uncertain save", async ({ 
     app.openBatchIntakeSheet();
   }, appUrl);
   await page.locator("#reviewNextIntake").click();
+  // These recovery cases exercise legacy raw quantities, explicitly selected now.
+  if (await page.locator("#positionState").count()) await page.locator("#positionState").selectOption("raw");
   await submit(page);
   await expect(page.locator("#queueRetrySave")).toBeVisible();
   expect(requests.writes).toHaveLength(1);
@@ -235,6 +238,8 @@ test("queue survives reload and retries the identical uncertain save", async ({ 
   await expect(page.locator("[data-intake-remove]")).toBeDisabled();
   await expect(page.locator("#clearIntakeQueue")).toBeDisabled();
   await page.locator("#reviewNextIntake").click();
+  // These recovery cases exercise legacy raw quantities, explicitly selected now.
+  if (await page.locator("#positionState").count()) await page.locator("#positionState").selectOption("raw");
   await page.locator("#queueRetrySave").click();
   await expect.poll(() => requests.writes.length).toBe(2);
   expect(requests.writes[1]).toEqual(original);
@@ -259,6 +264,8 @@ test("queue retains quantity across reload and refuses writes without a saved jo
   }, appUrl);
   await expect(page.locator("[data-intake-quantity]")).toHaveValue("4");
   await page.locator("#reviewNextIntake").click();
+  // These recovery cases exercise legacy raw quantities, explicitly selected now.
+  if (await page.locator("#positionState").count()) await page.locator("#positionState").selectOption("raw");
   await submit(page);
   await expect(page.locator("#positionError")).toContainText("Device storage is unavailable");
   await expect(page.locator("#positionQuantity")).toHaveValue("4");
@@ -274,6 +281,8 @@ test("a definite rejected queue save remains editable", async ({ page }) => {
     app.openBatchIntakeSheet();
   }, appUrl);
   await page.locator("#reviewNextIntake").click();
+  // These recovery cases exercise legacy raw quantities, explicitly selected now.
+  if (await page.locator("#positionState").count()) await page.locator("#positionState").selectOption("raw");
   await submit(page);
   await expect(page.locator("#positionError")).toContainText("Your details are still here");
   await expect(page.locator("#positionQuantity")).toBeEditable();

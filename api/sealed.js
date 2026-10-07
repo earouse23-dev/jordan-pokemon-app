@@ -1,4 +1,4 @@
-import { releaseHold } from "../lib/release-hold.js";
+import { pkmnPricesRequests } from "../lib/pkmnprices-requests.js";
 import { withNativeCors } from "../lib/native-cors.js";
 import {
   fetchPkmnPricesSealedProduct,
@@ -9,6 +9,7 @@ const SAFE_QUERY = /^[\p{L}\p{N} .:'&+\-/()#]{2,100}$/u;
 const windows = new Map();
 
 function send(response, status, body, headers = {}) {
+  response.setHeader("Cache-Control", "no-store");
   for (const [key, value] of Object.entries(headers))
     response.setHeader(key, value);
   return response.status(status).json(body);
@@ -62,14 +63,17 @@ async function handler(request, response) {
       capabilityStatus: "unsupported",
     });
 
+  if (!(await pkmnPricesRequests.authenticate(request, response))) return;
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 9_000);
+  const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
     if (id) {
       const product = await fetchPkmnPricesSealedProduct(
         apiKey,
         id,
         controller.signal,
+        { includeHistory: true },
       );
       return send(
         response,
@@ -81,8 +85,8 @@ async function handler(request, response) {
           retrievedAt: new Date().toISOString(),
         },
         {
-          "Cache-Control": "s-maxage=900, stale-while-revalidate=3600",
-          "CDN-Cache-Control": "max-age=900",
+          "Cache-Control": "no-store",
+          "CDN-Cache-Control": "no-store",
         },
       );
     }
@@ -103,8 +107,8 @@ async function handler(request, response) {
         retrievedAt: new Date().toISOString(),
       },
       {
-        "Cache-Control": "s-maxage=3600, stale-while-revalidate=86400",
-        "CDN-Cache-Control": "max-age=3600",
+        "Cache-Control": "no-store",
+        "CDN-Cache-Control": "no-store",
       },
     );
   } catch (error) {
@@ -139,6 +143,5 @@ async function handler(request, response) {
   }
 }
 
-// Retained implementation is exercised offline; the shipping export stays held.
 export { handler as retainedHandler };
-export default withNativeCors(releaseHold, ["GET"]);
+export default withNativeCors(handler, ["GET"]);

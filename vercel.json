@@ -21,7 +21,7 @@
       "maxDuration": 10
     },
     "api/cards.js": {
-      "maxDuration": 10
+      "maxDuration": 60
     },
     "api/catalog.js": {
       "maxDuration": 10
@@ -42,6 +42,9 @@
       "maxDuration": 60
     },
     "api/maintenance.js": {
+      "maxDuration": 60
+    },
+    "api/sealed.js": {
       "maxDuration": 60
     }
   },

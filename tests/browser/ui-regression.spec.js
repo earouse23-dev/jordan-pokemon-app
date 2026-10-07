@@ -148,61 +148,18 @@ test("the unified Mica shell fits every required viewport", async ({
   );
 });
 
-test("Collector, Investor, and Seller modes change real workflows without hiding shared tools", async ({
-  page,
-}) => {
+test("legacy mode preferences never restore seller or trade clutter", async ({ page }) => {
   await page.goto("/");
   await revealShell(page, "view-dashboard");
-  const selectMode = (mode) =>
-    page.evaluate(async (selectedMode) => {
-      const { switchSoftwareMode } = await import("/app.js?v=111");
-      return switchSoftwareMode(selectedMode, {
-        persist: false,
-        announce: false,
-      });
-    }, mode);
-
-  await selectMode("collector");
-  await expect(page.locator("#dashboardModeLabel")).toHaveText(
-    "Collector home",
-  );
-  await expect(page.locator("#softwareModeHome")).toContainText("Set progress");
-  await expect(page.locator("#softwareModeHome")).toContainText(
-    "Digitally graded",
-  );
-
-  await selectMode("investor");
-  await expect(page.locator("body")).toHaveAttribute(
-    "data-software-mode",
-    "investor",
-  );
-  await expect(page.locator("#dashboardTitle")).toHaveText(
-    "Portfolio overview",
-  );
-  await expect(page.locator("#softwareModeHome")).toContainText(
-    "Purchase costs recorded",
-  );
-  await expect(page.locator("#softwareModeHome")).toContainText(
-    "Largest holding",
-  );
-
-  await selectMode("seller");
-  await expect(page.locator("#dashboardTitle")).toHaveText("Seller workspace");
-  await expect(page.locator("#softwareModeHome")).toContainText(
-    "Inventory over 90 days",
-  );
-  await expect(
-    page.locator(".dashboard-owned-tools > section").first(),
-  ).toContainText("Business performance");
-
-  await expect(page.locator(".sidebar-nav [data-sidebar-target]")).toHaveCount(
-    4,
-  );
-  await expect(
-    page.locator("#softwareModeSettings [data-software-mode]"),
-  ).toHaveCount(3);
-  await selectMode("collector");
-  await expect(page.locator("#softwareModeSelect")).toHaveValue("collector");
+  for (const mode of ["collector", "investor", "seller"]) {
+    await page.evaluate(async mode => (await import("/app.js?v=111")).switchSoftwareMode(mode, { persist: false, announce: false }), mode);
+    await expect(page.locator("body")).toHaveAttribute("data-software-mode", "collector");
+    await expect(page.locator("#softwareModeHome")).toBeHidden();
+    await expect(page.locator("#dashboardTitle")).not.toHaveText("Seller workspace");
+    await expect(page.locator(".sidebar-nav [data-sidebar-target]")).toHaveCount(3);
+    await expect(page.locator("#softwareModeSettings")).toBeHidden();
+    await expect(page.locator("#softwareModeSelect, [data-route=trade]")).toHaveCount(0);
+  }
   const audit = await layoutAudit(page);
   expect(audit.overflow).toBeLessThanOrEqual(0);
   expect(audit.textBelowFloor).toEqual([]);
@@ -210,43 +167,16 @@ test("Collector, Investor, and Seller modes change real workflows without hiding
   expect(audit.undersizedMobileButtons).toEqual([]);
 });
 
-test("collection organization is accessible, explicit, and contained", async ({
-  page,
-}) => {
+test("retired organization stays inaccessible while catalog languages remain available", async ({ page }) => {
   await page.goto("/");
   await page.setViewportSize({ width: 320, height: 844 });
   await revealShell(page, "view-collection");
-  await page.evaluate(() => {
-    const status = document.querySelector("#collectionOrganizationStatus");
-    const views = document.querySelector("#collectionSavedViews");
-    const goals = document.querySelector("#collectionGoals");
-    status.textContent =
-      "2,500 saved entries · 12 missing a physical location · 2 digital folders";
-    views.innerHTML = `
-      <button type="button" aria-pressed="true">All folders</button>
-      <button type="button" aria-pressed="false">Trade binder</button>
-      <button type="button">Japanese favorites</button>
-      <button class="undo-organization" type="button">Undo last bulk change</button>`;
-    goals.innerHTML = `
-      <button type="button">
-        <span><strong>Complete 151</strong><small>103 of 165 · 62%</small></span>
-        <i aria-hidden="true"><b style="width:62%"></b></i><em>Open</em>
-      </button>`;
-  });
-
   const workspace = page.locator("#collectionOrganization");
-  await expect(workspace).toBeVisible();
-  await workspace.locator("summary").click();
-  await expect(
-    page.getByRole("heading", { name: "Keep every card findable" }),
-  ).toBeVisible();
-  await expect(workspace).toContainText("missing a physical location");
-  await expect(
-    workspace.getByRole("button", { name: "All folders" }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await expect(workspace).toContainText("103 of 165");
+  await expect(workspace).toBeHidden();
+  expect(await workspace.evaluate(node => node.inert)).toBe(true);
+  await expect(page.getByRole("heading", { name: "Keep every card findable" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "All folders" })).toHaveCount(0);
   await expect(page.locator("#quickSearchLanguage option")).toHaveCount(10);
-
   const audit = await layoutAudit(page);
   expect(audit.overflow).toBeLessThanOrEqual(0);
   expect(audit.textBelowFloor).toEqual([]);
@@ -259,6 +189,8 @@ test("digital grading lives in Collection while Add Cards stays focused", async 
 }) => {
   await page.goto("/");
   await revealShell(page, "view-collection");
+  await expect(page.locator("#digitalGraderButton")).not.toBeVisible();
+  await page.locator(".collection-grading-workspace > summary").click();
   await expect(
     page.getByRole("heading", { name: "Digitally grade a card" }),
   ).toBeVisible();
@@ -568,7 +500,6 @@ test("collapsed collection filters are excluded from arrow navigation", async ({
   });
   expect(visibleTargets).toEqual([
     "all",
-    "Raw",
     "Graded",
     "Sealed",
     "watchlist",
@@ -596,7 +527,7 @@ test("result lists announce concise statuses instead of whole containers", async
   );
 });
 
-test("onboarding contains focus, leaves the app inert, and can be skipped", async ({
+test("account setup failure contains focus and keeps the app inert for retry", async ({
   page,
 }) => {
   await page.goto("/");
@@ -617,11 +548,11 @@ test("onboarding contains focus, leaves the app inert, and can be skipped", asyn
     true,
   );
   await expect(
-    page.locator('input[name="softwareMode"]').first(),
+    page.getByRole("button", { name: "Try again" }),
   ).toBeFocused();
-  await expect(page.getByRole("button", { name: "Skip setup" })).toBeVisible();
+  await expect(page.locator('input[name="softwareMode"], input[name="experience"]')).toHaveCount(0);
   await expect(page.locator("#onboardingDescription")).toContainText(
-    "You can change this anytime",
+    "Your saved information is unchanged",
   );
 });
 
@@ -873,6 +804,8 @@ test("grading-to-sale lifecycle and calibration remain readable across the suppo
   expect(audit.outsideViewport).toEqual([]);
 
   await revealShell(page, "view-profile");
+  await expect(page.locator("#gradingCalibrationSummary")).not.toBeVisible();
+  await page.locator("#gradingCalibration > summary").click();
   await expect(page.locator("#gradingCalibrationSummary")).toBeVisible();
   await expect(page.locator("#gradingCalibrationSummary")).toContainText(
     "Checking linked grading returns",
@@ -983,6 +916,8 @@ test("Add card saves in one step and retries safely without exposing server erro
       variant: "Normal",
     });
   });
+  await expect(page.locator("#positionState")).toHaveValue("graded");
+  await page.locator("#positionState").selectOption("raw");
   await page.getByRole("button", { name: "Add card", exact: true }).click();
   await expect(page.locator("#positionError")).toContainText(
     "Your details are still here",
@@ -1026,8 +961,9 @@ test("optional grading stays separate from the default add action and slab detai
       variant: "Normal",
     });
   });
-  await expect(page.locator("#positionGradeFirst")).toBeVisible();
-  await page.locator("#positionState").selectOption("graded");
+  await expect(page.locator("#positionState")).toHaveValue("graded");
+  await expect(page.locator("#positionQuantity")).toHaveValue("1");
+  await expect(page.locator("#positionQuantity")).toHaveAttribute("readonly");
   await expect(page.locator("#positionGradeFirst")).not.toBeVisible();
   await expect(page.locator("#positionGrader")).toHaveAttribute("required", "");
   await expect(page.locator("#positionGrade")).toHaveAttribute("required", "");
@@ -1053,7 +989,7 @@ test("optional grading stays separate from the default add action and slab detai
   expect(audit.undersizedMobileButtons).toEqual([]);
 });
 
-test("onboarding saves from the first screen and preserves choices when saving fails", async ({
+test("account setup retries without collecting or changing rejected preferences", async ({
   page,
 }) => {
   await page.route("**/app-config.js*", (route) =>
@@ -1067,15 +1003,13 @@ test("onboarding saves from the first screen and preserves choices when saving f
   await page.evaluate(async () =>
     (await import("/app.js?v=111")).openOnboarding(),
   );
-  await page.locator('input[name="softwareMode"][value="seller"]').check();
-  await page.getByRole("button", { name: "Get started" }).click();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeEnabled();
+  await page.getByRole("button", { name: "Try again" }).click();
   await expect(page.locator("#onboardingError")).toHaveText(
-    "Couldn’t save your preferences. Please try again.",
+    "Couldn’t finish account setup. Please try again.",
   );
-  await expect(
-    page.locator('input[name="softwareMode"][value="seller"]'),
-  ).toBeChecked();
-  await expect(page.getByRole("button", { name: "Get started" })).toBeEnabled();
+  await expect(page.locator('input[name="softwareMode"], input[name="experience"]')).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Try again" })).toBeEnabled();
   await expect(page.locator(".onboarding-tour")).toHaveCount(0);
   await expect(page.locator("#onboardingDialog")).not.toContainText("getUser");
 });

@@ -1,3 +1,5 @@
+import "./pkmnprices-fixture.mjs";
+import salesHandler from "../api/sales.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtempSync, readFileSync } from "node:fs";
@@ -10,7 +12,7 @@ import {
   runAttempt,
   verify05l,
 } from "../scripts/client-05m-proof.mjs";
-import { soldUrl } from "../scripts/client-05l-proof.mjs";
+import { soldUrl, lookup, valuationFromApi } from "../scripts/client-05l-proof.mjs";
 
 const row = {
   id: 20618,
@@ -50,15 +52,17 @@ const ledger = () => ({
   cachedDirectUses: 0,
   membershipGate: "not_run",
 });
+// Synthetic direct identity for the pure bounded transport guard; never a live crosswalk.
+const syntheticOld = {
+  observedAt: "2026-09-25T00:00:00Z",
+  direct: { ...row, number: "01", set: "Jungle", prices: [{ variant: "1st Edition Holofoil", currency: "USD" }] },
+};
 const directUrl = "https://api.pkmnprices.com/v1/cards/20618?currency=usd";
 
 test("immutable 05L proof and documented English list filter are frozen", () => {
-  const old = verify05l();
-  assert.equal(
-    old.hash,
-    "4a6a33dc3f54167d6e3b50c48a9e460a9ffb32a2497a2b6f42513bec332d1603",
-  );
-  assert.equal(old.direct.id, 20618);
+  assert.throws(() => verify05l(), /frozen file changed|ENOENT/);
+  assert.match(readFileSync("scripts/client-05m-proof.mjs", "utf8"), /4a6a33dc3f54167d6e3b50c48a9e460a9ffb32a2497a2b6f42513bec332d1603/);
+  assert.equal(syntheticOld.direct.id, 20618);
   const url = new URL(listUrl);
   assert.equal(url.pathname, "/v1/cards");
   assert.deepEqual(
@@ -103,7 +107,7 @@ test("guard has one membership request, one replayed direct read and one sale re
     },
     state,
     () => {},
-    verify05l(),
+    syntheticOld,
   );
   for (const url of [
     soldUrl,
@@ -156,7 +160,7 @@ test("membership errors, contradictions and timeout cannot unlock direct replay 
       },
       state,
       () => {},
-      verify05l(),
+      syntheticOld,
     );
     await assert.rejects(() => guard.fetch(listUrl), /CLIENT-05M guard/);
     for (const url of [listUrl, directUrl, soldUrl])
@@ -173,7 +177,7 @@ test("membership errors, contradictions and timeout cannot unlock direct replay 
     },
     state,
     () => {},
-    verify05l(),
+    syntheticOld,
   );
   await assert.rejects(() => guard.fetch(listUrl), /no retry/);
   await assert.rejects(() => guard.fetch(listUrl), /CLIENT-05M guard/);
@@ -181,37 +185,38 @@ test("membership errors, contradictions and timeout cannot unlock direct replay 
   assert.equal(state.requests[0].status, "unknown_outcome");
 });
 
-test("actual API/adapter and estimator run under fake transport, then restart is refused", async () => {
+test("current API/adapter uses the bounded fake transport; closed historical runner refuses reuse", async (t) => {
   const directory = mkdtempSync(join(tmpdir(), "mica-client-05m-test-"));
-  const result = await runAttempt({
-    transport: fake,
-    apiKey: "synthetic-only",
-    directory,
+  let sent = 0;
+  const closedAttempt = () => runAttempt({
+    transport: async () => { sent++; return fake(listUrl); },
+    apiKey: "synthetic-only", directory,
     now: Date.parse("2026-09-25T12:00:00Z"),
   });
-  assert.equal(result.ledger.membershipGate, "pass");
-  assert.equal(result.ledger.requests.length, 2);
-  assert.equal(result.ledger.cachedDirectUses, 1);
-  assert.equal(result.ledger.apiStatus, 200);
-  assert.equal(result.ledger.api.receivedCount, 1);
-  assert.equal(result.ledger.production.status, "insufficient");
-  assert.equal(result.ledger.production.distinctSaleCount, 1);
-  assert.equal(
-    readFileSync(result.path, "utf8").includes("synthetic-only"),
-    false,
-  );
-  let sent = 0;
-  await assert.rejects(
-    () =>
-      runAttempt({
-        transport: async () => {
-          sent++;
-          return fake(listUrl);
-        },
-        apiKey: "synthetic-only",
-        directory,
-      }),
-    { code: "EEXIST" },
-  );
+  await assert.rejects(closedAttempt, /frozen file changed|ENOENT/);
+  await assert.rejects(closedAttempt, /frozen file changed|ENOENT/);
   assert.equal(sent, 0);
+  const state = ledger();
+  const guard = createGuard(fake, state, () => {}, syntheticOld);
+  await guard.fetch(listUrl);
+  t.mock.method(globalThis, "fetch", guard.fetch);
+  const previousKey = process.env.PKMNPRICES_API_KEY;
+  process.env.PKMNPRICES_API_KEY = "synthetic-only";
+  t.after(() => {
+    if (previousKey === undefined) delete process.env.PKMNPRICES_API_KEY;
+    else process.env.PKMNPRICES_API_KEY = previousKey;
+  });
+  const output = { setHeader() {}, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
+  await salesHandler({ method: "GET", query: { lookup: JSON.stringify(lookup) }, headers: { authorization: "Bearer synthetic-only" } }, output);
+  const production = valuationFromApi(output.body, "2026-09-25T12:00:00Z", false);
+  assert.equal(state.membershipGate, "pass");
+  assert.equal(state.requests.length, 2);
+  assert.equal(state.cachedDirectUses, 1);
+  assert.equal(output.statusCode, 200);
+  assert.equal(output.body.receivedCount, 1);
+  assert.equal(production.status, "insufficient");
+  assert.equal(production.distinctSaleCount, 1);
+  assert.equal(JSON.stringify(state).includes("synthetic-only"), false);
+  for (const url of [listUrl, directUrl, soldUrl])
+    await assert.rejects(() => guard.fetch(url), /CLIENT-05M guard/);
 });

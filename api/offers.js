@@ -1,4 +1,4 @@
-import { releaseHold } from "../lib/release-hold.js";
+import { pkmnPricesRequests } from "../lib/pkmnprices-requests.js";
 import { withNativeCors } from "../lib/native-cors.js";
 import { fetchPkmnPricesOffers } from "../lib/providers/pkmnprices.js";
 import { serverEnvironment } from "../lib/env.js";
@@ -22,6 +22,7 @@ function isRateLimited(request) {
 }
 
 function send(response, status, body, headers = {}) {
+  response.setHeader("Cache-Control", "no-store");
   for (const [key, value] of Object.entries(headers))
     response.setHeader(key, value);
   return response.status(status).json(body);
@@ -99,6 +100,8 @@ async function handler(request, response) {
       capabilityStatus: "unsupported",
     });
 
+  if (!(await pkmnPricesRequests.authenticate(request, response))) return;
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9_000);
   try {
@@ -128,8 +131,8 @@ async function handler(request, response) {
         retrievedAt: new Date().toISOString(),
       },
       {
-        "Cache-Control": "s-maxage=900, stale-while-revalidate=3600",
-        "CDN-Cache-Control": "max-age=900",
+        "Cache-Control": "no-store",
+        "CDN-Cache-Control": "no-store",
       },
     );
   } catch (error) {
@@ -162,6 +165,5 @@ async function handler(request, response) {
   }
 }
 
-// Retained implementation is exercised offline; the shipping export stays held.
 export { handler as retainedHandler };
-export default withNativeCors(releaseHold, ["GET"]);
+export default withNativeCors(handler, ["GET"]);

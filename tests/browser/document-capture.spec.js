@@ -23,7 +23,7 @@ test.beforeAll(async () => {
   );
   const result = await build({
     stdin: {
-      contents: `${source.replace("void bootstrap();", "")}\nexport { state, openDeviceCamera, openAutoCapture, openCardCamera, prepareDocumentPreview, prepareVisionImage, showProcessing, detectDocumentBoundaryFromPixels };`,
+      contents: `${source.replace("void bootstrap();", "")}\nexport { state, bindEvents, openDeviceCamera, openAutoCapture, openCardCamera, guideCropInFrame, prepareDocumentPreview, prepareVisionImage, showProcessing, detectDocumentBoundaryFromPixels };`,
       resolveDir: fileURLToPath(new URL("../../", import.meta.url)),
       sourcefile: "app.js",
     },
@@ -149,6 +149,7 @@ async function setup(
         inset.width = 700;
         inset.height = 1000;
         inset.getContext("2d").drawImage(canvas, 0, 0);
+        globalThis.__syntheticDocumentCanvas = inset;
         context.fillStyle = "#596a60";
         context.fillRect(0, 0, 700, 1000);
         context.drawImage(inset, 0, 0, 700, 1000, 157, 225, 385, 550);
@@ -338,7 +339,7 @@ test("shared document capture recovers from denied camera, corrects once, and ke
   await expect(page.locator("#positionGrade")).toHaveValue("10");
   await expect(page.locator("#positionCertification")).toHaveValue("00012345");
   await expect(page.locator("#positionForm")).toContainText(
-    "AI suggestion · confirm before saving",
+    "Read from photo · confirm the card and slab details.",
   );
   await page.getByRole("button", { name: "Add card", exact: true }).click();
   await expect
@@ -1103,4 +1104,78 @@ test("account change after review cannot deliver the previous owner's photo", as
       request.path.endsWith("/create_graded_copy_position"),
     ),
   ).toHaveLength(0);
+});
+
+
+test("primary intake camera fills viewport edge to edge with overlay controls, retaining correction and cleanup", async ({ page }, testInfo) => {
+  const errors=[]; page.on('pageerror', error=>errors.push(error.message));
+  const requests = await setup(page, {experience:'intake'});
+  await page.getByRole('button',{name:'Back',exact:true}).click();
+  await page.evaluate(()=>globalThis.__documentCaptureApp.bindEvents());
+  await page.locator(page.viewportSize().width < 760 ? '.scan-nav' : '.quick-add:visible').first().click();
+  await expect(page.locator('#bottomSheet')).toHaveAttribute('data-experience','intake');
+  const bounds = await page.locator('#bottomSheet').boundingBox();
+  expect(bounds.x).toBe(0); expect(bounds.y).toBe(0);
+  expect(bounds.width).toBeCloseTo(page.viewportSize().width,1); expect(bounds.height).toBeCloseTo(page.viewportSize().height,1);
+  await expect(page.getByRole('button',{name:'Back',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Take photo',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Choose photo from library',exact:true})).toBeVisible();
+  await expect(page.locator('#deviceCameraTorch, #deviceCameraTimer, #deviceCameraMotion, #deviceCameraSwitch')).toHaveCount(0);
+  const back=await page.getByRole('button',{name:'Back',exact:true}).boundingBox();
+  const shutter=await page.getByRole('button',{name:'Take photo',exact:true}).boundingBox();
+  const library=await page.getByRole('button',{name:'Choose photo from library',exact:true}).boundingBox();
+  expect(back.y+back.height).toBeLessThan(shutter.y); expect(library.x+library.width).toBeLessThan(shutter.x); expect(library.x).toBeLessThanOrEqual(24);
+  expect(shutter.x+shutter.width/2).toBeCloseTo(page.viewportSize().width/2,1);
+  const video=await page.locator("#deviceCameraVideo").boundingBox();
+  expect(video.x).toBe(0); expect(video.y).toBe(0);
+  expect(video.width).toBeCloseTo(page.viewportSize().width,1); expect(video.height).toBeCloseTo(page.viewportSize().height,1);
+  expect(shutter.y+shutter.height).toBeLessThanOrEqual(page.viewportSize().height);
+  await page.screenshot({path:testInfo.outputPath('full-screen-intake-denied-fixture.png'),fullPage:false});
+  await installSyntheticDocument(page);
+  await page.evaluate(()=>{const input=document.querySelector('#deviceCameraUpload');input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
+  await expect(page.locator('#deviceCameraState')).toContainText('Corrected full slab preview',{timeout:20000});
+  await expect(page.getByRole('button',{name:'Use photo',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'Take photo',exact:true})).toBeHidden();
+  await page.getByRole('button',{name:'Back',exact:true}).click();
+  await expect(page.locator('#bottomSheet')).toBeHidden();
+  expect(await page.locator('#sheetContent').textContent()).toBe('');
+  expect(requests.writes.filter(r => !r.path.endsWith('/rpc/record_ingestion_event'))).toHaveLength(0); expect(requests.vision).toHaveLength(0); expect(errors).toEqual([]);
+});
+
+
+for (const automatic of [false, true]) test('full-screen intake '+(automatic?'automatic':'shutter')+' live fixture corrects once and stops stream before confirmation', async ({page},testInfo)=>{
+  const errors=[]; page.on('pageerror',error=>errors.push(error.message));
+  const requests=await setup(page,{live:true,automatic,experience:'intake'});
+  // A full-screen guide occupies a different source-camera region than the old sheet.
+  // Place the same synthetic document inside that actual guide; keep detector thresholds.
+  await page.evaluate(()=>{
+    const guide=globalThis.__documentCaptureApp.guideCropInFrame(document.querySelector('#deviceCameraVideo'),document.querySelector('.auto-capture-guide'));
+    // Both positive live cases use the same printed texture, independent of capture mode.
+    const documentContext=globalThis.__syntheticDocumentCanvas.getContext('2d');
+    documentContext.fillStyle='#d7ccb3';
+    for(let y=344;y<820;y+=20) documentContext.fillRect(180,y,340,9);
+    const canvas=globalThis.__liveCanvas,context=canvas.getContext('2d');
+    context.fillStyle='#596a60';context.fillRect(0,0,canvas.width,canvas.height);
+    context.drawImage(globalThis.__syntheticDocumentCanvas,guide.x,guide.y,guide.width,guide.height);
+  });
+  if (!automatic) {
+    await expect(page.locator('.auto-capture-guide')).toHaveAttribute('data-state','ready',{timeout:15000});
+    await expect(page.getByRole('button',{name:'Take photo',exact:true})).toBeEnabled();
+    await page.screenshot({path:testInfo.outputPath('full-screen-live-camera-fixture.png')});
+    await page.getByRole('button',{name:'Take photo',exact:true}).click();
+  }
+  await expect(page.locator('#deviceCameraState')).toContainText('Corrected full slab preview',{timeout:20000});
+  await expect(page.locator('#deviceCameraReview')).toBeVisible();
+  await expect(page.getByRole('button',{name:'Use photo',exact:true})).toBeEnabled();
+  expect(await page.evaluate(()=>globalThis.__photosDelivered)).toBe(0);
+  await page.screenshot({path:testInfo.outputPath('full-screen-live-'+(automatic?'automatic':'shutter')+'-fixture.png')});
+  await page.getByRole('button',{name:'Use photo',exact:true}).click();
+  expect(await page.evaluate(()=>globalThis.__photosDelivered)).toBe(1);
+  expect(await page.evaluate(()=>globalThis.__mediaStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended')))).toBe(true);
+  await expect(page.locator('#positionCertification')).toHaveValue('00012345');
+  await expect(page.locator('#positionGrader')).toHaveValue('PSA');
+  await expect(page.locator('#positionGrade')).toHaveValue('10');
+  expect(await page.locator('#bottomSheet').getAttribute('data-experience')).toBeNull();
+  expect(requests.writes.filter(r=>!r.path.endsWith('/rpc/record_ingestion_event'))).toHaveLength(0);
+  expect(requests.vision).toHaveLength(0); expect(errors).toEqual([]);
 });

@@ -638,7 +638,7 @@ export async function visionHandler(
       analysis.searchQuery?.length >= 2
     ) {
       try {
-        const language = ["en", "ja"].includes(
+        const language = ["en", "ja", "de"].includes(
           String(analysis.identity?.language || "").toLowerCase(),
         )
           ? String(analysis.identity.language).toLowerCase()

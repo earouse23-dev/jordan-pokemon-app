@@ -115,6 +115,7 @@ const publicConfig = releaseConfig
       supabaseUrl: releaseConfig.supabaseUrl,
       supabasePublishableKey: releaseConfig.supabasePublishableKey,
       apiOrigin: releaseConfig.apiOrigin,
+      authReturnOrigin: new URL(releaseConfig.authCallback).origin,
     }
   : native
     ? nativeConfig

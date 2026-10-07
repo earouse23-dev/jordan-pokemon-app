@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   portfolioProfitLoss,
+  portfolioDisplayProfitLoss,
+  portfolioDisplayProfitLossHistory,
   portfolioProfitLossHistory,
 } from "../lib/portfolio.js";
 import { hydratePosition } from "../lib/supabase-data.js";
@@ -398,4 +400,88 @@ test("adapter keeps optimistic known flags from coercing missing numeric cost to
       .unknownBasisUnits,
     1,
   );
+});
+
+test("display currency combines native valuations without changing source records or inventing FX", () => {
+  const now = Date.parse("2026-10-03T12:00:00.000Z");
+  const hash = "a".repeat(64);
+  const rate = { sourceId: "ecb-eurofxref-daily", sourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", base: "EUR", quote: "USD", units: "USD per EUR", rate: 1.25, effectiveDate: "2026-10-02", fetchedAt: "2026-10-03T00:00:00.000Z", contentSha256: hash, rateRef: "ecb-eurofxref-daily:2026-10-02:"+hash };
+  const items = [
+    { currency: "USD", quantity: 1, cardState: "graded", price: 999, costBasis: 100, soldValuation: { status: "ready", ruleVersion: "mica-exact-sold-v1", currency: "USD", contextValidated: true, estimate: 150 } },
+    { currency: "EUR", quantity: 2, cardState: "sealed", price: 50, pricingStatus: "live", costBasis: 120 },
+    { currency: "EUR", quantity: 1, cardState: "graded", price: 777, costBasis: null },
+  ];
+  const original = structuredClone(items);
+  const usd = portfolioDisplayProfitLoss(items, "USD", rate, now);
+  assert.equal(usd.valueMinor, 27500);
+  assert.equal(usd.basisMinor, 25000);
+  assert.equal(usd.unrealizedMinor, 2500);
+  assert.equal(usd.unrealizedPercent, 10);
+  assert.equal(usd.pricedUnits, 3);
+  assert.equal(usd.missingUnits, 1);
+  assert.equal(usd.rateRef, rate.rateRef);
+  const eur = portfolioDisplayProfitLoss(items, "EUR", rate, now);
+  assert.equal(eur.valueMinor, 22000);
+  assert.equal(eur.unrealizedMinor, 2000);
+  assert.equal(eur.unrealizedPercent, 10);
+  const withUnpriced = portfolioDisplayProfitLoss([...items, { currency: "USD", quantity: 1, cardState: "raw", costBasis: 50, price: null, pricingStatus: "missing" }], "USD", rate, now);
+  assert.equal(withUnpriced.knownBasisMinor, 30000);
+  assert.equal(withUnpriced.knownBasisUnits, 4);
+  assert.equal(withUnpriced.basisMinor, 25000);
+  assert.equal(withUnpriced.missingUnits, 2);
+  assert.deepEqual(items, original);
+  for (const unavailable of [null, { ...rate, rate: -1 }, { ...rate, effectiveDate: "2026-09-01" }]) {
+    const partial = portfolioDisplayProfitLoss(items, "USD", unavailable, now);
+    assert.equal(partial.valueMinor, 15000);
+    assert.equal(partial.unconvertedUnits, 3);
+    assert.equal(partial.missingUnits, 3);
+    assert.equal(partial.rateRef, null);
+  }
+  assert.throws(() => portfolioDisplayProfitLoss(items, "GBP", rate, now), /Unsupported/);
+});
+
+test("converted portfolio history combines only dated native evidence and preserves gaps", () => {
+  const now = Date.parse("2026-10-03T12:00:00.000Z"), hash = "a".repeat(64);
+  const rate = { sourceId: "ecb-eurofxref-daily", sourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", base: "EUR", quote: "USD", units: "USD per EUR", rate: 1.25, effectiveDate: "2026-10-02", fetchedAt: "2026-10-03T00:00:00.000Z", contentSha256: hash, rateRef: "ecb-eurofxref-daily:2026-10-02:" + hash };
+  const items = [
+    { currency: "USD", quantity: 1, cardState: "graded", price: 999, lots: [{ acquiredAt: "2026-09-01", quantityAcquired: 1, quantityRemaining: 1, currency: "USD", totalCost: 100 }], matchedHistory: [{ ...point("2026-09-02", 150), verifiedExactSold: true, contextValidated: true }, { ...point("2026-09-03", 999), verifiedExactSold: false, contextValidated: true }] },
+    { currency: "EUR", quantity: 1, cardState: "sealed", lots: [{ acquiredAt: "2026-09-01", quantityAcquired: 1, quantityRemaining: 1, currency: "EUR", totalCost: 80 }], matchedHistory: [point("2026-09-02", 100, "EUR")] },
+  ];
+  const original = structuredClone(items);
+  const history = portfolioDisplayProfitLossHistory(items, "EUR", rate, now);
+  assert.deepEqual(history.map(row => row.date), ["2026-09-01", "2026-09-02", "2026-09-03"]);
+  assert.equal(history[0].missingUnits, 2);
+  assert.equal(history[1].valueMinor, 22000);
+  assert.equal(history[1].basisMinor, 16000);
+  assert.equal(history[1].unrealizedMinor, 6000);
+  assert.equal(history[1].historyComplete, true);
+  assert.equal(history[1].rateRef, rate.rateRef);
+  assert.equal(history[2].pricedUnits, 0);
+  assert.equal(history[2].missingUnits, 2);
+  assert.equal(history[2].historyComplete, false);
+  const missingRate = portfolioDisplayProfitLossHistory(items, "EUR", null, now);
+  assert.equal(missingRate[1].valueMinor, 10000);
+  assert.equal(missingRate[1].unconvertedUnits, 1);
+  assert.equal(missingRate[1].historyComplete, false);
+  const undated = portfolioDisplayProfitLossHistory([...items, { currency: "USD", quantity: 1, lots: [], matchedHistory: [] }], "EUR", null, now);
+  assert.equal(undated[1].unknownMembershipUnits, 1);
+  assert.equal(undated[1].knownZeroActive, false);
+  assert.deepEqual(items, original);
+});
+
+test("all-time P/L includes sold gains without inventing unknown sale costs", () => {
+  const items = [
+    { currency: "USD", cardState: "raw", quantity: 1, costBasis: 100, price: 150, pricingStatus: "live" },
+    { currency: "USD", quantity: 0, transactions: [{ type: "sale", date: "2026-09-01", netProceeds: 120, allocatedCost: 100, currency: "USD" }] },
+    { currency: "USD", quantity: 0, transactions: [{ type: "sale", date: "2026-09-01", netProceeds: 999, allocatedCost: null, currency: "USD" }] },
+  ];
+  const original = structuredClone(items);
+  const result = portfolioDisplayProfitLoss(items, "USD", null);
+  assert.equal(result.realizedMinor, 2000);
+  assert.equal(result.realizedBasisMinor, 10000);
+  assert.equal(result.totalProfitMinor, 7000);
+  assert.equal(result.totalProfitPercent, 35);
+  assert.equal(result.unknownRealizedSales, 1);
+  assert.equal(result.historyComplete, false);
+  assert.deepEqual(items, original);
 });

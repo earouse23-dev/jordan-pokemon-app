@@ -1,5 +1,7 @@
 .vercel/
 dist/
+dist-internal/
+dist-native/
 node_modules/
 .env
 .env.*

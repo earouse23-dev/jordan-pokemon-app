@@ -1,3 +1,4 @@
+import { pkmnPricesRequests } from "../lib/pkmnprices-requests.js";
 import { withNativeCors } from "../lib/native-cors.js";
 import {
   fetchJustTcgLookup,
@@ -15,7 +16,7 @@ import {
 const windows = new Map();
 const SAFE_TEXT = /^[\p{L}\p{N} .:'&+\-/()#]{1,120}$/u;
 const PROVIDER_TIMEOUT_MS = Object.freeze({
-  pkmnprices: 4_500,
+  pkmnprices: 45_000,
   justtcg: 2_000,
   tcgdex: 2_000,
 });
@@ -53,6 +54,7 @@ function isRateLimited(request) {
 }
 
 function send(response, status, body, headers = {}) {
+  response.setHeader("Cache-Control", "no-store");
   for (const [key, value] of Object.entries(headers))
     response.setHeader(key, value);
   return response.status(status).json(body);
@@ -106,7 +108,7 @@ function parseLookups(request) {
   return lookups.length ? lookups : null;
 }
 
-export async function retainedHandler(request, response, publicOnly = false) {
+export async function retainedHandler(request, response, publicOnly = false, proOnly = false) {
   if (request.method !== "GET") {
     response.setHeader("Allow", "GET");
     return send(response, 405, { error: "Method not allowed" });
@@ -123,19 +125,24 @@ export async function retainedHandler(request, response, publicOnly = false) {
   if (!lookups)
     return send(response, 400, { error: "Provide 1 to 8 valid card lookups." });
 
-  // Provider credentials cannot enable paid lookup in this release.
+  // The shipping wrapper enables the verified Pro integration, not other paid adapters.
   const pkmnPricesKey = publicOnly
     ? ""
     : process.env.PKMNPRICES_API_KEY ||
       (process.env.PRICING_PROVIDER === "pkmnprices"
         ? process.env.PRICING_PROVIDER_API_KEY
         : "");
+  if (
+    pkmnPricesKey &&
+    !(await pkmnPricesRequests.authenticate(request, response))
+  )
+    return;
   const justTcgApproved =
     String(
       process.env.JUSTTCG_COMMERCIAL_LICENSE_APPROVED || "",
     ).toLowerCase() === "true";
   const justTcgKey =
-    publicOnly || !justTcgApproved
+    publicOnly || proOnly || !justTcgApproved
       ? ""
       : process.env.JUSTTCG_API_KEY ||
         (process.env.PRICING_PROVIDER === "justtcg"
@@ -253,8 +260,10 @@ export async function retainedHandler(request, response, publicOnly = false) {
         },
       },
       {
-        "Cache-Control": "s-maxage=900, stale-while-revalidate=3600",
-        "CDN-Cache-Control": "max-age=900",
+        "Cache-Control": pkmnPricesKey
+          ? "no-store"
+          : "s-maxage=900, stale-while-revalidate=3600",
+        "CDN-Cache-Control": pkmnPricesKey ? "no-store" : "max-age=900",
       },
     );
   } catch (error) {
@@ -269,6 +278,6 @@ export async function retainedHandler(request, response, publicOnly = false) {
 }
 
 export default withNativeCors(
-  (request, response) => retainedHandler(request, response, true),
+  (request, response) => retainedHandler(request, response, false, true),
   ["GET"],
 );

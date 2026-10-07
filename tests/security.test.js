@@ -662,11 +662,12 @@ test("owned positions use provider prices and never fabricate current value or h
 
 test("portfolio dashboard uses a responsive stock-style interactive chart", () => {
   assert.match(appSource, /id="portfolioHistoryChart"/);
-  assert.match(appSource, /data-portfolio-history-range/);
-  assert.match(appSource, /\["1w", "1 week"\]/);
-  assert.match(appSource, /\["1m", "1 month"\]/);
-  assert.match(appSource, /\["6m", "6 months"\]/);
-  assert.match(appSource, /\["1y", "1 year"\]/);
+  assert.match(appSource, /id="portfolioChartRange" aria-label="Graph timeframe"/);
+  assert.match(appSource, /portfolioHistoryRange: "all"/);
+  assert.match(appSource, /portfolioPnlRange: "all"/);
+  for (const [value, label] of [["all", "All time"], ["1m", "Month"], ["ytd", "YTD"], ["1y", "Year"], ["1d", "Day"]]) {
+    assert.ok(appSource.includes(JSON.stringify([value, label]).replaceAll(",", ", ")));
+  }
   assert.match(appSource, />P\/L</);
   assert.match(
     appSource,
@@ -713,13 +714,17 @@ test("streamlined collection, intake, and trade surfaces keep primary actions vi
 
 test("consolidated workspace navigation remains responsive and routes to real workflows", () => {
   assert.match(appShell, /class="desktop-sidebar"/);
-  assert.equal([...appShell.matchAll(/class="sidebar-item/g)].length, 4);
+  assert.equal([...appShell.matchAll(/class="sidebar-item/g)].length, 3);
+  assert.doesNotMatch(appShell, /data-sidebar-target="trades"/);
+  assert.doesNotMatch(appShell, /id="softwareModeSelect"/);
   assert.doesNotMatch(appShell, /data-sidebar-target="analytics"/);
   assert.doesNotMatch(appShell, /data-sidebar-target="business"/);
   const bottomNavigation =
     appShell.match(/<nav class="bottom-nav"[\s\S]*?<\/nav>/)?.[0] || "";
   assert.match(bottomNavigation, /data-sidebar-target="dashboard"/);
   assert.match(bottomNavigation, /data-sidebar-target="collection"/);
+  assert.doesNotMatch(bottomNavigation, /data-route="trade"/);
+  assert.match(bottomNavigation, /data-route="scan"/);
   assert.doesNotMatch(bottomNavigation, /data-route="insights"/);
   assert.doesNotMatch(bottomNavigation, /data-route="profile"/);
   assert.match(appSource, /intakeQueue/);

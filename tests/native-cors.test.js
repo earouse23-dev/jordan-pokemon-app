@@ -157,7 +157,8 @@ test("absent and denied Origin responses vary by Origin before cache reuse", asy
 });
 
 test("vision downstream Authorization variation retains Origin for every request", async () => {
-  const { default: handler } = await import("../api/vision.js");
+  const { visionHandler } = await import("../api/vision.js");
+  const handler = withNativeCors(visionHandler, ["POST"]);
   for (const headers of [
     {},
     { origin: "capacitor://localhost" },

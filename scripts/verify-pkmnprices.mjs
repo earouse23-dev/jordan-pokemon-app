@@ -1,19 +1,14 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { loadEnvFile } from "node:process";
 import { runPkmnPricesReadiness } from "../lib/pkmnprices-readiness.js";
 
-try {
-  loadEnvFile(new URL("../.env", import.meta.url));
-} catch (error) {
-  if (error?.code !== "ENOENT") throw error;
-}
+// Credentials must arrive through a scoped server channel; never read env files.
 
 const argumentsList = process.argv.slice(2);
 const requestedMaximum = Number(
   argumentsList
     .find((argument) => argument.startsWith("--max-credits="))
-    ?.split("=")[1] || 40,
+    ?.split("=")[1] || 20_000,
 );
 const cacheArgument = argumentsList
   .find((argument) => argument.startsWith("--cache-file="))

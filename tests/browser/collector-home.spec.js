@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase };`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -47,9 +47,15 @@ async function openDetail(page, overrides = {}) {
   );
   await page.goto("/");
   await expect(page.locator("#authGate")).toBeVisible();
+  // Chromium can collect a CDP-awaited async promise while Chart.js initializes.
+  // Keep the module import separate from the synchronous fixture render.
+  await page.evaluate((url) => {
+    globalThis.fixtureAppImport = import(url);
+    return globalThis.fixtureAppImport.then((module) => { globalThis.fixtureApp = module; });
+  }, appUrl);
   await page.evaluate(
-    async ({ appUrl, overrides }) => {
-      const { state, renderDetail } = await import(appUrl);
+    ({ overrides }) => {
+      const { state, renderDetail } = globalThis.fixtureApp;
       const item = {
         uid: "11111111-1111-4111-8111-111111111111",
         id: "base1-4",
@@ -142,7 +148,7 @@ async function openCollection(page) {
   await expect(page.locator(".ledger-row")).toHaveCount(2);
 }
 
-test("collector Home includes unpriced cards and keeps bookkeeping optional across modes", async ({ page }, testInfo) => {
+test("client portfolio preserves unpriced inventory without rejected workspace controls", async ({ page }, testInfo) => {
   await openCollection(page);
   await page.evaluate(async url => {
     const { state, renderCollection, routeTo } = await import(url);
@@ -153,41 +159,470 @@ test("collector Home includes unpriced cards and keeps bookkeeping optional acro
   await expect(page.locator("#dashboardHighestTitle")).toHaveText("Your cards");
   await expect(page.locator("#dashboardHighestCards button")).toHaveCount(2);
   await expect(page.locator("#dashboardHighestCards")).toContainText("3 owned");
-  await expect(page.locator("#softwareModeHome")).toContainText("2 of 102");
+  await expect(page.locator("#softwareModeHome")).not.toBeVisible();
+  await expect(page.locator("#collectionOrganization")).not.toBeVisible();
+  await expect(page.locator("#softwareModeSettings")).not.toBeVisible();
+  await expect(page.locator("[data-route=trade], [data-sidebar-target=trades], #softwareModeSelect")).toHaveCount(0);
   await expect(page.locator("#softwareModeHome")).not.toContainText("need review");
   await expect(page.locator("#portfolioChange")).not.toContainText("paid");
   await expect(page.locator("#portfolioValue")).toBeVisible();
   await expect(page.locator("#portfolioValue")).toHaveText("—");
+  const hierarchy = await page.locator("#portfolioHistory, #portfolioReturn, #portfolioValue").evaluateAll(nodes => nodes.map(node=>node.id));
+  expect(hierarchy).toEqual(["portfolioHistory", "portfolioReturn", "portfolioValue"]);
   await expect(page.locator("#gradedOwnedCount")).not.toBeVisible();
   await expect(page.locator("#sealedOwnedCount")).not.toBeVisible();
   await expect(page.locator("#dashboardMoneyDetails")).not.toHaveAttribute("open", "");
   await expect(page.locator("#dashboardBusinessPerformance")).not.toBeVisible();
+  await expect(page.locator(".dashboard-owned-tools")).not.toBeVisible();
   if (testInfo.project.name !== "desktop-chromium") {
     for (const width of [320, 390, 430]) {
       await page.setViewportSize({ width, height: 844 });
       await assertFits(page);
       await page.screenshot({ path: testInfo.outputPath(`collector-home-${width}.png`), fullPage: true, animations: "disabled" });
     }
-  } else await assertFits(page);
+  } else { await assertFits(page); await page.screenshot({path:testInfo.outputPath("collector-home-desktop.png"),fullPage:true,animations:"disabled"}); }
+  await page.locator("#dashboardMoneyDetails > summary").click();
+  await expect(page.locator(".dashboard-owned-tools")).toBeVisible();
   await page.locator("#dashboardHighestCards button").first().click();
   await expect(page.locator("#detailTitle")).toHaveText("Charizard");
-  await page.evaluate(async url => {
-    const { switchSoftwareMode } = await import(url);
-    await switchSoftwareMode("investor", { persist: false, announce: false });
-  }, appUrl);
-  await expect(page.locator("#dashboardHighestTitle")).toHaveText("Highest-value cards");
-  await expect(page.locator("#dashboardMoneyDetails")).toHaveAttribute("open", "");
-  await expect(page.locator("#softwareModeHome")).toContainText("Purchase costs recorded");
-  await page.evaluate(async url => {
-    const { switchSoftwareMode } = await import(url);
-    await switchSoftwareMode("seller", { persist: false, announce: false });
-  }, appUrl);
-  await expect(page.locator("#softwareModeHome")).toContainText("Listed inventory");
-  await page.evaluate(async url => {
-    const { switchSoftwareMode } = await import(url);
-    await switchSoftwareMode("collector", { persist: false, announce: false });
-  }, appUrl);
-  await expect(page.locator("#dashboardHighestCards button")).toHaveCount(2);
-  await expect(page.locator("#dashboardMoneyDetails")).not.toHaveAttribute("open", "");
   expect(await page.evaluate(async url => (await import(url)).state.items.reduce((sum,item)=>sum+item.quantity,0), appUrl)).toBe(4);
+});
+
+test("editing visible card facts never clears hidden legacy fields", async ({page}) => {
+  await openDetail(page, {gradingCompany:"PSA", certificationNumber:"000123", notes:"Original", location:"Safe", collectionId:"folder-legacy", tags:["Favorites","Legacy"], customFields:{insured:true}, status:"listed", askingPrice:130, listingVenue:"eBay"});
+  let patch;
+  await page.route("https://mica-detail-test.supabase.co/rest/v1/collection_items**", async route => {
+    if (route.request().method() === "PATCH") {
+      patch = route.request().postDataJSON();
+      await route.fulfill({status:204});
+    } else await route.fulfill({contentType:"application/json",body:"[]"});
+  });
+  await page.evaluate(async url => {
+    const {state,openPositionEditSheet}=await import(url);
+    openPositionEditSheet(state.items[0]);
+  }, appUrl);
+  await expect(page.locator("#editLocation, #editCollectionFolder, #editTags, #editStatus")).toHaveCount(0);
+  await page.locator("#editNotes").fill("Updated note");
+  await page.locator("#positionEditForm [type=submit]").click();
+  await expect.poll(() => patch).toEqual({notes:"Updated note",certification_number:"000123"});
+});
+
+test("inventory filters keep client fields and omit organization prompts", async ({ page }, testInfo) => {
+  await openCollection(page);
+  for (const selector of ["#view-collection .view-tabs", "#view-collection .ledger-tools", ".position-price-grid.compact span"]) {
+    const styles = await page.locator(selector).first().evaluate(el => {const s=getComputedStyle(el);return {shadow:s.boxShadow,border:s.borderTopWidth,background:s.backgroundColor};});
+    expect(styles).toEqual({shadow:"none",border:"0px",background:"rgba(0, 0, 0, 0)"});
+  }
+  await page.screenshot({path:testInfo.outputPath("inventory-viewport-fixture.png"),animations:"disabled"});
+  await page.locator("#filterButton").click();
+  await expect(page.locator("#sheetCollectionFolder, #sheetLocation, #sheetLabel")).toHaveCount(0);
+  for (const id of ["sheetSet", "sheetLanguage", "sheetGrader", "sheetGrade", "sheetPerformance", "sheetMovement", "sheetCoverage", "sheetMinimumValue", "sheetMinimumProfitLoss", "sheetPurchaseDateFrom"]) {
+    await expect(page.locator(`#${id}`)).toBeVisible();
+  }
+  await page.locator("#applySheet").click();
+  await expect(page.locator(".ledger-row")).toHaveCount(2);
+});
+
+for (const entry of ["manual", "recognized slab"]) test(`${entry} intake preserves graded state and EUR acquisition through the save request`, async ({page},testInfo) => {
+  const corrected = entry === "recognized slab" ? { grader: "BGS", grade: "9.5", certification: "001234" } : { grader: "PSA", grade: "10", certification: "000123" };
+  await openCollection(page);
+  let saved;
+  await page.route("https://mica-detail-test.supabase.co/rest/v1/rpc/create_graded_copy_position", async route => {
+    saved=route.request().postDataJSON();
+    await route.fulfill({status:503,contentType:"application/json",body:JSON.stringify({message:"synthetic retry test"})});
+  });
+  await page.evaluate(async ({ url, entry }) => {
+    const { state, openPositionSheet, visionPrefill } = await import(url);
+    const analysis = { identity: { cardState: "graded", grader: "PSA", grade: 10, certificationNumber: "000123" } };
+    openPositionSheet(state.items[0], entry === "manual" ? {} : { prefill: visionPrefill(analysis, "identify"), visionAnalysis: { mode: "identify" } });
+  }, { url: appUrl, entry });
+  await expect(page.locator("#positionState")).toHaveValue("graded");
+  await expect(page.locator("#positionQuantity")).toHaveValue("1");
+  await expect(page.locator("#positionAcquisitionMethod")).not.toBeVisible();
+  if (entry === "recognized slab") {
+    await expect(page.locator("#positionGrader")).toHaveValue("PSA");
+    await expect(page.locator("#positionGrade")).toHaveValue("10");
+    await expect(page.locator("#positionCertification")).toHaveValue("000123");
+  }
+  await page.locator("#positionGrader").selectOption(corrected.grader);
+  await page.locator("#positionGrade").fill(corrected.grade);
+  await page.locator("#positionCertification").fill(corrected.certification);
+  await expect(page.locator("#positionIdentitySummary")).toContainText(`Charizard 4/102 · ${corrected.grader} ${corrected.grade}`);
+  await page.locator("#positionIdentitySummary").scrollIntoViewIfNeeded();
+  await assertFits(page);
+  expect(await page.locator("#positionForm .simple-note").first().evaluate(el => parseFloat(getComputedStyle(el).borderTopRightRadius))).toBeGreaterThanOrEqual(8);
+  await page.screenshot({ path: testInfo.outputPath("confirmed-identity-top-fixture.png"),animations:"disabled" });
+  await page.locator("#positionMoreSummary").click();
+  await page.locator("#positionCurrency").selectOption("EUR");
+  await page.locator("#positionTotalCost").fill("120.50");
+  await page.locator("#positionDate").fill("2026-09-01");
+  await page.locator("#positionNotes").fill(`${entry} purchase note`);
+  await page.screenshot({path:testInfo.outputPath("slab-confirmation-fixture.png"),fullPage:true});
+  await page.locator("#positionForm [type=submit].primary").click();
+  await expect.poll(()=>saved?.p_currency).toBe("EUR");
+  expect(saved.p_unit_price).toBe("120.50");
+  expect(saved.p_certification_number).toBe(corrected.certification);
+  expect(saved.p_grader).toBe(corrected.grader);
+  expect(String(saved.p_grade)).toBe(corrected.grade);
+  expect(saved.p_acquisition_method).toBe("unknown");
+  expect(saved.p_notes).toBe(`${entry} purchase note`);
+  await expect(page.locator("#positionNotes")).toHaveValue(`${entry} purchase note`);
+  await expect(page.locator("#positionError")).toContainText("Your details are still here");
+  await expect(page.locator("#positionCurrency")).toHaveValue("EUR");
+});
+
+test("pregrading keeps raw intake without turning estimates into slab labels", async ({ page }) => {
+  await openCollection(page);
+  await page.evaluate(async url => {
+    const { state, openPositionSheet, visionPrefill } = await import(url);
+    const analysis = { identity: { cardState: "graded", grader: "PSA", grade: 10, certificationNumber: "000123" }, quality: { usable: true }, condition: { rawCondition: "near_mint", confidence: 0.9, estimatedGradeLow: 8, estimatedGradeHigh: 9 } };
+    openPositionSheet(state.items[0], { prefill: visionPrefill(analysis, "grade"), visionAnalysis: { mode: "grade", gradeRange: "8–9" } });
+  }, appUrl);
+  await expect(page.locator("#positionState")).toHaveValue("raw");
+  await expect(page.locator("#positionCondition")).toHaveValue("near_mint");
+  await expect(page.locator("#positionGrader")).toBeDisabled();
+  await expect(page.locator("#positionCertification")).toHaveValue("");
+  await expect(page.locator("#positionCertification")).toBeDisabled();
+});
+
+test("save feedback claims a digital grade only after its report is attached", async ({ page }) => {
+  await openCollection(page);
+  let attached = 0;
+  await page.route("https://mica-detail-test.supabase.co/rest/v1/rpc/**", async route => {
+    if (route.request().url().endsWith("/confirm_mica_grading_report")) attached++;
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify("44444444-4444-4444-8444-444444444444") });
+  });
+  for (const kind of ["identified slab", "unattached pregrade", "attached pregrade"]) {
+    await page.evaluate(async ({ url, kind }) => {
+      const { state, saveCardAddDraft } = await import(url);
+      document.querySelector("#toastRegion").replaceChildren();
+      const graded = kind === "identified slab";
+      await saveCardAddDraft({ card: state.items[0], input: { cardState: graded ? "graded" : "raw", grader: graded ? "PSA" : null, grade: graded ? 10 : null, rawCondition: "near_mint", quantity: 1, unitPrice: "100", transactionDate: "2026-09-01", currency: "USD" }, idempotencyKey: crypto.randomUUID() }, { mode: graded ? "identify" : "grade", estimatedGradeLow: 8, scanSessionId: kind === "attached pregrade" ? "55555555-5555-4555-8555-555555555555" : null }, { closeAfterSave: false, refreshAfterSave: false });
+    }, { url: appUrl, kind });
+    if (kind === "attached pregrade") await expect(page.locator("#toastRegion")).toContainText("Card and digital grade saved");
+    else {
+      await expect(page.locator("#toastRegion")).toContainText("Added to your collection");
+      await expect(page.locator("#toastRegion")).not.toContainText("digital grade saved");
+    }
+  }
+  expect(attached).toBe(1);
+});
+
+for (const scenario of ["success", "metadata failure", "missing photo", "owner mismatch"]) test(`scan photo attaches to the saved copy safely: ${scenario}`, async ({ page }) => {
+  await openCollection(page);
+  const itemId = "44444444-4444-4444-8444-444444444444";
+  let creates = 0, uploads = [], metadata = [];
+  await page.route("https://mica-detail-test.supabase.co/rest/v1/rpc/create_graded_copy_position", async route => {
+    creates++;
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(itemId) });
+  });
+  await page.route("https://mica-detail-test.supabase.co/storage/v1/object/**", async route => {
+    uploads.push({ url: route.request().url(), upsert: route.request().headers()["x-upsert"] });
+    await route.fulfill({ status: uploads.length > 1 ? 409 : 200, contentType: "application/json", body: JSON.stringify(uploads.length > 1 ? { statusCode: "409", error: "Duplicate", message: "The resource already exists" } : { Key: "fixture" }) });
+  });
+  await page.route("https://mica-detail-test.supabase.co/rest/v1/collection_item_attachments**", async route => {
+    metadata.push(route.request().postDataJSON());
+    const fails = scenario === "metadata failure" && metadata.length === 1;
+    await route.fulfill({ status: fails ? 503 : 200, contentType: "application/json", body: JSON.stringify(fails ? { message: "fixture retry", code: "503" } : { id: "photo-fixture" }) });
+  });
+  const result = await page.evaluate(async ({ url, scenario }) => {
+    const { state, testSupabase, saveCardAddDraft } = await import(url);
+    testSupabase.auth.getUser = async () => ({ data: { user: { id: scenario === "owner mismatch" ? "another-owner" : state.session.user.id } }, error: null });
+    globalThis.photoCompleted = 0;
+    const canvas = document.createElement("canvas"); canvas.width = 4; canvas.height = 4;
+    const photoDataUrl = scenario === "missing photo" ? null : canvas.toDataURL("image/jpeg");
+    return await saveCardAddDraft({ card: state.items[0], input: { cardState: "graded", grader: "PSA", grade: 10, quantity: 1, currency: "USD" }, idempotencyKey: crypto.randomUUID(), photoRequired: true, photoDataUrl, afterSave: () => { globalThis.photoCompleted++; } }, null, { refreshAfterSave: false });
+  }, { url: appUrl, scenario });
+  expect(creates).toBe(1);
+  if (scenario === "success") {
+    expect(result.photoPending).toBe(false);
+    expect(await page.evaluate(() => globalThis.photoCompleted)).toBe(1);
+  } else {
+    expect(result.photoPending).toBe(true);
+    await expect(page.locator("#sheetTitle")).toHaveText("Card saved");
+    expect(await page.evaluate(() => globalThis.photoCompleted)).toBe(0);
+    if (scenario === "owner mismatch") {
+      expect(uploads).toHaveLength(0);
+      await page.evaluate(url => import(url).then(({ state }) => { state.session = { user: { id: "another-owner" } }; }), appUrl);
+      await page.locator("#retryScanPhoto").click();
+      expect(uploads).toHaveLength(0); expect(metadata).toHaveLength(0); return;
+    }
+    if (scenario === "missing photo") await page.locator("#scanPhotoRetryFile").setInputFiles({ name: "original.jpg", mimeType: "image/jpeg", buffer: Buffer.from([255,216,255,217]) });
+    await page.locator("#retryScanPhoto").click();
+    await expect(page.locator("#toastRegion")).toContainText("Card and photo saved");
+    expect(await page.evaluate(() => globalThis.photoCompleted)).toBe(1);
+    expect(creates).toBe(1);
+  }
+  expect(uploads.length).toBe(scenario === "metadata failure" ? 2 : 1);
+  if (uploads.length === 2) expect(uploads[1].url).toBe(uploads[0].url);
+  for (const upload of uploads) { expect(upload.url).toMatch(new RegExp(`/collection-item-files/collection-owner/${itemId}/[a-f0-9]{64}\\.jpg$`)); expect(upload.upsert).toBe("false"); }
+  const record = metadata.at(-1);
+  expect(record.user_id).toBe("collection-owner"); expect(record.collection_item_id).toBe(itemId);
+  expect(record.kind).toBe("photo"); expect(record.caption).toContain("user confirmed");
+});
+
+test("graded detail shows recorded sold-derived chart without using a provider index", async ({page},testInfo)=>{
+  const point=(days,amount,extra={})=>({recordedAt:new Date(Date.now()-days*86400000).toISOString(),amount,currency:"USD",provider:"pkmnprices completed sales",contributingEvidenceIds:["fixture-sale-a","fixture-sale-b","fixture-sale-c"],contextValidated:true,...extra});
+  await openDetail(page,{cardState:"graded",gradingCompany:"PSA",grade:"10",certificationNumber:"000123",gradedValuations:[point(2,100),point(1,110),point(1,999,{contextValidated:false}),point(1,888,{currency:"EUR"})],priceHistory:[{recordedAt:new Date().toISOString(),amount:777,finish:"holofoil",currency:"USD",gradingCompany:"PSA",grade:"10"}]});
+  await expect(page.locator("#positionChart")).toBeVisible();
+  await expect(page.locator("#detailValuationGrade")).not.toBeVisible();
+  await page.locator('[data-detail-tool="valuation-context"] > summary').click();
+  await expect(page.locator("#detailValuationGrade")).toBeVisible();
+  await expect(page.locator("#detailValuationGrade")).toHaveValue("10");
+  await page.locator('[data-detail-tool="valuation-context"] > summary').click();
+  await expect(page.locator("#cardPriceHistory")).not.toContainText("could not be loaded");
+  expect(await page.locator("#cardPriceHistory").evaluate((el) => Boolean(el.compareDocumentPosition(document.querySelector(".exact-sold-value")) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+  await expect(page.getByRole("button",{name:"6 months",exact:true})).toBeVisible();
+  await expect(page.locator(".market-hero")).not.toBeVisible();
+  await page.locator(".history-values > summary").click();
+  await expect(page.locator(".history-values tbody tr")).toHaveCount(2);
+  await expect(page.locator(".history-values")).toContainText("$100.00");
+  await expect(page.locator(".history-values")).not.toContainText("$777.00");
+  await page.screenshot({path:testInfo.outputPath("graded-detail-fixture.png"),fullPage:true});
+});
+
+test("secondary insights use native sealed values and exact-sold graded evidence", async ({ page }, testInfo) => {
+  await openCollection(page);
+  await page.evaluate(() => {
+    const { state, renderInsights, routeTo } = globalThis.fixtureApp;
+    const base = state.items[0];
+    state.items = [
+      { ...base, name: "Graded raw fallback forbidden", cardState: "graded", gradingCompany: "PSA", grade: "10", quantity: 1, price: 999, pricingStatus: "live", costBasis: 10, gradedValuations: [], priceHistory: [
+        { provider: "ebay", amount: 100, currency: "USD", gradingCompany: "PSA", grade: "10", finish: "holofoil", recordedAt: "2026-08-01T00:00:00.000Z" },
+        { provider: "ebay", amount: 999, currency: "USD", gradingCompany: "PSA", grade: "10", finish: "holofoil", recordedAt: "2026-09-15T00:00:00.000Z" },
+      ] },
+      { ...base, name: "Native EUR sealed", cardState: "sealed", quantity: 2, price: 50, currency: "EUR", pricingStatus: "live", costBasis: 60 },
+      { ...base, name: "Valid exact sold slab", cardState: "graded", gradingCompany: "PSA", grade: "10", quantity: 1, price: 777, currency: "USD", pricingStatus: "live", costBasis: 100, gradedValuations: [{ amount: 100, currency: "USD", recordedAt: "2026-08-01T00:00:00.000Z", verifiedExactSold: true, contextValidated: true }, { amount: 120, currency: "USD", recordedAt: "2026-10-01T00:00:00.000Z", verifiedExactSold: true, contextValidated: true, currentUntil: Date.now()+86400000, current: { estimate: 120, currency: "USD", status: "ready", contextValidated: true } }] },
+      { ...base, name: "Sold copy excluded", status: "sold", quantity: 0, price: 1000, pricingStatus: "live", transactions: [{ type: "sale", quantity: 1, currency: "EUR", netProceeds: 25 }] },
+    ];
+    state.pricingStatus = "live";
+    renderInsights(); routeTo("profile", { focus: false });
+  });
+  await expect(page.locator("#positionRankings")).not.toBeVisible();
+  await page.locator("#collectionInsights > summary").click();
+  await expect(page.locator("#positionRankings")).toBeVisible();
+  await expect(page.locator("#positionRankings .mover")).toHaveCount(3);
+  await expect(page.locator("#positionRankings .mover").filter({ hasText: "Native EUR sealed" })).toContainText("€100.00");
+  await expect(page.locator("#positionRankings .mover").filter({ hasText: "Native EUR sealed" })).toContainText("up €40.00 (+66.7%)");
+  await expect(page.locator("#positionRankings .mover").filter({ hasText: "Graded raw fallback forbidden" })).toContainText("Unavailable");
+  await expect(page.locator("#positionRankings .mover").filter({ hasText: "Valid exact sold slab" })).toContainText("$120.00");
+  await expect(page.locator("#positionRankings")).not.toContainText("$999.00");
+  await expect(page.locator("#positionRankings")).not.toContainText("$777.00");
+  await expect(page.locator("#moversList")).not.toContainText("Graded raw fallback forbidden");
+  await expect(page.locator("#moversList")).toContainText("Valid exact sold slab");
+  await expect(page.locator("#moversList")).toContainText("$100.00 to $120.00");
+  await expect(page.locator("#moversList")).not.toContainText("$777.00");
+  await expect(page.locator("#recentActivity")).toContainText("Date not recorded");
+  await expect(page.locator("#collectionInsights")).not.toContainText("Quick-sale");
+  await assertFits(page);
+  await page.screenshot({ path: testInfo.outputPath("secondary-insights-synthetic.png"), fullPage: false });
+});
+
+test("owner dashboard defaults to an all-time dominant graph and independent P/L timeframe", async ({ page }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openCollection(page);
+  await page.evaluate(() => {
+    const { state, renderCollection, routeTo } = globalThis.fixtureApp;
+    const base = state.items[0];
+    state.portfolioHistoryMode = "value";
+    state.items = [{ ...base, currency: "USD", quantity: 1, costBasis: 100, cost: 100, pricingStatus: "live", price: 130, cardState: "raw", gradingCompany: null, variant: "Holofoil", condition: "Near Mint", lots: [{ acquiredAt: "2026-01-01", quantityAcquired: 1, quantityRemaining: 1, totalCost: 100, currency: "USD", costBasisKnown: true, acquisitionDateKnown: true }], transactions: [], priceHistory: [1,2,3].map((day,index) => ({ recordedAt: new Date(Date.now()-day*86400000).toISOString(), amount: 130-index*10, currency: "USD", finish: "holofoil", condition: "Near Mint", provider: "synthetic" })) }];
+    renderCollection(); routeTo("dashboard", { focus: false });
+  });
+  await expect(page.locator("#portfolioChartRange")).toHaveValue("all");
+  await expect(page.locator("#portfolioPnlRange")).toHaveValue("all");
+  await expect(page.locator("#portfolioHistoryChart")).toBeVisible();
+  for (const selector of ["#portfolioChartRange", "#portfolioPnlRange"])
+    expect(await page.locator(selector).evaluate(element => getComputedStyle(element).borderTopLeftRadius)).toBe("10px");
+  await expect(page.locator("#portfolioHistoryChart")).toHaveClass(/portfolio-draw/);
+  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.scales.x.type)).toBe("linear");
+  expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.data.datasets.every(dataset => dataset.pointRadius === 0))).toBe(true);
+  expect(await page.evaluate(() => {
+    const labels = globalThis.fixtureApp.portfolioChartInstance.scales.x.ticks.map(tick => tick.label);
+    return new Set(labels).size === labels.length;
+  })).toBe(true);
+  const spacing = await page.evaluate(() => {
+    const chart = globalThis.fixtureApp.portfolioChartInstance;
+    const dates = chart.data.labels;
+    const x = chart.scales.x;
+    const midpoint = x.min + (x.max - x.min) * 0.75;
+    return {
+      recordedGapRatio: (dates[1] - dates[0]) / (dates[2] - dates[1]),
+      visibleRatio: (x.getPixelForValue(midpoint) - x.getPixelForValue(x.min)) / (x.getPixelForValue(x.max) - x.getPixelForValue(midpoint)),
+    };
+  });
+  expect(spacing.recordedGapRatio).toBeGreaterThan(200);
+  expect(spacing.visibleRatio).toBeCloseTo(3, 5);
+  expect(await page.evaluate(() => {
+    const chart = globalThis.fixtureApp.portfolioChartInstance;
+    const observed = chart.data.labels.filter((date, index) => chart.data.datasets.some(dataset => dataset.data[index] != null));
+    return [chart.scales.x.min === observed[0], chart.scales.x.max === observed.at(-1), chart.data.datasets[0].data[0] === null];
+  })).toEqual([true, true, true]);
+  expect(await page.locator(".portfolio-chart-shell").evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(300);
+  await page.locator(".portfolio-pnl-picker > summary").click();
+  await page.locator("#portfolioPnlRange").selectOption("1m");
+  await expect(page.locator("#portfolioReturn")).toHaveText("+20.0%");
+  await expect(page.locator("#portfolioChartRange")).toHaveValue("all");
+  await page.locator("#portfolioChartRange").selectOption("ytd");
+  await expect(page.locator("#portfolioPnlRange")).toHaveValue("1m");
+  await page.locator("#portfolioChartRange").selectOption("all");
+  await page.locator("#portfolioPnlRange").selectOption("all");
+  await page.locator(".portfolio-pnl-picker > summary").click();
+  await assertFits(page);
+  await page.screenshot({ path: testInfo.outputPath("owner-graph-dashboard-fixture.png"), fullPage: true, animations: "disabled" });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(await page.locator("#portfolioHistoryChart").evaluate(element => getComputedStyle(element).animationName)).toBe("none");
+  await page.evaluate(() => {
+    const { state, renderCollection } = globalThis.fixtureApp;
+    state.items.push({ ...state.items[0], uid: "synthetic-sold-copy", quantity: 0, lots: [], transactions: [{ type: "sale", date: "2026-09-01", currency: "USD", netProceeds: 120, allocatedCost: 100 }] });
+    renderCollection();
+  });
+  await expect(page.locator("#portfolioReturn")).toHaveText("+25.0%");
+  await expect(page.locator("#portfolioPnlNote")).toContainText("$50.00");
+});
+
+for (const outcome of ["success", "failure", "quota"]) test(`selected-card pricing avoids unrelated requests and changes: ${outcome}`, async ({ page }) => {
+  await openCollection(page);
+  await page.evaluate(async url => {
+    const { state } = await import(url);
+    state.items[0].price = 100; state.items[0].pricingStatus = "live";
+    state.items[1].id = "base1-2"; state.items[1].price = 55; state.items[1].pricingStatus = "live";
+  }, appUrl);
+  const calls = [];
+  await page.route("**/api/cards?**", async route => {
+    calls.push(JSON.parse(new URL(route.request().url()).searchParams.get("lookups")));
+    await route.fulfill({ status: outcome === "failure" ? 503 : outcome === "quota" ? 429 : 200, contentType: "application/json", body: JSON.stringify({ cards: [] }) });
+  });
+  const before = await page.evaluate(async url => (await import(url)).state.items[1], appUrl);
+  await page.evaluate(async url => { const { state, refreshLivePricing } = await import(url); await refreshLivePricing([state.items[0].uid]); }, appUrl);
+  expect(calls).toHaveLength(1); expect(calls[0]).toHaveLength(1);
+  expect(calls[0][0].clientId).toBe("base1-4");
+  const after = await page.evaluate(async url => (await import(url)).state.items[1], appUrl);
+  expect(after).toEqual(before);
+  if (outcome === "success") {
+    calls.length = 0;
+    await page.evaluate(async url => (await import(url)).refreshLivePricing(), appUrl);
+    expect(calls.flat().map(card => card.clientId).sort()).toEqual(["base1-2", "base1-4"]);
+  }
+});
+
+for (const scenario of ["same owner", "changed owner", "changed owner failure"]) test(`private attachment response stays with its account: ${scenario}`, async ({ page }) => {
+  await openCollection(page);
+  let pending;
+  await page.route("https://mica-detail-test.supabase.co/rest/v1/collection_item_attachments**", route => { pending = route; });
+  await page.evaluate(async url => { const { state, loadOwnedCollectionAttachments } = await import(url); globalThis.pendingPrivateAttachments = loadOwnedCollectionAttachments(state.items[0]); }, appUrl);
+  await expect.poll(() => Boolean(pending)).toBe(true);
+  if (scenario !== "same owner") await page.evaluate(async url => { const { state } = await import(url); state.session = { user: { id: "another-owner" } }; state.organization.attachments = new Map(); }, appUrl);
+  await pending.fulfill({ status: scenario.endsWith("failure") ? 403 : 200, contentType: "application/json", body: JSON.stringify(scenario.endsWith("failure") ? { message: "fixture failure" } : [{ id: "private-photo", filename: "old-owner-fixture.jpg" }]) });
+  await page.evaluate(() => globalThis.pendingPrivateAttachments);
+  const result = await page.evaluate(async url => { const { state } = await import(url); return [...state.organization.attachments.values()]; }, appUrl);
+  if (scenario === "same owner") expect(result[0].items[0].filename).toBe("old-owner-fixture.jpg");
+  else expect(result).toEqual([]);
+});
+
+for (const scenario of ["same owner", "changed owner"]) test(`signed private photo opens only for the requesting account: ${scenario}`, async ({ page }) => {
+  await openDetail(page);
+  await page.evaluate(async url => {
+    const { state, renderDetail } = await import(url); state.session = { user: { id: "collection-owner" } };
+    state.organization.attachments.set(state.items[0].uid, { status: "ready", items: [{ id: "photo", filename: "original-front.jpg", kind: "photo", byte_size: 10, created_at: "2026-09-01", storage_path: "collection-owner/copy/fixture.jpg" }] });
+    globalThis.openedPrivatePhotos = []; window.open = (...args) => { openedPrivatePhotos.push(args); return null; }; renderDetail();
+  }, appUrl);
+  let pending;
+  await page.route("https://mica-detail-test.supabase.co/storage/v1/object/sign/**", route => { pending = route; });
+  await page.locator('[data-detail-tool="attachments"] > summary').click();
+  await page.locator('[data-open-collection-attachment="photo"]').click();
+  await expect.poll(() => Boolean(pending)).toBe(true);
+  if (scenario === "changed owner") await page.evaluate(async url => { const { state } = await import(url); state.session = { user: { id: "another-owner" } }; }, appUrl);
+  await pending.fulfill({ contentType: "application/json", body: JSON.stringify({ signedURL: "/object/sign/collection-item-files/collection-owner/copy/fixture.jpg?token=synthetic-only" }) });
+  if (scenario === "same owner") {
+    await expect.poll(() => page.evaluate(() => openedPrivatePhotos.length)).toBe(1);
+    const opened = await page.evaluate(() => openedPrivatePhotos[0]); expect(opened[0]).toContain("/collection-item-files/collection-owner/copy/fixture.jpg"); expect(opened[2]).toBe("noopener,noreferrer");
+  } else {
+    await expect(page.locator('[data-open-collection-attachment="photo"]')).toBeEnabled();
+    expect(await page.evaluate(() => openedPrivatePhotos)).toEqual([]);
+  }
+});
+
+for (const scenario of ["same owner", "changed owner", "changed owner failure"]) test(`manual private upload callback stays with its account: ${scenario}`, async ({ page }) => {
+  await openDetail(page);
+  await page.evaluate(async url => {
+    const { state, testSupabase, renderDetail } = await import(url); state.session = { user: { id: "collection-owner" } };
+    testSupabase.auth.getUser = async () => ({ data: { user: { id: "collection-owner" } }, error: null });
+    renderDetail(); document.querySelector("#toastRegion").replaceChildren();
+  }, appUrl);
+  await page.route("https://mica-detail-test.supabase.co/storage/v1/object/**", route => route.fulfill({ contentType: "application/json", body: JSON.stringify({ Key: "private-fixture" }) }));
+  let pending;
+  await page.route("https://mica-detail-test.supabase.co/rest/v1/collection_item_attachments**", route => {
+    if (route.request().method() === "POST") pending = route;
+    else return route.fulfill({ contentType: "application/json", body: "[]" });
+  });
+  await page.locator('[data-detail-tool="attachments"] > summary').click();
+  await page.locator("#collectionAttachmentInput").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: Buffer.from([255,216,255,217]) });
+  await expect.poll(() => Boolean(pending)).toBe(true);
+  if (scenario !== "same owner") await page.evaluate(async url => { const { state } = await import(url); state.session = { user: { id: "another-owner" } }; state.organization.attachments = new Map(); document.querySelector("#collectionAttachmentError").textContent = "New account message"; }, appUrl);
+  await pending.fulfill({ status: scenario.endsWith("failure") ? 403 : 200, contentType: "application/json", body: JSON.stringify(scenario.endsWith("failure") ? { message: "ownership denied" } : { id: "photo-fixture" }) });
+  if (scenario === "same owner") await expect(page.locator("#toastRegion")).toContainText("Private file attached");
+  else {
+    await expect(page.locator("#collectionAttachmentInput")).toBeEnabled();
+    expect(await page.evaluate(async url => [...(await import(url)).state.organization.attachments.values()], appUrl)).toEqual([]);
+    await expect(page.locator("#collectionAttachmentError")).toHaveText("New account message");
+    await expect(page.locator("#toastRegion")).not.toContainText("Private file attached");
+  }
+});
+
+test("private deletion cannot continue or show success under a switched account", async ({ page }) => {
+  await openDetail(page);
+  await page.evaluate(async url => {
+    const { state, testSupabase, renderDetail } = await import(url);
+    state.session = { user: { id: "collection-owner" } };
+    globalThis.deleteOwnerChecks = 0;
+    testSupabase.auth.getUser = async () => { deleteOwnerChecks++; return { data: { user: { id: state.session.user.id } }, error: null }; };
+    state.organization.attachments.set(state.items[0].uid, { status: "ready", items: [{ id: "photo", filename: "original.jpg", kind: "photo", byte_size: 10, created_at: "2026-09-01", storage_path: "collection-owner/copy/photo.jpg" }] });
+    renderDetail(); document.querySelector("#toastRegion").replaceChildren();
+  }, appUrl);
+  let pending, removals = 0;
+  await page.route("https://mica-detail-test.supabase.co/rest/v1/collection_item_attachments**", route => { pending = route; });
+  await page.route("https://mica-detail-test.supabase.co/storage/v1/object/**", route => { removals++; return route.fulfill({ contentType: "application/json", body: "[]" }); });
+  await page.locator('[data-detail-tool="attachments"] > summary').click();
+  await page.locator('[data-delete-collection-attachment="photo"]').click();
+  await expect.poll(() => Boolean(pending)).toBe(true);
+  expect(pending.request().method()).toBe("DELETE");
+  await page.evaluate(async url => { const { state } = await import(url); state.session = { user: { id: "another-owner" } }; state.organization.attachments = new Map(); }, appUrl);
+  await pending.fulfill({ status: 204, body: "" });
+  await expect.poll(() => page.evaluate(() => deleteOwnerChecks)).toBe(2);
+  expect(removals).toBe(0);
+  expect(await page.evaluate(async url => [...(await import(url)).state.organization.attachments.values()], appUrl)).toEqual([]);
+  await expect(page.locator("#toastRegion")).not.toContainText("Private file deleted");
+});
+
+ test("inventory keeps unavailable freshness once and distinct purchase performance", async ({page},testInfo)=>{
+  await openCollection(page);
+  for(const status of ["stale","unsupported","rate_limited","provider_error"]) {
+    await page.evaluate(async({url,status})=>{const {state,renderCollection}=await import(url);state.items.forEach(item=>{item.pricingStatus=status;item.price=null;});renderCollection();},{url:appUrl,status});
+    const row=page.locator(".ledger-row").first();
+    await expect(row.locator(".price-provenance")).not.toBeEmpty();
+    await expect(row.locator(".row-move")).toHaveCount(0);
+    await expect(row.locator(".position-price-grid strong").first()).toHaveText("—");
+    if(status==="stale") {expect((await row.innerText()).match(/Stale · observed/g)).toHaveLength(1);await page.screenshot({path:testInfo.outputPath("inventory-single-freshness-fixture.png"),animations:"disabled"});}
+  }
+  await page.evaluate(async url=>{const {state,renderCollection}=await import(url);Object.assign(state.items[0],{price:100,pricingStatus:"live",pricingUpdatedAt:new Date().toISOString(),costBasis:60,marketPriceAtPurchase:60});renderCollection();},appUrl);
+  const live=page.locator(".ledger-row").filter({hasText:"Charizard"});
+  await expect(live.locator(".price-provenance")).toContainText("Updated");
+  await expect(live.locator(".row-move")).toContainText("since purchase");
+ });
+
+test("dialog keyboard loop includes native disclosures and excludes their closed inputs",async({page})=>{
+  await openCollection(page);
+  await page.evaluate(async url=>{const {openSheet}=await import(url);openSheet(`<h2 id="sheetTitle">Fixture preferences</h2><details><summary id="fixtureSummary">Optional details</summary><label>Note<input id="fixtureNote"></label></details><button type="button">Done</button><label id="fixtureLast" role="button" tabindex="0">Photo library</label><button disabled tabindex="0">Unavailable</button><button tabindex="-1">Programmatic only</button><div inert><button>Inactive</button></div>`);},appUrl);
+  await page.locator("#fixtureLast").focus();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#fixtureSummary")).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.locator("#fixtureLast")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#fixtureNote")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#bottomSheet")).toBeHidden();
+  expect(await page.locator("#appShell").evaluate(el=>el.inert)).toBe(false);
 });

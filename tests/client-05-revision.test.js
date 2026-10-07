@@ -1,3 +1,4 @@
+import "./pkmnprices-fixture.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { retainedHandler as salesHandler } from "../api/sales.js";

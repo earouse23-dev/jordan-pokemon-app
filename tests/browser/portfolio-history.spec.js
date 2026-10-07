@@ -10,6 +10,11 @@ const appUrl = "/app.js?v=111";
 const evidenceDir = fileURLToPath(
   new URL("../../docs/evidence/sol-client-06/", import.meta.url),
 );
+async function chooseChartMode(page, mode) {
+  const details = page.locator(".portfolio-native-history");
+  if (!(await details.evaluate(element => element.open))) await details.locator(":scope > summary").click();
+  await page.locator(`#portfolioHistory [data-portfolio-history-mode='${mode}']`).click();
+}
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -37,6 +42,9 @@ test.beforeAll(async () => {
 test("synthetic portfolio P/L, ranges, value toggle and honest movement filters", async ({
   page,
 }, testInfo) => {
+  // This multi-flow check covers filters, FX failure/retry, ranges and sold records.
+  // Keep action/assertion limits; allow the complete workflow its own total budget.
+  test.setTimeout(120_000);
   await page.clock.install({ time: new Date("2026-09-25T12:00:00Z") });
   await page.route("**/app.js?v=111", (route) =>
     route.fulfill({
@@ -51,6 +59,7 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
     }),
   );
   await page.route("**/api/**", (route) => route.abort());
+  await page.route("**/api/fx", route => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ code: "rate_unavailable" }) }));
   await page.route("https://mica-portfolio-test.supabase.co/**", (route) =>
     route.fulfill({ contentType: "application/json", body: "[]" }),
   );
@@ -167,29 +176,22 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
     "Known unrealized P/L",
   );
   await expect(page.locator("#portfolioHistory")).toContainText("$70.00");
-  await expect(
-    page.locator("#portfolioHistory [data-portfolio-history-range='1m']"),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page
-    .locator("#portfolioHistory [data-portfolio-history-range='1w']")
-    .click();
-  await expect(
-    page.locator("#portfolioHistory [data-portfolio-history-range='1w']"),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page
-    .locator("#portfolioHistory [data-portfolio-history-mode='value']")
-    .click();
+  await expect(page.locator(".portfolio-native-history")).not.toHaveAttribute("open", "");
+  await expect(page.locator(".portfolio-history-metrics")).not.toBeVisible();
+  await expect(page.locator(".portfolio-chart-coverage")).toBeVisible();
+  await page.locator(".portfolio-native-history > summary").click();
+  await expect(page.locator(".portfolio-history-metrics")).toBeVisible();
+  await expect(page.locator("#portfolioChartRange")).toHaveValue("1m");
+  await page.locator("#portfolioChartRange").selectOption("1d");
+  await expect(page.locator("#portfolioChartRange")).toHaveValue("1d");
+  await expect(page.locator(".portfolio-native-history")).toHaveAttribute("open", "");
+  await page.locator(".portfolio-native-history > summary").click();
+  await chooseChartMode(page, "value");
   await expect(page.locator("#portfolioHistory")).toContainText("Known value");
   await expect(page.locator("#portfolioHistory")).toContainText("$220.00");
-  await page
-    .locator("#portfolioHistory [data-portfolio-history-range='6m']")
-    .click();
-  await page
-    .locator("#portfolioHistory [data-portfolio-history-range='1y']")
-    .click();
-  await page
-    .locator("#portfolioHistory [data-portfolio-history-mode='pnl']")
-    .click();
+  await page.locator("#portfolioChartRange").selectOption("ytd");
+  await page.locator("#portfolioChartRange").selectOption("1y");
+  await chooseChartMode(page, "pnl");
   await expect
     .poll(() =>
       page.evaluate(async (url) => {
@@ -206,7 +208,7 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
     document.querySelector("#toastRegion").replaceChildren(),
   );
   await page.screenshot({
-    path: `${evidenceDir}/${testInfo.project.name}-synthetic-portfolio.png`,
+    path: testInfo.outputPath("synthetic-portfolio.png"),
     fullPage: true,
   });
   await page.evaluate(
@@ -268,26 +270,35 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
       condition: "Near Mint",
     }));
     state.items.push(euro);
+    state.profile = { ...state.profile, displayCurrency: "EUR" };
     state.portfolioHistoryMode = "pnl";
     routeTo("dashboard", { focus: false });
     renderPortfolioHistory();
   }, appUrl);
-  await page
-    .locator("#portfolioHistory [data-portfolio-history-currency='EUR']")
-    .click();
+  await expect(page.locator("#portfolioHistory [data-portfolio-history-currency]")).toHaveCount(0);
   await expect(page.locator("#portfolioHistory")).toContainText("€60.00");
-  await page
-    .locator("#portfolioHistory [data-portfolio-history-mode='value']")
-    .click();
-  await expect(page.locator("#portfolioHistory")).toContainText("€110.00");
-  await expect(
-    page.locator("#portfolioHistory [data-portfolio-history-range='1y']"),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("#portfolioHistory")).toContainText("awaiting conversion");
+  await expect(page.locator("[data-portfolio-fx-retry]")).toBeVisible();
+  const hash = "a".repeat(64);
+  await page.route("**/api/fx", route => route.fulfill({ contentType: "application/json", body: JSON.stringify({ sourceId: "ecb-eurofxref-daily", sourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", base: "EUR", quote: "USD", units: "USD per EUR", rate: 1.25, effectiveDate: "2026-09-25", fetchedAt: "2026-09-25T12:00:00.000Z", contentSha256: hash, rateRef: "ecb-eurofxref-daily:2026-09-25:" + hash }) }));
+  await page.locator("[data-portfolio-fx-retry]").click();
+  await expect(page.locator("#portfolioHistory .portfolio-history-metrics")).toContainText("€116.00");
+  await expect(page.locator("#portfolioHistory")).toContainText("not historical exchange rates");
+  expect(await page.evaluate(async url => (await import(url)).state.items.map(item => item.currency), appUrl)).toEqual(["USD", "USD", "USD", "EUR"]);
+  await chooseChartMode(page, "value");
+  await expect(page.locator("#portfolioHistory .portfolio-history-metrics")).toContainText("€286.00");
+  const nativeRows = page.locator(".portfolio-native-history tbody tr").filter({ hasText: "2026-09-25" });
+  await expect(nativeRows.filter({ hasText: "USD" })).toContainText("$220.00");
+  await expect(nativeRows.filter({ hasText: "USD" })).toContainText("$70.00");
+  await expect(nativeRows.filter({ hasText: "EUR" })).toContainText("€110.00");
+  await expect(nativeRows.filter({ hasText: "EUR" })).toContainText("€60.00");
+  await page.locator(".portfolio-native-history > summary").click();
+  await expect(page.locator("#portfolioChartRange")).toHaveValue("1y");
   await page.evaluate(() =>
     document.querySelector("#toastRegion").replaceChildren(),
   );
   await page.screenshot({
-    path: `${evidenceDir}/${testInfo.project.name}-synthetic-eur.png`,
+    path: testInfo.outputPath("synthetic-eur.png"),
     fullPage: true,
   });
   await page.evaluate(async (url) => {
@@ -387,6 +398,7 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
       transactions: [],
     };
     state.items = [sold, unpriced, uncertain];
+    state.profile = { ...state.profile, displayCurrency: "USD" };
     state.portfolioHistoryCurrency = "USD";
     state.portfolioHistoryMode = "pnl";
     renderPortfolioHistory();
@@ -401,9 +413,7 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
   await expect(page.locator("#portfolioChartSummary")).toContainText(
     "2026-09-15",
   );
-  await page
-    .locator("#portfolioHistory [data-portfolio-history-mode='value']")
-    .click();
+  await chooseChartMode(page, "value");
   await expect(page.locator("#portfolioHistory")).toContainText("Known value");
   await expect(page.locator("#portfolioHistory")).toContainText(
     "1 unknown date",
