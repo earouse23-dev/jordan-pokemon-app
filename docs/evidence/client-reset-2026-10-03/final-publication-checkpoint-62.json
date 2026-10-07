@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-10-07T03:58:48.735Z",
+  "remoteCommit": "79ab5e596cb8c361537f9a78ea49e7c337cbc9fb",
+  "sourceCommit": "bbdca62110148e8f0a8da512f51d9d13028cd907",
+  "deployment": "dpl_84wFDPRAUryX27AsptDBLYC5Fv5k",
+  "canonicalUrl": "https://jordan-pokemon-app.vercel.app",
+  "latestDeploymentUnchanged": true,
+  "gitBuildGuard": "exit 0",
+  "soleCron": {
+    "path": "/api/capabilities?surface=grading-deletion",
+    "schedule": "15 5 * * *"
+  },
+  "assets": [
+    {
+      "path": "app.js",
+      "sha256": "95c51017cd800ca8957cf46d00934cd13cc39126853004bd675264c6bbb1b094"
+    },
+    {
+      "path": "themes.css",
+      "sha256": "21da865e042eaf3d105c65fc3595b669c0dcf3447c48de81268e984dd8613229"
+    },
+    {
+      "path": "app-config.js",
+      "sha256": "65b310fcb5dd0692eddd945de91ca439995bce48a040cccd1afa4bf8602e745f"
+    }
+  ],
+  "customerWrites": false,
+  "sqlReplay": false
+}
