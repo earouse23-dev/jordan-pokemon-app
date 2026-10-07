@@ -3899,24 +3899,16 @@ function openBatchGradingPlanner(selectedIds = state.bulkSelected) {
 }
 
 async function loadSales(item, force = false) {
-  // Saved graded copies use one explicit server-validated refresh and write.
+  // Opening a graded copy reads comps; only an explicit refresh persists them.
   const savedGraded = Boolean(
     item.uid &&
     state.session?.access_token &&
     (item.cardState === "graded" || item.gradingCompany),
   );
-  if (savedGraded && !force) return;
   const owner = state.session?.user?.id || "";
   const sessionVersion = sessionLoadVersion;
   const selectionKey = detailIdentityKey(item);
-  const context = {
-    cardState: item.cardState || "raw",
-    condition: item.condition || "",
-    gradingCompany: item.gradingCompany || "",
-    grade: item.grade || "",
-    gradeQualifier: item.gradeQualifier ?? null,
-    currency: item.currency || "USD",
-  };
+  const context = valuationContextForItem(item);
   const contextKey = detailContextKey(context);
   const currentEvidence =
     state.detailSales?.selectionKey === selectionKey &&
@@ -3977,7 +3969,7 @@ async function loadSales(item, force = false) {
   };
   let result;
   try {
-    const durable = savedGraded;
+    const durable = savedGraded && force;
     const { response, payload } = durable
       ? await (async () => {
           const controller = new AbortController();
@@ -5379,9 +5371,32 @@ async function mountPortfolioHistoryChart({
       ctx.restore();
     },
   };
+  const traceStart = performance.now();
+  const trace = {
+    id: "portfolioTrace",
+    beforeDatasetsDraw(chart) {
+      const progress = motionPreference === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : Math.min(1, (performance.now() - traceStart) / 1200);
+      chart.$traceProgress = progress;
+      chart.ctx.save();
+      chart.ctx.beginPath();
+      chart.ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width * progress, chart.chartArea.height);
+      chart.ctx.clip();
+    },
+    afterDatasetsDraw(chart) {
+      chart.ctx.restore();
+      if (chart.$traceProgress >= 1) return;
+      const x = chart.chartArea.left + chart.chartArea.width * chart.$traceProgress;
+      const point = chart.data.datasets.map((_, index) => chart.getDatasetMeta(index).dataset.interpolate({ x }, "x")).flat().find(point => Number.isFinite(point?.y));
+      if (point) {
+        chart.ctx.save(); chart.ctx.fillStyle = accent; chart.ctx.beginPath();
+        chart.ctx.arc(x, point.y, 4, 0, Math.PI * 2); chart.ctx.fill(); chart.ctx.restore();
+      }
+      requestAnimationFrame(() => { if (version === portfolioChartMountVersion && canvas.isConnected) chart.draw(); });
+    },
+  };
   portfolioChartInstance = new Chart(canvas, {
     type: "line",
-    plugins: [crosshair],
+    plugins: [trace, crosshair],
     data: {
       labels: points.map((point) => Date.parse(`${point.date}T00:00:00Z`)),
       datasets: [
@@ -5425,8 +5440,8 @@ async function mountPortfolioHistoryChart({
                   : "Partial known value",
                 data: partialValues,
                 showLine: true,
-                borderColor: muted,
-                borderDash: [4, 4],
+                borderColor: accent,
+                borderDash: [],
                 tension: 0.28,
                 cubicInterpolationMode: "monotone",
                 fill: false,
@@ -5516,7 +5531,6 @@ async function mountPortfolioHistoryChart({
       },
     },
   });
-  if (motionPreference !== "reduce") canvas.classList.add("portfolio-draw");
 }
 
 function renderPortfolioHistory() {
@@ -5980,21 +5994,24 @@ function renderPortfolioPnl() {
   const items = portfolioItems();
   const output = $("#portfolioReturn");
   const note = $("#portfolioPnlNote");
+  const color = (amount) => { output.dataset.pnlSign = note.dataset.pnlSign = amount == null ? "unknown" : amount >= 0 ? "positive" : "negative"; };
   $("#portfolioPnlLabel").textContent = { all: "All time", "1m": "Month", ytd: "YTD", "1y": "Year", "1d": "Day" }[state.portfolioPnlRange];
   if (state.portfolioPnlRange === "all") {
     const current = portfolioDisplayProfitLoss(items, displayCurrency(), lastValidatedFxRate);
     output.textContent = current.totalProfitPercent === null ? "—" : `${current.totalProfitPercent >= 0 ? "+" : ""}${current.totalProfitPercent.toFixed(1)}%`;
     note.textContent = current.comparableUnits || current.knownRealizedSales ? `${money(current.totalProfitMinor / 100, displayCurrency())} · known total P/L` : "Matching value or purchase cost missing";
+    color(current.comparableUnits || current.knownRealizedSales ? current.totalProfitMinor : null);
     return;
   }
   const history = portfolioHistoryRangePoints(portfolioDisplayProfitLossHistory(items.map(item => ({ ...item, matchedHistory: portfolioHistoryForItem(item) })), displayCurrency(), lastValidatedFxRate), state.portfolioPnlRange);
   const first = history[0], last = history.at(-1);
   if (history.length < 2 || !first.historyComplete || !last.historyComplete || first.basisMinor <= 0) {
-    output.textContent = "—"; note.textContent = "Complete period history unavailable"; return;
+    output.textContent = "—"; note.textContent = "Complete period history unavailable"; color(null); return;
   }
   const change = last.unrealizedMinor + last.realizedMinor - first.unrealizedMinor - first.realizedMinor;
   output.textContent = `${change >= 0 ? "+" : ""}${(change / first.basisMinor * 100).toFixed(1)}%`;
   note.textContent = `${money(change / 100, displayCurrency())} · recorded ${first.date}–${last.date}`;
+  color(change);
 }
 
 function renderSoftwareModeHome() {
@@ -6020,7 +6037,7 @@ function renderSoftwareModeHome() {
   const panel = $(".portfolio-detail-panel");
   if (panel && details) details.append(panel);
   const supportingCards = $(".dashboard-owned-tools");
-  if (supportingCards && details) details.append(supportingCards);
+  if (supportingCards && kpis) kpis.after(supportingCards);
   if ($(".dashboard-analytics-grid")) $(".dashboard-analytics-grid").hidden = true;
   if (details) { details.open = false; dashboard.append(details); }
   const business = $("#dashboardBusinessPerformance")?.closest("section");
@@ -7394,6 +7411,7 @@ function openCardDetail(card, preferOwned = false) {
     );
     void loadOwnedGradingReports(owned);
     void loadOwnedCollectionAttachments(owned);
+    if (state.session?.access_token && (owned.cardState === "graded" || owned.gradingCompany)) void loadSales(owned);
   } else if (detailContextReady(state.detailValuationContext))
     void loadCardPreviewPricing(
       card,
@@ -20842,7 +20860,7 @@ async function applySession(session) {
       searchResults: [],
     };
   }
-  state.portfolioHistoryMode = "pnl";
+  state.portfolioHistoryMode = "value";
   $("#skipLink").setAttribute("href", session ? "#main" : "#authGate");
   document.body.classList.toggle("authenticated", Boolean(session));
   $("#authGate").hidden = Boolean(session);

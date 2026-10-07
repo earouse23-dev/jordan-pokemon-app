@@ -28,6 +28,21 @@ import {
   selectReferenceQuote,
 } from "../lib/pricing.js";
 
+test("live provider identity formatting preserves exact card and set boundaries", () => {
+  const base = { name: "Blastoise", number: "002", total_set_number: "102", set: { name: "Base Set" }, language: "English" };
+  const lookup = { name: "Blastoise", number: "2/102", set: "Base Set", language: "en" };
+  assert.equal(matchesPkmnPricesIdentity(base, lookup), true);
+  for (const set of ["Base Set (Shadowless)", "Celebrations: Classic Collection"])
+    assert.equal(matchesPkmnPricesIdentity({ ...base, set: { name: set } }, lookup), false);
+  const mew = { name: "Mew ex - 193/165", number: "193", total_set_number: "165", set: { name: "SV: Scarlet & Violet 151" }, language: "English" };
+  const wanted = { name: "Mew ex", number: "193/165", set: "151", language: "en" };
+  assert.equal(matchesPkmnPricesIdentity(mew, wanted), true);
+  for (const changed of [{ number: "151/165" }, { number: "193/197" }, { language: "ja" }, { set: "Celebrations" }])
+    assert.equal(matchesPkmnPricesIdentity(mew, { ...wanted, ...changed }), false);
+  assert.equal(matchesPkmnPricesIdentity({ ...mew, name: "Mew ex - 151/165" }, wanted), false);
+  assert.equal(matchesPkmnPricesIdentity({ ...base, number: "TG002" }, lookup), false);
+});
+
 test("market source links require the returned HTTPS marketplace host", () => {
   assert.equal(
     safeMarketSourceUrl("https://www.tcgplayer.com/product/123", "tcgplayer"),

@@ -173,7 +173,7 @@ test("client portfolio preserves unpriced inventory without rejected workspace c
   await expect(page.locator("#sealedOwnedCount")).not.toBeVisible();
   await expect(page.locator("#dashboardMoneyDetails")).not.toHaveAttribute("open", "");
   await expect(page.locator("#dashboardBusinessPerformance")).not.toBeVisible();
-  await expect(page.locator(".dashboard-owned-tools")).not.toBeVisible();
+  await expect(page.locator(".dashboard-owned-tools")).toBeVisible();
   if (testInfo.project.name !== "desktop-chromium") {
     for (const width of [320, 390, 430]) {
       await page.setViewportSize({ width, height: 844 });
@@ -433,7 +433,11 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
   await expect(page.locator("#portfolioHistoryChart")).toBeVisible();
   for (const selector of ["#portfolioChartRange", "#portfolioPnlRange"])
     expect(await page.locator(selector).evaluate(element => getComputedStyle(element).borderTopLeftRadius)).toBe("10px");
-  await expect(page.locator("#portfolioHistoryChart")).toHaveClass(/portfolio-draw/);
+  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.$traceProgress ?? 0)).toBeGreaterThan(0);
+  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.$traceProgress)).toBe(1);
+  expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.data.datasets.every(dataset => !dataset.borderDash?.length))).toBe(true);
+  await expect(page.locator("#portfolioReturn")).toHaveAttribute("data-pnl-sign", "positive");
+  await expect(page.locator(".dashboard-owned-tools")).toBeVisible();
   await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.scales.x.type)).toBe("linear");
   expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.data.datasets.every(dataset => dataset.pointRadius === 0))).toBe(true);
   expect(await page.evaluate(() => {
@@ -468,6 +472,7 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
   await page.locator("#portfolioPnlRange").selectOption("all");
   await page.locator(".portfolio-pnl-picker > summary").click();
   await assertFits(page);
+  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.$traceProgress)).toBe(1);
   await page.screenshot({ path: testInfo.outputPath("owner-graph-dashboard-fixture.png"), fullPage: true, animations: "disabled" });
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await page.locator("#portfolioHistoryChart").evaluate(element => getComputedStyle(element).animationName)).toBe("none");

@@ -6020,10 +6020,8 @@ body[data-ui-theme="mica"] .portfolio-return-summary { padding: 12px 0; border-b
 body[data-ui-theme="mica"] .portfolio-return-summary small { flex-basis: 100%; color: var(--muted); font-size: 12px; }
 body[data-ui-theme="mica"] .portfolio-pnl-picker summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
 body[data-ui-theme="mica"] .portfolio-pnl-picker select { min-height: 44px; }
-@keyframes portfolio-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
-body[data-ui-theme="mica"] .portfolio-draw { animation: portfolio-draw 1200ms ease-out both; }
-body[data-motion="reduce"] .portfolio-draw { animation: none; }
-@media (prefers-reduced-motion: reduce) { body[data-ui-theme="mica"] .portfolio-draw { animation: none; } }
+body[data-ui-theme="mica"] [data-pnl-sign="positive"] { color: #276443; }
+body[data-ui-theme="mica"] [data-pnl-sign="negative"] { color: #a33131; }
 body[data-ui-theme="mica"] #portfolioHistory .portfolio-history-head { flex-direction: row; text-align: left; }
 body[data-ui-theme="mica"] #portfolioHistory .portfolio-history-head > strong { font-size: 14px; }
 body[data-ui-theme="mica"] .portfolio-pnl-picker summary { gap: 6px; white-space: nowrap; }

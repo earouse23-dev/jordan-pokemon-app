@@ -567,6 +567,26 @@ async function capture(page, testInfo, name) {
   });
 }
 
+test("opening a graded copy reads exact comps without persisting or inventing its printing", async ({ page }) => {
+  await setup(page);
+  const reads = [], writes = [];
+  await page.route("**/api/sales?*", route => {
+    reads.push(JSON.parse(new URL(route.request().url()).searchParams.get("lookup")));
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ sales: [], salesStatus: "live" }) });
+  });
+  page.on("request", request => { if (request.url().includes("/api/graded-valuation")) writes.push(request.method()); });
+  await page.evaluate(async ({ appUrl, saved }) => {
+    const { state, openCardDetail } = await import(appUrl);
+    state.session = { ...state.session, access_token: "synthetic-read-only-token" };
+    state.items = [saved]; openCardDetail(saved, true);
+  }, { appUrl, saved: { ...gradedCopy("a"), identityStatus: "needs_review", edition: "unknown", promoType: "unknown", variantMetadata: {}, variantOptions: [] } });
+  await expect.poll(() => reads.length).toBe(1);
+  expect(reads[0].grader).toBe("PSA");
+  expect(reads[0].grade).toBe("10");
+  expect(writes).toEqual([]);
+  await expect(page.locator(".exact-sold-value")).toContainText("Confirm the printing");
+});
+
 test("adding a legacy copy preserves its saved printing in the graded-copy request", async ({ page }) => {
   await setup(page);
   const saved = {
