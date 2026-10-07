@@ -567,6 +567,30 @@ async function capture(page, testInfo, name) {
   });
 }
 
+test("adding a legacy copy preserves its saved printing in the graded-copy request", async ({ page }) => {
+  await setup(page);
+  const saved = {
+    ...gradedCopy("a"), variantId: null, variant: "holo", finish: "holo",
+    edition: "unlimited", promoType: "unknown", identityStatus: "needs_review",
+    variantMetadata: {},
+  };
+  delete saved.variantOptions;
+  await page.evaluate(async ({ appUrl, saved }) => {
+    const { state, openCardDetail } = await import(appUrl);
+    state.items = [saved];
+    openCardDetail(saved, true);
+  }, { appUrl, saved });
+  await page.locator("#duplicateCopyButton").click();
+  await expect(page.locator("#positionVariantId")).toHaveValue("");
+  const request = page.waitForRequest(r => r.method() === "POST" && r.url().endsWith("/rpc/create_graded_copy_position"));
+  await page.locator("#positionForm button[type=submit]").filter({ hasText: "Add card" }).click();
+  const payload = (await request).postDataJSON();
+  expect(payload.p_variant_id).toBeNull();
+  for (const field of ["variant", "finish", "edition", "promoType", "language"])
+    expect(payload.p_identity[field], field).toBe(saved[field]);
+  expect(payload.p_identity.identityStatus).toBe("needs_review");
+});
+
 function soldRows(lookup, amounts, soldAt = "2026-09-20") {
   const base =
     lookup.currency === "EUR" ? 22000 : lookup.grade === "8" ? 33000 : 11000;

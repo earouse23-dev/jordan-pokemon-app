@@ -31,6 +31,27 @@ const benchmark = JSON.parse(
   ),
 );
 
+test("copy snapshots preserve saved legacy printing without inferring edition or verification", () => {
+  const saved = {
+    uid: "owned-copy", collectibleId: "saved-unresolved-identity", variantId: null,
+    name: "Pikachu", set: "Synthetic beta", number: "01", language: "en",
+    variant: "holo", finish: "holo", edition: "unlimited", promoType: "unknown",
+    cardState: "graded", identityStatus: "needs_review", variantMetadata: {},
+  };
+  const option = selectVariantOption(saved, saved.variant);
+  assert.equal(option.id, null);
+  assert.equal(normalizeVariantOption(option).id, null, "an unresolved collectible is not a variant ID");
+  const copy = collectibleIdentitySnapshot(saved, option.label);
+  for (const field of ["collectibleId", "variantId", "variant", "finish", "edition", "promoType", "language"])
+    assert.equal(copy[field], saved[field], field);
+  assert.equal(copy.identityStatus, "needs_review");
+  assert.equal(selectVariantOption({ ...saved, finish: null, edition: null }, saved.variant).finish, "unknown");
+  assert.equal(selectVariantOption({ ...saved, finish: null, edition: null }, saved.variant).edition, "unknown");
+  const removed = selectVariantOption({ ...saved, variantOptions: [] }, saved.variant);
+  assert.notEqual(removed.status, "exact");
+  assert.equal(removed.finish, "unknown");
+});
+
 test("canonical identity normalizes supported language and variant aliases", () => {
   assert.equal(canonicalLanguage("Japanese"), "ja");
   assert.equal(canonicalLanguage("zh-TW"), "zh-tw");

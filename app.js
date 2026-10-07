@@ -10172,14 +10172,10 @@ export function openPositionSheet(card, options = {}) {
     matchConfidence: options.ingestionConfidence,
     source: card.imageProvider || card.provider || "catalog",
   });
-  let variantOptions = (
-    Array.isArray(card.variantOptions) && card.variantOptions.length
-      ? card.variantOptions
-      : [card.variant || "Unknown"]
-  ).map((option) =>
-    normalizeVariantOption(option, { language: card.language }),
-  );
   const prefill = options.prefill || {};
+  let variantOptions = Array.isArray(card.variantOptions)
+    ? card.variantOptions.map((option) => normalizeVariantOption(option, { language: card.language }))
+    : [selectVariantOption(card, prefill.variantId || card.variantId || prefill.variant || card.variant)];
   const initialVariant = selectVariantOption(
     { ...card, variantOptions },
     prefill.variantId || card.variantId || prefill.variant || card.variant,
