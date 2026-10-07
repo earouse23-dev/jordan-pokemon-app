@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { toMinorUnits, positionPerformance } from "../lib/portfolio.js";
 import { exactSoldValuation } from "../lib/pricing.js";
 
 const now = Date.parse("2026-09-24T12:00:00Z");
@@ -308,4 +309,15 @@ test("sold-date freshness, provenance and provider errors remain distinct", () =
   assert.ok(result.confidence.factors.includes("recent_sample_truncated"));
   assert.equal(result.newestSoldAt, "2026-09-20");
   assert.equal(result.newestRetrievedAt, options.retrievedAt);
+});
+
+for (const currency of ["USD", "EUR"]) test(currency + " real cent prices produce a cent-safe median and purchase performance", () => {
+  const amounts=[225,215,230.2,219,220.46,220,222.5,260,209.99,190];
+  const rows=amounts.map((amount,index)=>sale(9000+index,amount,"2026-09-20",{currency}));
+  const result=exactSoldValuation(rows,{...context,currency},{...options,validatedContext:{...validatedContext,currency}});
+  assert.equal(result.status,"ready");
+  assert.equal(result.estimate,220.23);
+  assert.equal(toMinorUnits(result.estimate),22023);
+  assert.equal(positionPerformance({quantityOwned:1,remainingCostBasisMinor:20000,currentUnitPrice:result.estimate}).unrealizedGainMinor,2023);
+  assert.deepEqual(rows.map(row=>row.amount),amounts);
 });
