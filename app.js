@@ -475,6 +475,7 @@ const state = {
   visibleKey: "",
   detailId: null,
   detailCard: null,
+  detailScanDraft: null,
   detailSelectionKey: "",
   detailRequestVersion: 0,
   detailValuationContext: null,
@@ -7357,9 +7358,10 @@ function openAnotherPhysicalCopy(item) {
   });
 }
 
-function openCardDetail(card, preferOwned = false) {
+function openCardDetail(card, preferOwned = false, initialContext = null) {
   if (!card) return;
   clearDetailFx();
+  state.detailScanDraft = null;
   // Catalog research stays a catalog profile. Collection entry points opt in
   // to an owned position so a same-printing copy cannot silently replace the
   // selected search result's state, condition, or grade.
@@ -7372,7 +7374,7 @@ function openCardDetail(card, preferOwned = false) {
   state.detailRequestVersion += 1;
   state.detailPricing = null;
   state.detailSales = null;
-  state.detailValuationContext = valuationContextForItem(owned || card, {
+  state.detailValuationContext = initialContext || valuationContextForItem(owned || card, {
     catalogPreview: !owned,
   });
   routeTo("detail");
@@ -9743,6 +9745,7 @@ function openWatchlistSheet(card, existing = null, defaults = {}) {
       closeSheet({ discardHistory: true });
       state.detailId = null;
       state.detailCard = null;
+    state.detailScanDraft = null;
       state.detailCanPop = false;
       state.ledgerView = "watchlist";
       syncTabs();
@@ -10159,6 +10162,8 @@ function showSavedScanPhotoRetry(itemId, photoFile, ownerId, loadVersion, refres
 }
 
 export function openPositionSheet(card, options = {}) {
+  const scan = state.detailScanDraft;
+  if (scan && accountRequestIsCurrent(scan.ownerId, scan.loadVersion) && scan.selectionKey === detailIdentityKey(card)) options = { ...scan.options, ...options, prefill: { ...scan.options.prefill, ...options.prefill } };
   if (nativeBuild && !options.queueEntryKey && nativePositionDraft?.pending &&
       options.idempotencyKey !== nativePositionDraft.idempotencyKey) {
     const pending = nativePositionDraft;
@@ -11250,6 +11255,7 @@ function openDeleteCopySheet(item) {
       closeSheet({ discardHistory: true });
       state.detailId = null;
       state.detailCard = null;
+    state.detailScanDraft = null;
       state.detailCanPop = false;
       routeTo("collection");
       await reloadPortfolio();
@@ -11863,6 +11869,7 @@ async function openDeviceCamera({
   openSheet(
     `<div class="sheet-heading"><div><h2 id="sheetTitle">${esc(copy.title)}</h2><p>${esc(copy.description)}</p></div><button class="sheet-close" aria-label="Close camera">×</button></div>${progressMarkup}<div class="device-camera" data-camera-kind="${esc(copy.guide)}"><div class="auto-capture-stage"><video id="deviceCameraVideo" autoplay playsinline muted aria-label="Live device camera preview"></video><img id="deviceCameraReview" alt="${esc(copy.alt)}" hidden><svg id="deviceCameraAdjustmentOutline" preserveAspectRatio="xMidYMid meet" aria-hidden="true" hidden><polygon points=""></polygon><circle data-corner="topLeft" r="14"></circle><circle data-corner="topRight" r="14"></circle><circle data-corner="bottomRight" r="14"></circle><circle data-corner="bottomLeft" r="14"></circle></svg><div class="auto-capture-guide"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><svg id="deviceCameraOutline" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><polygon points=""></polygon></svg>${automatic ? '<span class="camera-scan-line" aria-hidden="true"></span>' : ""}${copy.guide === "card" ? '<div class="camera-edge-levels" id="deviceCameraLevel" role="status" aria-live="polite"><span class="edge-level horizontal top" aria-hidden="true"><i></i></span><span class="edge-level horizontal bottom" aria-hidden="true"><i></i></span><span class="edge-level vertical left" aria-hidden="true"><i></i></span><span class="edge-level vertical right" aria-hidden="true"><i></i></span><b class="sr-only">Checking phone level</b></div>' : ""}</div><div class="camera-top-actions"><button id="deviceCameraSwitch" type="button" hidden>Switch camera</button>${copy.guide === "card" ? '<button id="deviceCameraMotion" type="button" hidden>Enable level</button>' : ""}<button id="deviceCameraTorch" type="button" aria-pressed="false" hidden>Light</button></div><div class="auto-capture-state" id="deviceCameraState" role="status" aria-live="polite">Requesting camera permission…</div></div><p class="automation-privacy"><strong>${esc(copy.instruction)}</strong>${gradingExperience ? " Mica scans the live video and keeps the clearest gradeable frame automatically." : " The browser will ask whether Mica may use this device’s camera. No photo is saved until you choose to continue."}</p><div class="camera-permission-help" id="deviceCameraHelp" hidden></div><fieldset class="camera-corner-controls" id="deviceCameraAdjustments" hidden><legend>Adjust document edges</legend><label>Corner <select id="deviceCameraCorner"><option value="topLeft">Top left</option><option value="topRight">Top right</option><option value="bottomRight">Bottom right</option><option value="bottomLeft">Bottom left</option></select></label><div><button type="button" data-corner-move="left" aria-label="Move selected corner left">←</button><button type="button" data-corner-move="up" aria-label="Move selected corner up">↑</button><button type="button" data-corner-move="down" aria-label="Move selected corner down">↓</button><button type="button" data-corner-move="right" aria-label="Move selected corner right">→</button></div><button class="secondary" id="deviceCameraRotate" type="button">Rotate 90°</button><button class="primary" id="deviceCameraApply" type="button">Apply correction</button></fieldset><div class="camera-capture-actions"><label class="camera-upload-fallback" for="deviceCameraUpload">Choose saved photo<input id="deviceCameraUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label><button class="secondary" id="deviceCameraRetry" type="button" hidden>Try camera again</button><button class="secondary" id="deviceCameraRetake" type="button" hidden>Retake</button><button class="secondary" id="deviceCameraAdjust" type="button" hidden>Adjust edges</button><button class="secondary camera-timer" id="deviceCameraTimer" type="button" aria-pressed="false">Tripod timer · 3s</button><button class="camera-shutter" id="deviceCameraCapture" type="button" disabled aria-label="Take photo"><i aria-hidden="true"></i></button><button class="primary camera-use-photo" id="deviceCameraUse" type="button" hidden>Use photo</button></div></div>`,
   );
+  delete $("#bottomSheet").dataset.experience;
   if (experience === "intake") {
     $("#bottomSheet").dataset.experience = "intake";
     $(".camera-top-actions")?.remove();
@@ -12056,11 +12063,11 @@ async function openDeviceCamera({
     review.hidden = !reviewing;
     guideNode.hidden = reviewing;
     captureButton.hidden = reviewing;
-    useButton.hidden = !reviewing;
-    retakeButton.hidden = !reviewing;
+    useButton.hidden = !reviewing || experience === "intake";
+    retakeButton.hidden = !reviewing || experience === "intake";
     if (switchButton) switchButton.hidden = reviewing || cameras.length < 2;
     if (torchButton) torchButton.hidden = reviewing || torchButton.dataset.supported !== "true";
-    adjustButton.hidden = !reviewing || copy.guide !== "card";
+    adjustButton.hidden = !reviewing || copy.guide !== "card" || experience === "intake";
     if (!reviewing) adjustments.hidden = true;
     if (timerButton) timerButton.hidden = reviewing;
   };
@@ -12143,7 +12150,7 @@ async function openDeviceCamera({
         manualGeometry = prepared.geometry;
         review.src = prepared.dataUrl;
         status.textContent = `Corrected ${prepared.documentKind === "slab" ? "full slab" : "card"} preview · confirm or adjust`;
-        if (experience === "intake" && file.micaCaptureMetadata?.captureMethod === "automatic_live_best_frame_v2") {
+        if (experience === "intake") {
           deliverPhoto(file);
           return;
         }
@@ -12154,9 +12161,10 @@ async function openDeviceCamera({
         status.textContent =
           prepared.geometry?.reason === "multiple_documents"
             ? "More than one card detected · retake with one item"
-            : "Check the document edges or retake";
+            : experience === "intake" ? "No clear card found · retake or choose another photo" : "Check the document edges or retake";
       }
       useButton.disabled = !prepared.corrected;
+      if (experience === "intake") { useButton.hidden = true; adjustButton.hidden = true; retakeButton.hidden = false; }
     } catch {
       if (
         !operationIsCurrent() ||
@@ -12167,7 +12175,8 @@ async function openDeviceCamera({
       previewUrl = URL.createObjectURL(file);
       $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
       review.src = previewUrl;
-      status.textContent = "Correction failed · adjust the edges or retake";
+      status.textContent = experience === "intake" ? "Could not read this photo · retake or choose another" : "Correction failed · adjust the edges or retake";
+      if (experience === "intake") { useButton.hidden = true; adjustButton.hidden = true; retakeButton.hidden = false; }
       useButton.disabled = true;
     } finally {
       if (currentReview === reviewVersion) captureInFlight = false;
@@ -15063,7 +15072,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
           routeTo("trade");
           return;
         }
-        openPositionSheet(card, {
+        const scanOptions = {
           prefill,
           photoDataUrl: mode === "identify" ? preparedImages[0]?.previewDataUrl || preparedImages[0]?.dataUrl : null,
           ingestionChannel: preparedImages.some((image) =>
@@ -15088,9 +15097,17 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
             scanSessionId: payload.scanSessionId || null,
             psaPrediction: prediction,
           },
-        });
+        };
+        if (mode === "identify") {
+          const identified = { ...card, cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, condition: prefill.rawCondition || null };
+          openCardDetail(identified, false, valuationContextForItem(identified));
+          state.detailScanDraft = { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(card), options: scanOptions };
+        } else openPositionSheet(card, scanOptions);
       }),
     );
+    if (mode === "identify" && analysis.quality?.usable && resolution?.status === "exact" && cards.filter(card => card.id === recommendedId).length === 1) {
+      [...node.querySelectorAll("[data-vision-card]")].find(button => button.dataset.visionCard === recommendedId)?.click();
+    }
   };
   void renderCandidates();
 }
@@ -15102,6 +15119,9 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
   );
   if (mode === "grade") $("#bottomSheet").dataset.experience = "grading";
   const requestId = crypto.randomUUID();
+  const identificationOwner = state.session?.user?.id;
+  const identificationLoadVersion = sessionLoadVersion;
+  if (mode === "identify") $("#bottomSheet").dataset.visionOperation = requestId;
   const ingestionStartedAt = performance.now();
   const ingestionChannel = preparedImages.some((image) =>
     String(image.captureMetadata?.captureMethod || "").includes("camera"),
@@ -15168,6 +15188,7 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
       }),
       preparedImages,
     );
+    if (mode === "identify" && (!accountRequestIsCurrent(identificationOwner, identificationLoadVersion) || $("#bottomSheet").dataset.visionOperation !== requestId)) return;
     $$("[data-process-stage]", $("#sheetContent")).forEach((stage) => {
       stage.dataset.state = "complete";
       const label = $("b", stage);
@@ -15282,6 +15303,7 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
       },
     });
   } catch (error) {
+    if (mode === "identify" && (!accountRequestIsCurrent(identificationOwner, identificationLoadVersion) || $("#bottomSheet").dataset.visionOperation !== requestId)) return;
     logIngestionEvent({
       sessionId: requestId,
       channel: ingestionChannel,
@@ -15330,7 +15352,7 @@ async function showProcessing(file) {
     `<img src="${previewUrl}" alt="Selected card photograph">`;
   $("#qualityChip").innerHTML = "<span></span> Preparing photo";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find this card</h2><p>Read the printed name and bottom number</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica may process this prepared copy through several private model checks in one identification request, then asks you to confirm the exact printing.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Checking photo quality…</div><div class="vision-choice-grid identification-only"><button id="visionIdentify" type="button" disabled><strong>Find matching cards</strong><span>Read the name and bottom number, then show the closest printings.</span></button></div><div class="sheet-actions"><button class="primary" id="photoAssistRetry" type="button" hidden>Adjust or retake</button><button class="secondary" id="photoAssistSearch" type="button">Search myself</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find this card</h2><p>Read the printed name and bottom number</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica opens an exact match automatically.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Checking photo quality…</div><div class="sheet-actions"><button class="primary" id="photoAssistRetry" type="button" hidden>Adjust or retake</button><button class="secondary" id="photoAssistSearch" type="button" hidden>Search myself</button></div>`,
   );
   $("#bottomSheet").dataset.sensitive = "true";
   $("#bottomSheet").dataset.visionOperation = operationId;
@@ -15352,7 +15374,7 @@ async function showProcessing(file) {
       side: "front",
     });
     if (
-      !$("#visionIdentify") ||
+      !$("#visionLocalCheck") ||
       $("#bottomSheet").dataset.visionOperation !== operationId
     )
       return;
@@ -15368,32 +15390,21 @@ async function showProcessing(file) {
       : front.warnings.length
         ? `<strong>Improve accuracy if possible</strong> ${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join(" ")}`
         : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · original is not uploaded</span>`;
-    $("#visionIdentify").disabled = !frontReady;
+    $("#photoAssistSearch").hidden = frontReady;
   } catch (error) {
-    if (!$("#visionLocalCheck")) return;
+    if (!$("#visionLocalCheck") || $("#bottomSheet").dataset.visionOperation !== operationId) return;
     $("#photoAssistRetry").hidden = false;
+    $("#photoAssistSearch").hidden = false;
     $("#visionLocalCheck").innerHTML =
       `<strong>Could not prepare this image</strong><span>${error.message === "image_resolution_low" ? "Move closer and use a higher-resolution photo." : "This device could not decode the file. Try JPEG, PNG, or WebP."}</span>`;
   }
-  $("#visionIdentify")?.addEventListener(
-    "click",
-    () =>
-      frontReady &&
-      front &&
-      void analyzeCardImages("identify", [
-        {
-          ...front,
-          previewDataUrl: front.dataUrl,
-          dataUrl: front.identityDataUrl || front.dataUrl,
-        },
-      ]),
-  );
   $("#photoAssistSearch")?.addEventListener("click", () =>
     openVisionSearchFallback(),
   );
   $("#photoAssistRetry")?.addEventListener("click", () =>
-    openDeviceCamera({ kind: "card", onPhoto: showProcessing }),
+    openDeviceCamera({ kind: "card", automatic: true, experience: "intake", onPhoto: showProcessing }),
   );
+  if (frontReady && front) void analyzeCardImages("identify", [{ ...front, previewDataUrl: front.dataUrl, dataUrl: front.identityDataUrl || front.dataUrl }]);
 }
 
 function catalogItem(item, selectedVariant = "") {
@@ -20996,6 +21007,7 @@ async function applySession(session) {
     };
     state.detailId = null;
     state.detailCard = null;
+    state.detailScanDraft = null;
     state.movementStatus = "idle";
     state.accountLoading = false;
     state.accountLoadError = "";
@@ -21045,6 +21057,7 @@ async function applySession(session) {
   state.portfolioHistoryStatus = "loading";
   state.detailId = null;
   state.detailCard = null;
+  state.detailScanDraft = null;
   state.pricingStatus = "idle";
   state.pricingRetrievedAt = null;
   state.movementStatus = "idle";

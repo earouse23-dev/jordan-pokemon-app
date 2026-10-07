@@ -47,6 +47,7 @@ async function setup(
     recognition = false,
     captureRequest = null,
     experience = "default",
+    visionPayload = null,
   } = {},
 ) {
   const requests = { writes: [], vision: [], cameras: [] };
@@ -78,7 +79,7 @@ async function setup(
       requests.vision.push(route.request().postDataJSON());
     return route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({
+      body: JSON.stringify(visionPayload || {
         analysis: { identity: {} },
         catalogResolution: { cards: [] },
       }),
@@ -817,10 +818,7 @@ test("corrected slab pixels reach the real identification request without invent
   });
   await expect(page.getByRole("button", { name: "Use photo" })).toBeEnabled();
   await page.getByRole("button", { name: "Use photo" }).click();
-  await expect(
-    page.getByRole("button", { name: "Find matching cards" }),
-  ).toBeEnabled();
-  await page.getByRole("button", { name: "Find matching cards" }).click();
+  await expect(page.getByRole("button", { name: "Find matching cards" })).toHaveCount(0);
   await expect.poll(() => requests.vision.length).toBe(1);
   expect(requests.vision[0].mode).toBe("identify");
   expect(requests.vision[0].images).toHaveLength(1);
@@ -989,9 +987,7 @@ test("rejected geometry retains source pixels and blocks photo assist until manu
   expect(detail.evidence.marker).toBeGreaterThan(100);
   expect(detail.blockers).toHaveLength(0);
   expect(detail.capture.conditionEvidence).toBe("full_source_frame");
-  await expect(
-    page.getByRole("button", { name: "Find matching cards" }),
-  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Find matching cards" })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Adjust or retake" }),
   ).toBeVisible();
@@ -1000,6 +996,8 @@ test("rejected geometry retains source pixels and blocks photo assist until manu
   });
   expect(requests.vision).toHaveLength(0);
   await page.getByRole("button", { name: "Adjust or retake" }).click();
+  // Manual edge correction remains a secondary grading/evidence capability.
+  await page.evaluate(() => globalThis.__documentCaptureApp.openDeviceCamera({kind:"card",onPhoto:file=>globalThis.__documentCaptureApp.showProcessing(file)}));
   await page.evaluate(() => {
     const input = document.querySelector("#deviceCameraUpload");
     const transfer = new DataTransfer();
@@ -1013,13 +1011,10 @@ test("rejected geometry retains source pixels and blocks photo assist until manu
   await page.getByRole("button", { name: "Apply correction" }).click();
   await expect(page.getByRole("button", { name: "Use photo" })).toBeEnabled();
   await page.getByRole("button", { name: "Use photo" }).click();
-  await expect(
-    page.getByRole("button", { name: "Find matching cards" }),
-  ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Find matching cards" })).toHaveCount(0);
   await page.screenshot({
     path: `${rejectedGeometryEvidenceDirectory}/${testInfo.project.name}-manual-recovery.png`,
   });
-  await page.getByRole("button", { name: "Find matching cards" }).click();
   await expect.poll(() => requests.vision.length).toBe(1);
   expect(
     requests.writes.filter((request) =>
@@ -1133,17 +1128,17 @@ test("primary intake camera fills viewport edge to edge with overlay controls, r
   await page.screenshot({path:testInfo.outputPath('full-screen-intake-denied-fixture.png'),fullPage:false});
   await installSyntheticDocument(page);
   await page.evaluate(()=>{const input=document.querySelector('#deviceCameraUpload');input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
-  await expect(page.locator('#deviceCameraState')).toContainText('Corrected full slab preview',{timeout:20000});
-  await expect(page.getByRole('button',{name:'Use photo',exact:true})).toBeEnabled();
-  await expect(page.getByRole('button',{name:'Take photo',exact:true})).toBeHidden();
-  await page.getByRole('button',{name:'Back',exact:true}).click();
+  await expect.poll(()=>requests.vision.length).toBe(1);
+  await expect(page.getByRole('button',{name:'Use photo',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Adjust edges',exact:true})).toHaveCount(0);
+  await page.locator('#bottomSheet .sheet-close').click();
   await expect(page.locator('#bottomSheet')).toBeHidden();
   expect(await page.locator('#sheetContent').textContent()).toBe('');
-  expect(requests.writes.filter(r => !r.path.endsWith('/rpc/record_ingestion_event'))).toHaveLength(0); expect(requests.vision).toHaveLength(0); expect(errors).toEqual([]);
+  expect(requests.writes.filter(r => !r.path.endsWith('/rpc/record_ingestion_event'))).toHaveLength(0); expect(requests.vision).toHaveLength(1); expect(errors).toEqual([]);
 });
 
 
-for (const automatic of [false, true]) test('full-screen intake '+(automatic?'automatic':'shutter')+' live fixture corrects once and stops stream before confirmation', async ({page},testInfo)=>{
+for (const automatic of [false, true]) test('full-screen intake '+(automatic?'automatic':'shutter')+' live fixture corrects once and stops stream without photo confirmation', async ({page},testInfo)=>{
   const errors=[]; page.on('pageerror',error=>errors.push(error.message));
   const requests=await setup(page,{live:true,automatic,experience:'intake'});
   // A full-screen guide occupies a different source-camera region than the old sheet.
@@ -1164,16 +1159,8 @@ for (const automatic of [false, true]) test('full-screen intake '+(automatic?'au
     await page.screenshot({path:testInfo.outputPath('full-screen-live-camera-fixture.png')});
     await page.getByRole('button',{name:'Take photo',exact:true}).click();
   }
-  if (!automatic) {
-  await expect(page.locator('#deviceCameraState')).toContainText('Corrected full slab preview',{timeout:20000});
-  await expect(page.locator('#deviceCameraReview')).toBeVisible();
-  await expect(page.getByRole('button',{name:'Use photo',exact:true})).toBeEnabled();
-  expect(await page.evaluate(()=>globalThis.__photosDelivered)).toBe(0);
-  await page.screenshot({path:testInfo.outputPath('full-screen-live-'+(automatic?'automatic':'shutter')+'-fixture.png')});
-  await page.getByRole('button',{name:'Use photo',exact:true}).click();
-  } else {
-    await expect(page.locator('#bottomSheet[data-experience="intake"]')).toBeHidden({timeout:20000});
-  }
+  await expect(page.locator('#bottomSheet[data-experience="intake"]')).toBeHidden({timeout:20000});
+  await expect(page.getByRole('button',{name:'Use photo',exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>globalThis.__photosDelivered)).toBe(1);
   expect(await page.evaluate(()=>globalThis.__mediaStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended')))).toBe(true);
   await expect(page.locator('#positionCertification')).toHaveValue('00012345');
@@ -1182,4 +1169,44 @@ for (const automatic of [false, true]) test('full-screen intake '+(automatic?'au
   expect(await page.locator('#bottomSheet').getAttribute('data-experience')).toBeNull();
   expect(requests.writes.filter(r=>!r.path.endsWith('/rpc/record_ingestion_event'))).toHaveLength(0);
   expect(requests.vision).toHaveLength(0); expect(errors).toEqual([]);
+});
+
+for (const [exact,graded] of [[true,true],[true,false],[false,true]]) test(`intake skips photo confirmation and ${exact ? "opens the exact "+(graded?"graded":"raw")+" match" : "keeps uncertain matches explicit"}`, async ({page}) => {
+  const requests = await setup(page, {recognition:true,experience:"intake",visionPayload:{analysis:{quality:{usable:true},identity:{name:"Pikachu",collectorNumber:"025/165",language:"en",cardState:graded?"graded":"raw",grader:graded?"PSA":null,grade:graded?"10":null,confidence:0.98}},catalogResolution:{cards:[{id:"fixture-pikachu",name:"Pikachu",set:"151",number:"025/165",language:"en",variant:"Holofoil",thumb:"/icons/icon.svg"}],resolution:{status:exact?"exact":"needs_review",recommendedId:"fixture-pikachu"}}}});
+  await installSyntheticDocument(page);
+  await page.evaluate(() => {const input=document.querySelector("#deviceCameraUpload");input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));});
+  await expect.poll(()=>requests.vision.length).toBe(1);
+  await expect(page.getByRole("button",{name:"Use photo",exact:true})).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"Adjust edges",exact:true})).toHaveCount(0);
+  await expect(page.getByRole("button",{name:"Find matching cards",exact:true})).toHaveCount(0);
+  if(exact){await expect(page.locator("#detailTitle")).toHaveText("Pikachu");await expect(page.locator("#positionForm")).toHaveCount(0);expect(await page.evaluate(()=>Boolean(globalThis.__documentCaptureApp.state.detailScanDraft?.options.photoDataUrl))).toBe(true);expect(await page.evaluate(()=>globalThis.__documentCaptureApp.state.detailValuationContext.cardState)).toBe(graded?"graded":"raw");await page.locator("#addLibraryButton").click();await expect(page.locator("#positionState")).toHaveValue(graded?"graded":"raw");if(graded){await expect(page.locator("#positionGrader")).toHaveValue("PSA");await expect(page.locator("#positionGrade")).toHaveValue("10");}}
+  else {await expect(page.locator("[data-vision-card]")).toBeVisible();await expect(page.locator("#positionForm")).toHaveCount(0);}
+  expect(requests.writes.filter(request=>!request.path.endsWith("/rpc/record_ingestion_event"))).toHaveLength(0);
+  expect(requests.vision).toHaveLength(1);
+});
+
+test("late automatic identification cannot open a match for a different owner", async ({page}) => {
+  await setup(page,{recognition:true,experience:"intake"});let pending;
+  await page.route("**/api/vision",route=>{pending=route;});
+  await installSyntheticDocument(page);
+  await page.evaluate(()=>{const input=document.querySelector("#deviceCameraUpload");input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));});
+  await expect.poll(()=>Boolean(pending)).toBe(true);
+  await page.evaluate(()=>{globalThis.__documentCaptureApp.state.session={user:{id:"different-owner"},access_token:"different-token"};});
+  await pending.fulfill({contentType:"application/json",body:JSON.stringify({analysis:{quality:{usable:true},identity:{name:"Pikachu"}},catalogResolution:{cards:[{id:"fixture-pikachu",name:"Pikachu",set:"151",number:"025/165",language:"en",variant:"Holofoil",thumb:"/icons/icon.svg"}],resolution:{status:"exact",recommendedId:"fixture-pikachu"}}})});
+  await page.waitForTimeout(200);
+  await expect(page.locator("#sheetTitle")).toHaveText("Checking your card");
+  await expect(page.locator("#positionForm")).toHaveCount(0);
+  await expect(page.locator("[data-vision-card]")).toHaveCount(0);
+});
+
+test("unreadable intake photo offers retake without edge or confirmation controls", async ({page},testInfo) => {
+  const requests=await setup(page,{experience:"intake",recognition:true});
+  await page.evaluate(async()=>{const c=document.createElement("canvas");c.width=700;c.height=1000;c.getContext("2d").fillRect(0,0,700,1000);const blob=await new Promise(resolve=>c.toBlob(resolve,"image/jpeg"));const transfer=new DataTransfer();transfer.items.add(new File([blob],"unreadable.jpg",{type:"image/jpeg"}));const input=document.querySelector("#deviceCameraUpload");input.files=transfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));});
+  await expect(page.getByRole("button",{name:"Retake",exact:true})).toBeVisible();
+  await expect(page.locator("#deviceCameraState")).toContainText("No clear card");
+  await expect(page.locator("#deviceCameraUse")).toBeHidden();
+  await expect(page.locator("#deviceCameraAdjust")).toBeHidden();
+  expect(requests.vision).toHaveLength(0);
+  expect(requests.writes.filter(r=>!r.path.endsWith("/rpc/record_ingestion_event"))).toHaveLength(0);
+  await page.screenshot({path:testInfo.outputPath("intake-unreadable-retry.png")});
 });
