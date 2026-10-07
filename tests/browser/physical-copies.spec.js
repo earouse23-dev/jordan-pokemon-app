@@ -2090,14 +2090,14 @@ for (const [prices, estimate] of [[[100,110,120],110],[[225,215,230.2,219,220.46
   await setup(page);
   let reads=0, valuationWrites=0;
   page.on("request",request=>{if(request.url().includes("/api/graded-valuation"))valuationWrites++;});
-  await page.route("**/api/cards?*",async route=>{await new Promise(resolve=>setTimeout(resolve,300));const lookup=JSON.parse(new URL(route.request().url()).searchParams.get("lookups"))[0];return route.fulfill({contentType:"application/json",body:JSON.stringify({cards:[{providerCardId:lookup.clientId,quotes:[],history:[],capabilities:{graded:"missing"}}]})});});
+  await page.route("**/api/cards?*",async route=>{await new Promise(resolve=>setTimeout(resolve,300));const lookup=JSON.parse(new URL(route.request().url()).searchParams.get("lookups"))[0];if(lookup.clientId==="unavailable")return route.fulfill({status:502,contentType:"application/json",body:JSON.stringify({error:"Synthetic unavailable card"})});return route.fulfill({contentType:"application/json",body:JSON.stringify({cards:[{providerCardId:lookup.clientId,quotes:[],history:[],capabilities:{graded:"missing"}}]})});});
   await page.route("**/api/sales?*",route=>{
     reads++; const lookup=JSON.parse(new URL(route.request().url()).searchParams.get("lookup"));
     const sales=soldRows(lookup,prices,new Date(Date.now()-86400000).toISOString().slice(0,10));
     sales.forEach((sale,index)=>sale.soldAt=new Date(Date.now()-(index+1)*86400000).toISOString().slice(0,10));
     return route.fulfill({contentType:"application/json",body:JSON.stringify(soldPayload(lookup,sales))});
   });
-  await page.evaluate(async ({appUrl,copies})=>{const {state,refreshLivePricing,openCardDetail}=await import(appUrl);state.session={...state.session,access_token:"fixture-read-token"};state.items=copies;await refreshLivePricing();state.items.forEach(item=>delete item.exactSaleEvidence);openCardDetail(state.items[0],true);},{appUrl,copies:[gradedCopy("a"),gradedCopy("b")]});
+  await page.evaluate(async ({appUrl,copies})=>{const {state,refreshLivePricing,openCardDetail}=await import(appUrl);state.session={...state.session,access_token:"fixture-read-token"};state.items=[{...copies[0],id:"unavailable",uid:"unavailable-copy",cardState:"raw",gradingCompany:"",grade:"",price:null,notes:"Unpriced entry preserved"},...copies];await refreshLivePricing();state.items.forEach(item=>delete item.exactSaleEvidence);openCardDetail(state.items.find(item=>item.cardState==="graded"),true);},{appUrl,copies:[gradedCopy("a"),gradedCopy("b")]});
   await expect(page.locator(".exact-sold-value")).toContainText("$"+estimate.toFixed(2));
   await expect(page.locator("#positionChart")).toBeVisible();
   await page.waitForTimeout(500);
@@ -2105,8 +2105,10 @@ for (const [prices, estimate] of [[[100,110,120],110],[[225,215,230.2,219,220.46
   await expect(page.locator("#detailContent")).toContainText("Matching completed-sale prices");
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(prices.length);
+  expect(await page.evaluate(async url=>(await import(url)).state.items.find(item=>item.id==="unavailable").notes,appUrl)).toBe("Unpriced entry preserved");
+  expect(await page.evaluate(async url=>(await import(url)).state.items.find(item=>item.id==="unavailable").pricingStatus,appUrl)).toBe("error");
   expect(valuationWrites).toBe(0);
   // One collection read plus one independent detail read; copies never fan out.
   expect(reads).toBe(2);
-  expect(await page.evaluate(async ({url,estimate})=>(await import(url)).state.items.every(item=>item.price===estimate),{url:appUrl,estimate})).toBe(true);
+  expect(await page.evaluate(async ({url,estimate})=>(await import(url)).state.items.filter(item=>item.cardState==="graded").every(item=>item.price===estimate),{url:appUrl,estimate})).toBe(true);
 });

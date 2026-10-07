@@ -17095,6 +17095,7 @@ async function refreshLivePricing(positionIds = null) {
     const cards = new Map();
     const sealedProducts = new Map();
     const processedIds = new Set();
+    const failedIds = new Set();
     const sealedProcessed = new Set();
     let partial = false;
     let rateLimited = false;
@@ -17111,8 +17112,7 @@ async function refreshLivePricing(positionIds = null) {
         partial = true;
         break;
       }
-      if (!response.ok)
-        throw new Error(`Pricing request failed with ${response.status}`);
+      if (!response.ok) { partial = true; batch.forEach(lookup => failedIds.add(lookup.clientId)); continue; }
       const payload = await response.json();
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       retrievedAt = payload.retrievedAt || retrievedAt;
@@ -17157,6 +17157,10 @@ async function refreshLivePricing(positionIds = null) {
       const processed = sealed
         ? sealedProcessed.has(item.id)
         : processedIds.has(item.id);
+      if (!processed && failedIds.has(item.id)) {
+        const pricing = quotePricingFields(selectPositionQuote(item.quotes || [], item), item, item);
+        return { ...item, ...pricing, pricingStatus: pricing.price == null ? "error" : pricing.pricingStatus, pricingReason: "provider_refresh_failed" };
+      }
       if (!processed)
         return rateLimited && (!selectedPositions || selectedPositions.has(item.uid))
           ? {
