@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-07T03:52:06.593Z",
+  "reproducible": true,
+  "stage": "/tmp/mica-client-reset-corrected",
+  "functions": 9,
+  "deployEntries": 49,
+  "sourceEntries": 90,
+  "deploymentZipSha256": "292dcd9970edc6f650b4811cd35fb8c144ac4baefef23f0255e40035256da17a",
+  "sourceZipSha256": "bbba913b9b4c69620f79a919ac49d7773ee358ca18bddf85d35d2e1404e2ddbb",
+  "manifestSha256": "c71079fff32c0e94b0b8fee61be6f29a40bf55c7c0fdc673e1bbc79f48ea7b3a",
+  "delta": {
+    "source": [
+      "app.js",
+      "lib/providers/pkmnprices.js",
+      "themes.css"
+    ],
+    "output": [
+      ".vercel/output/functions/_release-hold.func/index.mjs",
+      ".vercel/output/functions/api/cards.func/index.mjs",
+      ".vercel/output/static/app.js",
+      ".vercel/output/static/themes.css"
+    ]
+  },
+  "credentialFindings": 0,
+  "privateDataExcluded": true,
+  "previousProduction": "dpl_CzPwhscjzScd5N2MRiyvM6Tndp63",
+  "ignoredBuildCommand": "exit 0"
+}

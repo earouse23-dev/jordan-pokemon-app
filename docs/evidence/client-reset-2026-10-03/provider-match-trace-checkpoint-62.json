@@ -1,0 +1,60 @@
+[
+  {
+    "name": "Blastoise",
+    "status": 200,
+    "total": 3,
+    "cards": [
+      {
+        "id": 12933,
+        "name": "Blastoise",
+        "number": "002",
+        "total": "102",
+        "set": {
+          "id": 463,
+          "name": "Base Set"
+        },
+        "tcgplayerId": 42360
+      },
+      {
+        "id": 16863,
+        "name": "Blastoise",
+        "number": "2",
+        "total": "102",
+        "set": {
+          "id": 501,
+          "name": "Celebrations: Classic Collection"
+        },
+        "tcgplayerId": 250319
+      },
+      {
+        "id": 19079,
+        "name": "Blastoise",
+        "number": "002",
+        "total": "102",
+        "set": {
+          "id": 525,
+          "name": "Base Set (Shadowless)"
+        },
+        "tcgplayerId": 106997
+      }
+    ]
+  },
+  {
+    "name": "Mew ex",
+    "status": 200,
+    "total": 1,
+    "cards": [
+      {
+        "id": 30485,
+        "name": "Mew ex - 193/165",
+        "number": "193",
+        "total": "165",
+        "set": {
+          "id": 620,
+          "name": "SV: Scarlet & Violet 151"
+        },
+        "tcgplayerId": 517027
+      }
+    ]
+  }
+]

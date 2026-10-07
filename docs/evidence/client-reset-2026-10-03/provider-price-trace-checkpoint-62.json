@@ -1,0 +1,184 @@
+[
+  {
+    "id": 12933,
+    "status": 200,
+    "name": "Blastoise",
+    "prices": [
+      {
+        "source": "cardmarket",
+        "currency": "EUR",
+        "condition": "Good",
+        "variant": "Holofoil",
+        "market_price": 59.99,
+        "created_at": "2026-10-06T17:03:40.569989+00:00"
+      },
+      {
+        "source": "cardmarket",
+        "currency": "EUR",
+        "condition": "Played",
+        "variant": "Holofoil",
+        "market_price": 54.64,
+        "created_at": "2026-10-06T17:03:40.569989+00:00"
+      },
+      {
+        "source": "cardmarket",
+        "currency": "EUR",
+        "condition": "Poor",
+        "variant": "Holofoil",
+        "market_price": 42,
+        "created_at": "2026-10-06T17:03:40.569989+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Near Mint",
+        "variant": "Holofoil",
+        "market_price": 222.49,
+        "created_at": "2026-10-06T23:12:21.188651+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Lightly Played",
+        "variant": "Holofoil",
+        "market_price": 144.61,
+        "created_at": "2026-10-06T23:11:38.266923+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Moderately Played",
+        "variant": "Holofoil",
+        "market_price": 88.77,
+        "created_at": "2026-10-06T23:12:21.188651+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Heavily Played",
+        "variant": "Holofoil",
+        "market_price": 64.29,
+        "created_at": "2026-10-06T23:05:40.386017+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Damaged",
+        "variant": "Holofoil",
+        "market_price": 44.03,
+        "created_at": "2026-10-06T23:04:10.563550+00:00"
+      }
+    ],
+    "keys": [
+      "id",
+      "tcg_player_id",
+      "name",
+      "image_url",
+      "cardmarket_url",
+      "cardmarket_product_id",
+      "number",
+      "total_set_number",
+      "rarity",
+      "artist",
+      "hp",
+      "stage",
+      "card_type",
+      "weakness",
+      "resistance",
+      "retreat_cost",
+      "energy_type",
+      "ability",
+      "flavor_text",
+      "attacks",
+      "set",
+      "prices"
+    ]
+  },
+  {
+    "id": 30485,
+    "status": 200,
+    "name": "Mew ex - 193/165",
+    "prices": [
+      {
+        "source": "cardmarket",
+        "currency": "EUR",
+        "condition": "Near Mint",
+        "variant": "Holofoil",
+        "market_price": 29.89,
+        "created_at": "2026-10-06T21:32:02.068234+00:00"
+      },
+      {
+        "source": "cardmarket",
+        "currency": "EUR",
+        "condition": "Excellent",
+        "variant": "Holofoil",
+        "market_price": 29.9,
+        "created_at": "2026-10-06T21:32:02.068234+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Near Mint",
+        "variant": "Holofoil",
+        "market_price": 27.07,
+        "created_at": "2026-10-06T23:12:35.737818+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Lightly Played",
+        "variant": "Holofoil",
+        "market_price": 29.8,
+        "created_at": "2026-10-06T23:07:12.742251+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Moderately Played",
+        "variant": "Holofoil",
+        "market_price": 32.57,
+        "created_at": "2026-10-06T23:06:46.072572+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Heavily Played",
+        "variant": "Holofoil",
+        "market_price": 33.06,
+        "created_at": "2026-10-06T23:06:44.223603+00:00"
+      },
+      {
+        "source": "tcgplayer",
+        "currency": "USD",
+        "condition": "Damaged",
+        "variant": "Holofoil",
+        "market_price": 21.62,
+        "created_at": "2026-10-06T23:15:45.817919+00:00"
+      }
+    ],
+    "keys": [
+      "id",
+      "tcg_player_id",
+      "name",
+      "image_url",
+      "cardmarket_url",
+      "cardmarket_product_id",
+      "number",
+      "total_set_number",
+      "rarity",
+      "artist",
+      "hp",
+      "stage",
+      "card_type",
+      "weakness",
+      "resistance",
+      "retreat_cost",
+      "energy_type",
+      "ability",
+      "flavor_text",
+      "attacks",
+      "set",
+      "prices"
+    ]
+  }
+]

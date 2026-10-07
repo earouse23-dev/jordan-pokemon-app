@@ -12,7 +12,7 @@ Checked means the stated bounded proof is complete. It does not imply the whole 
 
 | Requirement | Current proof | Remaining acceptance |
 | --- | --- | --- |
-| Graph-first simple dashboard, one P/L box, independent Day/Month/Year/YTD/All time defaults | Local rendered/browser checks, no point dots, animation/reduced motion and truthful gaps | [x] Live publication and public artifact/runtime checks60/61; client visual acceptance remains |
+| Graph-first portfolio value dashboard, P/L beneath in green/red, visible collection, independent Day/Month/Year/YTD/All time defaults | Local rendered/browser checks, no point dots, animation/reduced motion and truthful gaps | [x] Live publication and public artifact/runtime checks60/61; client visual acceptance remains |
 | Remove primary folders/location/goals/custom fields/modes/seller/trade clutter | Local UI/payload checks preserve hidden data | [x] Published; owner visual acceptance remains |
 | Curved controls and full-viewport camera/library/back/shutter | Local Chromium/WebKit permission/recovery checks | Real iPhone Safari camera, Elliott |
 | One front photo automatically identifies card/slab/cert/language/grade | Existing vision implementation and local correction flow | Held Gateway activation, real image accuracy and cost control; Pro is not recognition |
@@ -46,3 +46,5 @@ Checked means the stated bounded proof is complete. It does not imply the whole 
 Publication sequence: reuse exact checkpoint48 artifact/hashes → scoped existing production environment → existing Git build suppression → staged prebuilt production candidate with no aliases → READY and actual routes/holds/privacy/health checks → promote → curated completed source/tests/docs commits and push → final alias/remote proof. No applied Supabase SQL replay. Complete beta remains unproved until the remaining real flows and provider/device conditions pass.
 
 Checkpoint61 artifact hashes, exact source/output delta, tests and bounded real demo proof: [publication report](../client-reset-2026-10-03/PUBLICATION_CHECKPOINT_61.md). Remaining provider/native/device/recovery conditions are not represented as operational.
+
+Checkpoint62: value defaults after login, solid native trace with temporary leading dot, and visible dashboard collection are live. Shared Pro matching fixes padding and provider display aliases; actual authenticated raw quotes and dated PSA9 comps pass. Missing customer printing and stale graded history still prevent a claim of full portfolio pricing. See [checkpoint62 publication report](../client-reset-2026-10-03/PUBLICATION_CHECKPOINT_62.md).

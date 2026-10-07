@@ -1,3 +1,14 @@
+# Current next actions — checkpoint62
+
+Dashboard value/solid trace/disappearing lead dot/green-red P/L/visible collection and shared Pro matching correction are live as dpl_84wFDPRAUryX27AsptDBLYC5Fv5k. Actual staged raw quotes and dated PSA9 estimate pass; full unit531, dashboard/history60, physical-copy44 checks pass with documented skips. Holds and deletion-only scheduling are actually live. No SQL/customer write or paid AI activation.
+
+1. Confirm representative legacy printing facts through an explicit owner flow; never infer edition/promo/variant from display names. Complete representative displayed pricing/history coverage and retain stale warnings.
+2. Resolve the pending separate AI test allowance; validate actual photo→one identity→bounded pricing. Official certificate/population access remains missing.
+3. Elliott performs physical iPhone Safari capture/library and new-password/sign-in acceptance. Reuse prior demo save/photo/sale evidence; do not blindly repeat mutations.
+4. Continue only client requirements; native extensions, signing, subscriptions and store remain separate. See PUBLICATION_CHECKPOINT_62.md for precise evidence and remaining beta gates.
+
+Historical next actions follow unchanged for provenance:
+
 # Current next actions — checkpoint61
 
 The graph/camera client reset and legacy Add Copy correction are live as dpl_CzPwhscjzScd5N2MRiyvM6Tndp63. Curated source correction commit e6a8822aead38f77495bb8a9fc5d779555e98154; publication evidence/remote proof accompany this checkpoint. Provider holds and sole deletion cron are actually live. Full unit suite530 passed/0 failed/3 skipped; copy browser suite42 passed/2 database skips. Actual demo browser save/photo/sale and fresh sibling/history readback pass. No mutation retry or customer writes.

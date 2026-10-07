@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-10-07T03:45:12.253Z",
+  "readOnlyPublicCardDiagnostic": true,
+  "savedCustomerPrintingNotConfirmed": true,
+  "status": 200,
+  "received": 10,
+  "accepted": 4,
+  "excluded": 6,
+  "exclusionReasons": [
+    "canonical_identity_mismatch",
+    "canonical_identity_mismatch",
+    "canonical_identity_mismatch",
+    "canonical_identity_mismatch",
+    "canonical_identity_mismatch",
+    "canonical_identity_mismatch"
+  ],
+  "valuationStatus": "stale",
+  "estimate": 950,
+  "currency": "USD",
+  "contributingSales": 4,
+  "customerWrites": false
+}

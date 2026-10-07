@@ -1,0 +1,37 @@
+{
+  "checkedAt": "2026-10-07T03:53:28.121Z",
+  "candidate": "dpl_84wFDPRAUryX27AsptDBLYC5Fv5k",
+  "checks": [
+    {
+      "name": "Blastoise",
+      "number": "2/102",
+      "providerId": 12933,
+      "currentRawNearMint": 222.49,
+      "observedAt": "2026-10-06T23:12:21.188651+00:00",
+      "historyRequested": false,
+      "gradedSubstitution": false
+    },
+    {
+      "name": "Mew ex",
+      "number": "193/165",
+      "providerId": 30485,
+      "currentRawNearMint": 27.07,
+      "observedAt": "2026-10-06T23:12:35.737818+00:00",
+      "historyRequested": false,
+      "gradedSubstitution": false
+    }
+  ],
+  "graded": {
+    "status": 200,
+    "received": 10,
+    "accepted": 4,
+    "estimate": 950,
+    "valuationStatus": "stale",
+    "newestSoldAt": "2026-08-31"
+  },
+  "authentication": "existing isolated demo",
+  "customerWrites": false,
+  "sqlReplay": false,
+  "paidAiCalls": 0,
+  "rawGradedAndCurrencyBoundariesPreserved": true
+}
