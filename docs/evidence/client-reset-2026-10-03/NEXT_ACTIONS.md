@@ -1,3 +1,14 @@
+# Current next actions — checkpoint61
+
+The graph/camera client reset and legacy Add Copy correction are live as dpl_CzPwhscjzScd5N2MRiyvM6Tndp63. Curated source correction commit e6a8822aead38f77495bb8a9fc5d779555e98154; publication evidence/remote proof accompany this checkpoint. Provider holds and sole deletion cron are actually live. Full unit suite530 passed/0 failed/3 skipped; copy browser suite42 passed/2 database skips. Actual demo browser save/photo/sale and fresh sibling/history readback pass. No mutation retry or customer writes.
+
+1. Actual recovery email delivery/public destination pass61; finish owner new-password/sign-in acceptance without exposing recovery tokens.
+2. Resolve pending separate AI test allowance, then validate real recognition→one exact identity→bounded Pro pricing; do not enable unrelated AI spending or paid cron. Authoritative certificate/population access is still missing.
+3. Elliott performs physical iPhone Safari camera/photo-library acceptance. Preserve canonical copy-group and representative language/grade/price accuracy gates.
+4. Continue only client-source requirements. Native Verify/share extension, subscriptions and App Store remain separate. Never replay applied SQL from pending-name bookkeeping.
+
+Historical next actions follow unchanged for provenance:
+
 # Current next actions — checkpoint60
 
 The exact checkpoint48 release is live as dpl_8muy4Fn3PtbN1CrGLZTuvJcx2Qo5. Git source/test commit71af029 is prepared; curated publication evidence and remote push/final automation verification are next. Existing ignored-build command exit0 and source Git deployment switch are verified; deletion-only cron is actually assigned to the new production deployment.

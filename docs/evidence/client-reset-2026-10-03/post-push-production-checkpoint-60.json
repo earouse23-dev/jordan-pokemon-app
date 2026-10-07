@@ -1,0 +1,39 @@
+{
+  "checkedAt": "2026-10-07T02:53:48.073Z",
+  "production": "dpl_8muy4Fn3PtbN1CrGLZTuvJcx2Qo5",
+  "cronDeployment": "dpl_8muy4Fn3PtbN1CrGLZTuvJcx2Qo5",
+  "gitBuildGuard": "exit 0",
+  "latestDeployments": [
+    {
+      "id": "dpl_8muy4Fn3PtbN1CrGLZTuvJcx2Qo5",
+      "state": "READY",
+      "source": "cli",
+      "target": "production"
+    },
+    {
+      "id": "dpl_FQ1EmvSNWPFH83esaKFTW9YQT973",
+      "state": "READY",
+      "source": "cli",
+      "target": "production"
+    },
+    {
+      "id": "dpl_JCgstuVpRo6nvKXB9rvaPXP7KNzJ",
+      "state": "ERROR",
+      "source": "cli",
+      "target": "production"
+    },
+    {
+      "id": "dpl_5rZyi9juErBWXNjzKYtetDb2DYap",
+      "state": "READY",
+      "source": "redeploy",
+      "target": "production"
+    },
+    {
+      "id": "dpl_FZGCqatZpQendZr2JcEb7pxrKBrs",
+      "state": "READY",
+      "source": "redeploy",
+      "target": "production"
+    }
+  ],
+  "githubCommit": "7b8bb9c05b4c4d294354849d026e3d52b97d83e9"
+}

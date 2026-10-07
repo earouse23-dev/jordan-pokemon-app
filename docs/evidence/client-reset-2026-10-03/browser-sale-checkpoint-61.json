@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-07T03:15:39.415Z",
+  "hostedIsolatedDemoOnly": true,
+  "actualBrowserSaveAndPrivatePhoto": true,
+  "freshBrowserOwnerPhotoOpen": true,
+  "browserSaleDispatchedOnce": true,
+  "browserSaleResponse200": true,
+  "browserSoldStateVisible": true,
+  "freshBrowserSiblingCostAndActiveStateVisible": true,
+  "persistedSaleAndGainMatched": true,
+  "exactPositionCount": 3,
+  "exactTransactionCount": 5,
+  "siblingAndOriginalHistoryPreserved": true,
+  "canonicalGroupSwitchingProven": false,
+  "customerWrites": false,
+  "paidProviderCalls": 0,
+  "sqlReplay": false,
+  "postSaleProbeNote": "Detail back led to a view containing a hidden ledger overlay; navigation probe timed out after successful sale. No sale retry. Fresh session and owner-scoped persisted reads verified sibling and transaction state."
+}

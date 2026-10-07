@@ -1,0 +1,14 @@
+{
+  "selectedSourcePaths": [
+    "app.js",
+    "lib/identity.js",
+    "tests/run.js",
+    "tests/identity.test.js",
+    "tests/browser/physical-copies.spec.js"
+  ],
+  "sourceEntries": 90,
+  "deploymentEntries": 49,
+  "credentialPatternFindings": 0,
+  "privateDemoCredentialMatches": 0,
+  "privateDataAndRecoveryExcluded": true
+}

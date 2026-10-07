@@ -1,0 +1,31 @@
+{
+  "checkedAt": "2026-10-07T03:10:27.981Z",
+  "reproducible": true,
+  "stage": "/tmp/mica-client-reset-corrected",
+  "functions": 9,
+  "deployEntries": 49,
+  "sourceEntries": 90,
+  "deploymentZipSha256": "3b1256a5d5d7a217dc78fcf7579f173d7341bb74dfda8a5805fcc6b4111af027",
+  "sourceZipSha256": "675d797069ad584f4561d05c734b780d654cebb07409641c455fd70679ec4332",
+  "manifestSha256": "70733172ed7d95c75a79e7d9409b06e989cbd00642039a164b51d77ed91be4ba",
+  "delta": {
+    "source": [
+      "app.js",
+      "lib/identity.js"
+    ],
+    "output": [
+      ".vercel/output/functions/api/catalog.func/index.mjs",
+      ".vercel/output/static/app.js"
+    ]
+  },
+  "previousProduction": "dpl_8muy4Fn3PtbN1CrGLZTuvJcx2Qo5",
+  "ignoredBuildCommand": "exit 0",
+  "gitProviderEnabled": "enabled",
+  "crons": [
+    {
+      "host": "jordan-pokemon-gtldj4w0m-earouse23-devs-projects.vercel.app",
+      "path": "/api/capabilities?surface=grading-deletion",
+      "schedule": "15 5 * * *"
+    }
+  ]
+}

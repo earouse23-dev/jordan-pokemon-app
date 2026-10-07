@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-10-07T03:15:39.626Z",
+  "deploymentId": "dpl_CzPwhscjzScd5N2MRiyvM6Tndp63",
+  "window": "30m",
+  "errorLevelEvents": 3,
+  "fatalEvents": 0,
+  "allObservedErrorLevelMessages": "DEP0169 url.parse deprecation warnings",
+  "uncaughtOrUnhandledExceptionPayloads": 0,
+  "warningNotSuppressed": true,
+  "likelyInjectedHelperEvidence": "runtime-warning-trace-checkpoint-60.json",
+  "exactHostedHelperVersionNotProven": true,
+  "initialOneHourRequestRejectedByRetention": true,
+  "noPaidObservabilityUpgrade": true
+}

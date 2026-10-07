@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-10-07T03:17:09.558Z",
+  "isolatedDemoOnly": true,
+  "realBrowserRecoveryRequest": true,
+  "requestStatus": 200,
+  "redirectOrigin": "https://jordan-pokemon-app.vercel.app",
+  "localhostRedirect": false,
+  "responseCode": null,
+  "passwordChanged": false,
+  "emailDeliveryProven": true,
+  "officialProjectRecoveryLink": true,
+  "recoveryType": "recovery",
+  "emailRedirectOrigin": "https://jordan-pokemon-app.vercel.app",
+  "recoveryTokenExcludedFromEvidence": true,
+  "newPasswordAndSignInProven": false
+}

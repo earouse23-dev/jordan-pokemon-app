@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-07T03:13:05.302Z",
+  "projectId": "prj_ICSEVLitTA6RdwTTy14BThiAvPEQ",
+  "production": "dpl_CzPwhscjzScd5N2MRiyvM6Tndp63",
+  "readyState": "READY",
+  "publicAlias": "jordan-pokemon-app.vercel.app",
+  "publicAliasDeploymentId": "dpl_CzPwhscjzScd5N2MRiyvM6Tndp63",
+  "crons": [
+    {
+      "host": "jordan-pokemon-77b5wqsgt-earouse23-devs-projects.vercel.app",
+      "path": "/api/capabilities?surface=grading-deletion",
+      "schedule": "15 5 * * *"
+    }
+  ],
+  "cronDeploymentId": "dpl_CzPwhscjzScd5N2MRiyvM6Tndp63",
+  "gitProviderEnabled": "enabled",
+  "ignoredBuildCommand": "exit 0",
+  "aliasInventoryNote": "Deployment detail alias array omitted canonical alias; authoritative alias resource confirms it targets this exact deployment."
+}
