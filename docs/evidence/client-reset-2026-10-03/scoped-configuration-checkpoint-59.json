@@ -1,0 +1,33 @@
+{
+  "project": "prj_ICSEVLitTA6RdwTTy14BThiAvPEQ",
+  "changes": [
+    {
+      "key": "PKMNPRICES_API_KEY",
+      "type": "sensitive",
+      "target": [
+        "production",
+        "preview"
+      ],
+      "updatedAt": 1791231352727
+    },
+    {
+      "key": "SUPABASE_SECRET_KEY",
+      "type": "sensitive",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1791231353279
+    },
+    {
+      "key": "PKMNPRICES_PLAN",
+      "type": "sensitive",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1791231353817
+    }
+  ],
+  "credentialValuesRecorded": false,
+  "initialAttempt": "Failed before success; read-only inventory confirmed original updatedAt unchanged. Secret key-name field omitted per current docs.",
+  "sqlExecuted": false
+}

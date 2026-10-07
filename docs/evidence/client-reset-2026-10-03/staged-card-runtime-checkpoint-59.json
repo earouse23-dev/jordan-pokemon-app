@@ -1,0 +1,25 @@
+{
+  "status": 200,
+  "knownIdResultCount": 1,
+  "providers": [
+    "pkmnprices"
+  ],
+  "capabilities": {
+    "pkmnprices": {
+      "declaredPlan": "pro",
+      "authority": "runtime_endpoint_response",
+      "requestedHistoryPeriod": null,
+      "requestedLanguages": [
+        "en",
+        "ja",
+        "de"
+      ],
+      "requestedCurrencies": [
+        "USD",
+        "EUR"
+      ]
+    }
+  },
+  "unavailableCount": 0,
+  "privateCredentialsRecorded": false
+}

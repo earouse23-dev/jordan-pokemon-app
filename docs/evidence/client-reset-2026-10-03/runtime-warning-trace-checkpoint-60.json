@@ -1,0 +1,16 @@
+{
+  "deployment": "dpl_8muy4Fn3PtbN1CrGLZTuvJcx2Qo5",
+  "originalFlaggedEntries": 3,
+  "classification": "DEP0169 Node url.parse deprecation warnings; no exception payloads recorded",
+  "applicationAndBundleLegacyParserMatches": 0,
+  "helpersEnabled": true,
+  "upstreamKnownIssue": "https://github.com/vercel/vercel/commit/f7b5377d47a483699f0e3c80c02f25168c289ed0",
+  "sourceInference": "Vercel injected HTTP helpers are the likely source; hosted stack trace not exposed, so exact injected runtime version is not proven.",
+  "warningsSuppressed": false,
+  "artifactModified": false,
+  "latestErrorScan": {
+    "window": "24h",
+    "entries": 0
+  },
+  "limitation": "Bounded scans are not proof of every runtime path."
+}

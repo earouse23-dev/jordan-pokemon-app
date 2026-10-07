@@ -1,0 +1,6 @@
+{
+  "source": "tests/client-05m-proof.test.js",
+  "sha256": "bc30d51a0d21b056fb9562b28b3603762d9ea7d6c4f09e462573c127b7a3c5d0",
+  "purpose": "Preserve all original closed-packet assertions; current suite tests historical refusal and current API independently",
+  "historicalRunnersModified": false
+}

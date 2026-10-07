@@ -1,0 +1,9 @@
+{
+  "project": "prj_ICSEVLitTA6RdwTTy14BThiAvPEQ",
+  "previousIgnoredBuildCommand": null,
+  "currentIgnoredBuildCommand": "exit 0",
+  "sourceGitDeploymentEnabled": false,
+  "productionDeploymentUnchanged": true,
+  "gitProviderInventorySetting": "enabled",
+  "mechanism": "Existing ignored-build step exits0; source also disables automatic Git deployments."
+}

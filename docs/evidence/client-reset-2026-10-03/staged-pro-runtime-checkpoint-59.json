@@ -1,0 +1,50 @@
+{
+  "checkpoint": 59,
+  "candidate": "dpl_8muy4Fn3PtbN1CrGLZTuvJcx2Qo5",
+  "freshAccountDashboard": {
+    "observedAt": "2026-10-05T20:20:54.668Z",
+    "beforeCharged": 214,
+    "beforeRemaining": 19786,
+    "dailyLimit": 20000
+  },
+  "actualAuthenticatedDeployedProRequests": [
+    {
+      "route": "sales",
+      "status": 200,
+      "keys": [
+        "clientId",
+        "providerCardId",
+        "sales",
+        "receivedCount",
+        "acceptedCount",
+        "excludedCount",
+        "upstreamExclusions",
+        "exclusions",
+        "hasMore",
+        "conditionScope",
+        "validatedContext",
+        "capability",
+        "capabilityStatus",
+        "retrievedAt"
+      ],
+      "salesCount": 8,
+      "providerCardId": "10195",
+      "capabilityStatus": "live"
+    },
+    {
+      "route": "cards",
+      "status": 200,
+      "keys": [
+        "cards",
+        "unavailable",
+        "retrievedAt",
+        "providers",
+        "partial",
+        "capabilities"
+      ]
+    }
+  ],
+  "providerImagesOrPrivateRowsRecorded": false,
+  "customerWrites": false,
+  "visionSpending": 0
+}
