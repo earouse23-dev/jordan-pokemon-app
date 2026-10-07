@@ -8055,6 +8055,11 @@ async function loadOwnedDetailPricing(
   item,
   guard = beginDetailRequest(item, valuationContextForItem(item)),
 ) {
+  const ownerId = state.session?.user?.id;
+  const loadVersion = sessionLoadVersion;
+  const historyKey = JSON.stringify([ownerId, loadVersion, guard.selectionKey, guard.contextKey]);
+  const historyAge = Date.now() - Number(item.historyLoadedAt);
+  if (item.historyLoadedKey === historyKey && item.historyStatus === "live" && historyAge >= 0 && historyAge < 15 * 60_000 && quoteStatus(selectPositionQuote(item.quotes || [], item)) === "live") return;
   const lookup = [
     {
       clientId: item.id,
@@ -8079,7 +8084,7 @@ async function loadOwnedDetailPricing(
     if (!response.ok) return;
     const payload = await response.json();
     const priced = payload.cards?.[0];
-    if (!priced || !detailRequestIsCurrent(guard)) return;
+    if (!priced || !accountRequestIsCurrent(ownerId, loadVersion) || !detailRequestIsCurrent(guard)) return;
     const quote = selectPositionQuote(priced.quotes, item);
     const pricing = quotePricingFields(quote, priced, item);
     const pricedItem = {
@@ -8093,6 +8098,8 @@ async function loadOwnedDetailPricing(
       ...(item.cardState === "graded" || item.gradingCompany ? {} : pricing),
       quotes: priced.quotes || [],
       historyStatus: priced.historyStatus || null,
+      historyLoadedKey: historyKey,
+      historyLoadedAt: Date.now(),
       priceHistory: recordPriceObservation(
         item,
         quote,
@@ -17057,14 +17064,10 @@ async function refreshLivePricing(positionIds = null) {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
   if (!ownerId) return;
-  const uniqueItems = [
-    ...new Map(
-      state.items.filter((item) => item.id && (!selectedPositions || (selectedPositions.has(item.uid) && item.cardState !== "graded"))).map((item) => [item.id, item]),
-    ).values(),
-  ];
+  const uniqueItems = state.items.filter(item => item.id && (!selectedPositions || selectedPositions.has(item.uid)));
   if (!uniqueItems.length) return;
-  const cardItems = uniqueItems.filter((item) => item.cardState !== "sealed");
-  const sealedItems = uniqueItems.filter((item) => item.cardState === "sealed");
+  const cardItems = [...new Map(uniqueItems.filter(item => item.cardState !== "sealed" && item.cardState !== "graded" && !item.gradingCompany).map(item => [item.id, item])).values()];
+  const sealedItems = [...new Map(uniqueItems.filter(item => item.cardState === "sealed").map(item => [item.id, item])).values()];
   const lookups = cardItems.map((item) => ({
     clientId: item.id,
     pkmnpricesId: item.externalIds?.pkmnprices || "",
@@ -17109,6 +17112,8 @@ async function refreshLivePricing(positionIds = null) {
       );
       partial =
         partial || Boolean(payload.partial) || payload.unavailable?.length > 0;
+      state.items = state.items.map(item => batch.some(lookup => lookup.clientId === item.id) ? applyPricing(item) : item);
+      renderCollection();
     }
     for (let start = 0; start < sealedItems.length; start += 1) {
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
@@ -17138,7 +17143,8 @@ async function refreshLivePricing(positionIds = null) {
         else partial = true;
       });
     }
-    const applyPricing = (item) => {
+    function applyPricing(item) {
+      if (item.cardState === "graded" || item.gradingCompany) return item;
       const sealed = item.cardState === "sealed";
       const card = sealed ? sealedProducts.get(item.id) : cards.get(item.id);
       const processed = sealed
@@ -17182,7 +17188,7 @@ async function refreshLivePricing(positionIds = null) {
         referencePrice: quote?.amount ?? null,
         quotes: card.quotes,
         priceCapabilities: card.capabilities || null,
-        historyStatus: card.historyStatus || null,
+        historyStatus: card.historyStatus === "not_requested" ? item.historyStatus : card.historyStatus || null,
         priceHistory: quote
           ? recordPriceObservation(
               item,
@@ -17199,7 +17205,7 @@ async function refreshLivePricing(positionIds = null) {
       };
       const movement = movementForItem(updated);
       return { ...updated, move: movement?.changePercent ?? null, movement };
-    };
+    }
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = state.items.map(applyPricing);
     catalog = catalog.map((item) =>
@@ -17225,6 +17231,7 @@ async function refreshLivePricing(positionIds = null) {
         const evidence = { ...payload, salesStatus: "live", selectionKey: detailIdentityKey(item), contextKey: detailContextKey(valuationContextForItem(item)) };
         const result = exactSoldValuation(evidence.sales || [], exactSaleContext(item, valuationContextForItem(item)), { validatedContext: evidence.validatedContext, retrievedAt: evidence.retrievedAt, hasMore: evidence.hasMore });
         state.items = state.items.map(copy => detailIdentityKey(copy) + "|" + detailContextKey(valuationContextForItem(copy)) === key ? { ...copy, exactSaleEvidence: evidence, price: result.status === "ready" ? result.estimate : null, referencePrice: result.estimate, pricingStatus: result.status === "ready" ? "live" : result.status === "stale" ? "stale" : "missing", pricingUpdatedAt: result.newestSoldAt } : copy);
+        renderCollection();
       } catch { partial = true; }
     }
     const coverage = portfolioPriceCoverage(state.items);
@@ -17233,8 +17240,8 @@ async function refreshLivePricing(positionIds = null) {
         ? "partial"
         : "live";
     state.pricingRetrievedAt = retrievedAt;
-    if (!state.largeInventory.active) await capturePortfolioValuation();
     renderCollection();
+    if (!state.largeInventory.active) await capturePortfolioValuation();
     renderInsights();
     if (state.route === "detail") renderDetail();
     if (state.route === "insights") void refreshMovementHistory();
@@ -20784,7 +20791,9 @@ async function retryAccountLoad() {
     renderInsights();
     renderTrade();
     toast("Your saved collection is available again");
-    await Promise.all([refreshLivePricing(), refreshWatchlistPricing()]);
+    await refreshLivePricing();
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    await refreshWatchlistPricing();
     await refreshActionCenter();
     applyPendingActionDestination();
   } catch (error) {
@@ -21117,7 +21126,9 @@ async function applySession(session) {
         });
       }
     }
-    await Promise.all([refreshLivePricing(), refreshWatchlistPricing()]);
+    await refreshLivePricing();
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    await refreshWatchlistPricing();
     await refreshActionCenter();
     applyPendingActionDestination();
   } catch (error) {

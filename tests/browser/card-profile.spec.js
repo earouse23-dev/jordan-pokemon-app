@@ -463,6 +463,7 @@ test("raw profile rejects graded-only evidence, then prices the matching slab co
   await expect(page.locator(".market-hero")).not.toContainText(
     "Limited evidence",
   );
+  await page.locator('#detailMoreToolsButton').click();
   await page.locator('[data-detail-tool="prices"] > summary').click();
   const matchingPricesUnavailable = page
     .locator('[data-detail-tool="prices"] .detail-section')
@@ -667,9 +668,8 @@ test("sign-in interruption restores the exact PSA 10 Add draft and idempotent re
   await expect(page.locator("#positionQuantity")).toHaveValue("1");
   await expect(page.locator("#positionQuantity")).toHaveAttribute("readonly");
   await page.locator("#positionMoreSummary").click();
-  await page
-    .locator("#positionAcquisitionMethod")
-    .selectOption("direct_purchase");
+  await expect(page.locator("#positionAcquisitionMethod")).not.toBeVisible();
+  await expect(page.locator("#positionAcquisitionMethod")).toHaveValue("unknown");
   await page.locator("#positionTotalCost").fill("27.50");
   await page.locator("#positionDate").fill("2026-09-01");
 

@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments }; export { hydratePosition } from "./lib/supabase-data.js";`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail }; export { hydratePosition } from "./lib/supabase-data.js";`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -698,4 +698,52 @@ test('thirteen saved raw entries refresh in seven bounded requests and feed real
   expect(requests).toBe(7); expect(result).toHaveLength(13);
   for(const item of result) {expect(item.price).toBe(100);expect(item.finish).toBe('holofoil');expect(item.edition).toBe('unknown');}
   expect(await page.locator('.ledger-row').count()).toBe(13);
+});
+
+
+test("first collection prices render while later batches wait and graded copies skip raw requests", async ({ page }, testInfo) => {
+  await openCollection(page);
+  let pending; const lookups = [];
+  const payload = batch => ({ cards: batch.map(lookup => ({ providerCardId: lookup.clientId, quotes: [{provider:"tcgplayer",currency:"USD",finish:"holofoil",condition:"Near Mint",priceType:"market",amount:100,observedAt:new Date().toISOString(),retrievedAt:new Date().toISOString()}],capabilities:{raw:"live"},historyStatus:"not_requested",history:[] })) });
+  await page.route("**/api/cards?**", async route => {
+    const batch = JSON.parse(new URL(route.request().url()).searchParams.get("lookups")); lookups.push(batch);
+    if (lookups.length === 2) { pending = route; return; }
+    await route.fulfill({contentType:"application/json",body:JSON.stringify(payload(batch))});
+  });
+  await page.evaluate(async url => {
+    const {state, refreshLivePricing, hydratePosition} = await import(url);
+    state.items = Array.from({length:9}, (_, i) => hydratePosition({id:"batch-copy-"+i,card_state:i<4?"raw":"graded",grader:i<4?null:"PSA",grade:i<4?null:"10",raw_condition:"near_mint",currency:"USD",quantity:1,status:"owned",identity_snapshot:{id:"batch-card-"+i,name:"Mew ex",set:"151",number:"151/165",variant:"Holofoil",language:"en"}}));
+    globalThis.batchRefresh = refreshLivePricing();
+  }, appUrl);
+  await expect.poll(() => Boolean(pending)).toBe(true);
+  const prices = await page.evaluate(async url => (await import(url)).state.items.map(item => item.price), appUrl);
+  expect(prices.slice(0,2)).toEqual([100,100]); expect(prices.slice(2)).toEqual(Array(7).fill(null));
+  await expect(page.locator(".ledger-row").first().locator(".position-price-grid")).toContainText("$100.00");
+  expect(await page.locator("#view-collection .quick-add:visible").evaluate(element => getComputedStyle(element).backgroundColor)).toBe("rgb(39, 100, 67)");
+  await page.screenshot({path:testInfo.outputPath("progressive-green-collection.png"),fullPage:false});
+  const batch = lookups[1]; await pending.fulfill({contentType:"application/json",body:JSON.stringify(payload(batch))});
+  await page.evaluate(() => batchRefresh);
+  expect(lookups.flat().map(item => item.clientId)).toEqual(["batch-card-0","batch-card-1","batch-card-2","batch-card-3"]);
+  const final = await page.evaluate(async url => (await import(url)).state.items, appUrl);
+  expect(final.slice(0,4).map(item=>item.price)).toEqual([100,100,100,100]);
+  expect(final.slice(4).every(item=>item.pricingReason==="printing_confirmation_required")).toBe(true);
+});
+
+test("recent owned history is reused only for its owner and matching context", async ({ page }) => {
+  await openCollection(page); let calls = 0;
+  await page.evaluate(async url => {const {state}=await import(url);Object.assign(state.items[0],{finish:"holofoil",condition:"Near Mint",rawCondition:"near_mint"});},appUrl);
+  await page.route("**/api/cards?**", async route => {
+    calls++; const lookup=JSON.parse(new URL(route.request().url()).searchParams.get("lookups"))[0];
+    await route.fulfill({contentType:"application/json",body:JSON.stringify({cards:[{providerCardId:lookup.clientId,quotes:[{provider:"tcgplayer",currency:"USD",finish:"holofoil",condition:"Near Mint",priceType:"market",amount:100,observedAt:new Date().toISOString(),retrievedAt:new Date().toISOString()}],capabilities:{raw:"live"},historyStatus:"live",history:[1,2].map(day=>({recordedAt:new Date(Date.now()-day*86400000).toISOString(),amount:100-day,currency:"USD",finish:"holofoil",condition:"Near Mint",provider:"tcgplayer"}))}]})});
+  });
+  const reopen=async()=>page.evaluate(()=>{const {state,openCardDetail}=globalThis.fixtureApp;openCardDetail(state.items[0],true);});
+  await reopen(); await expect.poll(()=>calls).toBe(1); await expect(page.locator(".history-summary")).toContainText("Days with prices");
+  await reopen(); await expect(page.locator("#positionChart")).toBeVisible(); expect(calls).toBe(1);
+  await page.evaluate(async url=>{const {state}=await import(url);state.items[0].condition="Lightly Played";},appUrl);
+  await reopen(); await expect.poll(()=>calls).toBe(2);
+  await page.evaluate(async url=>{const {state}=await import(url);state.items[0].condition="Near Mint";state.items[0].historyLoadedAt=Date.now()-16*60000;},appUrl);
+  await reopen(); await expect.poll(()=>calls).toBe(3);
+  await expect.poll(()=>page.evaluate(()=>Date.now()-globalThis.fixtureApp.state.items[0].historyLoadedAt)).toBeLessThan(10000);
+  await page.evaluate(async url=>{const {state}=await import(url);state.session={user:{id:"different-owner"}};},appUrl);
+  await reopen(); await expect.poll(()=>calls).toBe(4);
 });

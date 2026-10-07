@@ -6111,3 +6111,15 @@ body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .auto-capture-
   body[data-ui-theme="mica"] .detail-tool-group { margin-block: 10px; }
   body[data-ui-theme="mica"] .grading-lifecycle-summary { grid-template-columns: 1fr; }
 }
+
+/* Everyday actions use the same green palette as the value charts. */
+body[data-ui-theme="mica"] button.primary,
+body[data-ui-theme="mica"] .primary-action,
+body[data-ui-theme="mica"] .collection-actions .quick-add,
+body[data-ui-theme="mica"] .quick-add { background: #276443; color: #fff; }
+body[data-ui-theme="mica"] button.secondary,
+body[data-ui-theme="mica"] #detailMoreToolsButton,
+body[data-ui-theme="mica"] #detailContent .owned-banner button,
+body[data-ui-theme="mica"] .history-controls button { background: #e3eee3; border-color: #a4bda7; color: #244e35; }
+body[data-ui-theme="mica"] .history-controls button[aria-pressed="true"],
+body[data-ui-theme="mica"] button.secondary:hover:not(:disabled) { background: #276443; border-color: #276443; color: #fff; }
