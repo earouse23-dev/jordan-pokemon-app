@@ -43,6 +43,16 @@ test("live provider identity formatting preserves exact card and set boundaries"
   assert.equal(matchesPkmnPricesIdentity({ ...base, number: "TG002" }, lookup), false);
 });
 
+test("provider art annotation requires exact printed identity facts", () => {
+  const card = { name: "Giratina V (Alternate Full Art)", number: "186", total_set_number: "196", set: { name: "SWSH11: Lost Origin" }, language: "English" };
+  const lookup = { name: "Giratina V", number: "186/196", set: "Lost Origin", language: "en" };
+  assert.equal(matchesPkmnPricesIdentity(card, lookup), true);
+  for (const changed of [{ number: "185/196" }, { number: "186/195" }, { number: "186" }, { set: "" }, { set: "Silver Tempest" }, { language: "ja" }, { name: "Giratina V (Full Art)" }])
+    assert.equal(matchesPkmnPricesIdentity(card, { ...lookup, ...changed }), false);
+  assert.equal(matchesPkmnPricesIdentity({ ...card, total_set_number: null }, lookup), false);
+  assert.equal(matchesPkmnPricesIdentity({ ...card, name: "Giratina V (First Edition)" }, lookup), false);
+});
+
 test("market source links require the returned HTTPS marketplace host", () => {
   assert.equal(
     safeMarketSourceUrl("https://www.tcgplayer.com/product/123", "tcgplayer"),
