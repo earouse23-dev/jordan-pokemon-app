@@ -70,6 +70,7 @@ const changes = [
   "sw.js",
   "assets/ocr/README.md",
   "lib/card-ocr.js",
+  "lib/capture-precision.js",
   "package-lock.json",
   "assets/ocr/eng.traineddata.gz",
   "assets/ocr/deu.traineddata.gz",

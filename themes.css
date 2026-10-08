@@ -6168,3 +6168,7 @@ body[data-appearance="dark"] .bottom-nav .nav-item.active { color: #92b998; }
 body[data-appearance="dark"] .history-summary > div,
 body[data-ui-theme="mica"][data-appearance="dark"] .simple-note,
 body[data-appearance="dark"] .suffix-input { background: var(--paper-strong); color: var(--ink); border-color: var(--line); }
+
+/* A detected document is a shape highlight, not an identity claim. */
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] #deviceCameraOutline polygon { fill: rgba(64,156,255,.22); stroke: #65b6ff; stroke-width: 3; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-scan-line { display: none; }

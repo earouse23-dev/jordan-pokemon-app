@@ -21,7 +21,7 @@ test.beforeAll(async () => {
     new URL("../../app.js", import.meta.url),
     "utf8",
   );
-  source = source.replace('import { warmCardOcr, readCardText, matchOcrCards } from "./lib/card-ocr.js";', 'import { parseCardText, matchOcrCards } from "./lib/card-ocr.js"; const warmCardOcr = async () => null; const readCardText = async source => { (globalThis.__ocrInputs ||= []).push(source); return parseCardText(globalThis.__ocrText || "Pikachu 025/165"); };');
+  source = source.replace('import { warmCardOcr, readCardText, matchOcrCards } from "./lib/card-ocr.js";', 'import { parseCardText, matchOcrCards } from "./lib/card-ocr.js"; const warmCardOcr = async () => null; const readCardText = async source => { (globalThis.__ocrInputs ||= []).push(source); return parseCardText(globalThis.__ocrText || "Pikachu 025/165", globalThis.__ocrLanguage || "en"); };');
   // Deterministic rejected geometry for the manual-recovery gate; detector tests use real pixels.
   source = source.replace("options.geometry ||\n    isolateUploadedDocument", "options.geometry || globalThis.__rejectedPreviewGeometry ||\n    isolateUploadedDocument");
   const result = await build({
@@ -1164,11 +1164,15 @@ for (const automatic of [false, true]) test('full-screen intake '+(automatic?'au
     for(let y=344;y<820;y+=20) documentContext.fillRect(180,y,340,9);
     const canvas=globalThis.__liveCanvas,context=canvas.getContext('2d');
     context.fillStyle='#596a60';context.fillRect(0,0,canvas.width,canvas.height);
-    context.drawImage(globalThis.__syntheticDocumentCanvas,guide.x,guide.y,guide.width,guide.height);
+    const source=globalThis.__syntheticDocumentCanvas,scale=Math.min(guide.width/source.width,guide.height/source.height)*.9;
+    const width=source.width*scale,height=source.height*scale;
+    context.drawImage(source,guide.x+(guide.width-width)/2,guide.y+(guide.height-height)/2,width,height);
   });
   if (!automatic) {
     await expect(page.locator('.auto-capture-guide')).toHaveAttribute('data-state','ready',{timeout:15000});
     await expect(page.getByRole('button',{name:'Take photo',exact:true})).toBeEnabled();
+    await expect(page.locator(".auto-capture-guide")).toHaveAttribute("data-detected","true");
+    expect(await page.locator("#deviceCameraOutline polygon").evaluate(el=>getComputedStyle(el).fill)).toBe("rgba(64, 156, 255, 0.22)");
     await page.screenshot({path:testInfo.outputPath('full-screen-live-camera-fixture.png')});
     await page.getByRole('button',{name:'Take photo',exact:true}).click();
   }
@@ -1224,3 +1228,12 @@ test("unreadable intake photo offers retake without edge or confirmation control
   expect(requests.writes.filter(r=>!r.path.endsWith("/rpc/record_ingestion_event"))).toHaveLength(0);
   await page.screenshot({path:testInfo.outputPath("intake-unreadable-retry.png")});
 });
+
+ test("Japanese photo uses detected language without selecting Japanese",async({page})=>{
+  const requests=await setup(page,{recognition:true,experience:"intake",visionPayload:{catalogResolution:{cards:[{id:"fixture-ja",name:"ピカチュウ",number:"236/190",language:"ja",set:"Shiny Treasure ex",variant:"Holofoil",thumb:"/icons/icon.svg"}],resolution:{status:"exact"}}}});
+  await page.evaluate(()=>{globalThis.__ocrText="ピカチュウ 236/190";globalThis.__ocrLanguage="ja";document.querySelector("#quickSearchLanguage").value="en";});
+  await installSyntheticDocument(page);
+  await page.evaluate(()=>{const input=document.querySelector("#deviceCameraUpload");input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));});
+  await expect(page.locator("#detailTitle")).toHaveText("ピカチュウ");
+  expect(requests.catalog).toHaveLength(1);expect(new URL(requests.catalog[0]).searchParams.get("language")).toBe("ja");expect(requests.vision).toHaveLength(0);
+ });

@@ -473,7 +473,7 @@ test("optional grading assets cannot block service-worker installation", async (
 
   assert.equal(skippedWaiting, true);
   assert.ok(coreAssets.includes("./index.html"));
-  assert.ok(coreAssets.includes("./app.js?v=112"));
+  assert.ok(coreAssets.includes("./app.js?v=113"));
   assert.equal(
     coreAssets.some((asset) => asset.includes("coach-")),
     false,
@@ -589,14 +589,14 @@ test("Mica uses one approved cream and sage interface across focused modes", () 
   assert.match(appShell, /data-software-mode="collector"/);
   assert.match(appShell, /data-software-mode="investor"/);
   assert.match(appShell, /data-software-mode="seller"/);
-  assert.match(appShell, /themes\.css\?v=84/);
+  assert.match(appShell, /themes\.css\?v=85/);
   assert.match(appSource, /let uiTheme = "mica"/);
   assert.match(appSource, /let workspaceMode = "collector"/);
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
   assert.match(themes, /--canvas:\s*#f5f0e4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
-  assert.match(serviceWorker, /mica-shell-local-ocr-74/);
-  assert.match(serviceWorker, /themes\.css\?v=84/);
+  assert.match(serviceWorker, /mica-shell-local-ocr-75/);
+  assert.match(serviceWorker, /themes\.css\?v=85/);
 });
 
 test("signup distinguishes repeated accounts and supports confirmation resend", () => {

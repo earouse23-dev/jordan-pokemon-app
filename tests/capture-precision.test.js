@@ -468,3 +468,10 @@ test("auto capture requires a stable gradeable video sequence", () => {
   assert.equal(unstable.ready, false);
   assert.ok(unstable.blockers.includes("glare_variation"));
 });
+
+test('identity capture accepts readable stable evidence without weakening grading gates', () => {
+  const input={brightness:100,contrast:400,sharpness:3.8,glareRatio:.01,movement:.1,geometry:{detected:true,straight:true,confidence:.8},level:{available:false}};
+  assert.equal(scoreGradeableCameraFrame({...input,purpose:'identity'}).gradeable,true);
+  assert.equal(scoreGradeableCameraFrame(input).gradeable,false);
+  for(const change of [{movement:12},{brightness:10},{geometry:{detected:false}},{glareRatio:.3}])assert.equal(scoreGradeableCameraFrame({...input,...change,purpose:'identity'}).gradeable,false);
+});

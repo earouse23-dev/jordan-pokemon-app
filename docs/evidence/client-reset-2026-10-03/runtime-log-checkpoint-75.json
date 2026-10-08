@@ -1,0 +1,14 @@
+{
+  "deploymentId": "dpl_8o1n1uEDpr7futiYsfGeRvu6Dyq6",
+  "checkedAt": "2026-10-08T00:52:13.595Z",
+  "window": "10m",
+  "applicationExceptions": 0,
+  "observedWarnings": [
+    {
+      "code": "DEP0169",
+      "message": "Existing url.parse deprecation warning",
+      "count": 2
+    }
+  ],
+  "paidProviderCalls": 0
+}

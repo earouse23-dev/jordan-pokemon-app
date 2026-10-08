@@ -55,3 +55,14 @@ assert.equal(
 assert.equal(parseCardText("PSA GEM MT 10 00123456 Mewtwo GX 76/73").certificationNumber, "00123456");
 assert.equal(parseCardText("PSA GEM MT 10 00123456 99887766 Mewtwo GX 76/73").certificationNumber, "");
 assert.equal(parseCardText("00123456 Mewtwo GX 76/73").certificationNumber, "");
+const japanese = parseCardText('ピカチュウex ０２３／１０６', 'ja');
+assert.equal(japanese.query, '23/106');
+assert.equal(matchOcrCards(japanese, [{name:'ピカチュウex',number:'023/106',language:'ja'}]).exact,true);
+assert.equal(matchOcrCards(japanese, [{name:'Pikachu ex',number:'023/106',language:'en'}]).exact,false);
+const { enhanceReadingPixels } = await import('../lib/card-ocr.js');
+const dim = new Uint8ClampedArray(Array.from({length:100}, (_,i)=>[i<50?30:150,i<50?30:150,i<50?30:150,255]).flat());
+enhanceReadingPixels(dim);assert.equal(dim[0],0);assert.equal(dim[200],255);assert.equal(dim[203],255);
+assert.equal(matchOcrCards(parseCardText('ビ カ チ ュ ウ ex 023/106','ja'),[{name:'ピカチュウex',number:'023/106',language:'ja'}]).exact,true);
+assert.equal(matchOcrCards(parseCardText('リザードンex 023/106','ja'),[{name:'ピカチュウex',number:'023/106',language:'ja'}]).exact,false);
+assert.equal(matchOcrCards(japanese,[{name:'',number:'023/106',language:'ja'}]).exact,false);
+assert.equal(matchOcrCards(parseCardText('リザ ー ド ン 2 々 201/165','ja'),[{name:'リザードンex',number:'201/165',language:'ja'}]).exact,true);

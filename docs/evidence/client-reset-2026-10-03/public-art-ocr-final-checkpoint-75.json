@@ -1,0 +1,56 @@
+{
+  "checkedAt": "2026-10-08T00:52:13.594Z",
+  "source": "Public TCGdex card artwork; local OCR only",
+  "warmWorker": true,
+  "physicalDeviceAcceptance": false,
+  "results": [
+    {
+      "browserName": "chromium",
+      "lang": "ja",
+      "ms": 232.5,
+      "language": "ja",
+      "query": "201/165",
+      "exact": true
+    },
+    {
+      "browserName": "chromium",
+      "lang": "ja",
+      "ms": 423.8999999985099,
+      "language": "ja",
+      "query": "236/190",
+      "exact": true
+    },
+    {
+      "browserName": "chromium",
+      "lang": "en",
+      "ms": 276.30000000447035,
+      "language": "en",
+      "query": "199/165",
+      "exact": true
+    },
+    {
+      "browserName": "webkit",
+      "lang": "ja",
+      "ms": 282,
+      "language": "ja",
+      "query": "201/165",
+      "exact": true
+    },
+    {
+      "browserName": "webkit",
+      "lang": "ja",
+      "ms": 455,
+      "language": "ja",
+      "query": "236/190",
+      "exact": true
+    },
+    {
+      "browserName": "webkit",
+      "lang": "en",
+      "ms": 314,
+      "language": "en",
+      "query": "199/165",
+      "exact": true
+    }
+  ]
+}

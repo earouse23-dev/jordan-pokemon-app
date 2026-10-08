@@ -12299,6 +12299,13 @@ async function openDeviceCamera({
         return;
       }
       const guide = guideCropInFrame(video, guideNode);
+      // Preserve camera aspect: stretching the full-screen preview hides real card geometry.
+      const sampleScale = 160 / Math.max(guide.width, guide.height);
+      const sampleWidth = Math.max(32, Math.round(guide.width * sampleScale));
+      const sampleHeight = Math.max(32, Math.round(guide.height * sampleScale));
+      if (motionCanvas.width !== sampleWidth || motionCanvas.height !== sampleHeight) {
+        motionCanvas.width = sampleWidth; motionCanvas.height = sampleHeight; previousFrame = null;
+      }
       motionContext.drawImage(
         video,
         guide.x,
@@ -12307,11 +12314,11 @@ async function openDeviceCamera({
         guide.height,
         0,
         0,
-        80,
-        112,
+        sampleWidth,
+        sampleHeight,
       );
-      const pixels = motionContext.getImageData(0, 0, 80, 112).data;
-      const sample = new Uint8Array(80 * 112);
+      const pixels = motionContext.getImageData(0, 0, sampleWidth, sampleHeight).data;
+      const sample = new Uint8Array(sampleWidth * sampleHeight);
       let lightTotal = 0;
       let lightSquaredTotal = 0;
       let differenceTotal = 0;
@@ -12328,10 +12335,10 @@ async function openDeviceCamera({
         lightTotal += light;
         lightSquaredTotal += light * light;
         if (light > 250) glarePixels += 1;
-        if (pixel % 80 && pixel >= 80) {
+        if (pixel % sampleWidth && pixel >= sampleWidth) {
           sharpnessTotal +=
             Math.abs(light - sample[pixel - 1]) +
-            Math.abs(light - sample[pixel - 80]);
+            Math.abs(light - sample[pixel - sampleWidth]);
           sharpnessSamples += 2;
         }
         if (previousFrame)
@@ -12348,13 +12355,14 @@ async function openDeviceCamera({
         ? differenceTotal / sample.length
         : Number.POSITIVE_INFINITY;
       previousFrame = sample;
-      geometryReading = detectDocumentBoundaryFromPixels(pixels, 80, 112, {
+      geometryReading = detectDocumentBoundaryFromPixels(pixels, sampleWidth, sampleHeight, {
         documentKind: gradingExperience ? "card" : "auto",
       });
       const captureGeometry = gradingExperience
         ? geometryReading
         : { ...geometryReading, straight: geometryReading.correctable };
       const assessment = scoreGradeableCameraFrame({
+        purpose: experience === "intake" ? "identity" : "grade",
         brightness,
         contrast,
         sharpness,
@@ -12375,6 +12383,7 @@ async function openDeviceCamera({
                 .join(" ")
             : "",
         );
+      guideNode?.setAttribute("data-detected", String(geometryReading.detected));
       guideNode?.setAttribute(
         "data-state",
         assessment.gradeable ? "ready" : "scanning",
@@ -12400,6 +12409,7 @@ async function openDeviceCamera({
       automaticFrameSequence = automaticFrameSequence.slice(-18);
       frameSequenceSummary = summarizeGradeableFrameSequence(
         automaticFrameSequence,
+        { purpose: experience === "intake" ? "identity" : "grade" },
       );
       if (bestAutomaticFrame && now - bestAutomaticFrame.savedAt > 1400)
         bestAutomaticFrame = null;
@@ -12439,7 +12449,7 @@ async function openDeviceCamera({
       const percent = Math.round(assessment.score * 100);
       status.hidden = experience === "intake" && !cameraReady && !geometryReading.detected;
       status.textContent = experience === "intake"
-        ? cameraReady ? "Scanning card…" : "Hold steady"
+        ? cameraReady ? "Scanning card…" : geometryReading.detected ? assessment.blockers.length ? assessment.action : "Card detected · hold steady" : "Move the full card into view"
         : cameraReady
         ? timerEnabled
           ? `Frame ready · ${percent}% · press the shutter`
@@ -15364,7 +15374,7 @@ async function identifyCardLocally(front, operationId, startedAt) {
     if (!current()) return;
     if (!identity.query) throw new Error("Could not read one card number · move closer and try again.");
     $("#visionLocalCheck").textContent = "Finding your card…";
-    const result = await searchCatalog(identity.query.includes("/") ? identity.query : `#${identity.query}`, language, 24, { timeoutMs: remaining() });
+    const result = await searchCatalog(identity.query.includes("/") ? identity.query : `#${identity.query}`, identity.language, 24, { timeoutMs: remaining() });
     if (!current()) return;
     const match = matchOcrCards(identity, result.items);
     if (!match.cards.length) throw new Error("No clear match · retake or search the printed name and number.");

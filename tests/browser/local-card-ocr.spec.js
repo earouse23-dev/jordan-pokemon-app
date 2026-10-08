@@ -159,3 +159,11 @@ test("light and dark mode persist, retaining green primary actions", async ({
     "light",
   );
 });
+
+ test("Japanese pixels select the Japanese catalog even with English as the menu default", async ({page})=>{
+  await page.route("**/ocr-check.js",r=>r.fulfill({contentType:"application/javascript",body:ocrBundle}));
+  await page.route("**/app.js*",r=>r.fulfill({contentType:"application/javascript",body:""}));
+  await page.goto("/");
+  const result=await page.evaluate(async()=>{const api=await import("/ocr-check.js");await api.warmCardOcr("en");const c=document.createElement("canvas");c.width=800;c.height=1120;const x=c.getContext("2d");x.fillStyle="white";x.fillRect(0,0,800,1120);x.fillStyle="black";x.font="bold 50px sans-serif";x.fillText("ピカチュウex",80,90);x.font="bold 26px Arial";x.fillText("023/106",60,1040);const id=await api.readCardText(c.toDataURL(),{language:"en"});return {query:id.query,language:id.language,exact:api.matchOcrCards(id,[{name:"ピカチュウex",number:"023/106",language:"ja"}]).exact};});
+  expect(result).toEqual({query:"23/106",language:"ja",exact:true});
+ });
