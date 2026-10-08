@@ -53,6 +53,16 @@ test("provider art annotation requires exact printed identity facts", () => {
   assert.equal(matchesPkmnPricesIdentity({ ...card, name: "Giratina V (First Edition)" }, lookup), false);
 });
 
+test("Mega scan identity matches the provider's XY set prefix and art label only with exact facts", () => {
+  const card = {name:"M Charizard EX (Full Art)",number:"101",total_set_number:"108",set:{name:"XY - Evolutions"},language:"English"};
+  const lookup = {name:"M Charizard EX",number:"101/108",set:"Evolutions",language:"en"};
+  assert.equal(matchesPkmnPricesIdentity(card,lookup),true);
+  for (const changed of [{number:"13/108"},{number:"101/106"},{set:"Flashfire"},{name:"Charizard EX"},{language:"ja"}])
+    assert.equal(matchesPkmnPricesIdentity(card,{...lookup,...changed}),false);
+  const normalized=normalizeTcgdexCard({id:"xy12-101",name:lookup.name,thirdParty:{tcgplayer:124114}},"en");
+  assert.equal(normalized.externalIds.tcgplayer,124114);
+});
+
 test("market source links require the returned HTTPS marketplace host", () => {
   assert.equal(
     safeMarketSourceUrl("https://www.tcgplayer.com/product/123", "tcgplayer"),

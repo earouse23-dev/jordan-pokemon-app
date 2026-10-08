@@ -41,6 +41,8 @@ test("card image relay accepts only narrow approved HTTPS image hosts", () => {
       ?.hostname,
     "images.pokemontcg.io",
   );
+  assert.equal(normalizeImageSource("https://images.pkmnprices.com/cards/789.jpg")?.hostname, "images.pkmnprices.com");
+  assert.equal(normalizeImageSource("https://images.pkmnprices.com.evil.test/card.jpg"), null);
   assert.equal(normalizeImageSource("http://assets.tcgdex.net/card.png"), null);
   assert.equal(normalizeImageSource("https://example.com/card.png"), null);
   assert.equal(

@@ -16,6 +16,7 @@ import {
   replaceRequiredCapture,
 } from "./lib/grading-capture.js";
 import { compareGradingOutcome } from "./lib/grading-economics.js";
+import { normalizeCardImageSource } from "./lib/image-source.js";
 import { cardPriceHistoryWindow, displayHistoryCurrency } from "./lib/price-history.js";
 import {
   money,
@@ -7383,6 +7384,9 @@ function openCardDetail(card, preferOwned = false, initialContext = null) {
   state.detailValuationContext = initialContext || valuationContextForItem(owned || card, {
     catalogPreview: !owned,
   });
+  // A catalog reference is not a condition assessment of the photographed copy.
+  if (!owned && state.detailValuationContext.cardState === "raw" && !state.detailValuationContext.condition)
+    state.detailValuationContext = { ...state.detailValuationContext, condition: "Near Mint", referenceOnly: true };
   routeTo("detail");
   if ((owned || card).cardState === "sealed") {
     void loadSealedDetailPricing(owned || card);
@@ -7956,6 +7960,7 @@ async function loadCardPreviewPricing(
     {
       clientId: card.id,
       pkmnpricesId: card.externalIds?.pkmnprices || "",
+      tcgplayerId: card.externalIds?.tcgplayer || "",
       tcgdexId: card.externalIds?.tcgdex || "",
       name: card.name,
       set: card.set,
@@ -8033,6 +8038,8 @@ async function loadCardPreviewPricing(
       historyStatus: priced.historyStatus || null,
     };
     const identityUpdate = {
+      image: normalizeCardImageSource(priced.images?.large)?.href || card.image || null,
+      thumb: normalizeCardImageSource(priced.images?.small)?.href || card.thumb || null,
       externalIds: {
         ...(card.externalIds || {}),
         ...(priced.externalIds || {}),
@@ -8097,6 +8104,8 @@ async function loadOwnedDetailPricing(
     const pricing = quotePricingFields(quote, priced, item);
     const pricedItem = {
       ...(state.items.find(candidate => candidate.uid === item.uid) || item),
+      image: item.image || normalizeCardImageSource(priced.images?.large)?.href || null,
+      thumb: item.thumb || normalizeCardImageSource(priced.images?.small)?.href || null,
       externalIds: {
         ...(item.externalIds || {}),
         ...(priced.externalIds || {}),
@@ -8408,7 +8417,9 @@ function detailValuationMarkup(item, owned, watched, context) {
     ? `<small>Saved copy: ${esc(watchContextLabel(owned))}. Research does not edit it.</small>`
     : watched
       ? `<small>Saved watch: ${esc(watchContextLabel(watched))} until you update it.</small>`
-      : "<small>Choose what to value. Unknown condition stays unpriced.</small>";
+      : context.referenceOnly
+        ? "<small>Like-new reference price; your card’s condition has not been assessed.</small>"
+        : "<small>Choose what to value. Unknown condition stays unpriced.</small>";
   const conditions = [
     ["", "Condition not chosen"],
     ["Near Mint", "Like new (Near Mint)"],
@@ -9046,7 +9057,7 @@ function renderDetail() {
         cardState: context.cardState,
         rawCondition:
           context.cardState === "raw"
-            ? normalizeRawCondition(context.condition).normalized
+            ? context.referenceOnly ? "unknown" : normalizeRawCondition(context.condition).normalized
             : null,
         grader: context.cardState === "graded" ? context.gradingCompany : "",
         grade: context.cardState === "graded" ? context.grade : "",
@@ -9057,7 +9068,7 @@ function renderDetail() {
   );
   $("#watchCardButton")?.addEventListener("click", () =>
     openWatchlistSheet(baseItem, watched, {
-      valuationContext: context,
+      valuationContext: context.referenceOnly ? { ...context, condition: "" } : context,
       profileIntent: true,
     }),
   );
@@ -15000,7 +15011,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
     return;
   }
   const renderCandidates = async () => {
-    let cards = (payload.catalogResolution?.cards || []).map(catalogItem);
+    let cards = (payload.catalogResolution?.cards || []).map(card => catalogItem(card));
     const resolution = payload.catalogResolution?.resolution || null;
     if (cards.length) rememberCatalogItems(cards);
     if (!cards.length) {
@@ -17214,6 +17225,8 @@ async function refreshLivePricing(positionIds = null) {
       const capabilityState = capabilityStatusForItem(card, item);
       const updated = {
         ...item,
+        image: item.image || normalizeCardImageSource(card.images?.large)?.href || null,
+        thumb: item.thumb || normalizeCardImageSource(card.images?.small)?.href || null,
         externalIds: {
           ...(item.externalIds || {}),
           ...(card.externalIds || {}),

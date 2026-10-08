@@ -31,7 +31,7 @@ test.beforeAll(async () => {
     );
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, supabase as testSupabase };`,
+      contents: `${source.replace("void bootstrap();", "")}\nexport { state, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, supabase as testSupabase };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -359,7 +359,7 @@ function ownedEntry(overrides = {}) {
   });
 }
 
-test("profile keeps unknown identity and condition explicit, then matches raw and graded evidence", async ({
+test("catalog profile loads a labeled reference without assessing the owned condition, then matches raw and graded evidence", async ({
   page,
 }) => {
   const lookups = [];
@@ -377,6 +377,7 @@ test("profile keeps unknown identity and condition explicit, then matches raw an
     },
   });
   await openCard(page);
+  await expect(page.locator(".market-hero")).toContainText("$10.00");
   await expect(page.locator(".detail-meta")).toContainText("Reverse Holo");
   await expect(page.locator(".detail-meta")).toContainText("English");
   await expect(page.locator(".identity-details")).not.toHaveAttribute("open");
@@ -388,11 +389,10 @@ test("profile keeps unknown identity and condition explicit, then matches raw an
     "Reverse Holofoil",
   );
   await expect(page.locator(".identity-secondary")).toContainText("Unknown");
-  await expect(page.locator(".market-hero")).toContainText("Price unavailable");
-  await expect(page.locator(".market-hero")).toContainText(
-    "Choose the raw card's condition",
-  );
-  expect(lookups).toHaveLength(0);
+  await expect(page.locator(".market-hero")).toContainText("$10.00");
+  await expect(page.locator('[data-detail-tool="valuation-context"]')).toContainText("reference price");
+  expect(lookups).toHaveLength(1);
+  expect(await page.evaluate(async appUrl => (await import(appUrl)).state.detailCard.condition, appUrl)).toBeUndefined();
 
   await openValueContext(page);
   await page.locator("#detailValuationCondition").selectOption("Near Mint");

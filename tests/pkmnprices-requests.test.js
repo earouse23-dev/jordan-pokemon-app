@@ -256,7 +256,7 @@ test("sealed detail explicitly requests Cardmarket EUR and preserves returned ma
   assert.equal(product.quotes[0].amount, 50);
 });
 
-test("quota exhaustion in EUR or history stops the complete lookup without another paid request", async (t) => {
+test("history quota exhaustion retains the validated card and stops without another paid request", async (t) => {
   t.mock.method(pkmnPricesRequests, "claim", async () => {});
   for (const includeEur of [true, false]) {
     pkmnPricesRequests.cache.clear();
@@ -265,10 +265,14 @@ test("quota exhaustion in EUR or history stops the complete lookup without anoth
     t.mock.method(globalThis, "fetch", async () => {
       outbound++;
       return outbound === 1
-        ? Response.json({ id: 20618, prices: [] })
+        ? Response.json({ id: 20618, prices: [{source:"tcgplayer",currency:"USD",condition:"Near Mint",variant:"Holofoil",market_price:125.23}] })
         : Response.json({ error: { code: "quota_exceeded" } }, { status: 429 });
     });
-    await assert.rejects(fetchPkmnPricesLookup("fixture", { pkmnpricesId: "20618" }, undefined, { includeEur, includeEurHistory: true }), (error) => error.status === 429);
+    const result = await fetchPkmnPricesLookup("fixture", { pkmnpricesId: "20618" }, undefined, { includeEur, includeEurHistory: true });
+    assert.equal(result.card.id, 20618);
+    assert.equal(result.card.prices[0].market_price, 125.23);
+    assert.equal(result.historyStatus, "rate_limited");
+    assert.deepEqual(result.history, []);
     assert.equal(outbound, 2, "no retry, next currency or history page after exhaustion");
   }
 });

@@ -79,6 +79,7 @@ const changes = [
   "index.html",
   "themes.css",
   "lib/price-history.js",
+  "lib/image-source.js",
   "lib/pricing.js",
   "lib/portfolio.js",
   "lib/supabase-data.js",

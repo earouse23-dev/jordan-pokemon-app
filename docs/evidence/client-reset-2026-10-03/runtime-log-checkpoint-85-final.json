@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-10-08T15:37:40.367Z",
+  "deployment": "dpl_DMiMcK1j5EGYnrG7LRXhQzWCDYq6",
+  "boundedRows": 21,
+  "statusCounts": {
+    "200": 3,
+    "204": 2,
+    "401": 6,
+    "403": 2,
+    "404": 1,
+    "503": 7
+  },
+  "existingDeprecationWarnings": 3,
+  "applicationExceptions": 0,
+  "noClaimOfCompleteLogCoverage": true
+}

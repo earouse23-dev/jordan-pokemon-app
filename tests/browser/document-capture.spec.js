@@ -52,7 +52,7 @@ async function setup(
     visionPayload = null,
   } = {},
 ) {
-  const requests = { writes: [], vision: [], cameras: [], catalog: [] };
+  const requests = { writes: [], vision: [], cameras: [], catalog: [], pricing: [] };
   await page.addInitScript(text => {globalThis.__ocrText = text;}, visionPayload?.analysis?.identity?.grader ? "PSA GEM MT 10 Pikachu 025/165" : "Pikachu 025/165");
   await page.route(`**${appUrl}`, (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
@@ -78,6 +78,7 @@ async function setup(
     return route.fulfill({ contentType: "application/json", body: "[]" });
   });
   await page.route("**/api/**", (route) => {
+    if (route.request().url().includes("/api/cards")) requests.pricing.push(JSON.parse(new URL(route.request().url()).searchParams.get("lookups"))[0]);
     if (route.request().url().includes("/api/catalog")) {
       requests.catalog.push(route.request().url());
       const cards = visionPayload?.catalogResolution?.cards || [];
@@ -1246,4 +1247,26 @@ test("readable intake reaches recognition when card edges cannot be isolated", a
  expect(requests.vision[0].mode).toBe("identify");expect(requests.vision[0].images).toHaveLength(1);
  await expect(page.getByRole("button",{name:"Adjust edges",exact:true})).toHaveCount(0);
  expect(requests.writes.filter(r=>!r.path.endsWith("/rpc/record_ingestion_event"))).toHaveLength(0);
+});
+
+test("automatic raw match hydrates photo, price and history without saving a guessed condition", async ({page}) => {
+  const cards = [{id:"other",name:"Pikachu",set:"151",number:"025/165",language:"en",variants:["Holofoil","Normal"]}, {id:"mega",name:"M Charizard EX",set:"Evolutions",number:"101/108",language:"en",variants:["Holofoil","Normal"],externalIds:{tcgplayer:124114}}];
+  const requests = await setup(page,{recognition:true,experience:"intake",visionPayload:{analysis:{quality:{usable:true},identity:{name:"M Charizard EX",collectorNumber:"101/108",language:"en",cardState:"raw",confidence:.98}},catalogResolution:{cards,resolution:{status:"exact",recommendedId:"mega"}}}});
+  await page.route("https://images.pkmnprices.com/**",route=>route.fulfill({contentType:"image/svg+xml",body:'<svg xmlns="http://www.w3.org/2000/svg" width="100" height="140"><rect width="100" height="140" fill="green"/></svg>'}));
+  await page.route("**/api/cards?*",route=>{
+    const q={provider:"tcgplayer",aggregator:"pkmnprices",currency:"USD",condition:"Near Mint",finish:"holofoil",priceType:"market",amount:125,observedAt:new Date().toISOString(),retrievedAt:new Date().toISOString()};
+    return route.fulfill({contentType:"application/json",body:JSON.stringify({cards:[{images:{large:"https://images.pkmnprices.com/cards/24784.webp",small:"https://images.pkmnprices.com/cards/24784.webp"},externalIds:{pkmnprices:24784},quotes:[q],history:[{...q,recordedAt:"2026-10-01T00:00:00Z",amount:120},{...q,recordedAt:"2026-10-02T00:00:00Z"}],historyStatus:"live"}]})});
+  });
+  await installSyntheticDocument(page);
+  await page.evaluate(()=>{const i=document.querySelector("#deviceCameraUpload");i.files=globalThis.__syntheticTransfer.files;i.dispatchEvent(new Event("change",{bubbles:true}));});
+  await expect(page.locator("#detailTitle")).toHaveText("M Charizard EX");
+  await expect(page.locator(".market-hero")).toContainText("$125.00");
+  await expect(page.locator(".detail-image img")).toHaveAttribute("src","https://images.pkmnprices.com/cards/24784.webp");
+  await expect.poll(()=>page.locator(".detail-image img").evaluate(i=>i.complete&&i.naturalWidth>0)).toBe(true);
+  expect(await page.evaluate(()=>globalThis.__documentCaptureApp.state.detailPricing.priceHistory.length)).toBeGreaterThan(1);
+  expect(await page.evaluate(()=>globalThis.__documentCaptureApp.state.detailCard.condition)).toBeNull();
+  expect(requests.vision).toHaveLength(1);
+  expect(requests.writes.filter(r=>!r.path.endsWith("/rpc/record_ingestion_event"))).toHaveLength(0);
+  await page.locator("#addLibraryButton").click();
+  await expect(page.locator("#positionCondition")).toHaveValue("unknown");
 });
