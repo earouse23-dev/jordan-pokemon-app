@@ -2,10 +2,12 @@ import { expect, test } from "@playwright/test";
 import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-let ocrFiles, appBundle;
+let ocrFiles, appBundle, shippingPolicy;
 test.use({ serviceWorkers: "block" });
 test.beforeAll(async () => {
   const root = fileURLToPath(new URL("../../", import.meta.url));
+  shippingPolicy = JSON.parse(await readFile(`${root}vercel.json`, "utf8"))
+    .headers.flatMap((r) => r.headers).find((h) => h.key === "Content-Security-Policy").value;
   ocrFiles = new Map((
     await build({
       entryPoints: [`${root}lib/card-ocr.js`],
@@ -41,10 +43,21 @@ test("real local OCR reads pixels without photo upload or external requests", as
   page,
 }, testInfo) => {
   const outbound = [];
+  const origin = "https://mica-ocr-check.local";
+  expect(shippingPolicy).toContain("'wasm-unsafe-eval'");
+  expect(shippingPolicy).not.toContain("'unsafe-eval'");
+  // Serve the local fixture on an HTTPS origin so WebKit exercises the exact
+  // shipping policy, including upgrade-insecure-requests, without weakening it.
+  await page.route(`${origin}/**`, async (route) => {
+    const url = new URL(route.request().url());
+    const response = await route.fetch({ url: `${testInfo.project.use.baseURL || "http://127.0.0.1:4189"}${url.pathname}${url.search}` });
+    await route.fulfill({ response, headers: { ...response.headers(), "content-security-policy": shippingPolicy } });
+  });
+  ocrFiles.set("/ocr-check/csp-policy-probe.js", "export const evalBlocked = (() => { try { new Function('return 1')(); return false; } catch (e) { return e instanceof EvalError; } })();");
   page.on("request", (r) => {
     if (
       new URL(r.url()).origin !==
-      new URL(testInfo.project.use.baseURL || "http://127.0.0.1:4189").origin
+      origin
     )
       outbound.push(r.url());
   });
@@ -54,8 +67,9 @@ test("real local OCR reads pixels without photo upload or external requests", as
   await page.route("**/app.js*", (r) =>
     r.fulfill({ contentType: "application/javascript", body: "" }),
   );
-  await page.goto("/");
+  await page.goto(origin);
   const proof = await page.evaluate(async () => {
+    const { evalBlocked } = await import("/ocr-check/csp-policy-probe.js");
     const api = await import("/ocr-check/card-ocr.js");
     const start = performance.now();
     await api.warmCardOcr("en");
@@ -88,8 +102,9 @@ test("real local OCR reads pixels without photo upload or external requests", as
         ]).exact,
       });
     }
-    return { coldMs, results };
+    return { coldMs, results, evalBlocked };
   });
+  expect(proof.evalBlocked).toBe(true);
   for (const result of proof.results) {
     expect(result.number).toBe("76/73");
     expect(result.exact).toBe(true);

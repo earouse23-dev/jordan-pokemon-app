@@ -176,6 +176,13 @@ for (const name of [
     }
   }
 const config = await json(path.join(output, "config.json"));
+// Prebuilt headers must follow the reviewed source, not the historical snapshot.
+const sourceConfig = await json(path.join(source, "vercel.json"));
+const securityRoute = config.routes.find((r) => r.headers?.["Content-Security-Policy"]);
+assert(securityRoute, "Missing shipping security headers");
+securityRoute.headers["Content-Security-Policy"] = sourceConfig.headers
+  .flatMap((r) => r.headers)
+  .find((h) => h.key === "Content-Security-Policy").value;
 const start = config.routes.findIndex((r) => r.src === "^/profile/?$");
 assert(start >= 0);
 config.routes.splice(
