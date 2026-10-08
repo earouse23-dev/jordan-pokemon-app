@@ -443,6 +443,7 @@ export async function visionHandler(
         });
       }
     }
+    if (input.mode === "identify") modelPlan = modelPlan.slice(0, 1);
     const successfulResponses = [];
     const failedResponses = [];
     const precisionMode = !advisorMode && input.mode === "grade";
@@ -638,11 +639,7 @@ export async function visionHandler(
       analysis.searchQuery?.length >= 2
     ) {
       try {
-        const language = ["en", "ja", "de"].includes(
-          String(analysis.identity?.language || "").toLowerCase(),
-        )
-          ? String(analysis.identity.language).toLowerCase()
-          : "en";
+        const language = String(analysis.identity?.language || "en").toLowerCase();
         const internal = await searchInternalCatalog(
           database,
           analysis.searchQuery,
@@ -793,4 +790,9 @@ function handler(request, response) {
   return visionHandler(request, response);
 }
 
-export default withNativeCors(releaseHold, ["POST"]);
+// Only identification is authorized. Other AI surfaces retain their release hold.
+export const identificationHandler = withNativeCors((request, response) =>
+  request.method === "POST" && request.body?.mode !== "identify"
+    ? releaseHold(request, response)
+    : visionHandler(request, response), ["POST"]);
+export default identificationHandler;

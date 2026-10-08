@@ -190,6 +190,9 @@ test("parses mixed collector searches without treating the full query as a name"
     providerId: null,
     hints: [],
   });
+  assert.equal(parseCatalogQuery("MCharizard EX 101/108").name, "M Charizard EX");
+  assert.equal(parseCatalogQuery("Mew EX 46/124").name, "Mew EX");
+  assert.equal(parseCatalogQuery("Mewtwo EX 54/99").name, "Mewtwo EX");
   assert.equal(parseCatalogQuery("Pikachu 151").name, "Pikachu");
   assert.equal(parseCatalogQuery("Pikachu 151").setName, "151");
   assert.equal(parseCatalogQuery("Pikachu 151").localId, "");

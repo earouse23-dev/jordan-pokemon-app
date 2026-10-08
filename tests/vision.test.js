@@ -471,7 +471,7 @@ test("identity mode requests only printed identity and a bounded output", () => 
       .filter((part) => part.type === "input_text")
       .map((part) => part.text)
       .join(" "),
-    /device-prepared evidence sheet/i,
+    /full front photograph.*collector number at either bottom corner/i,
   );
 });
 
@@ -1037,3 +1037,7 @@ test("PSA holdout evaluation measures exact half-grade labels and rejects card l
   assert.equal(temporalLeak.checks.captureIsolation, false);
   assert.equal(temporalLeak.checks.temporalIsolation, false);
 });
+
+test("printed language names normalize before catalog lookup",()=>{for(const [language,code] of [["English","en"],["Japanese","ja"],["German","de"],["ko","ko"]]){const a=normalizeVisionOutput("identify",{quality:{usable:true},identity:{isPokemonCard:true,name:"Pikachu",collectorNumber:"025/165",language,confidence:.9}});assert.equal(a.identity.language,code);}});
+
+test("separately printed EX tag completes catalog title without inventing a collector number",()=>{const a=normalizeVisionOutput("identify",{quality:{usable:true},identity:{isPokemonCard:true,name:"M Charizard",language:"English",printingHints:["EX"],collectorNumber:null,confidence:.7}});assert.equal(a.searchQuery,"M Charizard EX");assert.equal(a.identity.collectorNumber,null);});

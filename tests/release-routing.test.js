@@ -206,16 +206,16 @@ test("shipping cards retain public fallback when Pro is absent and never enable 
 
 test('shipping Pro routes and shared dispatch require authentication, enforce methods and CORS before outbound', async () => {
   const env={...process.env}, fetch=globalThis.fetch;let outbound=0;
-  Object.assign(process.env,{PKMNPRICES_API_KEY:'synthetic-pro',PKMNPRICES_PLAN:'pro',NEXT_PUBLIC_SUPABASE_URL:'https://fixture.supabase.co',SUPABASE_SECRET_KEY:'synthetic-server'});
+  Object.assign(process.env,{PKMNPRICES_API_KEY:'synthetic-pro',PKMNPRICES_PLAN:'pro',NEXT_PUBLIC_SUPABASE_URL:'https://fixture.supabase.co',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'fixture-public',SUPABASE_SECRET_KEY:'synthetic-server'});
   globalThis.fetch=async()=>{outbound++;throw Error('Unexpected outbound');};
   const lookup=JSON.stringify({clientId:'route-fixture',pkmnpricesId:'10195',language:'en',grader:'PSA',grade:'9',variant:'Holofoil'});
   try {
-    assert.deepEqual(Object.keys(proRoutes).sort(),['graded-valuation','offers','sales','sealed']);
+    assert.deepEqual(Object.keys(proRoutes).sort(),['graded-valuation','offers','sales','sealed','vision']);
     for(const [name,methods] of Object.entries(proRoutes)){
       const shipping=(await import(`../api/${name}.js`)).default;
       const suffix=name==='sealed'?'?id=33':`?lookup=${encodeURIComponent(lookup)}`;
       for(const handler of [shipping,sharedHold]){
-        const request={url:`/api/${name}${suffix}`,query:name==='sealed'?{id:'33'}:{lookup},headers:{host:'jordan-pokemon-app.vercel.app',origin:'capacitor://localhost'},body:{positionId:'11111111-1111-4111-8111-111111111111'}};
+        const request={url:`/api/${name}${suffix}`,query:name==='sealed'?{id:'33'}:{lookup},headers:{host:'jordan-pokemon-app.vercel.app',origin:'capacitor://localhost'},body:name==='vision'?{mode:'identify',images:['data:image/jpeg;base64,ZmFrZQ==']}:{positionId:'11111111-1111-4111-8111-111111111111'}};
         const anonymous=response();await handler({...request,method:methods[0]},anonymous);
         assert.equal(anonymous.statusCode,401,name);assert.notEqual(anonymous.body.code,'release_hold');assert.match(anonymous.headers['Cache-Control'],/no-store/);
         for(const method of ['GET','POST','PUT','PATCH','DELETE','HEAD'].filter(m=>!methods.includes(m))){const r=response();await handler({...request,method},r);assert.equal(r.statusCode,405,name);assert.equal(r.headers.Allow,methods.join(', '));}
@@ -244,3 +244,5 @@ test('shipping known-card Pro lookup uses one bounded detail, returns EUR and US
     assert.equal(calls.length,1);assert.deepEqual(claims,[1]);
   } finally {process.env=env;globalThis.fetch=fetch;pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();}
 });
+
+test("identification release keeps every other AI mode held before any outbound call",async()=>{const {default:vision}=await import("../api/vision.js");const original=globalThis.fetch;let outbound=0;globalThis.fetch=async()=>{outbound++;throw Error("Unexpected outbound");};try{for(const handler of [vision,sharedHold])for(const mode of ["grade","match","sealed","advisor",null,"unknown"]){const r=response();await handler({url:"/api/vision",method:"POST",headers:{},body:{mode,images:["data:image/jpeg;base64,AA=="]}},r);assert.equal(r.statusCode,503);assert.equal(r.body.code,"release_hold");assert.match(r.headers["Cache-Control"],/no-store/);}assert.equal(outbound,0);}finally{globalThis.fetch=original;}});

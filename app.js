@@ -1,4 +1,3 @@
-import { warmCardOcr, readCardText, matchOcrCards } from "./lib/card-ocr.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -12153,6 +12152,12 @@ async function openDeviceCamera({
         !adjustments.hidden
       )
         return;
+      if (experience === "intake" && !prepared.corrected && prepared.geometry?.reason !== "multiple_documents") {
+        // Identification can read the full frame; rejected edges are not a crop.
+        manualGeometry = null;
+        deliverPhoto(file);
+        return;
+      }
       if (prepared.corrected) {
         manualGeometry = prepared.geometry;
         review.src = prepared.dataUrl;
@@ -12464,7 +12469,6 @@ async function openDeviceCamera({
     }, 180);
   };
 
-  if (experience === "intake") void warmCardOcr($("#quickSearchLanguage")?.value || $("#publicCatalogLanguage")?.value || "en").catch(() => {});
   const startCamera = async (deviceId = "") => {
     if (!operationIsCurrent()) return;
     const currentStart = ++cameraStartVersion;
@@ -13731,7 +13735,7 @@ async function prepareVisionImage(file, options = {}) {
     evidenceCanvas.width,
     evidenceCanvas.height,
   );
-  if (!detailOnly && !acceptedGeometry)
+  if (!detailOnly && !acceptedGeometry && options.purpose !== "collectible")
     qualityCheck.blockers.push(
       "Mica could not confirm the document edges. Adjust the edges or retake with the full card or slab visible.",
     );
@@ -13751,6 +13755,8 @@ async function prepareVisionImage(file, options = {}) {
     qualityCheck.blockers.push(
       "The card was photographed at an angle. Move directly above it and retake.",
     );
+  if (options.purpose === "collectible" && isolatedCard?.reason === "multiple_documents")
+    qualityCheck.blockers.push("More than one card detected · use one card.");
   // Condition measurements stay on the unwarped source crop. Projective
   // correction is only for reading identity and presenting a useful preview.
   const borderSample =
@@ -15363,48 +15369,7 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
   }
 }
 
-async function identifyCardLocally(front, operationId, startedAt) {
-  const ownerId = state.session?.user?.id || null;
-  const loadVersion = sessionLoadVersion;
-  const current = () => (state.session?.user?.id || null) === ownerId && sessionLoadVersion === loadVersion && $("#bottomSheet").dataset.visionOperation === operationId && $("#visionLocalCheck");
-  const language = $("#quickSearchLanguage")?.value || $("#publicCatalogLanguage")?.value || "en";
-  try {
-    const remaining = () => Math.max(1, 5000 - (performance.now() - startedAt));
-    const identity = await readCardText(front.previewDataUrl || front.dataUrl, { language, documentKind: front.documentCapture?.kind, timeoutMs: remaining() });
-    if (!current()) return;
-    if (!identity.query) throw new Error("Could not read one card number · move closer and try again.");
-    $("#visionLocalCheck").textContent = "Finding your card…";
-    const result = await searchCatalog(identity.query.includes("/") ? identity.query : `#${identity.query}`, identity.language, 24, { timeoutMs: remaining() });
-    if (!current()) return;
-    const match = matchOcrCards(identity, result.items);
-    if (!match.cards.length) throw new Error("No clear match · retake or search the printed name and number.");
-    const openMatch = (card) => {
-      if (!current()) return;
-      const prefill = { cardState: identity.cardState, grader: identity.grader, grade: identity.grade, certificationNumber: identity.certificationNumber, rawCondition: "unknown", acquisitionCostKnown: false, acquisitionDateKnown: false };
-      closeSheet({ discardHistory: true, force: true });
-      if (state.visionDestination === "trade") {
-        state.visionDestination = null;
-        addTradeCard(card, state.trade.addingTo);
-        routeTo("trade");
-        return;
-      }
-      const identified = { ...card, cardState: identity.cardState, gradingCompany: identity.grader || null, grade: identity.grade || null, condition: "unknown" };
-      openCardDetail(identified, false, valuationContextForItem(identified));
-      state.detailScanDraft = { ownerId, loadVersion, selectionKey: detailIdentityKey(card), options: { prefill, photoDataUrl: front.previewDataUrl || front.dataUrl, ingestionChannel: String(front.captureMetadata?.captureMethod || "").includes("camera") ? "camera" : "upload", ingestionConfidence: null } };
-    };
-    if (match.exact && !result.hasMore) return openMatch(match.cards[0]);
-    $("#visionLocalCheck").innerHTML = `<strong>Choose the matching version</strong>${match.cards.map((card, index) => `<button class="catalog-result" type="button" data-ocr-match="${index}"><img src="${esc(card.thumb || card.image || "/icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(card.variant || "Version unknown")}</small></span></button>`).join("")}`;
-    $$("[data-ocr-match]").forEach(button => button.addEventListener("click", () => openMatch(match.cards[Number(button.dataset.ocrMatch)])));
-  } catch (error) {
-    if (!current()) return;
-    $("#visionLocalCheck").textContent = error.name === "AbortError" ? "Matching took too long · try again." : error.message || "Could not read this card · try again.";
-    $("#photoAssistRetry").hidden = false;
-    $("#photoAssistSearch").hidden = false;
-  }
-}
-
 async function showProcessing(file) {
-  const startedAt = performance.now();
   const operationId = crypto.randomUUID();
   const previewUrl = URL.createObjectURL(file);
   $("#capturePreview").innerHTML =
@@ -15448,7 +15413,7 @@ async function showProcessing(file) {
       ? `<strong>Retake this photo</strong> ${front.blockers.map((blocker) => `<span>${esc(blocker)}</span>`).join(" ")} <span></span>`
       : front.warnings.length
         ? `<strong>Improve accuracy if possible</strong> ${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join(" ")}`
-        : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · photo stays on this device</span>`;
+        : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · photo is sent privately for identification</span>`;
     $("#photoAssistSearch").hidden = frontReady;
   } catch (error) {
     if (!$("#visionLocalCheck") || $("#bottomSheet").dataset.visionOperation !== operationId) return;
@@ -15463,7 +15428,7 @@ async function showProcessing(file) {
   $("#photoAssistRetry")?.addEventListener("click", () =>
     openDeviceCamera({ kind: "card", automatic: true, experience: "intake", onPhoto: showProcessing }),
   );
-  if (frontReady && front) void identifyCardLocally(front, operationId, startedAt);
+  if (frontReady && front) void analyzeCardImages("identify", [front]);
 }
 
 function catalogItem(item, selectedVariant = "") {

@@ -132,13 +132,15 @@ for (const [name, methods] of Object.entries(heldRoutes)) {
 }
 // Real packaged exports must reach authentication, never an unconditional hold.
 process.env.PKMNPRICES_API_KEY = "synthetic-pro-routing-check";
+process.env.NEXT_PUBLIC_SUPABASE_URL = "https://routing-check.supabase.co";
+process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "synthetic-routing-key";
 const lookup = JSON.stringify({ clientId: "routing-check", pkmnpricesId: "10195", language: "en", grader: "PSA", grade: "9", variant: "Holofoil" });
 for (const [name, methods] of Object.entries(proRoutes)) {
   const url = "/api/" + name, r = resolve(url);
   assert.equal(r.dest, "/_release-hold");
   assert.equal(r.caseSensitive, true);
   assert.deepEqual(r.transforms, [{ type: "request.path", op: "set", args: url }]);
-  const request = { url: url + (name === "sealed" ? "?id=33" : "?lookup=" + encodeURIComponent(lookup)), query: name === "sealed" ? { id: "33" } : { lookup }, headers: {}, body: {} };
+  const request = { url: url + (name === "sealed" ? "?id=33" : "?lookup=" + encodeURIComponent(lookup)), query: name === "sealed" ? { id: "33" } : { lookup }, headers: {}, body: name === "vision" ? { mode: "identify", images: ["data:image/jpeg;base64,AA=="] } : {} };
   const anonymous = response();
   await handler({ ...request, method: methods[0] }, anonymous);
   assert.equal(anonymous.statusCode, 401, name);

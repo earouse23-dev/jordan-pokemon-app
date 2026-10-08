@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-08T05:08:14.223Z",
+  "deployment": "dpl_DWrB3ngcdKQ5GaWhXAbggT4ZffAP",
+  "errorLevelRows": 3,
+  "deprecationWarnings": 3,
+  "applicationExceptions": 0,
+  "rows": [
+    {
+      "path": "/api/catalog",
+      "status": 200,
+      "classification": "Node DEP0169 url.parse deprecation from existing runtime bridge"
+    },
+    {
+      "path": "/api/sealed",
+      "status": 401,
+      "classification": "Node DEP0169 url.parse deprecation from existing runtime bridge"
+    },
+    {
+      "path": "/api/capabilities",
+      "status": 200,
+      "classification": "Node DEP0169 url.parse deprecation from existing runtime bridge"
+    }
+  ]
+}

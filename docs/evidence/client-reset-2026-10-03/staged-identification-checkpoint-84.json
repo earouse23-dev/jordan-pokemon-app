@@ -1,0 +1,115 @@
+{
+  "checkedAt": "2026-10-08T05:03:54.652Z",
+  "deployment": "dpl_DWrB3ngcdKQ5GaWhXAbggT4ZffAP",
+  "status": 200,
+  "elapsedMs": 6719,
+  "identity": {
+    "isPokemonCard": true,
+    "name": "MCharizard EX",
+    "setName": null,
+    "collectorNumber": "101/108",
+    "language": "en",
+    "rarity": "star",
+    "variant": null,
+    "finish": null,
+    "promoInfo": null,
+    "artworkDescription": null,
+    "printingHints": [
+      "Mega",
+      "EX"
+    ],
+    "cardState": "raw",
+    "grader": null,
+    "grade": null,
+    "certificationNumber": null,
+    "confidence": 0.79
+  },
+  "quality": {
+    "usable": true,
+    "confidence": 0.72,
+    "issues": []
+  },
+  "catalogResolution": {
+    "status": "exact",
+    "recommendedId": "tcgdex:en:xy12-101",
+    "recommendedCollectibleId": null,
+    "confidence": 0.98,
+    "ambiguity": [
+      "multiple_variants"
+    ],
+    "requiresConfirmation": true,
+    "variantResolution": {
+      "ruleVersion": "identity-match-v1",
+      "status": "review",
+      "recommendedId": null,
+      "confidence": 1,
+      "requiresConfirmation": true,
+      "ambiguity": [
+        "tied_candidates"
+      ],
+      "candidates": [
+        {
+          "id": "2c9c7a7b-697d-4405-8456-465e3eee1d3a",
+          "score": 30,
+          "possible": 30,
+          "confidence": 1,
+          "matches": [
+            "name",
+            "number",
+            "language",
+            "edition",
+            "promoType"
+          ],
+          "mismatches": [],
+          "disqualified": false
+        },
+        {
+          "id": "319e7532-41d1-4f82-af26-af2f1c3a7d70",
+          "score": 30,
+          "possible": 30,
+          "confidence": 1,
+          "matches": [
+            "name",
+            "number",
+            "language",
+            "edition",
+            "promoType"
+          ],
+          "mismatches": [],
+          "disqualified": false
+        }
+      ]
+    }
+  },
+  "catalogCards": [
+    {
+      "id": "tcgdex:en:xy12-101",
+      "name": "M Charizard EX",
+      "number": "101/108",
+      "set": "Evolutions",
+      "language": "en"
+    },
+    {
+      "id": "tcgdex:en:xy12-13",
+      "name": "M Charizard EX",
+      "number": "13/108",
+      "set": "Evolutions",
+      "language": "en"
+    }
+  ],
+  "model": "openai/gpt-5-mini",
+  "metrics": {
+    "latencyMs": 5114,
+    "inputTokens": 1294,
+    "outputTokens": 446,
+    "independentReviews": 1,
+    "referenceReviews": 0,
+    "referenceCompared": false
+  },
+  "privacy": {
+    "imagePersisted": false,
+    "resultPersisted": false
+  },
+  "customerInventoryWrites": 0,
+  "sqlExecuted": false
+}

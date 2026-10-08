@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-08T05:03:04.091Z",
+  "stage": "/tmp/mica-client-reset-corrected",
+  "functions": 9,
+  "deployEntries": 62,
+  "sourceEntries": 96,
+  "deploymentZipSha256": "04b49c18d61ab155f8dfd037c560008bb5ef861c00477e301182611e451cd0fb",
+  "sourceZipSha256": "facef8f91dcfab6823b7977f53f41d8e8cf3599ae2e63cb6d1011e57cce89c9c",
+  "manifestSha256": "930bc151cc66001a859ed274c47cec19450fde62b9fabd2da1e10179ea6668ca",
+  "repeatBuildIdentical": true,
+  "changedSource": [
+    "api/capabilities.js",
+    "api/vision.js",
+    "app.js",
+    "lib/held-routes.js",
+    "lib/providers/tcgdex.js",
+    "lib/vision.js",
+    "scripts/build-release.mjs",
+    "sw.js"
+  ],
+  "entriesScanned": 158,
+  "privateFindings": 0,
+  "certificateExclusionFiles": 47
+}
