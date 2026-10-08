@@ -1,0 +1,8 @@
+{
+  "checkedAt": "2026-10-08T16:41:29.619Z",
+  "deployment": "dpl_Bw1KAm3wZThrHehu17zbmZGAs5y8",
+  "sampleRows": 45,
+  "applicationErrorRows": 0,
+  "boundedSample": true,
+  "privateLogsRetainedOutsideRepository": true
+}
