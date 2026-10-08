@@ -1,0 +1,134 @@
+[
+  {
+    "path": "/assets/ocr/CORE-LICENSE.txt",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 11358
+  },
+  {
+    "path": "/assets/ocr/README.md",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 883
+  },
+  {
+    "path": "/assets/ocr/TESSERACT-LICENSE.txt",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 11357
+  },
+  {
+    "path": "/assets/ocr/deu.traineddata.gz",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 1333102
+  },
+  {
+    "path": "/assets/ocr/eng.traineddata.gz",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 2952873
+  },
+  {
+    "path": "/assets/ocr/jpn.traineddata.gz",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 2030256
+  },
+  {
+    "path": "/assets/ocr/tesseract-core-lstm.wasm.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 3896484
+  },
+  {
+    "path": "/assets/ocr/tesseract-core-relaxedsimd-lstm.wasm.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 3905767
+  },
+  {
+    "path": "/assets/ocr/tesseract-core-relaxedsimd.wasm.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 4697227
+  },
+  {
+    "path": "/assets/ocr/tesseract-core-simd-lstm.wasm.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 3899472
+  },
+  {
+    "path": "/assets/ocr/tesseract-core-simd.wasm.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 4690932
+  },
+  {
+    "path": "/assets/ocr/tesseract-core.wasm.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 4687944
+  },
+  {
+    "path": "/assets/ocr/worker.min.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 111307
+  },
+  {
+    "path": "/chunks/auto-DPN3JED2.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 205340
+  },
+  {
+    "path": "/chunks/chunk-7UP7ZM55.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 8248
+  },
+  {
+    "path": "/chunks/chunk-IUFDSBGV.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 367
+  },
+  {
+    "path": "/chunks/dist-WCNWKNQV.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 319
+  },
+  {
+    "path": "/chunks/esm-CVVTAYHK.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 161
+  },
+  {
+    "path": "/chunks/esm-TEOS2DOJ.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 185
+  },
+  {
+    "path": "/chunks/src-SDHZUK6T.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 17409
+  },
+  {
+    "path": "/chunks/web-B3HCCM6Z.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 1266
+  },
+  {
+    "path": "/chunks/web-GIHVZDBN.js",
+    "status": 200,
+    "hashMatched": true,
+    "bytes": 868
+  }
+]

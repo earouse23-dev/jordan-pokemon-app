@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-10-08T03:50:41.599Z",
+  "production": "dpl_DeJBW4DYbettVM9XbKoijuaX4Y6M",
+  "canonicalAlias": "jordan-pokemon-app.vercel.app",
+  "uniqueUrl": "jordan-pokemon-p98tk3vqk-earouse23-devs-projects.vercel.app",
+  "ready": true,
+  "liveAssetHashesMatched": true,
+  "cronDeployment": "dpl_DeJBW4DYbettVM9XbKoijuaX4Y6M",
+  "cron": {
+    "path": "/api/capabilities?surface=grading-deletion",
+    "schedule": "15 5 * * *"
+  },
+  "gitBuildGuard": "exit 0",
+  "gitDeploymentSuppression": true
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "engine": "chromium",
+    "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://assets.tcgdex.net https://images.pokemontcg.io https://product-images.tcgplayer.com https://tcgplayer-cdn.tcgplayer.com https://*.ssl.cf1.rackcdn.com https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; media-src 'self' blob:; font-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "result": {
+      "ready": true,
+      "text": "Pikachu 025/165\n",
+      "ms": 730.5
+    },
+    "logs": [
+      "Warning: Parameter not found: language_model_ngram_on",
+      "Warning: Parameter not found: segsearch_max_char_wh_ratio",
+      "Warning: Parameter not found: language_model_ngram_space_delimited_language",
+      "Warning: Parameter not found: language_model_ngram_scale_factor",
+      "Warning: Parameter not found: language_model_use_sigmoidal_certainty",
+      "Warning: Parameter not found: language_model_ngram_nonmatch_score",
+      "Warning: Parameter not found: classify_integer_matcher_multiplier",
+      "Warning: Parameter not found: assume_fixed_pitch_char_segment",
+      "Warning: Parameter not found: chop_enable",
+      "Warning: Parameter not found: allow_blob_division"
+    ]
+  },
+  {
+    "engine": "webkit",
+    "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://assets.tcgdex.net https://images.pokemontcg.io https://product-images.tcgplayer.com https://tcgplayer-cdn.tcgplayer.com https://*.ssl.cf1.rackcdn.com https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; media-src 'self' blob:; font-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests",
+    "result": {
+      "ready": true,
+      "text": "Pikachu 025/165\n",
+      "ms": 511.0000000000001
+    },
+    "logs": [
+      "Warning: Parameter not found: language_model_ngram_on",
+      "Warning: Parameter not found: segsearch_max_char_wh_ratio",
+      "Warning: Parameter not found: language_model_ngram_space_delimited_language",
+      "Warning: Parameter not found: language_model_ngram_scale_factor",
+      "Warning: Parameter not found: language_model_use_sigmoidal_certainty",
+      "Warning: Parameter not found: language_model_ngram_nonmatch_score",
+      "Warning: Parameter not found: classify_integer_matcher_multiplier",
+      "Warning: Parameter not found: assume_fixed_pitch_char_segment",
+      "Warning: Parameter not found: chop_enable",
+      "Warning: Parameter not found: allow_blob_division"
+    ]
+  }
+]

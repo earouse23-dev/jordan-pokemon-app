@@ -1,0 +1,323 @@
+[
+  {
+    "browserName": "chromium",
+    "input": "ja-charizard",
+    "expected": "ja",
+    "logs": [
+      {
+        "stage": "decode",
+        "ms": 43.100000001490116
+      },
+      {
+        "stage": "prepare",
+        "width": 1174,
+        "height": 1617,
+        "kind": "card",
+        "corrected": true,
+        "blockers": [],
+        "warnings": [],
+        "ms": 158.29999999701977
+      },
+      {
+        "stage": "ocr",
+        "language": "ja",
+        "query": "201/165",
+        "text": "45 | リザ ー ド ン < ー a\n\nHus. miki kvdo\n\nG\n\n.\n\n201/165 AR\n\n201/165 RR\n\nEE\n\nリザ ー ド ン 2“ く 。\n",
+        "ms": 658
+      },
+      {
+        "stage": "catalog",
+        "items": [
+          {
+            "name": "リザードンex",
+            "number": "201/165",
+            "language": "ja",
+            "variant": "Non-holo"
+          }
+        ],
+        "hasMore": false,
+        "ms": 2071.39999999851
+      },
+      {
+        "stage": "match",
+        "exact": true,
+        "items": [
+          {
+            "name": "リザードンex",
+            "number": "201/165",
+            "language": "ja"
+          }
+        ],
+        "ms": 2072.89999999851
+      }
+    ],
+    "failedAt": null
+  },
+  {
+    "browserName": "chromium",
+    "input": "ja-pikachu",
+    "expected": "ja",
+    "logs": [
+      {
+        "stage": "decode",
+        "ms": 31.80000000447035
+      },
+      {
+        "stage": "prepare",
+        "width": 1174,
+        "height": 1617,
+        "kind": "card",
+        "corrected": true,
+        "blockers": [],
+        "warnings": [],
+        "ms": 113.90000000596046
+      },
+      {
+        "stage": "ocr",
+        "language": "ja",
+        "query": "",
+        "text": "ンー シビ カ チュ ウ Bb\n\n~~\n\n一\n\n-——\n\n-\n\nMus. Yuu Nishida\n\nWiki 1\n\n(©) 236/150 s\n\nL\n\n©2023 Pokémon/Nintendo/Creatures\n\nJ) 236/190 る i\n\nWhe 一 気 に 放っ て くる 。 :\n\nピカチュウ |\n",
+        "ms": 620.4000000059605
+      }
+    ],
+    "failedAt": "printed_number"
+  },
+  {
+    "browserName": "chromium",
+    "input": "en-charizard",
+    "expected": "en",
+    "logs": [
+      {
+        "stage": "decode",
+        "ms": 34.400000005960464
+      },
+      {
+        "stage": "prepare",
+        "width": 1143,
+        "height": 1586,
+        "kind": "card",
+        "corrected": true,
+        "blockers": [],
+        "warnings": [],
+        "ms": 139.20000000298023
+      },
+      {
+        "stage": "ocr",
+        "language": "en",
+        "query": "199/165",
+        "text": "< @harizard @¥\n\n[]\n\n199/165 ーー\n\n199/165 + +\n\nonent takes 2 Prize cards.\n\nSharizard (7\n",
+        "ms": 475.80000000447035
+      },
+      {
+        "stage": "catalog",
+        "items": [
+          {
+            "name": "Charizard ex",
+            "number": "199/165",
+            "language": "en",
+            "variant": "Holofoil"
+          },
+          {
+            "name": "Charizard ex",
+            "number": "199/165",
+            "language": "en",
+            "variant": "Non-holo"
+          }
+        ],
+        "hasMore": false,
+        "ms": 1086.5
+      },
+      {
+        "stage": "match",
+        "exact": false,
+        "items": [
+          {
+            "name": "Charizard ex",
+            "number": "199/165",
+            "language": "en"
+          },
+          {
+            "name": "Charizard ex",
+            "number": "199/165",
+            "language": "en"
+          }
+        ],
+        "ms": 1087.4000000059605
+      }
+    ],
+    "failedAt": "variant_ambiguity"
+  },
+  {
+    "browserName": "webkit",
+    "input": "ja-charizard",
+    "expected": "ja",
+    "logs": [
+      {
+        "stage": "decode",
+        "ms": 38
+      },
+      {
+        "stage": "prepare",
+        "width": 1174,
+        "height": 1617,
+        "kind": "card",
+        "corrected": true,
+        "blockers": [],
+        "warnings": [],
+        "ms": 283
+      },
+      {
+        "stage": "ocr",
+        "language": "ja",
+        "query": "201/165",
+        "text": "リザ ー ド ン 5?。 op\n\nHis. miki kudo\n\nG6\n\nロ\n\n201/165 AR\n\n201/165 AR\n\nEE\n\nリザ ー ド ン 2<。\n",
+        "ms": 790
+      },
+      {
+        "stage": "catalog",
+        "items": [
+          {
+            "name": "リザードンex",
+            "number": "201/165",
+            "language": "ja",
+            "variant": "Non-holo"
+          }
+        ],
+        "hasMore": false,
+        "ms": 841
+      },
+      {
+        "stage": "match",
+        "exact": true,
+        "items": [
+          {
+            "name": "リザードンex",
+            "number": "201/165",
+            "language": "ja"
+          }
+        ],
+        "ms": 842
+      }
+    ],
+    "failedAt": null
+  },
+  {
+    "browserName": "webkit",
+    "input": "ja-pikachu",
+    "expected": "ja",
+    "logs": [
+      {
+        "stage": "decode",
+        "ms": 34
+      },
+      {
+        "stage": "prepare",
+        "width": 1174,
+        "height": 1617,
+        "kind": "card",
+        "corrected": true,
+        "blockers": [],
+        "warnings": [],
+        "ms": 207
+      },
+      {
+        "stage": "ocr",
+        "language": "ja",
+        "query": "236/190",
+        "text": "“= ピカ チュ ウ a\n\nーー\n\n一\n\n-—\n\n-\n\nが が gs. Yuu Nishida\n\nWikiciz *\n\n回 lw4ql 236/190 る\n\nL\n\n©2023 Pokémon/Nintendo/Creatures\n\nJ 236/190 る 。\n\nWhe 一 気 に 放っ て くる 。\n\nピカチュウ |\n",
+        "ms": 721
+      },
+      {
+        "stage": "catalog",
+        "items": [
+          {
+            "name": "ピカチュウ",
+            "number": "236/190",
+            "language": "ja",
+            "variant": "Non-holo"
+          }
+        ],
+        "hasMore": false,
+        "ms": 1158
+      },
+      {
+        "stage": "match",
+        "exact": true,
+        "items": [
+          {
+            "name": "ピカチュウ",
+            "number": "236/190",
+            "language": "ja"
+          }
+        ],
+        "ms": 1158
+      }
+    ],
+    "failedAt": null
+  },
+  {
+    "browserName": "webkit",
+    "input": "en-charizard",
+    "expected": "en",
+    "logs": [
+      {
+        "stage": "decode",
+        "ms": 51
+      },
+      {
+        "stage": "prepare",
+        "width": 1143,
+        "height": 1586,
+        "kind": "card",
+        "corrected": true,
+        "blockers": [],
+        "warnings": [],
+        "ms": 216.00000000000045
+      },
+      {
+        "stage": "ocr",
+        "language": "en",
+        "query": "199/165",
+        "text": "< @harizard @2\n\n[4\n\n199/165 °°\n\n199/165 ¥\n\nonent takes 2 Prize cards. q\n\nSharizardeg る\n",
+        "ms": 554
+      },
+      {
+        "stage": "catalog",
+        "items": [
+          {
+            "name": "Charizard ex",
+            "number": "199/165",
+            "language": "en",
+            "variant": "Holofoil"
+          },
+          {
+            "name": "Charizard ex",
+            "number": "199/165",
+            "language": "en",
+            "variant": "Non-holo"
+          }
+        ],
+        "hasMore": false,
+        "ms": 688.0000000000005
+      },
+      {
+        "stage": "match",
+        "exact": false,
+        "items": [
+          {
+            "name": "Charizard ex",
+            "number": "199/165",
+            "language": "en"
+          },
+          {
+            "name": "Charizard ex",
+            "number": "199/165",
+            "language": "en"
+          }
+        ],
+        "ms": 688.0000000000005
+      }
+    ],
+    "failedAt": "variant_ambiguity"
+  }
+]

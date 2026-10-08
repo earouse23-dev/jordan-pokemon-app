@@ -1,0 +1,72 @@
+[
+  {
+    "engine": "chromium",
+    "assetDelayMs": 0,
+    "elapsedMs": 886,
+    "detailTitle": "リザードンex",
+    "hasDraft": true,
+    "owner": "11111111-1111-4111-8111-111111111111",
+    "errors": [],
+    "calls": [
+      {
+        "method": "GET",
+        "path": "/api/catalog"
+      }
+    ],
+    "assetCalls": [
+      "/assets/ocr/worker.min.js",
+      "/assets/ocr/tesseract-core-relaxedsimd-lstm.wasm.js",
+      "/assets/ocr/eng.traineddata.gz",
+      "/assets/ocr/jpn.traineddata.gz"
+    ]
+  },
+  {
+    "engine": "chromium",
+    "assetDelayMs": 5500,
+    "elapsedMs": 5021,
+    "readingMessage": "Reading took too long · try a closer photo.",
+    "hasDraft": false,
+    "errors": [],
+    "calls": [],
+    "assetCalls": [
+      "/assets/ocr/worker.min.js"
+    ]
+  },
+  {
+    "engine": "webkit",
+    "assetDelayMs": 0,
+    "elapsedMs": 987,
+    "detailTitle": "リザードンex",
+    "hasDraft": true,
+    "owner": "11111111-1111-4111-8111-111111111111",
+    "errors": [
+      "'text/plain' is not a valid JavaScript MIME type."
+    ],
+    "calls": [
+      {
+        "method": "GET",
+        "path": "/api/catalog"
+      }
+    ],
+    "assetCalls": [
+      "/assets/ocr/worker.min.js",
+      "/assets/ocr/tesseract-core-simd-lstm.wasm.js",
+      "/assets/ocr/eng.traineddata.gz",
+      "/assets/ocr/jpn.traineddata.gz"
+    ]
+  },
+  {
+    "engine": "webkit",
+    "assetDelayMs": 5500,
+    "elapsedMs": 5006,
+    "readingMessage": "Reading took too long · try a closer photo.",
+    "hasDraft": false,
+    "errors": [
+      "'text/plain' is not a valid JavaScript MIME type."
+    ],
+    "calls": [],
+    "assetCalls": [
+      "/assets/ocr/worker.min.js"
+    ]
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "policySource": "actual staged worker response",
+  "assetSource": "curated candidate bytes, checked against staged manifest hashes",
+  "wasmAllowed": true,
+  "javascriptEvalAllowed": false,
+  "results": [
+    {
+      "engine": "chromium",
+      "text": "Pikachu 025/165\n",
+      "ms": 298,
+      "errors": []
+    },
+    {
+      "engine": "webkit",
+      "text": "Pikachu 025/165\n",
+      "ms": 324,
+      "errors": []
+    }
+  ]
+}
