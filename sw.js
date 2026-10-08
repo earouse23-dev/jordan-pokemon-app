@@ -1,4 +1,4 @@
-const SHELL_CACHE = "mica-shell-scan-screen-87";
+const SHELL_CACHE = "mica-shell-package-mobile-88";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [

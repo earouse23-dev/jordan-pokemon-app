@@ -4,7 +4,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=111";
+const appUrl = "/app.js?v=114";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -34,7 +34,7 @@ async function openSecondaryTools(page) {
 }
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=111", (route) =>
+  await page.route("**/app.js?v=114", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -200,7 +200,7 @@ test("consecutive daily prices retain their connecting trend line", async ({
   await expect
     .poll(() =>
       page.evaluate(async () => {
-        const { chartInstance } = await import("/app.js?v=111");
+        const { chartInstance } = await import("/app.js?v=114");
         return chartInstance
           ?.getDatasetMeta(0)
           .dataset.segments.map(({ start, end }) => ({ start, end }));

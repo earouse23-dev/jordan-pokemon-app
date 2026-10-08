@@ -186,3 +186,12 @@ test("light and dark mode persist, retaining green primary actions", async ({
   const result=await page.evaluate(async()=>{const api=await import("/ocr-check/card-ocr.js");await api.warmCardOcr("en");const c=document.createElement("canvas");c.width=800;c.height=1120;const x=c.getContext("2d");x.fillStyle="white";x.fillRect(0,0,800,1120);x.fillStyle="black";x.font="bold 50px sans-serif";x.fillText("ピカチュウex",80,90);x.font="bold 26px Arial";x.fillText("023/106",60,1040);const id=await api.readCardText(c.toDataURL(),{language:"en"});return {query:id.query,language:id.language,exact:api.matchOcrCards(id,[{name:"ピカチュウex",number:"023/106",language:"ja"}]).exact};});
   expect(result).toEqual({query:"23/106",language:"ja",exact:true});
  });
+
+test("package photo reads the complete label locally under shipping CSP", async ({page}) => {
+ test.setTimeout(45000);const origin="https://mica-package-check.local",outbound=[];
+ await page.route(origin+"/**",async route=>{const u=new URL(route.request().url());const response=await route.fetch({url:"http://127.0.0.1:4189"+u.pathname+u.search});await route.fulfill({response,headers:{...response.headers(),"content-security-policy":shippingPolicy}});});
+ await page.route("**/ocr-check/**",r=>r.fulfill({contentType:"application/javascript",body:ocrFiles.get(new URL(r.request().url()).pathname)}));
+ await page.route("**/app.js*",r=>r.fulfill({contentType:"application/javascript",body:""}));page.on("request",r=>{if(new URL(r.url()).origin!==origin)outbound.push(r.url());});await page.goto(origin);
+ const result=await page.evaluate(async()=>{const api=await import("/ocr-check/card-ocr.js");const c=document.createElement("canvas");c.width=1200;c.height=700;const x=c.getContext("2d");x.fillStyle="white";x.fillRect(0,0,c.width,c.height);x.fillStyle="black";x.font="bold 70px Arial";x.fillText("CROWN ZENITH",100,260);x.font="bold 55px Arial";x.fillText("ELITE TRAINER BOX",100,400);return api.readPackageText(c.toDataURL());});
+ expect(result).toBe("CROWN ZENITH ELITE TRAINER BOX");expect(outbound).toEqual([]);
+});

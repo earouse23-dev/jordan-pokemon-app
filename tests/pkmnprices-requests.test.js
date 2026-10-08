@@ -223,7 +223,7 @@ test("pacing headroom covers delayed delivery within the ten-second deadline", (
   assert(maximum <= 60);
 });
 
-test("sealed detail explicitly requests Cardmarket EUR and preserves returned mapped links", async (t) => {
+test("sealed detail requests both available currencies and preserves returned mapped links", async (t) => {
   pkmnPricesRequests.cache.clear();
   pkmnPricesRequests.pending.clear();
   t.mock.method(pkmnPricesRequests, "claim", async (url) =>
@@ -232,7 +232,7 @@ test("sealed detail explicitly requests Cardmarket EUR and preserves returned ma
   t.mock.method(globalThis, "fetch", async (input) => {
     const url = new URL(input);
     assert.equal(url.pathname, "/v1/sealed/42");
-    assert.equal(url.searchParams.get("currency"), "eur");
+    assert.equal(url.searchParams.get("currency"), null);
     return Response.json({
       id: 42,
       name: "Synthetic ETB",
@@ -277,28 +277,38 @@ test("history quota exhaustion retains the validated card and stops without anot
   }
 });
 
-test("sealed EUR history uses its own bounded endpoint and keeps source aggregates separate from sold evidence", async (t) => {
+test("sealed USD and EUR history use their bounded endpoints and keeps source aggregates separate from sold evidence", async (t) => {
   pkmnPricesRequests.cache.clear();
   const bounds = [], urls = [];
   t.mock.method(pkmnPricesRequests, "claim", async url => bounds.push(requestCreditBound(url)));
   t.mock.method(globalThis, "fetch", async input => {
     const url = new URL(input); urls.push(url);
-    assert.equal(url.searchParams.get("currency"), "eur");
     if (url.pathname.endsWith("/prices/history")) {
+      const currency = url.searchParams.get("currency");
+      assert.ok(["usd", "eur"].includes(currency));
       assert.equal(url.pathname, "/v1/sealed/5678/prices/history");
       assert.equal(url.searchParams.get("period"), "365d");
       assert.equal(url.searchParams.get("limit"), "365");
       const page = Number(url.searchParams.get("page"));
-      return Response.json({ data: [{ date: page === 1 ? "2026-10-01" : "2026-10-02", avg: page * 100, source: "cardmarket", currency: "EUR", condition: "Near Mint" }], pagination: { page, total_pages: 2 } });
+      return Response.json({ data: [{ date: page === 1 ? "2026-10-01" : "2026-10-02", avg: page * 100, source: currency === "eur" ? "cardmarket" : "tcgplayer", currency: currency.toUpperCase(), condition: "Near Mint" }], pagination: { page, total_pages: 2 } });
     }
     return Response.json({ id: 5678, name: "Fixture ETB", prices: [] });
   });
   const product = await fetchPkmnPricesSealedProduct("fixture", "5678", undefined, { includeHistory: true });
-  assert.deepEqual(bounds, [1, 365, 365]);
-  assert.equal(urls.length, 3);
+  assert.deepEqual(bounds, [1, 365, 365, 365, 365]);
+  assert.equal(urls.length, 5);
   assert.equal(product.historyStatus, "live");
-  assert.deepEqual(product.history.map(point => [point.amount, point.currency, point.finish, point.gradingCompany]), [[100, "EUR", "sealed", null], [200, "EUR", "sealed", null]]);
+  assert.deepEqual(product.history.map(point => [point.amount, point.currency, point.finish, point.gradingCompany]), [[100, "USD", "sealed", null], [200, "USD", "sealed", null], [100, "EUR", "sealed", null], [200, "EUR", "sealed", null]]);
   assert.equal(product.history[0].quality.sourceCondition, "Near Mint");
   assert.equal(product.capabilities.completedSales, "not_requested");
   assert.equal(product.quotes.length, 0, "history does not invent a current quote");
+});
+
+
+test("sealed optional history quota failure retains current prices and stops further paid reads", async t => {
+  pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
+  t.mock.method(pkmnPricesRequests,"claim",async()=>{});let calls=0;
+  t.mock.method(globalThis,"fetch",async()=>{calls++;return calls===1?Response.json({id:88,name:"Fixture box",prices:[{source:"tcgplayer",currency:"USD",market_price:120,created_at:new Date().toISOString()}]}):Response.json({error:{code:"quota_exceeded"}},{status:429});});
+  const product=await fetchPkmnPricesSealedProduct("fixture",88,undefined,{includeHistory:true});
+  assert.equal(product.quotes[0].amount,120);assert.equal(product.quotes[0].currency,"USD");assert.equal(product.historyStatus,"rate_limited");assert.deepEqual(product.history,[]);assert.equal(calls,2);
 });

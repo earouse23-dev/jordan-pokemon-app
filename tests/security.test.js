@@ -596,7 +596,7 @@ test("Mica uses one approved cream and sage interface across focused modes", () 
   assert.match(themes, /--canvas:\s*#f5f0e4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-card-layout-86-final/);
+  assert.match(serviceWorker, /mica-shell-package-mobile-88/);
   assert.match(serviceWorker, /themes\.css\?v=85/);
 });
 

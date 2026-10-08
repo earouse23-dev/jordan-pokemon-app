@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-08T21:37:05.351Z",
+  "deployment": "dpl_9qnUz6eCQsVNkcWsFimf6ucsVpB8",
+  "realMinifiedPackageOcr": true,
+  "syntheticPrintedLabel": true,
+  "exactCatalogVersionSelected": true,
+  "providerId": 291,
+  "currentPriceVisible": true,
+  "historyChartVisible": true,
+  "singleFloatingAddProduct": true,
+  "noPurchaseFormUntilAdd": true,
+  "mobileWidth": 390,
+  "noHorizontalOverflow": true,
+  "elapsedMs": 14469,
+  "uncaughtErrors": [],
+  "inventoryWrites": 0,
+  "blockedBrowserWrites": 2,
+  "paidAiCalls": 0,
+  "exactShippingCsp": true
+}

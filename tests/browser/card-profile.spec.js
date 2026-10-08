@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { normalizeTcgdexCard } from "../../lib/providers/tcgdex.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=111";
+const appUrl = "/app.js?v=114";
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const otherOwnerId = "99999999-9999-4999-8999-999999999999";
 const baselineFile = process.env.MICA_CARD_PROFILE_BASELINE_FILE;
@@ -169,7 +169,7 @@ async function setup(
   page,
   { onCards, onSupabase, accountProfiles = null } = {},
 ) {
-  await page.route("**/app.js?v=111", (route) =>
+  await page.route("**/app.js?v=114", (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
   if (baselineStyles)
@@ -1959,4 +1959,15 @@ test("public display rate completes across session changes instead of stranding 
     return app.state.displayFxStatus;
   }, { appUrl, otherOwnerId });
   expect(status).toBe("ready");
+});
+
+for (const phase of ["while loading", "after loading"]) test(`same-account Safari auth announcement preserves card prices and history ${phase}`, async ({page}) => {
+ const fresh=quote({amount:100,observedAt:new Date().toISOString(),retrievedAt:new Date().toISOString()}); const payload=pricingPayload([fresh]); payload.cards[0].history=[{...fresh,amount:90,recordedAt:"2026-10-01T00:00:00Z"},{...fresh,recordedAt:"2026-10-02T00:00:00Z"}]; payload.cards[0].historyStatus="live";
+ let pending; await setup(page, {onCards: route => { pending=route; }}); await initializeAccount(page, ownerId); await openCard(page); await expect.poll(()=>Boolean(pending)).toBe(true);
+ if (phase === "after loading") { await pending.fulfill({contentType:"application/json",body:JSON.stringify(payload)}); await expect(page.locator(".market-hero")).toContainText("$100.00"); }
+ const before = await page.evaluate(async url=>{const app=await import(url); const before={route:app.state.route,id:app.state.detailId}; await app.applySession({user:{id:app.state.session.user.id},access_token:"refreshed-fixture-token"}); return before;},appUrl);
+ expect(before.route).toBe("detail"); await expect(page.locator("#detailTitle")).toHaveText("Pikachu");
+ if (phase === "while loading") await pending.fulfill({contentType:"application/json",body:JSON.stringify(payload)});
+ await expect(page.locator(".market-hero")).toContainText("$100.00"); await expect(page.locator("#positionChart")).toBeVisible();
+ expect(await page.evaluate(async url=>{const app=await import(url);return app.state.session.access_token;},appUrl)).toBe("refreshed-fixture-token");
 });

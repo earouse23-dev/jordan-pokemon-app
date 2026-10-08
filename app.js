@@ -2882,7 +2882,7 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
     ? `<p class="chart-purchases-note">${model.purchases.length} purchase${model.purchases.length === 1 ? "" : "s"} with a known date and amount in this range.</p>`
     : "";
   return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${item.cardState !== "graded" && ["partial", "unavailable", "error"].includes(item.historyStatus) && points.length ? '<p class="chart-context">Some historical prices could not be loaded. This chart shows the available records.</p>' : ""}
-    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable.` : ""}</p>${points.length === 1 ? '<p class="chart-context">One recorded price in this range. More prices are needed to show a trend.</p>' : ""}<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}</div>`;
+    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${points.length === 1 ? '<p class="chart-context">One recorded price in this range. More prices are needed to show a trend.</p>' : ""}<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}</div>`;
 }
 
 async function mountPriceChart(item, history = historyForItem(item)) {
@@ -2909,6 +2909,8 @@ async function mountPriceChart(item, history = historyForItem(item)) {
   const graph = $(".chart-wrap", root);
   const summary = $(".history-summary", root);
   if (graph) { root.prepend(graph); graph.after($(".history-range-select", root)); }
+  const values = $(".history-values", root);
+  if (values && summary) { values.append(summary); root.querySelectorAll(".chart-context, .chart-purchases-note").forEach(note => values.append(note)); }
   const canvas = $("#positionChart", root);
   const collapsedPrices = canvas?.closest('[data-detail-tool="prices"]');
   if (!canvas || (collapsedPrices && !collapsedPrices.open)) return;
@@ -7878,6 +7880,8 @@ async function loadSealedDetailPricing(item, guard = beginDetailRequest(item)) {
     if (!accountRequestIsCurrent(ownerId, loadVersion) || !detailRequestIsCurrent(guard)) return;
     const product = payload.product;
     if (!product) return;
+    // The unique-ID detail omits language; retain the selected catalog context.
+    product.language ||= item.language;
     if (!sealedProductMatches(item, product)) {
       const unavailable = { ...item, price: null, referencePrice: null, quotes: [], pricingStatus: "missing", pricingReason: "provider_identity_mismatch" };
       if (item.uid) state.items = state.items.map((candidate) => candidate.uid === item.uid ? unavailable : candidate);
@@ -8739,7 +8743,7 @@ function renderDetail() {
     (item.tags || []).some((tag) => String(tag).toLowerCase() === "favorites");
   const action = owned
     ? `<div class="owned-banner"><div><span>${Number(item.quantity) === 0 ? "Sold copy" : item.status === "listed" ? "Listed for sale" : "In your collection"}</span><strong>${physicalCopy ? `${copyGroup.activeCount} active ${copyGroup.activeCount === 1 ? "copy" : "copies"}` : `${item.quantity} owned`} · ${ownedValuationPrice == null ? "Current price unavailable" : `${displayCurrencyMoney(ownedValuationPrice, owned.currency)} each`}</strong></div><div class="owned-actions"><button class="favorite-heart${favorite ? " selected" : ""}" id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>${copyNavigation}${!sealed && !item.gradingCompany && item.status === "owned" ? `<section class="detail-digital-grade"><div><span>${item.digitalGrade ? "Digital grade" : "Ungraded card"}</span><strong>${item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Check condition before you submit"}</strong><small>${item.digitalGrade ? "Your latest photo estimate" : "Four guided views · one uninterrupted grader"}</small></div><button id="detailDigitalGradeButton" type="button">${item.digitalGrade ? "Regrade" : "Digital grade"}</button></section>` : ""}`
-    : state.detailScanDraft ? `<div class="detail-sticky-action scan-add-action"><button id="addLibraryButton" type="button">Add card</button></div>` : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched ? "Edit Watch" : sealed ? "Watch product" : "Watch card"}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
+    : state.detailScanDraft ? `<div class="detail-sticky-action scan-add-action"><button id="addLibraryButton" type="button">${sealed ? "Add product" : "Add card"}</button></div>` : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched ? "Edit Watch" : sealed ? "Watch product" : "Watch card"}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
   const watchedPerformance = watched
     ? watchPerformance({
         startingPrice: watched.startingMarketPrice,
@@ -9271,7 +9275,7 @@ function openSealedSearch(defaults = {}) {
   let photoCandidate = defaults.photoCandidate || null;
   let photoVersion = 0;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find unopened products</h2><p>Search the PkmnPrices product list.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search unopened products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="de">German</option></select></div></div><div class="sealed-photo-check"><label for="sealedPhoto">Compare a box photo <span class="optional-label">Optional</span></label><input id="sealedPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"><img id="sealedPhotoPreview" alt="Selected unopened product photo for visual comparison" hidden><small>The photo suggests printed details. Confirm an exact product or correct it manually; the private photo is saved only after you save the product.</small></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search unopened products</strong><span>Try a set name plus booster box, Elite Trainer Box, tin, bundle, or collection.</span></div></div><p class="legal-copy">Product details and prices come from PkmnPrices. Confirm the exact product and language before adding it.</p><div class="sheet-actions"><button class="secondary" id="manualSealedEntry" type="button">Enter product manually</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find unopened products</h2><p>Search the PkmnPrices product list.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search unopened products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="de">German</option></select></div></div><div class="sealed-photo-check"><label class="sealed-photo-button" for="sealedPhoto">Take a box or ETB photo</label><input class="sr-only" id="sealedPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"><img id="sealedPhotoPreview" alt="Selected unopened product photo for visual comparison" hidden><small>Read the front of the package, then choose its exact version.</small></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search unopened products</strong><span>Try a set name plus booster box, Elite Trainer Box, tin, bundle, or collection.</span></div></div><p class="legal-copy">Product details and prices come from PkmnPrices. Confirm the exact product and language before adding it.</p><div class="sheet-actions"><button class="secondary" id="manualSealedEntry" type="button">Enter product manually</button></div>`,
   );
   const input = $("#sealedQuery");
   const language = $("#sealedLanguage");
@@ -9279,6 +9283,7 @@ function openSealedSearch(defaults = {}) {
   const preferredLanguage = defaults.language === "jp" ? "ja" : defaults.language;
   language.value = ["en", "ja", "de"].includes(preferredLanguage) ? preferredLanguage : "en";
   const results = $("#sealedResults");
+  const photoOwner = state.session?.user?.id, photoLoadVersion = sessionLoadVersion;
   $("#sealedPhoto").addEventListener("change", async (event) => {
     const version = ++photoVersion;
     requestId += 1;
@@ -9312,16 +9317,12 @@ function openSealedSearch(defaults = {}) {
       if (dataUrl.length > 1_800_000) throw new Error("Photo is too large to analyze.");
       const previousQuery = input.value;
       results.innerHTML = '<div class="searching-cards" role="status">Reading printed package details…</div>';
-      const payload = await requestVisionAnalysis("sealed", [{ dataUrl }], [], { requestId: crypto.randomUUID() });
-      if (version !== photoVersion || !input.isConnected || input.value !== previousQuery) return;
-      photoCandidate = payload.analysis?.candidate || null;
-      if (!photoCandidate?.name) {
-        results.innerHTML = '<div class="find-empty">Product name unreadable. Search or enter it manually.</div>';
-        return;
-      }
-      input.value = photoCandidate.name;
-      if ([...language.options].some((option) => option.value === photoCandidate.language)) language.value = photoCandidate.language;
-      results.innerHTML = '<div class="find-empty">Photo suggestion only. Confirm the exact product below.</div>';
+      const { readPackageText } = await import("./lib/card-ocr.js");
+      const query = await readPackageText(dataUrl, language.value);
+      if (version !== photoVersion || !input.isConnected || input.value !== previousQuery || !accountRequestIsCurrent(photoOwner, photoLoadVersion)) return;
+      if (!query) { results.innerHTML = '<div class="find-empty">Package name unreadable. Search the printed name below.</div>'; return; }
+      input.value = query;
+      if (/[\p{Script=Hiragana}\p{Script=Katakana}]/u.test(query)) language.value = "ja";
       void search();
     } catch (error) {
       if (version === photoVersion && input.isConnected)
@@ -9347,7 +9348,7 @@ function openSealedSearch(defaults = {}) {
         { headers: providerRequestHeaders() },
       );
       const payload = await response.json().catch(() => ({}));
-      if (current !== requestId) return;
+      if (current !== requestId || !input.isConnected || !accountRequestIsCurrent(photoOwner, photoLoadVersion)) return;
       if (response.status === 403) {
         results.innerHTML =
           '<div class="pro-data-empty"><strong>Unopened-product search is ready to connect</strong><p>The current PkmnPrices plan cannot search these products. After the plan upgrade, results will appear here without another app change.</p></div>';
@@ -9373,10 +9374,13 @@ function openSealedSearch(defaults = {}) {
               { headers: providerRequestHeaders() },
             );
             const payload = await response.json();
+            if (current !== requestId || !input.isConnected || !accountRequestIsCurrent(photoOwner, photoLoadVersion)) return;
             if (!response.ok || !payload.product)
               throw new Error(payload.error || "Product unavailable");
             const product = payload.product;
             const selected = products.find((candidate) => candidate.id === product.id);
+            // Retain language from the filtered catalog result, never override a conflicting detail.
+            product.language ||= selected?.language;
             if (!sealedProductMatches(selected, product))
               throw new Error("Product details changed or language could not be confirmed. Search again or enter it manually.");
             if (photoCandidate && !sealedPhotoCandidateMatches(photoCandidate, product))
@@ -9384,17 +9388,18 @@ function openSealedSearch(defaults = {}) {
             const quote = selectReferenceQuote(
               product.quotes,
               product.variant,
-              "USD",
+              displayCurrency(),
               {},
-            );
+            ) || selectReferenceQuote(product.quotes, product.variant, displayCurrency() === "USD" ? "EUR" : "USD", {});
             const pricing = quotePricingFields(quote, product, product);
             const detailed = {
               ...product,
               ...pricing,
+              currency: quote?.currency || displayCurrency(),
               priceCapabilities: product.capabilities || null,
             };
             closeSheet({ discardHistory: true });
-            openSealedPositionSheet(detailed, { ingestionChannel: photoFile ? "upload" : "search", photoFile });
+            openCardDetail(detailed, false, null, photoFile ? { ownerId: photoOwner, loadVersion: photoLoadVersion, selectionKey: detailIdentityKey(detailed), options: { ingestionChannel: "upload", photoFile } } : null);
           } catch (error) {
             button.disabled = false;
             button.querySelector("b").textContent = "Retry";
@@ -20842,7 +20847,7 @@ async function retryAccountLoad() {
 async function applySession(session) {
   if (nativeBuild && nativeRuntime()?.failed) session = null;
   // Token refresh and duplicate startup announcements must not close active work.
-  if (nativeBuild && session && state.session?.user?.id === session.user?.id) {
+  if (session?.user?.id && state.session?.user?.id === session.user.id && (nativeBuild || state.accountLoading || state.profile)) {
     state.session = session;
     return;
   }

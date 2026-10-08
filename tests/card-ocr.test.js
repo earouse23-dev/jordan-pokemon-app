@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { parseCardText, matchOcrCards } from "../lib/card-ocr.js";
+import { parseCardText, matchOcrCards, packageSearchQuery } from "../lib/card-ocr.js";
 const card = {
   name: "Mewtwo GX",
   number: "076/073",
@@ -66,3 +66,7 @@ assert.equal(matchOcrCards(parseCardText('ビ カ チ ュ ウ ex 023/106','ja'),
 assert.equal(matchOcrCards(parseCardText('リザードンex 023/106','ja'),[{name:'ピカチュウex',number:'023/106',language:'ja'}]).exact,false);
 assert.equal(matchOcrCards(japanese,[{name:'',number:'023/106',language:'ja'}]).exact,false);
 assert.equal(matchOcrCards(parseCardText('リザ ー ド ン 2 々 201/165','ja'),[{name:'リザードンex',number:'201/165',language:'ja'}]).exact,true);
+
+assert.equal(packageSearchQuery("POKEMON\nTRADING CARD GAME\nCROWN ZENITH\nELITE TRAINER BOX\nAges 6+"), "CROWN ZENITH ELITE TRAINER BOX");
+assert.equal(packageSearchQuery("Surging Sparks Booster Box\nWarning: choking hazard"), "Surging Sparks Booster Box");
+assert.equal(packageSearchQuery(""), "");

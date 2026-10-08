@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-08T21:40:45.347Z",
+  "unitPasses": 545,
+  "unitSkips": 3,
+  "distinctBrowserPasses": 312,
+  "conditionalBrowserSkips": 15,
+  "affectedAuthPriceMobileNativePasses": 155,
+  "sealedPasses": 60,
+  "captureAndShippingOcrPasses": 97,
+  "lintFiles": 98,
+  "syntax": true,
+  "repeatedBuildIdentical": true,
+  "functions": 9,
+  "certificateExclusionFiles": 47,
+  "assertionCorrections": [
+    "Test app URLs now match the shipping script URL; duplicate app instances caused fake auth resets and native callback races.",
+    "The sold-copy portfolio assertion now requires $0 remaining portfolio value and $50 realised P/L in the separate P/L summary.",
+    "FX fallback asserts an intact original-currency graph and a real retry instead of expecting prices to be hidden.",
+    "Sealed detail tests require available USD/EUR and mapped links; history checks require both source currencies and retain quota-stop assertions."
+  ],
+  "physicalIphoneAcceptance": false,
+  "freshCardRecognition": false,
+  "inventoryWriteAcceptance": false
+}

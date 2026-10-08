@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-08T21:32:17.750Z",
+  "origin": "https://jordan-pokemon-app.vercel.app",
+  "checks": [
+    {
+      "kind": "card",
+      "name": "Zoroark GX",
+      "providerId": 19484,
+      "currentQuotes": 9,
+      "historyRows": 104,
+      "imagePresent": true,
+      "elapsedMs": 4009
+    },
+    {
+      "kind": "sealed",
+      "name": "Crown Zenith Elite Trainer Box",
+      "providerId": 291,
+      "quoteCount": 1,
+      "currentPricePresent": true,
+      "listMs": 382,
+      "detailMs": 172,
+      "historyRows": 57
+    }
+  ],
+  "existingIsolatedDemoReadOnly": true,
+  "inventoryWrites": 0,
+  "paidAiCalls": 0
+}

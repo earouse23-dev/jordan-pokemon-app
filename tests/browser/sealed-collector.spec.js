@@ -10,12 +10,13 @@ import { loadCollectionPositionAttachments, loadPortfolio } from "../../lib/supa
 import { portfolioProfitLoss, portfolioProfitLossHistory } from "../../lib/portfolio.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=111";
+const appUrl = "/app.js?v=114";
 let bundle;
 
 test.use({ serviceWorkers: "block" });
+test.beforeEach(async ({page}) => { await page.addInitScript(()=>{globalThis.__packageReadingInputs=[];globalThis.__readPackageText=async source=>{globalThis.__packageReadingInputs.push(source);return globalThis.__packageQuery || "Synthetic Elite Trainer Box";};}); });
 test.beforeAll(async () => {
-  const source = await readFile(new URL("../../app.js", import.meta.url), "utf8");
+  const source = (await readFile(new URL("../../app.js", import.meta.url), "utf8")).replace('const { readPackageText } = await import("./lib/card-ocr.js");', 'const readPackageText = globalThis.__readPackageText;');
   const result = await build({
     stdin: { contents: `${source}\nexport { state, supabase, openSealedSearch, openSealedPositionSheet, openCardDetail, loadSealedDetailPricing, restoreIntakeQueue };`, resolveDir: root, sourcefile: "app.js" },
     bundle: true, format: "esm", platform: "browser", target: "es2022", write: false,
@@ -24,13 +25,15 @@ test.beforeAll(async () => {
 });
 
 async function setup(page) {
-  await page.route("**/app.js?v=111", (route) => route.fulfill({ contentType: "application/javascript", body: bundle }));
+  await page.route("**/app.js?v=114", (route) => route.fulfill({ contentType: "application/javascript", body: bundle }));
   await page.route("**/app-config.js*", (route) => route.fulfill({ contentType: "application/javascript", body: 'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-sealed-test.supabase.co",supabasePublishableKey:"fixture-key"};' }));
   await page.route("https://mica-sealed-test.supabase.co/**", (route) => route.fulfill({ contentType: "application/json", body: "[]" }));
   await page.goto("/");
   await page.evaluate(async (url) => {
     const module = await import(url);
     globalThis.fixtureSealedApp = module;
+    await module.supabase.auth.getSession();
+    await new Promise(resolve => setTimeout(resolve, 0));
     const { state } = module;
     state.session = { access_token: "synthetic-token", user: { id: "11111111-1111-4111-8111-111111111111" } };
     state.accountLoading = false;
@@ -57,8 +60,8 @@ test("sealed candidate rejects wrong language, preserves correction and retries 
   await page.locator("#sealedPhoto").setInputFiles({ name: "synthetic-box.png", mimeType: "image/png", buffer: Buffer.from(photo, "base64") });
   await expect(page.locator("#sealedPhotoPreview")).toBeVisible();
   await expect(page.locator("[data-sealed-id]")).toBeVisible();
-  expect(visionRequests).toHaveLength(1);
-  expect(visionRequests[0]).toMatchObject({ mode: "sealed", images: [expect.stringMatching(/^data:image\/jpeg;base64,/)] });
+  expect(visionRequests).toHaveLength(0);
+  expect(await page.evaluate(()=>globalThis.__packageReadingInputs)).toEqual([expect.stringMatching(/^data:image\/jpeg;base64,/)]);
   await page.locator("[data-sealed-id]").click();
   await expect(page.locator("#sealedResults")).toContainText("Retry");
   await page.locator("[data-sealed-id]").click();
@@ -138,7 +141,7 @@ test("07E disposable sealed form survives lost response and fresh login with own
   let preCommitFailed = false;
   const attachmentResponses = [];
   const routePage = async (target) => {
-    await target.route("**/app.js?v=111", (route) => route.fulfill({ contentType: "application/javascript", body: bundle }));
+    await target.route("**/app.js?v=114", (route) => route.fulfill({ contentType: "application/javascript", body: bundle }));
     await target.route("**/app-config.js*", (route) => route.fulfill({ contentType: "application/javascript", body: `globalThis.__APP_CONFIG__=${JSON.stringify({ supabaseUrl: "https://mica-07e-test.supabase.co", supabasePublishableKey: anonKey })};` }));
     await target.route("**/api/**", (route) => route.fulfill({ contentType: "application/json", body: "{}" }));
     await target.route("**/api/vision", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ analysis: { candidate: { name: "Synthetic ETB", set: "Synthetic Set", language: "en", sealedRegion: "EU", productType: "elite_trainer_box", sealedVariant: "Standard" }, requiresConfirmation: true } }) }));
@@ -180,6 +183,7 @@ test("07E disposable sealed form survives lost response and fresh login with own
     await expect(page.locator("#onboardingDialog")).toHaveCount(0);
     await page.evaluate(async (url) => (await import(url)).openSealedSearch(), appUrl);
     const photo = await page.evaluate(() => { const canvas = document.createElement("canvas"); canvas.width = 40; canvas.height = 40; canvas.getContext("2d").fillRect(0, 0, 40, 40); return canvas.toDataURL("image/png").split(",")[1]; });
+    await page.evaluate(()=>{globalThis.__packageQuery="Synthetic ETB";});
     await page.locator("#sealedPhoto").setInputFiles({ name: "synthetic-etb.png", mimeType: "image/png", buffer: Buffer.from(photo, "base64") });
     await expect(page.locator("#sealedQuery")).toHaveValue("Synthetic ETB");
     await page.getByRole("button", { name: "Enter product manually" }).click();
@@ -229,7 +233,7 @@ test("07E disposable sealed form survives lost response and fresh login with own
     expect((await loadPortfolio(sibling, createdIds[1])).find((item) => item.uid === saved[0].uid)).toBeUndefined();
     const forbidden = await sibling.from("collection_items").select("id").eq("id", saved[0].uid);
     expect(forbidden.data).toEqual([]);
-    await page.evaluate(async () => { const { supabase } = await import("/app.js?v=111"); await supabase.auth.signOut(); });
+    await page.evaluate(async () => { const { supabase } = await import("/app.js?v=114"); await supabase.auth.signOut(); });
     freshContext = await browser.newContext();
     const freshPage = await freshContext.newPage();
     await routePage(freshPage);
@@ -285,11 +289,12 @@ test("sealed history converts display amounts with dated FX and preserves native
   await page.route("**/api/fx", route => route.fulfill({ status: rateAvailable ? 200 : 503, contentType: "application/json", body: JSON.stringify(rateAvailable ? { sourceId: "ecb-eurofxref-daily", sourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", base: "EUR", quote: "USD", units: "USD per EUR", rate: 1.25, effectiveDate: date, fetchedAt: new Date().toISOString(), contentSha256: hash, rateRef: "ecb-eurofxref-daily:" + date + ":" + hash } : {}) }));
   await page.route("**/api/sealed?*", route => route.fulfill({ contentType: "application/json", body: JSON.stringify({ product: historyProduct }) }));
   await openHistoryProduct(page, "USD");
-  await expect(page.locator("#cardPriceHistory")).toContainText("Currency conversion unavailable");
+  await expect(page.locator("#positionChart")).toBeVisible();
+  await page.locator(".history-values > summary").click();
+  await expect(page.locator("#cardPriceHistory")).toContainText("display conversion is unavailable");
   rateAvailable = true;
   await page.locator("[data-retry-history-fx]").click();
   await expect(page.locator("#positionChart")).toBeVisible();
-  await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values")).toContainText("$125.00 · original €100.00");
   await expect(page.locator(".chart-context").filter({ hasText: "Display conversion uses ECB" })).toContainText("not historical exchange rates");
   expect(await page.evaluate(() => globalThis.fixtureSealedApp.state.items[0].currency)).toBe("EUR");
@@ -520,4 +525,11 @@ test('sealed recovery belongs to its original owner and rejects a mismatched res
   const result=await page.evaluate(()=>{const app=globalThis.fixtureSealedApp;const key='mica:intake-queue:v1:11111111-1111-4111-8111-111111111111';const stored=localStorage.getItem(key),entry=app.state.intakeQueue[0];app.state.session={user:{id:'22222222-2222-4222-8222-222222222222'}};const restored=app.restoreIntakeQueue(stored);app.openSealedPositionSheet(entry.card,{recoveryEntry:entry});return {restored:restored.length,originalUnchanged:localStorage.getItem(key)===stored,newOwnerDraft:localStorage.getItem('mica:intake-queue:v1:22222222-2222-4222-8222-222222222222')};});
   expect(result).toEqual({restored:0,originalUnchanged:true,newOwnerDraft:null});
   await expect(page.locator('#bottomSheet')).toBeHidden();expect(writes).toBe(1);
+});
+
+for (const currency of ["USD", "EUR"]) test(`box photo opens exact product with native ${currency} price before any save`, async ({page})=>{
+ await setup(page);const calls=[],writes=[];await page.route("https://mica-sealed-test.supabase.co/**",r=>{writes.push(r.request().method());return r.fulfill({contentType:"application/json",body:"[]"});});
+ const product={id:"sealed:77",name:"Synthetic Elite Trainer Box",set:"Synthetic Set",language:"en",productType:"elite_trainer_box",variant:"Sealed product",externalIds:{pkmnpricesSealed:77},cardState:"sealed",quotes:[{provider:currency === "EUR" ? "cardmarket" : "tcgplayer",aggregator:"pkmnprices",currency,finish:"sealed",condition:null,priceType:"market",amount:125,observedAt:new Date().toISOString(),retrievedAt:new Date().toISOString()}]};
+ await page.route("**/api/sealed?*",r=>{calls.push(r.request().url());return r.fulfill({contentType:"application/json",body:JSON.stringify(new URL(r.request().url()).searchParams.has("id")?{product:{...product,language:null}}:{products:[product]})});});
+ await page.evaluate(async url=>(await import(url)).openSealedSearch(),appUrl);const photo=await page.evaluate(()=>{const c=document.createElement("canvas");c.width=c.height=200;return c.toDataURL("image/png").split(",")[1];});await page.locator("#sealedPhoto").setInputFiles({name:"box.png",mimeType:"image/png",buffer:Buffer.from(photo,"base64")});await expect(page.locator("[data-sealed-id]")).toBeVisible();await page.locator("[data-sealed-id]").click();await expect(page.locator("#detailTitle")).toHaveText(product.name);await expect(page.locator(".market-hero")).toContainText(currency === "EUR" ? "€125.00" : "$125.00");await expect(page.getByRole("button",{name:"Add product",exact:true})).toBeVisible();await expect(page.locator("#sealedPositionForm")).toHaveCount(0);expect(writes.filter(m=>!["GET","HEAD"].includes(m))).toHaveLength(0);await page.locator("#addLibraryButton").click();await expect(page.locator("#sealedPositionForm")).toBeVisible();expect(calls.some(url=>url.includes("id=77"))).toBe(true);
 });

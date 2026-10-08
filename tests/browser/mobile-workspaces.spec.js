@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=111";
+const appUrl = "/app.js?v=114";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -30,7 +30,7 @@ test.beforeAll(async () => {
 });
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=111", (route) =>
+  await page.route("**/app.js?v=114", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,

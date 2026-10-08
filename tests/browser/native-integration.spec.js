@@ -3,7 +3,7 @@ import { build } from "esbuild";
 import { readFile, mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-const appUrl = "/app.js?v=111";
+const appUrl = "/app.js?v=114";
 const ownerA = "11111111-1111-4111-8111-111111111111";
 const ownerB = "22222222-2222-4222-8222-222222222222";
 const copyId = "44444444-4444-4444-8444-444444444444";
@@ -453,7 +453,9 @@ test("native manual collector loop: secure login, interrupted graded form, save,
     )
     .toBe(50);
   await expect(page.locator("#view-dashboard")).toHaveCSS("opacity", "1");
-  await expect(page.locator("#portfolioHistory")).toContainText("$50.00");
+  await expect(page.locator("#portfolioHistory")).toContainText("Portfolio value · USD");
+  await expect(page.locator("#portfolioHistory")).toContainText("Known value$0.00");
+  await expect(page.locator("#portfolioPnlNote")).toContainText("$50.00 · known total P/L");
   await page.screenshot({
     path: `${evidence}/${info.project.name}-synthetic-native-sale-history.png`,
   });
