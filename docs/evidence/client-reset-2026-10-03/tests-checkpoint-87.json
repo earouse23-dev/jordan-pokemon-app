@@ -1,0 +1,44 @@
+{
+  "checkedAt": "2026-10-08T20:09:24.823Z",
+  "distinctAffectedBrowserPassed": 171,
+  "conditionalBrowserSkipped": 12,
+  "projects": [
+    "desktop-chromium",
+    "mobile-chromium",
+    "mobile-webkit"
+  ],
+  "lintFiles": 98,
+  "syntaxChecksPassed": true,
+  "routing": {
+    "artifactEntries": 62,
+    "functionCount": 9,
+    "limit": 12,
+    "exactHeldRoutes": 3,
+    "ordinaryMethods": 15,
+    "preflightMethods": 9,
+    "hostileOrigins": 3,
+    "activeProRoutes": 5,
+    "proAuthenticationChecks": 5,
+    "proPreflightChecks": 15,
+    "unknownPaths": 4,
+    "realOutboundCalls": 0,
+    "independentDeletion": true
+  },
+  "regressions": [
+    "full-viewport skeleton",
+    "late owner response rejected",
+    "Back cancels and late response cannot reopen",
+    "exact raw/graded match opens normal card",
+    "uncertain match remains explicit",
+    "single floating Add card",
+    "photo and grade retained without automatic inventory save",
+    "center mobile Add tab"
+  ],
+  "testCorrections": [
+    "Pixel transport check updated from obsolete local OCR to approved recognizer request; corrected dimensions/colors/mode/one-request/no-save checks retained.",
+    "Fullscreen geometry uses 0.1px precision for WebKit subpixel layout.",
+    "Mobile fixture suppresses bootstrap to prevent collection replacement; retired folder controls asserted hidden/inert, center tab verified."
+  ],
+  "initialHarnessInterruptions": "Parallel runner owned-server shutdown interrupted another run; final affected run used a persistent server.",
+  "unitsRerun": false
+}

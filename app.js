@@ -7338,10 +7338,10 @@ function openAnotherPhysicalCopy(item) {
   });
 }
 
-function openCardDetail(card, preferOwned = false, initialContext = null) {
+function openCardDetail(card, preferOwned = false, initialContext = null, scanDraft = null) {
   if (!card) return;
   clearDetailFx();
-  state.detailScanDraft = null;
+  state.detailScanDraft = scanDraft;
   // Catalog research stays a catalog profile. Collection entry points opt in
   // to an owned position so a same-printing copy cannot silently replace the
   // selected search result's state, condition, or grade.
@@ -8739,7 +8739,7 @@ function renderDetail() {
     (item.tags || []).some((tag) => String(tag).toLowerCase() === "favorites");
   const action = owned
     ? `<div class="owned-banner"><div><span>${Number(item.quantity) === 0 ? "Sold copy" : item.status === "listed" ? "Listed for sale" : "In your collection"}</span><strong>${physicalCopy ? `${copyGroup.activeCount} active ${copyGroup.activeCount === 1 ? "copy" : "copies"}` : `${item.quantity} owned`} · ${ownedValuationPrice == null ? "Current price unavailable" : `${displayCurrencyMoney(ownedValuationPrice, owned.currency)} each`}</strong></div><div class="owned-actions"><button class="favorite-heart${favorite ? " selected" : ""}" id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>${copyNavigation}${!sealed && !item.gradingCompany && item.status === "owned" ? `<section class="detail-digital-grade"><div><span>${item.digitalGrade ? "Digital grade" : "Ungraded card"}</span><strong>${item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Check condition before you submit"}</strong><small>${item.digitalGrade ? "Your latest photo estimate" : "Four guided views · one uninterrupted grader"}</small></div><button id="detailDigitalGradeButton" type="button">${item.digitalGrade ? "Regrade" : "Digital grade"}</button></section>` : ""}`
-    : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched ? "Edit Watch" : sealed ? "Watch product" : "Watch card"}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
+    : state.detailScanDraft ? `<div class="detail-sticky-action scan-add-action"><button id="addLibraryButton" type="button">Add card</button></div>` : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched ? "Edit Watch" : sealed ? "Watch product" : "Watch card"}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
   const watchedPerformance = watched
     ? watchPerformance({
         startingPrice: watched.startingMarketPrice,
@@ -14662,14 +14662,15 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
   const resultHeading =
     mode === "grade"
       ? `<div class="grading-report-top"><button class="sheet-close" aria-label="Close report">×</button><div><span>${esc(reportModeCopy.name)} · Report No.</span><strong>${esc(reportNumber)}</strong></div><small>${new Date().toLocaleDateString()}</small>${payload.scanSessionId ? '<button class="report-delete" id="deleteGradingReport" type="button">Delete</button>' : ""}</div>`
-      : '<div class="sheet-heading"><div><h2 id="sheetTitle">Scan complete</h2><p>Confirm the card to save it with your photo.</p></div><button class="sheet-close" aria-label="Close">×</button></div>';
+      : '<div class="sheet-heading"><button class="sheet-close identification-back" aria-label="Back">‹</button><h2 id="sheetTitle">Choose your card</h2></div>';
   openSheet(
-    `${resultHeading}<div class="${mode === "grade" ? "grading-report-shell compact-report" : ""}">${mode === "grade" ? "" : `<div class="vision-result-head"><img id="visionReportCardImage" src="${preparedImages[0].previewDataUrl || preparedImages[0].dataUrl}" alt="Analyzed card front"><div><span>Words and number found</span><strong>${esc(analysis.searchQuery || "Printed details are unclear")}</strong><small>Choose the card that matches your photo.</small></div></div>${qualityMarkup}`}${conditionMarkup}<div class="manual-results" id="visionCatalogResults" aria-live="polite"><div class="searching-cards"><i></i><span>${mode === "grade" ? "Preparing result…" : "Finding matching cards…"}</span></div></div><div class="sheet-actions report-actions">${mode === "grade" ? '<button class="secondary" id="shareVisionReportImage" type="button">Share report</button>' : ""}<button class="secondary" id="visionRetake" type="button">Retake</button><button class="secondary" id="visionManualSearch" type="button">Search myself</button></div></div><dialog class="vision-finding-dialog" id="visionFindingDialog" aria-labelledby="visionFindingDialogTitle"><div class="vision-finding-dialog-head"><strong id="visionFindingDialogTitle">Visible evidence</strong><button class="vision-evidence-close" type="button" aria-label="Close evidence detail">×</button></div><div id="visionFindingContent"></div></dialog>`,
+    `${resultHeading}<div class="${mode === "grade" ? "grading-report-shell compact-report" : ""}">${mode === "identify" ? "" : conditionMarkup}<div class="manual-results" id="visionCatalogResults" aria-live="polite"><div class="searching-cards"><i></i><span>${mode === "grade" ? "Preparing result…" : "Finding matching cards…"}</span></div></div><div class="sheet-actions report-actions">${mode === "grade" ? '<button class="secondary" id="shareVisionReportImage" type="button">Share report</button>' : ""}<button class="secondary" id="visionRetake" type="button">Retake</button><button class="secondary" id="visionManualSearch" type="button">Search myself</button></div></div><dialog class="vision-finding-dialog" id="visionFindingDialog" aria-labelledby="visionFindingDialogTitle"><div class="vision-finding-dialog-head"><strong id="visionFindingDialogTitle">Visible evidence</strong><button class="vision-evidence-close" type="button" aria-label="Close evidence detail">×</button></div><div id="visionFindingContent"></div></dialog>`,
   );
-  if (mode === "grade") $("#bottomSheet").dataset.experience = "grading";
+  $("#bottomSheet").dataset.experience = mode === "identify" ? "identification" : "grading";
   $("#bottomSheet").dataset.lockClose = "false";
   const reportOwnerId = state.session?.user?.id;
   const reportLoadVersion = sessionLoadVersion;
+  const reportOperation = $("#bottomSheet").dataset.visionOperation;
   $("#retakeIdentityFront")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     if (
@@ -15001,7 +15002,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
       } catch {}
     }
     const node = $("#visionCatalogResults");
-    if (!node) return;
+    if (!node || (mode === "identify" && (!accountRequestIsCurrent(reportOwnerId, reportLoadVersion) || $("#bottomSheet").hidden || $("#bottomSheet").dataset.visionOperation !== reportOperation))) return;
     const recommendedId = resolution?.recommendedId || null;
     const guidance =
       resolution?.status === "exact"
@@ -15017,7 +15018,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
         ? '<div class="vision-compare-action"><span id="visionCompareStatus">Still unsure? Mica can compare your photo with the closest results.</span><button id="visionCompareCandidates" type="button">Compare with AI</button><small>Optional · uses one more AI scan · you still choose the final card</small></div>'
         : "";
     node.innerHTML = cards.length
-      ? `<div class="vision-match-instruction">${guidance}${comparisonAction}</div>${cards.map((card) => `<button class="catalog-result${card.id === recommendedId ? " recommended" : ""}" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Version unknown")}</small>${matchReason(card)}</span><b>${card.id === recommendedId ? "Best match" : "Choose this"}</b></button>`).join("")}`
+      ? `${mode === "identify" ? "" : `<div class="vision-match-instruction">${guidance}${comparisonAction}</div>`}${cards.map((card) => `<button class="catalog-result${card.id === recommendedId ? " recommended" : ""}" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Version unknown")}</small>${matchReason(card)}</span><b>${card.id === recommendedId ? "Best match" : "Choose this"}</b></button>`).join("")}`
       : '<div class="unavailable-panel">No reliable catalog match was found. Retake the card closer or search the printed details manually.</div>';
     $("#visionCompareCandidates")?.addEventListener("click", async (event) => {
       const button = event.currentTarget;
@@ -15109,8 +15110,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
         };
         if (mode === "identify") {
           const identified = { ...card, cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, condition: prefill.rawCondition || null };
-          openCardDetail(identified, false, valuationContextForItem(identified));
-          state.detailScanDraft = { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(card), options: scanOptions };
+          openCardDetail(identified, false, valuationContextForItem(identified), { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(card), options: scanOptions });
         } else openPositionSheet(card, scanOptions);
       }),
     );
@@ -15124,9 +15124,10 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
 async function analyzeCardImages(mode, preparedImages, options = {}) {
   $("#bottomSheet").dataset.lockClose = "true";
   openSheet(
-    `<div class="sheet-heading grading-process-heading ${mode === "identify" ? "identification-processing-heading" : ""}"><div><span>${mode === "grade" ? esc(GRADING_MODES[options.gradingMode]?.name || "Digital grading") : "Card identification"}</span><h2 id="sheetTitle">${mode === "grade" ? "Grade processing" : "Checking your card"}</h2><p>${mode === "grade" ? `${preparedImages.length} real captures · identity, match, and grade` : "Reading the name and bottom number"}</p></div></div>${mode === "grade" ? '<div class="grade-processing" role="status" aria-live="polite"><div data-process-stage="normalize" data-state="complete"><span>Photo normalization</span><small>Device, light, and perspective checks</small><i></i><b>Complete</b></div><div data-process-stage="identity" data-state="active"><span>Card identity + Collection match</span><small>Name, set, collector number, and language</small><i></i><b>In progress</b></div><div data-process-stage="centering" data-state="waiting"><span>Centering model</span><small>Front and back printed-border geometry</small><i></i><b>Waiting</b></div><div data-process-stage="edges" data-state="waiting"><span>Corner + edge models</span><small>Independent localized evidence</small><i></i><b>Waiting</b></div><div data-process-stage="surface" data-state="waiting"><span>Surface + structure models</span><small>Cross-view evidence comparison</small><i></i><b>Waiting</b></div><div class="grade-processing-overall" data-process-stage="overall" data-state="waiting"><span>Overall grade + automatic attachment</span><i></i><b>Waiting</b></div><strong>Identifying, matching, and grading your card…</strong><small>Mica only changes an eligible Collection card when its printed identity is verified.</small></div>' : '<div class="card-loading-skeleton" role="status" aria-live="polite" aria-label="Loading your card"><span class="sr-only">Checking your card</span><div class="skeleton-card" aria-hidden="true"></div><div class="skeleton-copy" aria-hidden="true"><i></i><i></i><i></i></div><div class="skeleton-chart" aria-hidden="true"></div></div>'}`,
+    `<div class="sheet-heading grading-process-heading ${mode === "identify" ? "identification-processing-heading" : ""}"><div><span>${mode === "grade" ? esc(GRADING_MODES[options.gradingMode]?.name || "Digital grading") : "Card identification"}</span><h2 id="sheetTitle">${mode === "grade" ? "Grade processing" : "Checking your card"}</h2><p>${mode === "grade" ? `${preparedImages.length} real captures · identity, match, and grade` : "Reading the name and bottom number"}</p></div></div>${mode === "grade" ? '<div class="grade-processing" role="status" aria-live="polite"><div data-process-stage="normalize" data-state="complete"><span>Photo normalization</span><small>Device, light, and perspective checks</small><i></i><b>Complete</b></div><div data-process-stage="identity" data-state="active"><span>Card identity + Collection match</span><small>Name, set, collector number, and language</small><i></i><b>In progress</b></div><div data-process-stage="centering" data-state="waiting"><span>Centering model</span><small>Front and back printed-border geometry</small><i></i><b>Waiting</b></div><div data-process-stage="edges" data-state="waiting"><span>Corner + edge models</span><small>Independent localized evidence</small><i></i><b>Waiting</b></div><div data-process-stage="surface" data-state="waiting"><span>Surface + structure models</span><small>Cross-view evidence comparison</small><i></i><b>Waiting</b></div><div class="grade-processing-overall" data-process-stage="overall" data-state="waiting"><span>Overall grade + automatic attachment</span><i></i><b>Waiting</b></div><strong>Identifying, matching, and grading your card…</strong><small>Mica only changes an eligible Collection card when its printed identity is verified.</small></div>' : '<button class="identification-back" id="cancelIdentification" type="button" aria-label="Back">‹</button><div class="card-loading-skeleton" role="status" aria-live="polite" aria-label="Loading your card"><span class="sr-only">Checking your card</span><div class="skeleton-card" aria-hidden="true"></div><div class="skeleton-copy" aria-hidden="true"><i></i><i></i><i></i></div><div class="skeleton-chart" aria-hidden="true"></div></div>'}`,
   );
-  if (mode === "grade") $("#bottomSheet").dataset.experience = "grading";
+  $("#bottomSheet").dataset.experience = mode === "identify" ? "identification" : "grading";
+  $("#cancelIdentification")?.addEventListener("click", () => closeSheet({ force: true, discardHistory: true }));
   const requestId = crypto.randomUUID();
   const identificationOwner = state.session?.user?.id;
   const identificationLoadVersion = sessionLoadVersion;

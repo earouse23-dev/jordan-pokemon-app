@@ -815,7 +815,7 @@ test("supplemental full card and detail use their respective evidence paths", as
   });
 });
 
-test("corrected slab pixels reach local identification without upload or inventory save", async ({
+test("corrected slab pixels reach approved identification without inventory save", async ({
   page,
 }) => {
   const requests = await setup(page, { recognition: true });
@@ -828,9 +828,10 @@ test("corrected slab pixels reach local identification without upload or invento
   await expect(page.getByRole("button", { name: "Use photo" })).toBeEnabled();
   await page.getByRole("button", { name: "Use photo" }).click();
   await expect(page.getByRole("button", { name: "Find matching cards" })).toHaveCount(0);
-  await expect.poll(() => page.evaluate(() => globalThis.__ocrInputs?.length || 0)).toBe(1);
-  expect(requests.vision).toHaveLength(0);
-  const source = await page.evaluate(() => globalThis.__ocrInputs[0]);
+  await expect.poll(() => requests.vision.length).toBe(1);
+  expect(requests.vision[0].mode).toBe("identify");
+  expect(requests.vision[0].images).toHaveLength(1);
+  const source = requests.vision[0].images[0];
   expect(source).toMatch(/^data:image\/jpeg;base64,/);
   const pixels = await page.evaluate(async (dataUrl) => {
     const blob = await (await fetch(dataUrl)).blob();
@@ -851,7 +852,7 @@ test("corrected slab pixels reach local identification without upload or invento
     image.close();
     return { width: canvas.width, height: canvas.height, label, card };
   }, source);
-  // Local OCR consumes the corrected document, not the old cloud evidence collage.
+  // The approved recognizer receives corrected document pixels, not a report screenshot.
   expect(pixels).toMatchObject({ width: 407, height: test.info().project.name === "mobile-webkit" ? 832 : 834 });
   expect(pixels.label).toBeGreaterThan(1000);
   expect(pixels.card).toBeGreaterThan(1000);
@@ -1216,6 +1217,10 @@ test("late automatic identification cannot open a match for a different owner", 
   await expect(page.locator("#sheetTitle")).toHaveText("Checking your card");
   await expect(page.getByRole("status", { name: "Loading your card" })).toBeVisible();
   await expect(page.locator(".skeleton-card")).toBeVisible();
+  const box = await page.locator("#bottomSheet").boundingBox();
+  expect(box.x).toBe(0); expect(box.y).toBe(0);
+  expect(box.width).toBe(page.viewportSize().width); expect(box.height).toBeCloseTo(page.viewportSize().height, 1);
+  await expect(page.getByRole("button", {name:"Back", exact:true})).toBeVisible();
   await expect(page.locator("#positionForm")).toHaveCount(0);
   await expect(page.locator("[data-vision-card]")).toHaveCount(0);
 });
@@ -1262,6 +1267,10 @@ test("automatic raw match hydrates photo, price and history without saving a gue
   await installSyntheticDocument(page);
   await page.evaluate(()=>{const i=document.querySelector("#deviceCameraUpload");i.files=globalThis.__syntheticTransfer.files;i.dispatchEvent(new Event("change",{bubbles:true}));});
   await expect(page.locator("#detailTitle")).toHaveText("M Charizard EX");
+  await expect(page.locator("#bottomSheet")).toBeHidden();
+  await expect(page.locator("#detailBack")).toBeVisible();
+  await expect(page.locator(".detail-sticky-action button")).toHaveCount(1);
+  await expect(page.getByRole("button", {name:"Add card", exact:true})).toBeVisible();
   await expect(page.locator(".market-hero")).toContainText("$125.00");
   await expect(page.locator(".detail-image img")).toHaveAttribute("src","https://images.pkmnprices.com/cards/24784.webp");
   await expect.poll(()=>page.locator(".detail-image img").evaluate(i=>i.complete&&i.naturalWidth>0)).toBe(true);
@@ -1272,3 +1281,17 @@ test("automatic raw match hydrates photo, price and history without saving a gue
   await page.locator("#addLibraryButton").click();
   await expect(page.locator("#positionCondition")).toHaveValue("unknown");
 });
+
+ test("Back cancels full-screen identification and a late response cannot reopen it", async ({page}) => {
+  await setup(page,{recognition:true,experience:"intake"}); let pending;
+  await page.route("**/api/vision",route=>{pending=route;});
+  await installSyntheticDocument(page);
+  await page.evaluate(()=>{const input=document.querySelector("#deviceCameraUpload");input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));});
+  await expect.poll(()=>Boolean(pending)).toBe(true);
+  await page.locator("#cancelIdentification").click();
+  await pending.fulfill({contentType:"application/json",body:JSON.stringify({analysis:{quality:{usable:true},identity:{name:"Pikachu"}},catalogResolution:{cards:[{id:"fixture-pikachu",name:"Pikachu",set:"151",number:"025/165",language:"en",variant:"Holofoil"}],resolution:{status:"exact",recommendedId:"fixture-pikachu"}}})});
+  await page.waitForTimeout(200);
+  await expect(page.locator("#bottomSheet")).toBeHidden();
+  await expect(page.locator("#detailTitle")).not.toBeVisible();
+  expect(await page.locator(".bottom-nav > button").evaluateAll(nodes=>nodes.map(n=>n.dataset.route||n.dataset.sidebarTarget))).toEqual(["dashboard","scan","collection"]);
+ });

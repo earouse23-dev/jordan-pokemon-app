@@ -1,0 +1,60 @@
+{
+  "deployment": "dpl_J8GhGAGdmK65qbwjV8PGVrbgszxC",
+  "checkedAt": "2026-10-08T20:07:23.207Z",
+  "checks": [
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/app-config.js",
+      "status": 200
+    },
+    {
+      "path": "/api/health",
+      "status": 200
+    },
+    {
+      "path": "/api/capabilities",
+      "status": 200
+    },
+    {
+      "path": "/api/price-sync",
+      "status": 503
+    },
+    {
+      "path": "/api/maintenance",
+      "status": 503
+    },
+    {
+      "path": "/api/alert-delivery",
+      "status": 503
+    },
+    {
+      "path": "/api/sales",
+      "status": 401
+    },
+    {
+      "path": "/api/offers",
+      "status": 401
+    },
+    {
+      "path": "/api/sealed",
+      "status": 401
+    },
+    {
+      "path": "/api/graded-valuation",
+      "status": 401
+    },
+    {
+      "path": "/api/capabilities",
+      "status": 401
+    }
+  ],
+  "configurationHashMatched": true,
+  "corsAndHostileOrigins": true,
+  "unknownPaths404": true,
+  "deletionUnauthenticated401": true,
+  "paidProviderCalls": 0,
+  "sqlExecuted": false
+}

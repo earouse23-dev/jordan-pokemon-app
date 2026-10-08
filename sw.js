@@ -1,4 +1,4 @@
-const SHELL_CACHE = "mica-shell-card-layout-86-final";
+const SHELL_CACHE = "mica-shell-scan-screen-87";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [

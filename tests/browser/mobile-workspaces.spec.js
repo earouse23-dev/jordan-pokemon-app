@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase };`,
+      contents: `${source.replace("void bootstrap();", "")}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -177,10 +177,10 @@ test("populated mobile workspaces stay readable and contained", async ({
       if (route === "collection") {
         await expect(page.locator("#collectionOrganization")).not.toHaveAttribute("open", "");
         await expect(page.locator("#collectionSearch")).toBeInViewport();
-        await page.locator("#collectionOrganization summary").click();
-        await expect(page.locator("#manageCollectionOrganizationButton")).toBeVisible();
+        await expect(page.locator("#collectionOrganization")).toBeHidden();
+        await expect(page.locator("#collectionOrganization")).toHaveAttribute("inert", "");
+        await expect(page.locator(".bottom-nav > button").nth(1)).toHaveAttribute("data-route", "scan");
         await assertFits(page);
-        await page.locator("#collectionOrganization summary").click();
       }
       await assertFits(page);
       const title = page.locator(`#view-${route} h1`).first();

@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-08T20:09:48.854Z",
+  "deployment": "dpl_J8GhGAGdmK65qbwjV8PGVrbgszxC",
+  "boundedRows": 44,
+  "statusCounts": {
+    "200": 8,
+    "204": 4,
+    "401": 12,
+    "403": 4,
+    "404": 2,
+    "503": 14
+  },
+  "errorLevelOr5xxRows": 17,
+  "scope": "44-row bounded sample: 14 intentional held-route 503s; 3 existing DEP0169 url.parse deprecations labelled error. Not exhaustive runtime coverage.",
+  "intentionalHeldRoute503Rows": 14,
+  "existingNodeDeprecationRows": 3,
+  "unexpectedApplicationErrorRows": 0
+}

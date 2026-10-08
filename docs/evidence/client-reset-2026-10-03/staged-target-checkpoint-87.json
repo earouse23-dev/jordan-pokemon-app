@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-10-08T20:07:11.382Z",
+  "candidate": "dpl_J8GhGAGdmK65qbwjV8PGVrbgszxC",
+  "ready": true,
+  "targetProject": "prj_ICSEVLitTA6RdwTTy14BThiAvPEQ",
+  "canonicalUnchanged": "dpl_Bw1KAm3wZThrHehu17zbmZGAs5y8",
+  "gitBuildGuard": "exit 0",
+  "crons": [
+    {
+      "host": "jordan-pokemon-n133wvcov-earouse23-devs-projects.vercel.app",
+      "path": "/api/capabilities?surface=grading-deletion",
+      "schedule": "15 5 * * *"
+    }
+  ]
+}
