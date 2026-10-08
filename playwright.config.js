@@ -45,6 +45,7 @@ export default defineConfig({
         "**/collector-home.spec.js",
         "**/grading-capture-recovery.spec.js",
         "**/document-capture.spec.js",
+        "**/local-card-ocr.spec.js",
         "**/price-evidence.spec.js",
         "**/physical-copies.spec.js",
         "**/sealed-collector.spec.js",

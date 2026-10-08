@@ -17,10 +17,13 @@ test.use({ serviceWorkers: "block" });
 test.beforeAll(async () => {
   await mkdir(evidenceDirectory, { recursive: true });
   await mkdir(rejectedGeometryEvidenceDirectory, { recursive: true });
-  const source = await readFile(
+  let source = await readFile(
     new URL("../../app.js", import.meta.url),
     "utf8",
   );
+  source = source.replace('import { warmCardOcr, readCardText, matchOcrCards } from "./lib/card-ocr.js";', 'import { parseCardText, matchOcrCards } from "./lib/card-ocr.js"; const warmCardOcr = async () => null; const readCardText = async source => { (globalThis.__ocrInputs ||= []).push(source); return parseCardText(globalThis.__ocrText || "Pikachu 025/165"); };');
+  // Deterministic rejected geometry for the manual-recovery gate; detector tests use real pixels.
+  source = source.replace("options.geometry ||\n    isolateUploadedDocument", "options.geometry || globalThis.__rejectedPreviewGeometry ||\n    isolateUploadedDocument");
   const result = await build({
     stdin: {
       contents: `${source.replace("void bootstrap();", "")}\nexport { state, bindEvents, openDeviceCamera, openAutoCapture, openCardCamera, guideCropInFrame, prepareDocumentPreview, prepareVisionImage, showProcessing, detectDocumentBoundaryFromPixels };`,
@@ -50,7 +53,8 @@ async function setup(
     visionPayload = null,
   } = {},
 ) {
-  const requests = { writes: [], vision: [], cameras: [] };
+  const requests = { writes: [], vision: [], cameras: [], catalog: [] };
+  await page.addInitScript(text => {globalThis.__ocrText = text;}, visionPayload?.analysis?.identity?.grader ? "PSA GEM MT 10 Pikachu 025/165" : "Pikachu 025/165");
   await page.route(`**${appUrl}`, (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
@@ -75,6 +79,11 @@ async function setup(
     return route.fulfill({ contentType: "application/json", body: "[]" });
   });
   await page.route("**/api/**", (route) => {
+    if (route.request().url().includes("/api/catalog")) {
+      requests.catalog.push(route.request().url());
+      const cards = visionPayload?.catalogResolution?.cards || [];
+      return route.fulfill({contentType:"application/json",body:JSON.stringify({cards, hasMore:visionPayload?.catalogResolution?.resolution?.status === "needs_review"})});
+    }
     if (route.request().url().includes("/api/vision"))
       requests.vision.push(route.request().postDataJSON());
     return route.fulfill({
@@ -806,7 +815,7 @@ test("supplemental full card and detail use their respective evidence paths", as
   });
 });
 
-test("corrected slab pixels reach the real identification request without inventory save", async ({
+test("corrected slab pixels reach local identification without upload or inventory save", async ({
   page,
 }) => {
   const requests = await setup(page, { recognition: true });
@@ -819,10 +828,10 @@ test("corrected slab pixels reach the real identification request without invent
   await expect(page.getByRole("button", { name: "Use photo" })).toBeEnabled();
   await page.getByRole("button", { name: "Use photo" }).click();
   await expect(page.getByRole("button", { name: "Find matching cards" })).toHaveCount(0);
-  await expect.poll(() => requests.vision.length).toBe(1);
-  expect(requests.vision[0].mode).toBe("identify");
-  expect(requests.vision[0].images).toHaveLength(1);
-  expect(requests.vision[0].images[0]).toMatch(/^data:image\/jpeg;base64,/);
+  await expect.poll(() => page.evaluate(() => globalThis.__ocrInputs?.length || 0)).toBe(1);
+  expect(requests.vision).toHaveLength(0);
+  const source = await page.evaluate(() => globalThis.__ocrInputs[0]);
+  expect(source).toMatch(/^data:image\/jpeg;base64,/);
   const pixels = await page.evaluate(async (dataUrl) => {
     const blob = await (await fetch(dataUrl)).blob();
     const image = await createImageBitmap(blob);
@@ -841,8 +850,9 @@ test("corrected slab pixels reach the real identification request without invent
     }
     image.close();
     return { width: canvas.width, height: canvas.height, label, card };
-  }, requests.vision[0].images[0]);
-  expect(pixels).toMatchObject({ width: 1536, height: 1024 });
+  }, source);
+  // Local OCR consumes the corrected document, not the old cloud evidence collage.
+  expect(pixels).toMatchObject({ width: 407, height: test.info().project.name === "mobile-webkit" ? 832 : 834 });
   expect(pixels.label).toBeGreaterThan(1000);
   expect(pixels.card).toBeGreaterThan(1000);
   expect(
@@ -1000,6 +1010,7 @@ test("rejected geometry retains source pixels and blocks photo assist until manu
   await page.evaluate(() => globalThis.__documentCaptureApp.openDeviceCamera({kind:"card",onPhoto:file=>globalThis.__documentCaptureApp.showProcessing(file)}));
   await page.evaluate(() => {
     const input = document.querySelector("#deviceCameraUpload");
+    globalThis.__rejectedPreviewGeometry = { ...globalThis.__rejectedFile.micaCaptureMetadata.geometry, correctable: false };
     const transfer = new DataTransfer();
     transfer.items.add(globalThis.__rejectedFile);
     input.files = transfer.files;
@@ -1015,7 +1026,8 @@ test("rejected geometry retains source pixels and blocks photo assist until manu
   await page.screenshot({
     path: `${rejectedGeometryEvidenceDirectory}/${testInfo.project.name}-manual-recovery.png`,
   });
-  await expect.poll(() => requests.vision.length).toBe(1);
+  await expect.poll(() => page.evaluate(() => globalThis.__ocrInputs?.length || 0)).toBe(1);
+  expect(requests.vision).toHaveLength(0);
   expect(
     requests.writes.filter((request) =>
       request.path.endsWith("/create_graded_copy_position"),
@@ -1023,7 +1035,7 @@ test("rejected geometry retains source pixels and blocks photo assist until manu
   ).toHaveLength(0);
   await writeFile(
     `${rejectedGeometryEvidenceDirectory}/${testInfo.project.name}-pixels.json`,
-    `${JSON.stringify({ observations: result, stubbedVisionRequests: requests.vision.length }, null, 2)}\n`,
+    `${JSON.stringify({ observations: result, localOcrInputs: await page.evaluate(() => globalThis.__ocrInputs?.length || 0), cloudVisionRequests: requests.vision.length }, null, 2)}\n`,
   );
 });
 
@@ -1128,13 +1140,14 @@ test("primary intake camera fills viewport edge to edge with overlay controls, r
   await page.screenshot({path:testInfo.outputPath('full-screen-intake-denied-fixture.png'),fullPage:false});
   await installSyntheticDocument(page);
   await page.evaluate(()=>{const input=document.querySelector('#deviceCameraUpload');input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
-  await expect.poll(()=>requests.vision.length).toBe(1);
+  await expect.poll(()=>requests.catalog.length).toBe(1);
   await expect(page.getByRole('button',{name:'Use photo',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Adjust edges',exact:true})).toHaveCount(0);
   await page.locator('#bottomSheet .sheet-close').click();
   await expect(page.locator('#bottomSheet')).toBeHidden();
   expect(await page.locator('#sheetContent').textContent()).toBe('');
-  expect(requests.writes.filter(r => !r.path.endsWith('/rpc/record_ingestion_event'))).toHaveLength(0); expect(requests.vision).toHaveLength(1); expect(errors).toEqual([]);
+  expect(requests.writes.filter(r => !r.path.endsWith('/rpc/record_ingestion_event'))).toHaveLength(0); expect(requests.vision).toHaveLength(0);
+  expect(requests.catalog).toHaveLength(1); expect(errors).toEqual([]);
 });
 
 
@@ -1175,26 +1188,27 @@ for (const [exact,graded] of [[true,true],[true,false],[false,true]]) test(`inta
   const requests = await setup(page, {recognition:true,experience:"intake",visionPayload:{analysis:{quality:{usable:true},identity:{name:"Pikachu",collectorNumber:"025/165",language:"en",cardState:graded?"graded":"raw",grader:graded?"PSA":null,grade:graded?"10":null,confidence:0.98}},catalogResolution:{cards:[{id:"fixture-pikachu",name:"Pikachu",set:"151",number:"025/165",language:"en",variant:"Holofoil",thumb:"/icons/icon.svg"}],resolution:{status:exact?"exact":"needs_review",recommendedId:"fixture-pikachu"}}}});
   await installSyntheticDocument(page);
   await page.evaluate(() => {const input=document.querySelector("#deviceCameraUpload");input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));});
-  await expect.poll(()=>requests.vision.length).toBe(1);
+  await expect.poll(()=>requests.catalog.length).toBe(1);
   await expect(page.getByRole("button",{name:"Use photo",exact:true})).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Adjust edges",exact:true})).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Find matching cards",exact:true})).toHaveCount(0);
   if(exact){await expect(page.locator("#detailTitle")).toHaveText("Pikachu");await expect(page.locator("#positionForm")).toHaveCount(0);expect(await page.evaluate(()=>Boolean(globalThis.__documentCaptureApp.state.detailScanDraft?.options.photoDataUrl))).toBe(true);expect(await page.evaluate(()=>globalThis.__documentCaptureApp.state.detailValuationContext.cardState)).toBe(graded?"graded":"raw");await page.locator("#addLibraryButton").click();await expect(page.locator("#positionState")).toHaveValue(graded?"graded":"raw");if(graded){await expect(page.locator("#positionGrader")).toHaveValue("PSA");await expect(page.locator("#positionGrade")).toHaveValue("10");}}
-  else {await expect(page.locator("[data-vision-card]")).toBeVisible();await expect(page.locator("#positionForm")).toHaveCount(0);}
+  else {await expect(page.locator("[data-ocr-match]")).toBeVisible();await expect(page.locator("#positionForm")).toHaveCount(0);}
   expect(requests.writes.filter(request=>!request.path.endsWith("/rpc/record_ingestion_event"))).toHaveLength(0);
-  expect(requests.vision).toHaveLength(1);
+  expect(requests.vision).toHaveLength(0);
+  expect(requests.catalog).toHaveLength(1);
 });
 
 test("late automatic identification cannot open a match for a different owner", async ({page}) => {
   await setup(page,{recognition:true,experience:"intake"});let pending;
-  await page.route("**/api/vision",route=>{pending=route;});
+  await page.route("**/api/catalog?**",route=>{pending=route;});
   await installSyntheticDocument(page);
   await page.evaluate(()=>{const input=document.querySelector("#deviceCameraUpload");input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));});
   await expect.poll(()=>Boolean(pending)).toBe(true);
   await page.evaluate(()=>{globalThis.__documentCaptureApp.state.session={user:{id:"different-owner"},access_token:"different-token"};});
   await pending.fulfill({contentType:"application/json",body:JSON.stringify({analysis:{quality:{usable:true},identity:{name:"Pikachu"}},catalogResolution:{cards:[{id:"fixture-pikachu",name:"Pikachu",set:"151",number:"025/165",language:"en",variant:"Holofoil",thumb:"/icons/icon.svg"}],resolution:{status:"exact",recommendedId:"fixture-pikachu"}}})});
   await page.waitForTimeout(200);
-  await expect(page.locator("#sheetTitle")).toHaveText("Checking your card");
+  await expect(page.locator("#sheetTitle")).toHaveText("Find this card");
   await expect(page.locator("#positionForm")).toHaveCount(0);
   await expect(page.locator("[data-vision-card]")).toHaveCount(0);
 });

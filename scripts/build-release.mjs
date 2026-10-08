@@ -67,6 +67,13 @@ for (const f of baseline.source)
   assert.equal(await hash(path.join(source, f.path)), f.sha256, f.path);
 const changes = [
   "app.js",
+  "sw.js",
+  "assets/ocr/README.md",
+  "lib/card-ocr.js",
+  "package-lock.json",
+  "assets/ocr/eng.traineddata.gz",
+  "assets/ocr/deu.traineddata.gz",
+  "assets/ocr/jpn.traineddata.gz",
   "index.html",
   "themes.css",
   "lib/price-history.js",

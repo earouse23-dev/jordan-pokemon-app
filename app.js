@@ -1,3 +1,4 @@
+import { warmCardOcr, readCardText, matchOcrCards } from "./lib/card-ocr.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -276,6 +277,8 @@ let motionPreference = "auto";
 let targetAlertsEnabled = false;
 let workspaceMode = "collector";
 let uiTheme = "mica";
+let appearance = "light";
+try { appearance = localStorage.getItem("mica-appearance") === "dark" ? "dark" : "light"; } catch {}
 let sessionLoadVersion = 0;
 let largeCollectionRequestVersion = 0;
 let pendingActionDestinationApplied = false;
@@ -1918,11 +1921,15 @@ export async function switchSoftwareMode(
 function applyUiTheme(_theme, { announce = false } = {}) {
   uiTheme = "mica";
   document.body.dataset.uiTheme = "mica";
-  document.documentElement.style.colorScheme = "light";
+  document.body.dataset.appearance = appearance;
+  document.documentElement.style.colorScheme = appearance;
+  const picker = $("#appearanceSelect");
+  if (picker) picker.value = appearance;
   const meta = $('meta[name="theme-color"]');
-  if (meta) meta.content = "#F5F0E4";
+  if (meta) meta.content = appearance === "dark" ? "#111814" : "#F5F0E4";
   if (state.portfolioHistory.length) renderPortfolioHistory();
-  if (announce) toast("Mica uses one accessible interface");
+  if (state.detailCard) void mountPriceChart(state.detailCard);
+  if (announce) toast(`${appearance === "dark" ? "Dark" : "Light"} mode`);
 }
 
 function quoteStatus(quote) {
@@ -12447,6 +12454,7 @@ async function openDeviceCamera({
     }, 180);
   };
 
+  if (experience === "intake") void warmCardOcr($("#quickSearchLanguage")?.value || $("#publicCatalogLanguage")?.value || "en").catch(() => {});
   const startCamera = async (deviceId = "") => {
     if (!operationIsCurrent()) return;
     const currentStart = ++cameraStartVersion;
@@ -15345,7 +15353,48 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
   }
 }
 
+async function identifyCardLocally(front, operationId, startedAt) {
+  const ownerId = state.session?.user?.id || null;
+  const loadVersion = sessionLoadVersion;
+  const current = () => (state.session?.user?.id || null) === ownerId && sessionLoadVersion === loadVersion && $("#bottomSheet").dataset.visionOperation === operationId && $("#visionLocalCheck");
+  const language = $("#quickSearchLanguage")?.value || $("#publicCatalogLanguage")?.value || "en";
+  try {
+    const remaining = () => Math.max(1, 5000 - (performance.now() - startedAt));
+    const identity = await readCardText(front.previewDataUrl || front.dataUrl, { language, documentKind: front.documentCapture?.kind, timeoutMs: remaining() });
+    if (!current()) return;
+    if (!identity.query) throw new Error("Could not read one card number · move closer and try again.");
+    $("#visionLocalCheck").textContent = "Finding your card…";
+    const result = await searchCatalog(identity.query.includes("/") ? identity.query : `#${identity.query}`, language, 24, { timeoutMs: remaining() });
+    if (!current()) return;
+    const match = matchOcrCards(identity, result.items);
+    if (!match.cards.length) throw new Error("No clear match · retake or search the printed name and number.");
+    const openMatch = (card) => {
+      if (!current()) return;
+      const prefill = { cardState: identity.cardState, grader: identity.grader, grade: identity.grade, certificationNumber: identity.certificationNumber, rawCondition: "unknown", acquisitionCostKnown: false, acquisitionDateKnown: false };
+      closeSheet({ discardHistory: true, force: true });
+      if (state.visionDestination === "trade") {
+        state.visionDestination = null;
+        addTradeCard(card, state.trade.addingTo);
+        routeTo("trade");
+        return;
+      }
+      const identified = { ...card, cardState: identity.cardState, gradingCompany: identity.grader || null, grade: identity.grade || null, condition: "unknown" };
+      openCardDetail(identified, false, valuationContextForItem(identified));
+      state.detailScanDraft = { ownerId, loadVersion, selectionKey: detailIdentityKey(card), options: { prefill, photoDataUrl: front.previewDataUrl || front.dataUrl, ingestionChannel: String(front.captureMetadata?.captureMethod || "").includes("camera") ? "camera" : "upload", ingestionConfidence: null } };
+    };
+    if (match.exact && !result.hasMore) return openMatch(match.cards[0]);
+    $("#visionLocalCheck").innerHTML = `<strong>Choose the matching version</strong>${match.cards.map((card, index) => `<button class="catalog-result" type="button" data-ocr-match="${index}"><img src="${esc(card.thumb || card.image || "/icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(card.variant || "Version unknown")}</small></span></button>`).join("")}`;
+    $$("[data-ocr-match]").forEach(button => button.addEventListener("click", () => openMatch(match.cards[Number(button.dataset.ocrMatch)])));
+  } catch (error) {
+    if (!current()) return;
+    $("#visionLocalCheck").textContent = error.name === "AbortError" ? "Matching took too long · try again." : error.message || "Could not read this card · try again.";
+    $("#photoAssistRetry").hidden = false;
+    $("#photoAssistSearch").hidden = false;
+  }
+}
+
 async function showProcessing(file) {
+  const startedAt = performance.now();
   const operationId = crypto.randomUUID();
   const previewUrl = URL.createObjectURL(file);
   $("#capturePreview").innerHTML =
@@ -15383,13 +15432,13 @@ async function showProcessing(file) {
     frontReady = !front.blockers.length;
     $("#photoAssistRetry").hidden = frontReady;
     $("#qualityChip").innerHTML = frontReady
-      ? "<span></span> Ready for AI review"
+      ? "<span></span> Reading card"
       : "<span></span> Retake needed";
     $("#visionLocalCheck").innerHTML = front.blockers.length
-      ? `<strong>Retake before AI review</strong> ${front.blockers.map((blocker) => `<span>${esc(blocker)}</span>`).join(" ")} <span>This check prevents spending an AI scan on unreadable evidence.</span>`
+      ? `<strong>Retake this photo</strong> ${front.blockers.map((blocker) => `<span>${esc(blocker)}</span>`).join(" ")} <span></span>`
       : front.warnings.length
         ? `<strong>Improve accuracy if possible</strong> ${front.warnings.map((warning) => `<span>${esc(warning)}</span>`).join(" ")}`
-        : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · original is not uploaded</span>`;
+        : `<strong>Local quality check passed</strong><span>${front.width} × ${front.height} prepared · photo stays on this device</span>`;
     $("#photoAssistSearch").hidden = frontReady;
   } catch (error) {
     if (!$("#visionLocalCheck") || $("#bottomSheet").dataset.visionOperation !== operationId) return;
@@ -15404,7 +15453,7 @@ async function showProcessing(file) {
   $("#photoAssistRetry")?.addEventListener("click", () =>
     openDeviceCamera({ kind: "card", automatic: true, experience: "intake", onPhoto: showProcessing }),
   );
-  if (frontReady && front) void analyzeCardImages("identify", [{ ...front, previewDataUrl: front.dataUrl, dataUrl: front.identityDataUrl || front.dataUrl }]);
+  if (frontReady && front) void identifyCardLocally(front, operationId, startedAt);
 }
 
 function catalogItem(item, selectedVariant = "") {
@@ -15472,10 +15521,11 @@ function rememberCatalogItems(items) {
 
 async function searchCatalog(query, language, limit = 12, options = {}) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12000);
+  const { timeoutMs = 12000, ...filters } = options;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(
-      `/api/catalog?${new URLSearchParams({ q: query, language, limit: String(limit), ...Object.fromEntries(Object.entries(options).filter(([, value]) => value)) })}`,
+      `/api/catalog?${new URLSearchParams({ q: query, language, limit: String(limit), ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value)) })}`,
       { headers: { Accept: "application/json" }, signal: controller.signal },
     );
     if (!response.ok) throw new Error("catalog");
@@ -19752,6 +19802,11 @@ function bindEvents() {
       applyUiTheme(button.dataset.uiThemeOption, { announce: true }),
     ),
   );
+  $("#appearanceSelect")?.addEventListener("change", (event) => {
+    appearance = event.target.value === "dark" ? "dark" : "light";
+    try { localStorage.setItem("mica-appearance", appearance); } catch {}
+    applyUiTheme(uiTheme);
+  });
   $("#themeQuickSwitch")?.addEventListener("click", () =>
     applyUiTheme(uiTheme === "clean" ? "analytics" : "clean", {
       announce: true,

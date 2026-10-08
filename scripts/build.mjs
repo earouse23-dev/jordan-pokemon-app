@@ -69,6 +69,11 @@ for (const item of [
   await access(new URL(item, root));
   await cp(new URL(item, root), new URL(item, dist), { recursive: true });
 }
+await cp(new URL("../node_modules/tesseract.js/LICENSE.md", import.meta.url), new URL("assets/ocr/TESSERACT-LICENSE.txt", dist));
+await cp(new URL("../node_modules/tesseract.js-core/LICENSE", import.meta.url), new URL("assets/ocr/CORE-LICENSE.txt", dist));
+// Self-host OCR assets: recognition never uploads browser photos.
+await cp(new URL("../node_modules/tesseract.js/dist/worker.min.js", import.meta.url), new URL("assets/ocr/worker.min.js", dist));
+for (const suffix of ["", "-simd", "-relaxedsimd", "-lstm", "-simd-lstm", "-relaxedsimd-lstm"]) await cp(new URL(`../node_modules/tesseract.js-core/tesseract-core${suffix}.wasm.js`, import.meta.url), new URL(`assets/ocr/tesseract-core${suffix}.wasm.js`, dist));
 if (internalCertificates) {
   await cp(
     new URL("../internal/certificates.css", import.meta.url),

@@ -1,0 +1,17 @@
+{
+  "source": "Real public TCGdex card artwork; local OCR. No physical camera or live complete pricing timing claim. Earlier failed probes retained.",
+  "proofs": [
+    {
+      "name": "chromium",
+      "ms": 250.39999999850988,
+      "query": "199/165",
+      "exact": true
+    },
+    {
+      "name": "webkit",
+      "ms": 264,
+      "query": "199/165",
+      "exact": true
+    }
+  ]
+}

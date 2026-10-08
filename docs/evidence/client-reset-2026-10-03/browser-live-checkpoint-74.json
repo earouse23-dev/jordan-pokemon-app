@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-08T00:27:32.015Z",
+  "anonymousReadOnly": true,
+  "results": [
+    {
+      "browser": "chromium",
+      "darkPersisted": true,
+      "greenActions": true,
+      "applicationExceptions": 0,
+      "hostedWrites": 0
+    },
+    {
+      "browser": "webkit",
+      "darkPersisted": true,
+      "greenActions": true,
+      "applicationExceptions": 0,
+      "hostedWrites": 0
+    }
+  ]
+}

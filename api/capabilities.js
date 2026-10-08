@@ -47,6 +47,7 @@ async function handler(request, response) {
         },
       },
       notifications: { inApp: "active", email: "release_hold", webPush: "release_hold" },
+      recognition: { status: "device_only", engine: "local_ocr", languages: ["en", "ja", "de"], photoUpload: false },
       vision: {
         status: "release_hold",
       },

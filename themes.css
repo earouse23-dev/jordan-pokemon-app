@@ -6123,3 +6123,48 @@ body[data-ui-theme="mica"] #detailContent .owned-banner button,
 body[data-ui-theme="mica"] .history-controls button { background: #e3eee3; border-color: #a4bda7; color: #244e35; }
 body[data-ui-theme="mica"] .history-controls button[aria-pressed="true"],
 body[data-ui-theme="mica"] button.secondary:hover:not(:disabled) { background: #276443; border-color: #276443; color: #fff; }
+
+/* Light/dark changes surfaces and readable text, preserving Mica's green actions. */
+body[data-ui-theme="mica"][data-appearance="dark"] {
+  --canvas: #111814; --paper: #19231d; --paper-strong: #202c24;
+  --ink: #edf2eb; --muted: #b4bcb2; --faint: #a3aea3;
+  --line: #37463b; --line-dark: #4b5d4f; --mint: #24382b; --pine-2: #92b998;
+  --copper-soft: #412820; --danger: #ff9185;
+  --shadow: 0 12px 34px rgba(0,0,0,.28);
+  color-scheme: dark; background: var(--canvas);
+}
+body[data-appearance="dark"] .app-shell,
+body[data-appearance="dark"] .auth-gate,
+body[data-appearance="dark"] .view { background: var(--canvas); }
+body[data-appearance="dark"] .auth-card,
+body[data-appearance="dark"] .bottom-sheet,
+body[data-appearance="dark"] .settings-group,
+body[data-appearance="dark"] .profile-card,
+body[data-appearance="dark"] .ledger-row,
+body[data-appearance="dark"] .detail-tool-group,
+body[data-appearance="dark"] .grading-lifecycle-summary > div,
+body[data-appearance="dark"] .find-search-card,
+body[data-appearance="dark"] .find-photo-card,
+body[data-appearance="dark"] .sidebar-account,
+body[data-appearance="dark"] .card-history-stat,
+body[data-appearance="dark"] .catalog-result,
+body[data-appearance="dark"] .unavailable-panel { background: var(--paper); color: var(--ink); border-color: var(--line); box-shadow: none; }
+body[data-appearance="dark"] input,
+body[data-appearance="dark"] select,
+body[data-appearance="dark"] textarea { background-color: var(--paper); color: var(--ink); border-color: var(--line); }
+body[data-appearance="dark"] button.secondary,
+body[data-appearance="dark"] #detailMoreToolsButton,
+body[data-appearance="dark"] .history-range button { background: var(--mint); color: #c2d8c6; border-color: var(--line); }
+body[data-appearance="dark"] [data-pnl-sign="positive"],
+body[data-appearance="dark"] .detail-performance.positive,
+body[data-appearance="dark"] .sidebar-account strong { color: #91cba5; }
+body[data-appearance="dark"] [data-pnl-sign="negative"] { color: #ff9185; }
+body[data-appearance="dark"] .eyebrow,
+body[data-appearance="dark"] .settings-group h2,
+body[data-appearance="dark"] .profile-card strong { color: var(--ink); }
+body[data-appearance="dark"] .bottom-nav { background: var(--paper); border-color: var(--line); }
+body[data-appearance="dark"] .bottom-nav .nav-item { color: var(--muted); }
+body[data-appearance="dark"] .bottom-nav .nav-item.active { color: #92b998; }
+body[data-appearance="dark"] .history-summary > div,
+body[data-ui-theme="mica"][data-appearance="dark"] .simple-note,
+body[data-appearance="dark"] .suffix-input { background: var(--paper-strong); color: var(--ink); border-color: var(--line); }
