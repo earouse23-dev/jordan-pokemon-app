@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-10-08T16:38:35.385Z",
+  "deployment": "dpl_Bw1KAm3wZThrHehu17zbmZGAs5y8",
+  "compiledCandidatePublicAssets": true,
+  "existingDemoAuth": true,
+  "replayedPriorSuccessfulRecognition": true,
+  "liveStagedPricing": true,
+  "matchingCardImageLoaded": true,
+  "currentPriceVisible": true,
+  "displayCurrencyPreferenceRespected": true,
+  "exactShippingCspApplied": true,
+  "historyChartVisible": true,
+  "priceAndChartAfterMatchMs": 7493,
+  "pricing": [
+    {
+      "elapsedMs": 6458,
+      "historyRows": 104,
+      "matchedProvider": true,
+      "condition": "Near Mint",
+      "variant": "Holofoil",
+      "quoteCount": 5
+    }
+  ],
+  "uncaughtErrors": [],
+  "customerInventoryWrites": 0,
+  "blockedBrowserWrites": 4,
+  "paidAiCalls": 0,
+  "sqlExecuted": false
+}

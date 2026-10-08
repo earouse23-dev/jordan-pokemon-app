@@ -68,6 +68,7 @@ for (const f of baseline.source)
 const changes = [
   "app.js",
   "sw.js",
+  "styles.css",
   "assets/ocr/README.md",
   "lib/card-ocr.js",
   "lib/vision.js",

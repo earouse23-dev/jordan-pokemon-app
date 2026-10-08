@@ -1214,6 +1214,8 @@ test("late automatic identification cannot open a match for a different owner", 
   await pending.fulfill({contentType:"application/json",body:JSON.stringify({analysis:{quality:{usable:true},identity:{name:"Pikachu"}},catalogResolution:{cards:[{id:"fixture-pikachu",name:"Pikachu",set:"151",number:"025/165",language:"en",variant:"Holofoil",thumb:"/icons/icon.svg"}],resolution:{status:"exact",recommendedId:"fixture-pikachu"}}})});
   await page.waitForTimeout(200);
   await expect(page.locator("#sheetTitle")).toHaveText("Checking your card");
+  await expect(page.getByRole("status", { name: "Loading your card" })).toBeVisible();
+  await expect(page.locator(".skeleton-card")).toBeVisible();
   await expect(page.locator("#positionForm")).toHaveCount(0);
   await expect(page.locator("[data-vision-card]")).toHaveCount(0);
 });

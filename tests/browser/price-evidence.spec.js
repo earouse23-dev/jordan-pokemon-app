@@ -274,21 +274,22 @@ test("dated chart uses elapsed time and range-consistent values, including empty
   expect(
     (plot.pixels[1] - plot.pixels[0]) / (plot.pixels[2] - plot.pixels[1]),
   ).toBeCloseTo(54 / 4, 1);
-  await page.getByRole("button", { name: "1 week", exact: true }).click();
+  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("1m");
   await expect(page.locator(".history-summary")).toContainText("$40.00");
   await expect(
-    page.getByRole("button", { name: "1 week", exact: true }),
+    page.getByRole("combobox", { name: "Price history timeframe" }),
   ).toBeFocused();
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(2);
   await expect(page.locator(".history-purchases")).toContainText("Bought 1");
-  await page.getByRole("button", { name: "1 day", exact: true }).click();
-  await expect(page.locator("#cardPriceHistory")).toContainText(
-    "No matching prices recorded in this range",
-  );
-  await page
-    .getByRole("button", { name: "All available history", exact: true })
-    .click();
+  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("6m");
+  await expect(page.locator(".history-values tbody tr")).toHaveCount(3);
+  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("all");
+  await expect(page.locator("#positionChart")).toBeVisible();
+  await openDetail(page, { priceHistory: [point(800, 10), point(790, 30)], historyStatus: "live" });
+  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("1y");
+  await expect(page.locator("#cardPriceHistory")).toContainText("No matching prices recorded in this range");
+  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("all");
   await expect(page.locator("#positionChart")).toBeVisible();
   await assertFits(page);
   await page
@@ -628,4 +629,14 @@ test("grading comparison prefills only current matching market evidence", async 
   await expect(page.locator('[data-comparison-result="10"]')).toContainText(
     "Value and costs needed",
   );
+});
+
+test("unavailable display conversion keeps native current price and recorded history visible", async ({ page }) => {
+  const now = Date.now();
+  await openDetail(page, { price: 10, referencePrice: 10, currency: "USD", pricingStatus: "live", priceHistory: [2,1].map(days => ({ amount: 10, currency: "USD", recordedAt: new Date(now - days * 86400000).toISOString(), condition: "Near Mint", finish: "holofoil", variant: "Holofoil", provider: "tcgplayer" })), historyStatus: "live" });
+  await page.evaluate(() => { const app = globalThis.fixtureApp; app.state.profile = { displayCurrency: "EUR" }; app.state.displayFxStatus = "error"; app.renderDetail(); });
+  await expect(page.locator(".market-hero")).toContainText("$10.00");
+  await expect(page.locator("#positionChart")).toBeVisible();
+  await expect(page.locator("#cardPriceHistory")).toContainText("Showing original USD records");
+  await expect(page.locator(".detail-currency-note")).toContainText("values retain their original currencies");
 });

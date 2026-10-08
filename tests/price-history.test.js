@@ -68,6 +68,6 @@ test("chart display conversion preserves native observations, dates and transact
  assert.deepEqual(eur.points.map(p=>p.amount),[120,80]); assert.equal(eur.summary.change,-40); assert.equal(eur.basis,80);
  assert.equal(eur.points[0].nativeAmount,150); assert.equal(eur.points[0].recordedAt,"2026-09-01"); assert.equal(eur.purchases[0].y,80); assert.equal(eur.purchases[0].transaction.totalCost,100); assert.equal(eur.rateRef,rate.rateRef);
  assert.deepEqual(model,original);
- const unavailable=displayHistoryCurrency(model,"EUR",null,now); assert.equal(unavailable.conversionUnavailable,true); assert.deepEqual(unavailable.points,[]); assert.equal(unavailable.basis,null);
+ const unavailable=displayHistoryCurrency(model,"EUR",null,now); assert.equal(unavailable.conversionUnavailable,true); assert.equal(unavailable.currency,"USD"); assert.deepEqual(unavailable.points.map(p=>p.amount),[150,100]); assert.equal(unavailable.basis,model.basis); assert.deepEqual(unavailable.summary,model.summary); assert.deepEqual(unavailable.purchases,model.purchases);
  assert.deepEqual(displayHistoryCurrency(model,"USD",null,now).points.map(p=>p.amount),[150,100]);
 });

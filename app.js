@@ -2840,30 +2840,11 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   if (model.conversionUnavailable && supportedCurrency && state.displayFxStatus === "ready" && !usableFxRate(lastValidatedFxRate)) state.displayFxStatus = "idle";
   if (model.conversionUnavailable && supportedCurrency && state.displayFxStatus === "idle") void loadDisplayFx();
   state.chartRange = model.range;
-  const focusedRange = document.activeElement?.dataset?.chartRange;
+  const focusedRange = document.activeElement?.id === "cardHistoryRange";
   const itemKey = String(item.uid || item.id || "");
-  if (focusedRange)
-    queueMicrotask(() => {
-      const root = $("#cardPriceHistory");
-      if (root?.dataset.item === itemKey && state.route === "detail")
-        $(`[data-chart-range="${focusedRange}"]`, root)?.focus({
-          preventScroll: true,
-        });
-    });
+  if (focusedRange) queueMicrotask(() => $("#cardHistoryRange")?.focus({ preventScroll: true }));
   const { summary, points, currency } = model;
-  const controls = [
-    ["1d", "1D", "1 day"],
-    ["1w", "1W", "1 week"],
-    ["1m", "1M", "1 month"],
-    ["6m", "6M", "6 months"],
-    ["1y", "1Y", "1 year"],
-    ["all", "All", "All available history"],
-  ]
-    .map(
-      ([value, label, name]) =>
-        `<button type="button" data-chart-range="${value}" aria-label="${name}" aria-pressed="${String(model.range === value)}">${label}</button>`,
-    )
-    .join("");
+  const controls = `<label class="history-range-select">Timeframe<select id="cardHistoryRange" aria-label="Price history timeframe">${[["1m", "1 month"], ["6m", "6 months"], ["1y", "1 year"], ["all", "All time"]].map(([value, label]) => `<option value="${value}" ${model.range === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>`;
   const context =
     item.cardState === "sealed"
       ? "Unopened"
@@ -2900,8 +2881,8 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   const purchases = model.purchases.length
     ? `<p class="chart-purchases-note">${model.purchases.length} purchase${model.purchases.length === 1 ? "" : "s"} with a known date and amount in this range.</p>`
     : "";
-  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}"><div class="history-controls" role="group" aria-label="Price history range">${controls}</div>${item.cardState !== "graded" && ["partial", "unavailable", "error"].includes(item.historyStatus) && points.length ? '<p class="chart-context">Some historical prices could not be loaded. This chart shows the available records.</p>' : ""}
-    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : ""}</p>${points.length === 1 ? '<p class="chart-context">One recorded price in this range. More prices are needed to show a trend.</p>' : ""}<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}</div>`;
+  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${item.cardState !== "graded" && ["partial", "unavailable", "error"].includes(item.historyStatus) && points.length ? '<p class="chart-context">Some historical prices could not be loaded. This chart shows the available records.</p>' : ""}
+    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable.` : ""}</p>${points.length === 1 ? '<p class="chart-context">One recorded price in this range. More prices are needed to show a trend.</p>' : ""}<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}</div>`;
 }
 
 async function mountPriceChart(item, history = historyForItem(item)) {
@@ -2914,24 +2895,20 @@ async function mountPriceChart(item, history = historyForItem(item)) {
   if (retryFx) retryFx.onclick = () => void loadDisplayFx();
   // Bind before loading Chart.js, including empty ranges, so controls never wait
   // on the chart download and an empty view can always recover.
-  $$("[data-chart-range]", root).forEach((button) => {
-    button.onclick = () => {
-      const range = button.dataset.chartRange;
-      const tableOpen = $(".history-values", root)?.open;
-      state.chartRange = range;
-      root.outerHTML = renderInteractiveHistory(item, item.price, history);
-      const next = $("#cardPriceHistory");
-      if (tableOpen && $(".history-values", next))
-        $(".history-values", next).open = true;
-      $(`[data-chart-range="${range}"]`, next)?.focus({
-        preventScroll: true,
-      });
-      void mountPriceChart(item, history);
-    };
-  });
+  const selector = $("#cardHistoryRange", root);
+  if (selector) selector.onchange = () => {
+    const range = selector.value;
+    const tableOpen = $(".history-values", root)?.open;
+    state.chartRange = range;
+    root.outerHTML = renderInteractiveHistory(item, item.price, history);
+    const next = $("#cardPriceHistory");
+    if (tableOpen && $(".history-values", next)) $(".history-values", next).open = true;
+    void mountPriceChart(item, history);
+    $("#cardHistoryRange", next)?.focus({ preventScroll: true });
+  };
   const graph = $(".chart-wrap", root);
   const summary = $(".history-summary", root);
-  if (graph && summary) root.insertBefore(graph, summary);
+  if (graph) { root.prepend(graph); graph.after($(".history-range-select", root)); }
   const canvas = $("#positionChart", root);
   const collapsedPrices = canvas?.closest('[data-detail-tool="prices"]');
   if (!canvas || (collapsedPrices && !collapsedPrices.open)) return;
@@ -3264,19 +3241,15 @@ function displayPriceSource(amount, currency = "USD") {
 
 async function loadDisplayFx() {
   if (state.displayFxStatus === "loading") return;
-  const owner = state.session?.user?.id || "";
-  const version = sessionLoadVersion;
   state.displayFxStatus = "loading";
   try {
     const response = await fetch("/api/fx", { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8_000) });
     const rate = await response.json();
-    if ((state.session?.user?.id || "") !== owner || sessionLoadVersion !== version) return;
     if (!response.ok || !usableFxRate(rate)) throw new Error("Rate unavailable");
     lastValidatedFxRate = rate;
     state.displayFxStatus = "ready";
 
   } catch {
-    if ((state.session?.user?.id || "") !== owner || sessionLoadVersion !== version) return;
     state.displayFxStatus = "error";
   }
   renderCollection();
@@ -8814,15 +8787,16 @@ function renderDetail() {
   const identityDetails = sealed
     ? ""
     : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
+  const marketHero = `<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<small class="price-provenance">${esc(provenance)}</small>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button">View recent eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name || "Printed name unknown")}</h1><p class="detail-set">${esc(item.set || "Set unknown")}${sealed ? "" : item.number ? ` · card ${esc(item.number)}` : " · collector number unknown"}</p><div class="detail-meta">${detailMeta}</div>${identityDetails}</div></div>
+    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name || "Printed name unknown")}</h1><p class="detail-set">${esc(item.set || "Set unknown")}${sealed ? "" : item.number ? ` · card ${esc(item.number)}` : " · collector number unknown"}</p>${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "transaction") ? "Matching completed-sale prices" : "Recorded sold-derived estimates") : "Provider-recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
-    ${item.currency !== displayCurrency() ? `<p class="detail-currency-note">Display values in ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable.")} Purchase and sale records retain their original currencies.</p>` : ""}
-    ${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) + '<details class="provider-index-details" data-detail-tool="provider-index"><summary>Provider reference index</summary>' : ""}<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD")}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<small class="price-provenance">${esc(provenance)}</small>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button">View recent eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>
-    ${context.cardState === "graded" ? "</details>" : ""}
+    ${item.currency !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
+    ${context.cardState === "graded" ? `<details class="provider-index-details" data-detail-tool="provider-index"><summary>Provider reference index</summary>${marketHero}</details>` : ""}
     ${detailValuationMarkup(item, owned, watched, context)}
+    <section class="detail-secondary"><div class="detail-meta">${detailMeta}</div>${identityDetails}</section>
     ${watchedSection}
     ${action}
     ${listingSection}
@@ -15150,7 +15124,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
 async function analyzeCardImages(mode, preparedImages, options = {}) {
   $("#bottomSheet").dataset.lockClose = "true";
   openSheet(
-    `<div class="sheet-heading grading-process-heading"><div><span>${mode === "grade" ? esc(GRADING_MODES[options.gradingMode]?.name || "Digital grading") : "Card identification"}</span><h2 id="sheetTitle">${mode === "grade" ? "Grade processing" : "Checking your card"}</h2><p>${mode === "grade" ? `${preparedImages.length} real captures · identity, match, and grade` : "Reading the name and bottom number"}</p></div></div>${mode === "grade" ? '<div class="grade-processing" role="status" aria-live="polite"><div data-process-stage="normalize" data-state="complete"><span>Photo normalization</span><small>Device, light, and perspective checks</small><i></i><b>Complete</b></div><div data-process-stage="identity" data-state="active"><span>Card identity + Collection match</span><small>Name, set, collector number, and language</small><i></i><b>In progress</b></div><div data-process-stage="centering" data-state="waiting"><span>Centering model</span><small>Front and back printed-border geometry</small><i></i><b>Waiting</b></div><div data-process-stage="edges" data-state="waiting"><span>Corner + edge models</span><small>Independent localized evidence</small><i></i><b>Waiting</b></div><div data-process-stage="surface" data-state="waiting"><span>Surface + structure models</span><small>Cross-view evidence comparison</small><i></i><b>Waiting</b></div><div class="grade-processing-overall" data-process-stage="overall" data-state="waiting"><span>Overall grade + automatic attachment</span><i></i><b>Waiting</b></div><strong>Identifying, matching, and grading your card…</strong><small>Mica only changes an eligible Collection card when its printed identity is verified.</small></div>' : '<div class="vision-processing" role="status" aria-live="polite"><i></i><strong>Reading the card or graded case…</strong><span>The photo is processed privately. Confirm the matching card to save it with your photo.</span></div>'}`,
+    `<div class="sheet-heading grading-process-heading ${mode === "identify" ? "identification-processing-heading" : ""}"><div><span>${mode === "grade" ? esc(GRADING_MODES[options.gradingMode]?.name || "Digital grading") : "Card identification"}</span><h2 id="sheetTitle">${mode === "grade" ? "Grade processing" : "Checking your card"}</h2><p>${mode === "grade" ? `${preparedImages.length} real captures · identity, match, and grade` : "Reading the name and bottom number"}</p></div></div>${mode === "grade" ? '<div class="grade-processing" role="status" aria-live="polite"><div data-process-stage="normalize" data-state="complete"><span>Photo normalization</span><small>Device, light, and perspective checks</small><i></i><b>Complete</b></div><div data-process-stage="identity" data-state="active"><span>Card identity + Collection match</span><small>Name, set, collector number, and language</small><i></i><b>In progress</b></div><div data-process-stage="centering" data-state="waiting"><span>Centering model</span><small>Front and back printed-border geometry</small><i></i><b>Waiting</b></div><div data-process-stage="edges" data-state="waiting"><span>Corner + edge models</span><small>Independent localized evidence</small><i></i><b>Waiting</b></div><div data-process-stage="surface" data-state="waiting"><span>Surface + structure models</span><small>Cross-view evidence comparison</small><i></i><b>Waiting</b></div><div class="grade-processing-overall" data-process-stage="overall" data-state="waiting"><span>Overall grade + automatic attachment</span><i></i><b>Waiting</b></div><strong>Identifying, matching, and grading your card…</strong><small>Mica only changes an eligible Collection card when its printed identity is verified.</small></div>' : '<div class="card-loading-skeleton" role="status" aria-live="polite" aria-label="Loading your card"><span class="sr-only">Checking your card</span><div class="skeleton-card" aria-hidden="true"></div><div class="skeleton-copy" aria-hidden="true"><i></i><i></i><i></i></div><div class="skeleton-chart" aria-hidden="true"></div></div>'}`,
   );
   if (mode === "grade") $("#bottomSheet").dataset.experience = "grading";
   const requestId = crypto.randomUUID();
@@ -19451,8 +19425,7 @@ function approvedImageProxyPath(value) {
   try {
     const source = new URL(value, location.href);
     if (
-      source.protocol !== "https:" ||
-      !["assets.tcgdex.net", "images.pokemontcg.io"].includes(source.hostname)
+      !normalizeCardImageSource(source.href)
     )
       return null;
     const path = `/api/card-image?url=${encodeURIComponent(source.href)}`;

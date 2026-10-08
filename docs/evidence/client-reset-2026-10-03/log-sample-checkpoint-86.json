@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-08T16:33:05.964Z",
+  "deployment": "dpl_DMiMcK1j5EGYnrG7LRXhQzWCDYq6",
+  "sampleRows": 50,
+  "statusCounts": {
+    "200": 47,
+    "400": 1,
+    "401": 2
+  },
+  "applicationExceptionRows": 0,
+  "boundedSample": true,
+  "privateLogsRetainedOutsideRepository": true
+}

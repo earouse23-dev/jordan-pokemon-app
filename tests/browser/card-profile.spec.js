@@ -31,7 +31,7 @@ test.beforeAll(async () => {
     );
   const result = await build({
     stdin: {
-      contents: `${source.replace("void bootstrap();", "")}\nexport { state, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, supabase as testSupabase };`,
+      contents: `${source.replace("void bootstrap();", "")}\nexport { state, loadDisplayFx, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, supabase as testSupabase };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -1925,3 +1925,38 @@ async function openValueContext(page) {
   if (await context.count() && !(await context.evaluate(element => element.open)))
     await context.locator("summary").click();
 }
+
+
+test("card result leads with price and recovers provider images through the validated proxy", async ({ page }) => {
+  let proxyReads = 0;
+  await setup(page);
+  await page.route("https://images.pkmnprices.com/cards/test.webp", route => route.abort());
+  await page.route("**/api/card-image?*", route => { proxyReads++; return route.fulfill({ contentType: "image/png", body: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jf1sAAAAASUVORK5CYII=", "base64") }); });
+  await openCard(page, exactCard({ image: "https://images.pkmnprices.com/cards/test.webp", thumb: null }));
+  await expect(page.locator(".market-hero")).toContainText("$10.00");
+  await expect.poll(() => page.locator(".detail-image img").evaluate(i => i.complete && i.naturalWidth > 0 && new URL(i.src).pathname === "/api/card-image")).toBe(true);
+  expect(proxyReads).toBeGreaterThan(0);
+  const positions = await page.evaluate(() => ({ price: document.querySelector(".market-hero").getBoundingClientRect().top, chart: document.querySelector("#cardPriceHistory").getBoundingClientRect().top, metadata: document.querySelector(".detail-secondary").getBoundingClientRect().top }));
+  expect(positions.price).toBeLessThan(positions.chart);
+  expect(positions.metadata).toBeGreaterThan(positions.chart);
+  await expect(page.getByRole("combobox", { name: "Price history timeframe" })).toHaveValue("all");
+  await expect(page.locator("#cardHistoryRange option")).toHaveText(["1 month", "6 months", "1 year", "All time"]);
+});
+
+
+test("public display rate completes across session changes instead of stranding loading", async ({ page }) => {
+  await setup(page);
+  const day = new Date().toISOString().slice(0, 10), hash = "a".repeat(64);
+  await page.route("**/api/fx", route => route.fulfill({ contentType: "application/json", body: JSON.stringify({ sourceId: "ecb-eurofxref-daily", sourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", base: "EUR", quote: "USD", units: "USD per EUR", rate: 1.2, effectiveDate: day, fetchedAt: new Date(Date.now() - 1000).toISOString(), contentSha256: hash, rateRef: `ecb-eurofxref-daily:${day}:${hash}` }) }));
+  await openCard(page);
+  const status = await page.evaluate(async ({ appUrl, otherOwnerId }) => {
+    const app = await import(appUrl);
+    app.state.profile = { ...(app.state.profile || {}), displayCurrency: "EUR" };
+    app.state.displayFxStatus = "idle";
+    const pending = app.loadDisplayFx();
+    app.state.session = { user: { id: otherOwnerId } };
+    await pending;
+    return app.state.displayFxStatus;
+  }, { appUrl, otherOwnerId });
+  expect(status).toBe("ready");
+});
