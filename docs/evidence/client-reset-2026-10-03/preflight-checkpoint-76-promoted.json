@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-08T01:27:47.643Z",
+  "stage": "/tmp/mica-client-reset-corrected",
+  "functions": 9,
+  "deployEntries": 64,
+  "sourceEntries": 96,
+  "deploymentZipSha256": "090f9364f087f6facc5083b81b919525b7a3f818ac02d51743989e922c9d593f",
+  "sourceZipSha256": "d0db92a4eca580502c83e6d939a47a137faf05e593f6c286778408f1594c00d1",
+  "manifestSha256": "5bf4ddc6607f066bb07dee22e291b960e555007e6a556d06b495f8402ca1517b",
+  "repeatBuildIdentical": true,
+  "changedSource": [
+    "index.html",
+    "lib/card-ocr.js",
+    "sw.js"
+  ],
+  "entriesScanned": 160,
+  "privateFindings": 0,
+  "certificateExclusionFiles": 47
+}

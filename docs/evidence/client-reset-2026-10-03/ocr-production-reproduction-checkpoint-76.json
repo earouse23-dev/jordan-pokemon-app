@@ -1,0 +1,51 @@
+{
+  "checkedAt": "2026-10-08T01:30:24.924Z",
+  "build": {
+    "platform": "browser",
+    "format": "esm",
+    "target": [
+      "es2022"
+    ],
+    "splitting": true,
+    "minify": true
+  },
+  "before": [
+    {
+      "browser": "chromium",
+      "workerReady": false,
+      "error": "worker export is not a function"
+    },
+    {
+      "browser": "webkit",
+      "workerReady": false,
+      "error": "worker export is undefined"
+    }
+  ],
+  "after": [
+    {
+      "browser": "chromium",
+      "workerReady": true
+    },
+    {
+      "browser": "webkit",
+      "workerReady": true
+    }
+  ],
+  "browserOcrChecksPassed": 9,
+  "unitChecksPassed": 540,
+  "existingUnitSkips": 3,
+  "liveCaptureChecksPassed": 6,
+  "privateScreenshotReplay": {
+    "chromium": {
+      "detected": true,
+      "blueOverlay": true
+    },
+    "webkit": {
+      "detected": true,
+      "blueOverlay": true
+    },
+    "sourceAspectPreserved": true,
+    "originalImageCommitted": false,
+    "physicalDeviceAcceptance": false
+  }
+}

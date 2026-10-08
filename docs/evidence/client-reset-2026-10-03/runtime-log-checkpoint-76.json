@@ -1,0 +1,13 @@
+{
+  "deploymentId": "dpl_DwAyhZZZLfCDKpn248uJQ5eaY2Wk",
+  "checkedAt": "2026-10-08T01:30:57.221Z",
+  "window": "10m",
+  "applicationExceptions": 0,
+  "observedWarnings": [
+    {
+      "code": "DEP0169",
+      "count": 2
+    }
+  ],
+  "photoAcceptance": false
+}
