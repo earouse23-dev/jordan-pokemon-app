@@ -26,3 +26,7 @@ Curated frozen-release overlay changes only app.js, lib/portfolio.js, themes.css
 - Live: https://jordan-pokemon-app.vercel.app
 
 The previous canonical89 alias/cron state was rechecked before promotion. Staged and live configuration, holds, CORS/hostile-origin rejection, unknown-path404 and authenticated deletion boundary checks pass. Git deployment suppression and hosted ignored-build exit0 protect the prebuilt release; deletion schedule remains15 5 * * * at /api/capabilities?surface=grading-deletion. Remote commit/final post-push state recorded next.
+
+## Remote publication
+
+Source/tests published as [ca076ab](https://github.com/earouse23-dev/jordan-pokemon-app/commit/ca076aba52c57fdb9263b0acfa1a32fb2fc46393); remote branch hash verified. Post-push canonical deployment/asset hashes, Git guards and deletion-only cron still match. Final runtime inventory contains two cards200 and no cards failure; three error-level entries are the existing Node URL-parser deprecation on health/auth-related or successful requests, not an observed pricing failure. Expected holds503 and auth/CORS denial statuses are included in the sanitized runtime summary.

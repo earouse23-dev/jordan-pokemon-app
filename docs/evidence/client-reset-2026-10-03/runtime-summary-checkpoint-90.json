@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-10-09T04:35:16.931Z",
+  "counts": {
+    "/api/cards 200": 2,
+    "/_release-hold 404": 2,
+    "/api/vision 403": 2,
+    "/api/vision 204": 2,
+    "/api/sales 403": 2,
+    "/api/sales 204": 2,
+    "/api/vision 401": 2,
+    "/api/vision 503": 8,
+    "/api/capabilities 401": 2,
+    "/api/graded-valuation 401": 2,
+    "/api/sealed 401": 2,
+    "/api/offers 401": 2,
+    "/api/sales 401": 2,
+    "/api/alert-delivery 503": 2,
+    "/api/maintenance 503": 2,
+    "/api/price-sync 503": 2,
+    "/api/capabilities 200": 2,
+    "/api/health 200": 2
+  },
+  "errorLevelEntries": 3,
+  "allErrorEntriesAreExistingUrlParserDeprecation": true,
+  "pricingHttpFailures": 0,
+  "privateLogsPublished": false
+}
