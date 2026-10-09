@@ -2942,3 +2942,21 @@ test("exhausted shared daily allowance remains explicit and never falls through 
     assert.equal(outbound, 0);
   } finally { if (key === undefined) delete process.env.PKMNPRICES_API_KEY; else process.env.PKMNPRICES_API_KEY = key; }
 });
+
+ test("documented provider card annotations resolve exact Umbreon and Espeon printings", () => {
+ for (const [name, providerName, number, total, set] of [["Umbreon VMAX", "Umbreon VMAX (Alternate Art Secret)", "215", "203", "Evolving Skies"], ["Espeon", "Espeon (1)", "01", "75", "Neo Discovery"]]) {
+ const card={id:17262,name:providerName,number,total_set_number:total,set:{name:set},language:"English",prices:[{variant:"Holofoil"}]};
+ const lookup={name,number:Number(number)+"/"+total,set,language:"en"};
+ assert.equal(matchesPkmnPricesIdentity(card,lookup),true);
+ assert.equal(matchesPkmnPricesIdentity(card,{...lookup,number:"2/"+total}),false);
+ const printing=normalizePkmnPricesCard(card).variantOptions[0];
+ assert.equal(printing.finish,"holofoil"); assert.equal(printing.edition,"unlimited"); assert.equal(printing.promoType,"none");
+ }
+ });
+
+test("realistic SWSH slab titles accept art annotations but reject other cards and printings",()=>{
+const card={name:"Lugia V (Alternate Full Art)",number:"186",total_set_number:"195",set:{name:"SWSH12: Silver Tempest"},rarity:"Ultra Rare"};
+const lookup={name:"Lugia V",set:"Silver Tempest",number:"186/195",language:"en",variant:"Holofoil",grader:"PSA",grade:"10",edition:"unlimited",promoType:"none"};
+for(const title of ["2022 Pokémon Lugia V #186/195 SWSH Silver Tempest FA PSA 10 GEM MINT","Lugia V (Alternate Full Art) 186/195 Swsh12: Sword & Shield-Silver Tempest PSA10","Pokémon TCG Lugia v Alternate Art 186/195 Gem Mint PSA 10 English"]) assert.equal(saleMatchesCanonicalIdentity({title},card,lookup),true,title);
+for(const title of ["Charizard V 186/195 Silver Tempest PSA 10","Lugia V 186/196 Silver Tempest PSA 10","Lugia V 186/195 Silver Tempest 1st edition PSA 10","Lugia V 186/195 Silver Tempest Japanese PSA 10"]) assert.equal(saleMatchesCanonicalIdentity({title},card,lookup),false,title);
+});

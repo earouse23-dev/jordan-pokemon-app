@@ -335,3 +335,17 @@ test('durable history survives cold reads and refreshes only the new overlapping
  pkmnPricesRequests.cache.clear();const next=await get();
  assert.equal(periods[0],'365d');assert.ok(['2d','3d'].includes(periods[1]));assert.equal(next.history.length,2);assert.equal(calls,3);
 });
+
+test('completed requests settle their bounded reservation against the original UTC day', async t => {
+ for (const [key,value] of Object.entries({NEXT_PUBLIC_SUPABASE_URL:'https://usage-fixture.supabase.co',SUPABASE_SECRET_KEY:'fixture'})) {
+  const old=process.env[key];process.env[key]=value;t.after(()=>{if(old===undefined)delete process.env[key];else process.env[key]=old;});
+ }
+ const rows=[];t.mock.method(globalThis,'fetch',async(input,init)=>{
+  assert.equal(new URL(input).pathname,'/rest/v1/rpc/record_provider_request_usage');rows.push(JSON.parse(init.body));return new Response(null,{status:204});
+ });
+ const url='https://api.pkmnprices.com/v1/cards/17262/listings/ebay?limit=20';
+ await pkmnPricesRequests.recordUsage(url,200,{data:[{},{}]},null,'2026-10-09');
+ await pkmnPricesRequests.recordUsage(url,503,null,'transport_error','2026-10-09');
+ assert.equal(rows[0].p_reserved,20);assert.equal(rows[0].p_returned,2);assert.equal(rows[0].p_credit_day,'2026-10-09');
+ assert.equal(rows[1].p_returned,null);assert.equal(rows[1].p_status,503);assert.notEqual(rows[0].p_request_key,rows[1].p_request_key);
+});

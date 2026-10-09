@@ -626,7 +626,8 @@ test("graded reference index cannot enter portfolio totals or snapshots; exact s
   ]);
   expect(results.exactScreen).toContain("€100.00");
   expect(results.wrongGrade.pricedUnits).toBe(0);
-  expect(results.stale.pricedUnits).toBe(0);
+  expect(results.stale.pricedUnits).toBe(1);
+  expect(results.stale.valueMinor).toBe(10000);
   expect(snapshotWrites).toBe(1); // Only the validated exact-sold aggregate is saved; never the index, wrong grade or stale result.
 });
 

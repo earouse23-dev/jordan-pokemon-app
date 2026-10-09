@@ -1,0 +1,89 @@
+{
+  "checkedAt": "2026-10-09T19:10:40.699Z",
+  "demoAuthentication": true,
+  "results": [
+    {
+      "name": "Charizard V",
+      "grader": "PSA",
+      "grade": "10",
+      "status": 200,
+      "received": 10,
+      "accepted": 9,
+      "estimate": 720,
+      "valuationStatus": "ready",
+      "amountVerified": false,
+      "exclusions": [
+        {
+          "id": "pkmnprices:176583956",
+          "reason": "canonical_identity_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "Umbreon VMAX",
+      "grader": "PSA",
+      "grade": "10",
+      "status": 200,
+      "received": 10,
+      "accepted": 9,
+      "estimate": 3750,
+      "valuationStatus": "ready",
+      "amountVerified": false,
+      "exclusions": [
+        {
+          "id": "pkmnprices:176906385",
+          "reason": "canonical_identity_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "Blastoise",
+      "grader": "PSA",
+      "grade": "9",
+      "status": 200,
+      "received": 10,
+      "accepted": 7,
+      "estimate": 950,
+      "valuationStatus": "stale",
+      "amountVerified": false,
+      "exclusions": [
+        {
+          "id": "pkmnprices:155416589",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:147351553",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:136332430",
+          "reason": "canonical_identity_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "Espeon",
+      "grader": "CGC",
+      "grade": "8.5",
+      "status": 200,
+      "received": 0,
+      "accepted": 0,
+      "estimate": null,
+      "valuationStatus": "insufficient",
+      "amountVerified": false,
+      "exclusions": []
+    },
+    {
+      "name": "Lugia V",
+      "grader": "PSA",
+      "grade": "10",
+      "status": 200,
+      "received": 10,
+      "accepted": 10,
+      "estimate": 1250,
+      "valuationStatus": "ready",
+      "amountVerified": false,
+      "exclusions": []
+    }
+  ]
+}

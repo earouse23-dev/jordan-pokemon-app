@@ -78,24 +78,46 @@ test("sales remove holdings, preserve zero, and missing holdings cannot masquera
     "2026-01-06T00:00:00Z",
   ).summaries[0];
   assert.equal(summary.total, null);
-  assert.deepEqual(summary.history, []);
+  assert.equal(summary.history.length, 6);
+  assert.ok(summary.history.every((p) => p.total === 200));
+  assert.equal(summary.historyExcludedPositions, 1);
   assert.equal(summary.knownTotal, 200);
   assert.equal(buildPortfolioView([]).summaries[0].total, 0);
 });
 
-test('today ends at the same current market value shown above the chart',()=>{
- const a=item('today','2026-01-01',200);a.price=250;
- const view=buildPortfolioView([a],'2026-01-05T12:00:00Z').summaries[0];
- assert.equal(view.history.find(p=>p.date==='2026-01-04').total,200);
- assert.equal(view.history.at(-1).total,view.total);assert.equal(view.total,250);
+test("today ends at the same current market value shown above the chart", () => {
+  const a = item("today", "2026-01-01", 200);
+  a.price = 250;
+  const view = buildPortfolioView([a], "2026-01-05T12:00:00Z").summaries[0];
+  assert.equal(view.history.find((p) => p.date === "2026-01-04").total, 200);
+  assert.equal(view.history.at(-1).total, view.total);
+  assert.equal(view.total, 250);
 });
 
-test('display totals include every native currency and never assume a missing exchange rate',async()=>{
- const {displayPortfolioView}=await import('../lib/portfolio-view.js');
- const hash='a'.repeat(64),now=Date.parse('2026-01-05T12:00:00Z');
- const rate={sourceId:'ecb-eurofxref-daily',sourceUrl:'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml',base:'EUR',quote:'USD',units:'USD per EUR',rate:1.25,effectiveDate:'2026-01-05',fetchedAt:'2026-01-05T00:00:00.000Z',contentSha256:hash,rateRef:'ecb-eurofxref-daily:2026-01-05:'+hash};
- const a=item('usd','2026-01-01',200),b=item('eur','2026-01-03',100);b.currency='EUR';b.priceHistory[0].currency='EUR';
- const view=buildPortfolioView([a,b],'2026-01-05T12:00:00Z');const display=displayPortfolioView(view,'USD',rate,now);
- assert.equal(display.total,325);assert.equal(display.history.find(p=>p.date==='2026-01-01').total,200);assert.equal(display.history.at(-1).total,325);
- assert.equal(displayPortfolioView(view,'USD',null,now).total,null);
+test("display totals include every native currency and never assume a missing exchange rate", async () => {
+  const { displayPortfolioView } = await import("../lib/portfolio-view.js");
+  const hash = "a".repeat(64),
+    now = Date.parse("2026-01-05T12:00:00Z");
+  const rate = {
+    sourceId: "ecb-eurofxref-daily",
+    sourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml",
+    base: "EUR",
+    quote: "USD",
+    units: "USD per EUR",
+    rate: 1.25,
+    effectiveDate: "2026-01-05",
+    fetchedAt: "2026-01-05T00:00:00.000Z",
+    contentSha256: hash,
+    rateRef: "ecb-eurofxref-daily:2026-01-05:" + hash,
+  };
+  const a = item("usd", "2026-01-01", 200),
+    b = item("eur", "2026-01-03", 100);
+  b.currency = "EUR";
+  b.priceHistory[0].currency = "EUR";
+  const view = buildPortfolioView([a, b], "2026-01-05T12:00:00Z");
+  const display = displayPortfolioView(view, "USD", rate, now);
+  assert.equal(display.total, 325);
+  assert.equal(display.history.find((p) => p.date === "2026-01-01").total, 200);
+  assert.equal(display.history.at(-1).total, 325);
+  assert.equal(displayPortfolioView(view, "USD", null, now).total, null);
 });

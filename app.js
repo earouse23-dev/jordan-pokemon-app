@@ -2023,6 +2023,10 @@ function marketDisplayName(value) {
 }
 
 export function priceProvenanceText(item) {
+  if (item?.gradingCompany || item?.cardState === "graded") {
+    const sold = soldValuationForItem(item);
+    return sold ? `eBay comp estimate · ${sold.newestSoldAt.slice(0, 10)}${sold.amountVerified ? "" : " · sale amount unverified"}${sold.status === "stale" ? " · older comp" : ""}` : "No matching eBay comp available";
+  }
   if (["manual", "manual_override"].includes(item?.pricingStatus))
     return "Owner-entered value · no market source, freshness, or confidence";
   const quote = selectPositionQuote(item?.quotes || [], item || {});
@@ -3011,7 +3015,7 @@ function soldValuationForItem(item) {
       )[0];
     if (!saved?.saleEvidence) return null;
     const result = latestEbaySoldValuation(saved.saleEvidence.sales || [], exactSaleContext(item, valuationContextForItem(item)), { validatedContext: saved.saleEvidence.validatedContext, retrievedAt: saved.saleEvidence.retrievedAt });
-    return result.status === "ready" ? { ...result, contextValidated: true } : null;
+    return ["ready", "stale"].includes(result.status) ? { ...result, contextValidated: true } : null;
   }
   const result = latestEbaySoldValuation(
     evidence.sales || [],
@@ -3022,7 +3026,7 @@ function soldValuationForItem(item) {
       hasMore: evidence.hasMore,
     },
   );
-  return result.status === "ready"
+  return ["ready", "stale"].includes(result.status)
     ? { ...result, contextValidated: true }
     : null;
 }
@@ -3053,7 +3057,7 @@ function savedSaleEvidenceForContext(item, context) {
 function completedSaleHistory(item, context, sales) {
   if (sales?.salesStatus !== "live") return [];
   const result = latestEbaySoldValuation(sales.sales || [], exactSaleContext(item, context), { validatedContext: sales.validatedContext, retrievedAt: sales.retrievedAt, hasMore: sales.hasMore });
-  return result.evidence.filter(sale => (result.eligibleEvidenceIds || result.contributingEvidenceIds).includes(sale.transactionKey)).map(sale => ({ amount: sale.amount, currency: sale.currency, recordedAt: sale.soldAt, provider: "eBay completed sale", providerVariantId: sale.transactionKey, gradingCompany: context.gradingCompany, grade: context.grade, sourceUrl: sale.sourceUrl, granularity: "transaction" }));
+  return result.evidence.filter(sale => (result.eligibleEvidenceIds || result.contributingEvidenceIds).includes(sale.transactionKey)).map(sale => ({ amount: sale.amount, currency: sale.currency, recordedAt: sale.soldAt, provider: sale.saleType || sale.evidenceKind === "completed_sale" ? "eBay completed sale" : "eBay reported comp", providerVariantId: sale.transactionKey, gradingCompany: context.gradingCompany, grade: context.grade, sourceUrl: sale.sourceUrl, granularity: "transaction" }));
 }
 
 function renderExactSoldValue(item, context, sales) {
@@ -3091,7 +3095,7 @@ function renderExactSoldValue(item, context, sales) {
               ? "No eligible recent eBay sale for this exact slab."
               : result.status === "stale"
                 ? "Older completed sales · refresh before relying on this estimate."
-                : `Last matching eBay sale · ${result.newestSoldAt?.slice(0, 10)}.`;
+                : `${result.amountVerified ? "Last matching eBay sale" : "Reported eBay comp · sale amount unverified"} · ${result.newestSoldAt?.slice(0, 10)}.`;
   const button =
     sales?.salesStatus === "loading"
       ? ""
@@ -3105,7 +3109,7 @@ function renderExactSoldValue(item, context, sales) {
     .filter((row) => row.sourceMarket === "ebay" && safeMarketSourceUrl(row.sourceUrl, "ebay"))
     .sort((left, right) => String(right.soldAt).localeCompare(String(left.soldAt)))[0];
   const lastSoldLink = latestEbay
-    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer">View last eBay sale · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · excluded from estimate" : " · comparable"}</a>`
+    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer">View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · excluded from estimate" : " · comparable"}</a>`
     : "";
   const upstream = Array.isArray(sales?.upstreamExclusions)
     ? sales.upstreamExclusions
@@ -3141,7 +3145,7 @@ function renderExactSoldValue(item, context, sales) {
   const history = recorded.length
     ? `<details id="recordedSoldValuations"><summary>Recorded estimates</summary><ul>${recorded.map((point) => `<li>${esc(point.recordedAt.slice(0, 10))} · ${money(point.amount, point.currency)} · ${point.contributingEvidenceIds.length} completed sales via PkmnPrices</li>`).join("")}</ul><p>Recorded estimates retain their original evaluation date. They do not fill earlier gaps or establish a current price after becoming stale.</p></details>`
     : "";
-  return `<section class="exact-sold-value" role="status"><span>Last eBay sold · ${esc(displayCurrency())}</span><strong>${value}</strong>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${result.estimate === null ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${lastSoldLink}${fxLine}${button}${details}${history}</section>`;
+  return `<section class="exact-sold-value" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(displayCurrency())}</span><strong>${value}</strong>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${result.estimate === null ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${lastSoldLink}${fxLine}${button}${details}${history}</section>`;
 }
 
 let fxMidnightTimer = null;
@@ -5428,7 +5432,7 @@ function renderPortfolioHistory() {
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : '<div class="portfolio-history-empty">Historical prices are not available for every holding yet.</div>'}<p class="portfolio-chart-coverage">${saved.historyStartsAt ? `History available from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p>`;
+    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : '<div class="portfolio-history-empty">Historical prices are not available for every holding yet.</div>'}<p class="portfolio-chart-coverage">${saved.historyStartsAt ? `History available from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p>`;
     $("#portfolioChartRange", root)?.addEventListener("change", event => { state.portfolioHistoryRange = event.target.value; renderPortfolioHistory(); });
     if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false }));
     return;
@@ -8633,7 +8637,7 @@ function renderDetail() {
   const ownedSold = owned?.gradingCompany ? soldValuationForItem(owned) : null;
   const ownedProvenance = owned?.gradingCompany
     ? ownedSold
-      ? `${ownedSold.distinctSaleCount} completed sales · newest ${ownedSold.newestSoldAt.slice(0, 10)}`
+      ? `eBay comp estimate · ${ownedSold.newestSoldAt.slice(0, 10)}${ownedSold.amountVerified ? "" : " · sale amount unverified"}`
       : "Matching completed-sale estimate unavailable"
     : owned
       ? priceProvenanceText(owned)
@@ -8706,7 +8710,7 @@ function renderDetail() {
       (lot) => !lot.costBasisKnown || !lot.acquisitionDateKnown,
     ) || null;
   const positionSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Market price when bought</span><strong>${item.marketPriceAtPurchase == null ? "Waiting for matching history" : `${money(item.marketPriceAtPurchase, item.currency)} each`}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>${item.gradingCompany ? "Last matching eBay sale" : "Current market price"}</span><strong>${ownedValuationPrice === null ? "Unavailable" : `${displayCurrencyMoney(ownedValuationPrice, item.currency)} each`}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : displayCurrencyMoney(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>${Number(item.quantity) === 0 ? "Realized profit or loss" : "Profit or loss"}</span><strong>${Number(item.quantity) === 0 ? (performance.realizedGainMinor === null ? "Needs compatible sale and purchase currencies" : `${performance.realizedGainMinor >= 0 ? "Up " : "Down "}${displayCurrencyMoney(Math.abs(performance.realizedGainMinor) / 100, item.currency)}`) : performance.unrealizedGainMinor === null ? "Needs the amount you paid and a current market price" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${displayCurrencyMoney(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Current price evidence</span><strong>${esc(ownedProvenance)}</strong></div><div><span>Purchase-date source</span><strong>${esc(item.marketPriceAtPurchaseProvider || "Waiting for provider history")}</strong></div></div>${owned?.pricingStatus === "stale" && owned.referencePrice != null ? `<div class="warning-panel"><strong>Older evidence is shown for reference only.</strong><p>${money(owned.referencePrice, item.currency)} is outside the live freshness window, so it is excluded from current value and profit.</p></div>` : ""}${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}${item.cardState === "graded" && Number(item.quantity) > 1 ? '<div class="warning-panel"><strong>Separate this legacy graded entry before selling.</strong><p>Mica will not choose an arbitrary purchase lot or invent physical-copy details.</p></div>' : ""}<div class="sheet-actions">${physicalCopy ? '<button class="secondary" id="addPhysicalCopyButton" type="button">Add another copy</button>' : `<button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button>`}${(Number(item.quantity) === 1 || sealed) && !activeSubmission ? '<button class="secondary" id="recordSaleButton" type="button">Record sale</button>' : ""}</div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Market price when bought</span><strong>${item.marketPriceAtPurchase == null ? "Waiting for matching history" : `${money(item.marketPriceAtPurchase, item.currency)} each`}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>${item.gradingCompany ? "eBay comp estimate" : "Current market price"}</span><strong>${ownedValuationPrice === null ? "Unavailable" : `${displayCurrencyMoney(ownedValuationPrice, item.currency)} each`}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : displayCurrencyMoney(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>${Number(item.quantity) === 0 ? "Realized profit or loss" : "Profit or loss"}</span><strong>${Number(item.quantity) === 0 ? (performance.realizedGainMinor === null ? "Needs compatible sale and purchase currencies" : `${performance.realizedGainMinor >= 0 ? "Up " : "Down "}${displayCurrencyMoney(Math.abs(performance.realizedGainMinor) / 100, item.currency)}`) : performance.unrealizedGainMinor === null ? "Needs the amount you paid and a current market price" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${displayCurrencyMoney(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Current price evidence</span><strong>${esc(ownedProvenance)}</strong></div><div><span>Purchase-date source</span><strong>${esc(item.marketPriceAtPurchaseProvider || "Waiting for provider history")}</strong></div></div>${owned?.pricingStatus === "stale" && owned.referencePrice != null ? `<div class="warning-panel"><strong>Older evidence is shown for reference only.</strong><p>${money(owned.referencePrice, item.currency)} is outside the live freshness window, so it is excluded from current value and profit.</p></div>` : ""}${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}${item.cardState === "graded" && Number(item.quantity) > 1 ? '<div class="warning-panel"><strong>Separate this legacy graded entry before selling.</strong><p>Mica will not choose an arbitrary purchase lot or invent physical-copy details.</p></div>' : ""}<div class="sheet-actions">${physicalCopy ? '<button class="secondary" id="addPhysicalCopyButton" type="button">Add another copy</button>' : `<button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button>`}${(Number(item.quantity) === 1 || sealed) && !activeSubmission ? '<button class="secondary" id="recordSaleButton" type="button">Record sale</button>' : ""}</div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
     : "";
   const favorite =
     owned &&

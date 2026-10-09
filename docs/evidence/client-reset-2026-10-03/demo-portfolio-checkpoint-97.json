@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-09T19:08:59.946Z",
+  "isolatedDemoOnly": true,
+  "getStatus": 200,
+  "refreshStatus": 200,
+  "postRefreshGetStatus": 200,
+  "persistedWholeView": true,
+  "previousViewPreservedOnFailure": false,
+  "complete": false,
+  "refreshIncomplete": false,
+  "positions": 5,
+  "customerRecordsWritten": false
+}

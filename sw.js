@@ -1,4 +1,4 @@
-const SHELL_CACHE = "mica-shell-portfolio-recovery-96";
+const SHELL_CACHE = "mica-shell-portfolio-pricing-97";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [
