@@ -27,4 +27,6 @@ Sources: https://www.pkmnprices.com/docs/price-history ; https://www.pkmnprices.
 
 ## Publication
 
-Pending runtime verification and promotion; final IDs and live cron/hash evidence will be recorded after publication.
+Source commit: 3af6ac5. Published READY deployment dpl_5W976mdMHMjtxhovqtaKZ87HtUwt to https://jordan-pokemon-app.vercel.app . Unique URL: https://jordan-pokemon-q4cgksbjd-earouse23-devs-projects.vercel.app . Canonical app/config hashes match the frozen artifact. Both cron definitions are attached to this deployment; Git deployments remain disabled and hosted ignore-build is exit 0.
+
+Staged and canonical runtime checks passed (health/configuration, authentication, held routes, CORS/hostile origins and unknown paths). Isolated demo GET/POST/GET returned 200 and persisted/reloaded the same view, correctly marked incomplete under today's allowance. No customer-record write tests. Local reservation ledger remains 20,000/20,000; no quota reset. See staged-runtime-checkpoint-95.json, live-runtime-checkpoint-95.json, live-state-checkpoint-95.json and demo-portfolio-checkpoint-95.json.
