@@ -1,0 +1,25 @@
+{
+  "checkedAt": "2026-10-09T17:13:28.703Z",
+  "scannedEntries": 163,
+  "privateValueFindings": 0,
+  "functions": 9,
+  "crons": [
+    {
+      "path": "/api/capabilities?surface=grading-deletion",
+      "schedule": "15 5 * * *"
+    },
+    {
+      "path": "/api/capabilities?surface=portfolio-sync",
+      "schedule": "25 6 * * *"
+    }
+  ],
+  "changedDeploymentPaths": [
+    ".vercel/output/config.json",
+    ".vercel/output/functions/_release-hold.func/index.mjs",
+    ".vercel/output/functions/api/capabilities.func/index.mjs",
+    ".vercel/output/functions/api/cards.func/index.mjs",
+    ".vercel/output/static/app.js",
+    ".vercel/output/static/sw.js",
+    "vercel.json"
+  ]
+}

@@ -4,7 +4,7 @@ import { withNativeCors } from "../lib/native-cors.js";
 
 const routes = {
   account: ["DELETE"],
-  capabilities: ["GET"],
+  capabilities: ["GET", "POST"],
   "card-image": ["GET"],
   cards: ["GET"],
   catalog: ["GET"],

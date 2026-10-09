@@ -1021,7 +1021,7 @@ test("saved display currency converts the portfolio and survives profile reload 
   await page.screenshot({path:testInfo.outputPath("everyday-currency-fixture.png"),animations:"disabled"});
   await page.evaluate(async url => (await import(url)).routeTo("dashboard"), appUrl);
   await expect(page.locator("#portfolioValue")).toHaveText("€180.00");
-  await expect(page.locator("#portfolioToplineLabel")).toHaveText("Known EUR collection value");
+  await expect(page.locator("#portfolioToplineLabel")).toHaveText("Total portfolio value");
   await expect(page.locator("#costBasis")).toHaveText("€138.00");
   await expect(page.locator("#gradedOwnedCount")).toHaveText("€138.00");
   const native = await page.evaluate(async url => (await import(url)).state.items.map(item => ({ currency:item.currency, price:item.price, costBasis:item.costBasis })), appUrl);

@@ -83,6 +83,8 @@ const changes = [
   "lib/image-source.js",
   "lib/pricing.js",
   "lib/portfolio.js",
+  "lib/portfolio-view.js",
+  "lib/portfolio-service.js",
   "lib/supabase-data.js",
   "lib/identity.js",
   "lib/providers/pkmnprices.js",
@@ -172,7 +174,7 @@ for (const name of [
       path.join(source, `api/${name}.js`),
       path.join(functions, `api/${name}.func/index.mjs`),
     );
-    if (name === "cards") {
+    if (["cards", "capabilities"].includes(name)) {
       const runtimePath = path.join(functions, `api/${name}.func/.vc-config.json`);
       const runtime = await json(runtimePath);
       runtime.maxDuration = 60;
@@ -187,6 +189,7 @@ assert(securityRoute, "Missing shipping security headers");
 securityRoute.headers["Content-Security-Policy"] = sourceConfig.headers
   .flatMap((r) => r.headers)
   .find((h) => h.key === "Content-Security-Policy").value;
+config.crons = sourceConfig.crons;
 const start = config.routes.findIndex((r) => r.src === "^/profile/?$");
 assert(start >= 0);
 config.routes.splice(

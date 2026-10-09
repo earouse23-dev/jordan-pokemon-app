@@ -60,6 +60,7 @@ assert.deepEqual(config.crons, [
     path: "/api/capabilities?surface=grading-deletion",
     schedule: "15 5 * * *",
   },
+  {path:"/api/capabilities?surface=portfolio-sync",schedule:"25 6 * * *"},
 ]);
 const resolve = (url) =>
   config.routes.find((r) => r.src && r.dest && new RegExp(r.src).test(url));

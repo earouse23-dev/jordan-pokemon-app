@@ -1,3 +1,4 @@
+import { portfolioPricingKey, displayPortfolioView } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -68,6 +69,7 @@ import {
 } from "./lib/software-modes.js";
 import {
   exactSoldValuation,
+  latestEbaySoldValuation,
   finishForVariant,
   mergePriceHistory,
   normalizePriceCapabilityStatus,
@@ -410,6 +412,7 @@ let catalog = [
 const state = {
   items: [],
   portfolioHistory: [],
+  portfolioView: null,
   portfolioHistoryMode: "value",
   portfolioHistoryCurrency: "USD",
   portfolioHistoryRange: "all",
@@ -1790,6 +1793,7 @@ function friendlyObservedAt(value) {
 }
 
 function priceStatusText(item) {
+  if (item.pricingReason === "provider_daily_budget_reached" && item.price == null) return "Pricing allowance used for today · try tomorrow";
   if (item.pricingReason === "printing_confirmation_required") return "Confirm card version for graded pricing";
   if (item.price == null)
     return item.pricingStatus === "unsupported"
@@ -2540,9 +2544,9 @@ function historyForItem(item) {
 }
 
 function portfolioHistoryForItem(item) {
-  return item.cardState === "graded" || item.gradingCompany
-    ? (item.gradedValuations || []).filter((point) => point.contextValidated)
-    : historyForItem(item);
+  if (!(item.cardState === "graded" || item.gradingCompany)) return historyForItem(item);
+  const evidence = savedSaleEvidenceForContext(item, valuationContextForItem(item)) || (item.gradedValuations || []).find(point => point.contextValidated && point.saleEvidence)?.saleEvidence;
+  return completedSaleHistory(item, valuationContextForItem(item), evidence).map(point => ({ ...point, verifiedExactSold: true, contextValidated: true }));
 }
 
 function purchaseMarketReference(item, lot) {
@@ -3005,9 +3009,11 @@ function soldValuationForItem(item) {
       .sort((left, right) =>
         String(right.recordedAt).localeCompare(String(left.recordedAt)),
       )[0];
-    return saved?.current || null;
+    if (!saved?.saleEvidence) return null;
+    const result = latestEbaySoldValuation(saved.saleEvidence.sales || [], exactSaleContext(item, valuationContextForItem(item)), { validatedContext: saved.saleEvidence.validatedContext, retrievedAt: saved.saleEvidence.retrievedAt });
+    return result.status === "ready" ? { ...result, contextValidated: true } : null;
   }
-  const result = exactSoldValuation(
+  const result = latestEbaySoldValuation(
     evidence.sales || [],
     exactSaleContext(item, valuationContextForItem(item)),
     {
@@ -3046,13 +3052,13 @@ function savedSaleEvidenceForContext(item, context) {
 
 function completedSaleHistory(item, context, sales) {
   if (sales?.salesStatus !== "live") return [];
-  const result = exactSoldValuation(sales.sales || [], exactSaleContext(item, context), { validatedContext: sales.validatedContext, retrievedAt: sales.retrievedAt, hasMore: sales.hasMore });
-  return result.evidence.filter(sale => result.contributingEvidenceIds.includes(sale.transactionKey)).map(sale => ({ amount: sale.amount, currency: sale.currency, recordedAt: sale.soldAt, provider: "eBay completed sale", providerVariantId: sale.transactionKey, gradingCompany: context.gradingCompany, grade: context.grade, sourceUrl: sale.sourceUrl, granularity: "transaction" }));
+  const result = latestEbaySoldValuation(sales.sales || [], exactSaleContext(item, context), { validatedContext: sales.validatedContext, retrievedAt: sales.retrievedAt, hasMore: sales.hasMore });
+  return result.evidence.filter(sale => (result.eligibleEvidenceIds || result.contributingEvidenceIds).includes(sale.transactionKey)).map(sale => ({ amount: sale.amount, currency: sale.currency, recordedAt: sale.soldAt, provider: "eBay completed sale", providerVariantId: sale.transactionKey, gradingCompany: context.gradingCompany, grade: context.grade, sourceUrl: sale.sourceUrl, granularity: "transaction" }));
 }
 
 function renderExactSoldValue(item, context, sales) {
   sales = sales || savedSaleEvidenceForContext(item, context);
-  const result = exactSoldValuation(
+  const result = latestEbaySoldValuation(
     sales?.sales || [],
     exactSaleContext(item, context),
     {
@@ -3082,10 +3088,10 @@ function renderExactSoldValue(item, context, sales) {
           : result.status === "unresolved_context"
             ? "Confirm the printing, grade and label before valuing."
             : result.status === "insufficient"
-              ? `${result.distinctSaleCount} eligible sale${result.distinctSaleCount === 1 ? "" : "s"} · at least 3 needed.`
+              ? "No eligible recent eBay sale for this exact slab."
               : result.status === "stale"
                 ? "Older completed sales · refresh before relying on this estimate."
-                : `${result.distinctSaleCount} completed sales · ${result.confidence.level} evidence.`;
+                : `Last matching eBay sale · ${result.newestSoldAt?.slice(0, 10)}.`;
   const button =
     sales?.salesStatus === "loading"
       ? ""
@@ -3135,7 +3141,7 @@ function renderExactSoldValue(item, context, sales) {
   const history = recorded.length
     ? `<details id="recordedSoldValuations"><summary>Recorded estimates</summary><ul>${recorded.map((point) => `<li>${esc(point.recordedAt.slice(0, 10))} · ${money(point.amount, point.currency)} · ${point.contributingEvidenceIds.length} completed sales via PkmnPrices</li>`).join("")}</ul><p>Recorded estimates retain their original evaluation date. They do not fill earlier gaps or establish a current price after becoming stale.</p></details>`
     : "";
-  return `<section class="exact-sold-value" role="status"><span>Sold-derived estimate · ${esc(displayCurrency())}</span><strong>${value}</strong>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${result.estimate === null ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${lastSoldLink}${fxLine}${button}${details}${history}</section>`;
+  return `<section class="exact-sold-value" role="status"><span>Last eBay sold · ${esc(displayCurrency())}</span><strong>${value}</strong>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${result.estimate === null ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${lastSoldLink}${fxLine}${button}${details}${history}</section>`;
 }
 
 let fxMidnightTimer = null;
@@ -5415,6 +5421,18 @@ function renderPortfolioHistory() {
   const detailsOpen = Boolean($(".portfolio-native-history", root)?.open);
   const ranges = [["all", "All time"], ["1m", "Month"], ["ytd", "YTD"], ["1y", "Year"], ["1d", "Day"]];
   const rangeControls = () => `<select id="portfolioChartRange" aria-label="Graph timeframe">${ranges.map(([value, label]) => `<option value="${value}" ${state.portfolioHistoryRange === value ? "selected" : ""}>${label}</option>`).join("")}</select>`;
+  const saved = displayPortfolioView(state.portfolioView, displayCurrency(), lastValidatedFxRate);
+  if (saved && state.portfolioHistoryMode === "value") {
+    const points = portfolioHistoryRangePoints(saved.history || [], state.portfolioHistoryRange);
+    const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, saved, state.portfolioHistoryRange]);
+    if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
+    portfolioRenderKey = key;
+    destroyPortfolioHistoryChart();
+    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : '<div class="portfolio-history-empty">Historical prices are not available for every holding yet.</div>'}<p class="portfolio-chart-coverage">${saved.historyStartsAt ? `History available from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p>`;
+    $("#portfolioChartRange", root)?.addEventListener("change", event => { state.portfolioHistoryRange = event.target.value; renderPortfolioHistory(); });
+    if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false }));
+    return;
+  }
   const bindControls = () => {
     $$("[data-portfolio-history-mode]", root).forEach((button) =>
       button.addEventListener("click", () => {
@@ -6679,6 +6697,12 @@ function renderCollection() {
     : profitLoss.knownZeroActive && state.items.length === 0 ? money(0, selectedCurrency) : "—";
   $("#portfolioValue").dataset.savedSnapshot = String(Boolean(restoreSnapshot));
   if (restoreSnapshot) $("#portfolioToplineLabel").textContent = lastSnapshot.unpricedItems ? "Last known portfolio value" : "Last updated portfolio value";
+  const savedPortfolio = displayPortfolioView(state.portfolioView, selectedCurrency, lastValidatedFxRate);
+  if (savedPortfolio && (savedPortfolio.total !== null || savedPortfolio.knownTotal !== null)) {
+    $("#portfolioToplineLabel").textContent = savedPortfolio.total === null ? "Known portfolio value" : "Total portfolio value";
+    $("#portfolioValue").textContent = money(savedPortfolio.total ?? savedPortfolio.knownTotal, selectedCurrency);
+    $("#portfolioValue").dataset.savedSnapshot = "true";
+  }
   $("#costBasis").textContent = profitLoss.knownBasisUnits ? money(profitLoss.knownBasisMinor / 100, selectedCurrency) : "—";
   $("#unrealized").textContent = profitLoss.comparableUnits
     ? `${profitLoss.unrealizedMinor >= 0 ? "Up " : "Down "}${money(Math.abs(profitLoss.unrealizedMinor) / 100, selectedCurrency)}${profitLoss.unrealizedPercent === null ? "" : ` (${profitLoss.unrealizedPercent >= 0 ? "+" : ""}${profitLoss.unrealizedPercent.toFixed(1)}%)`}`
@@ -6785,7 +6809,7 @@ function renderCollection() {
           : state.pricingStatus === "error"
             ? "Live pricing is temporarily unavailable"
             : "Waiting for live prices";
-  $(".status-label").innerHTML = `<i></i> ${state.pricingStatus === "loading" ? "Updating prices" : pricingLabel}`;
+  $(".status-label").innerHTML = `<i></i> ${savedPortfolio && state.portfolioView.updatedAt ? `Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}` : state.pricingStatus === "loading" ? "Updating prices" : pricingLabel}`;
   const syncLabels = {
     loading: "Prices updating",
     live: "Prices current",
@@ -7888,8 +7912,10 @@ async function loadCardPreviewPricing(
       { headers: providerRequestHeaders() },
     );
     if (!response.ok) {
+      const failure = await response.json().catch(() => ({}));
       if (!detailRequestIsCurrent(guard)) return;
       state.detailPricing = {
+        pricingReason: failure.code || "provider_refresh_failed",
         selectionKey: guard.selectionKey,
         contextKey: guard.contextKey,
         pricingStatus: response.status === 429 ? "rate_limited" : "error",
@@ -8579,7 +8605,9 @@ function renderDetail() {
           ? "Older matching price"
           : "Price today";
   const statusCopy =
-    pricingStatus === "live"
+    valuationItem.pricingReason === "provider_daily_budget_reached" && displayPrice == null
+      ? "Pricing allowance used for today · try tomorrow"
+      : pricingStatus === "live"
       ? `Updated ${esc(friendlyObservedAt(valuationItem.pricingUpdatedAt))}`
       : pricingStatus === "stale"
         ? `Last price from ${esc(friendlyObservedAt(valuationItem.pricingUpdatedAt))} · needs refresh`
@@ -8677,7 +8705,7 @@ function renderDetail() {
       (lot) => !lot.costBasisKnown || !lot.acquisitionDateKnown,
     ) || null;
   const positionSection = owned
-    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Market price when bought</span><strong>${item.marketPriceAtPurchase == null ? "Waiting for matching history" : `${money(item.marketPriceAtPurchase, item.currency)} each`}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>${item.gradingCompany ? "Current sold-derived estimate" : "Current market price"}</span><strong>${ownedValuationPrice === null ? "Unavailable" : `${displayCurrencyMoney(ownedValuationPrice, item.currency)} each`}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : displayCurrencyMoney(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>${Number(item.quantity) === 0 ? "Realized profit or loss" : "Profit or loss"}</span><strong>${Number(item.quantity) === 0 ? (performance.realizedGainMinor === null ? "Needs compatible sale and purchase currencies" : `${performance.realizedGainMinor >= 0 ? "Up " : "Down "}${displayCurrencyMoney(Math.abs(performance.realizedGainMinor) / 100, item.currency)}`) : performance.unrealizedGainMinor === null ? "Needs the amount you paid and a current market price" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${displayCurrencyMoney(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Current price evidence</span><strong>${esc(ownedProvenance)}</strong></div><div><span>Purchase-date source</span><strong>${esc(item.marketPriceAtPurchaseProvider || "Waiting for provider history")}</strong></div></div>${owned?.pricingStatus === "stale" && owned.referencePrice != null ? `<div class="warning-panel"><strong>Older evidence is shown for reference only.</strong><p>${money(owned.referencePrice, item.currency)} is outside the live freshness window, so it is excluded from current value and profit.</p></div>` : ""}${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}${item.cardState === "graded" && Number(item.quantity) > 1 ? '<div class="warning-panel"><strong>Separate this legacy graded entry before selling.</strong><p>Mica will not choose an arbitrary purchase lot or invent physical-copy details.</p></div>' : ""}<div class="sheet-actions">${physicalCopy ? '<button class="secondary" id="addPhysicalCopyButton" type="button">Add another copy</button>' : `<button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button>`}${(Number(item.quantity) === 1 || sealed) && !activeSubmission ? '<button class="secondary" id="recordSaleButton" type="button">Record sale</button>' : ""}</div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
+    ? `<section class="detail-section"><div class="detail-section-head"><h2>Your purchase &amp; value</h2><span>${item.lots?.length || 0} purchase${item.lots?.length === 1 ? "" : "s"} recorded</span></div><div class="position-summary"><div><span>Date bought</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Market price when bought</span><strong>${item.marketPriceAtPurchase == null ? "Waiting for matching history" : `${money(item.marketPriceAtPurchase, item.currency)} each`}</strong></div><div><span>Total paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div><div><span>${item.gradingCompany ? "Last matching eBay sale" : "Current market price"}</span><strong>${ownedValuationPrice === null ? "Unavailable" : `${displayCurrencyMoney(ownedValuationPrice, item.currency)} each`}</strong></div><div><span>Current total value</span><strong>${performance.currentValueMinor === null ? "Unavailable" : displayCurrencyMoney(performance.currentValueMinor / 100, item.currency)}</strong></div><div><span>${Number(item.quantity) === 0 ? "Realized profit or loss" : "Profit or loss"}</span><strong>${Number(item.quantity) === 0 ? (performance.realizedGainMinor === null ? "Needs compatible sale and purchase currencies" : `${performance.realizedGainMinor >= 0 ? "Up " : "Down "}${displayCurrencyMoney(Math.abs(performance.realizedGainMinor) / 100, item.currency)}`) : performance.unrealizedGainMinor === null ? "Needs the amount you paid and a current market price" : `${performance.unrealizedGainMinor >= 0 ? "Up " : "Down "}${displayCurrencyMoney(Math.abs(performance.unrealizedGainMinor) / 100, item.currency)}${performance.returnPercent === null ? "" : ` (${performance.returnPercent >= 0 ? "+" : ""}${performance.returnPercent.toFixed(1)}%)`}`}</strong></div><div><span>Current price evidence</span><strong>${esc(ownedProvenance)}</strong></div><div><span>Purchase-date source</span><strong>${esc(item.marketPriceAtPurchaseProvider || "Waiting for provider history")}</strong></div></div>${owned?.pricingStatus === "stale" && owned.referencePrice != null ? `<div class="warning-panel"><strong>Older evidence is shown for reference only.</strong><p>${money(owned.referencePrice, item.currency)} is outside the live freshness window, so it is excluded from current value and profit.</p></div>` : ""}${incompleteLot ? `<div class="warning-panel"><strong>Add the missing purchase details</strong><p>Enter the total paid or original date you know. Until then, Mica hides profit instead of pretending the card cost $0.</p><button class="inline-retry" id="completePurchaseHistoryButton" type="button">Add missing details</button></div>` : ""}<div class="transaction-list">${(item.transactions || []).map((transaction) => positionTransactionRow(transaction, unitNoun)).join("")}</div>${activeSubmission ? `<div class="simple-note" id="gradingInventoryLock"><strong>This saved entry is at the grading company.</strong><br>${incompleteLot ? "Add every missing purchase amount and date before separating returned grades." : "You can separate copies if they return with different grades."} Adding purchases and recording sales are paused.</div>` : ""}${item.cardState === "graded" && Number(item.quantity) > 1 ? '<div class="warning-panel"><strong>Separate this legacy graded entry before selling.</strong><p>Mica will not choose an arbitrary purchase lot or invent physical-copy details.</p></div>' : ""}<div class="sheet-actions">${physicalCopy ? '<button class="secondary" id="addPhysicalCopyButton" type="button">Add another copy</button>' : `<button class="secondary" id="recordPurchaseButton" type="button" ${activeSubmission ? 'disabled aria-describedby="gradingInventoryLock"' : ""}>Add another purchase</button>`}${(Number(item.quantity) === 1 || sealed) && !activeSubmission ? '<button class="secondary" id="recordSaleButton" type="button">Record sale</button>' : ""}</div>${item.quantity > 1 && !incompleteLot && ["owned", "archived"].includes(item.status) ? '<button class="position-new-state" id="separateCopiesButton" type="button">Separate these copies</button>' : ""}<button class="position-new-state" id="addDifferentPositionButton" type="button">${sealed ? "Add as a separate unopened item" : "Add this card with a different wear level or grade"}</button></section>`
     : "";
   const favorite =
     owned &&
@@ -11198,6 +11226,7 @@ function openDeleteCopySheet(item) {
     try {
       await deletePosition(supabase, item.uid);
       state.portfolioHistory = [];
+    state.portfolioView = null;
       state.portfolioHistoryStatus = "idle";
       closeSheet({ discardHistory: true });
       state.detailId = null;
@@ -11230,7 +11259,8 @@ function openPrintingConfirmationSheet(item) {
     try {
       await remapCollectionPosition(supabase, { collectionItemId: item.uid, identity });
       if (!accountRequestIsCurrent(owner, version)) return;
-      state.portfolioHistory = []; state.portfolioHistoryStatus = "idle";
+      state.portfolioHistory = [];
+    state.portfolioView = null; state.portfolioHistoryStatus = "idle";
       closeSheet({ discardHistory: true }); await reloadPortfolio(item.uid); toast("Card version confirmed");
     } catch(error) { if (accountRequestIsCurrent(owner, version)) { $("#printingError").textContent = error.message || "Could not confirm this version. Your card is unchanged."; button.disabled = false; } }
   });
@@ -11310,6 +11340,7 @@ async function openIdentityHistorySheet(item) {
       try {
         await revertIdentityCorrection(supabase, button.dataset.revertIdentity);
         state.portfolioHistory = [];
+    state.portfolioView = null;
         state.portfolioHistoryStatus = "idle";
         closeSheet({ discardHistory: true });
         await reloadPortfolio(item.uid);
@@ -11411,6 +11442,7 @@ function openRemapPositionSheet(item) {
           variant.id && UUID_PATTERN.test(variant.id) ? variant.id : null,
       });
       state.portfolioHistory = [];
+    state.portfolioView = null;
       state.portfolioHistoryStatus = "idle";
       closeSheet({ discardHistory: true });
       await reloadPortfolio(item.uid);
@@ -17044,9 +17076,46 @@ async function refreshLivePricing(positionIds = null) {
     await portfolioPricingRequest.promise;
     if (!positionIds || !accountRequestIsCurrent(owner, version)) return;
   }
-  const request = { owner, version, promise: updateLivePricing(positionIds) };
+  const request = { owner, version, promise: refreshSavedPortfolio(owner, version).then(handled => handled ? undefined : updateLivePricing(positionIds)) };
   portfolioPricingRequest = request;
   try { await request.promise; } finally { if (portfolioPricingRequest === request) portfolioPricingRequest = null; }
+}
+
+function restorePortfolioPricing(view) {
+  const pricing = new Map((view?.pricing || []).map(item => [item.uid, item]));
+  state.items = state.items.map(item => {
+    const saved = pricing.get(item.uid);
+    return saved && [saved.key, saved.resolvedKey].includes(portfolioPricingKey(item)) ? { ...item, ...saved, quantity:item.quantity, lots:item.lots, transactions:item.transactions } : item;
+  });
+}
+
+async function loadSavedPortfolio(owner) {
+  try { state.portfolioView = JSON.parse(localStorage.getItem(`mica:portfolio-view:${owner}`) || "null"); } catch { state.portfolioView = null; }
+  try {
+    const response = await fetch("/api/capabilities?surface=portfolio", { headers: providerRequestHeaders(), signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return null;
+    return (await response.json()).view || null;
+  } catch { return null; }
+}
+
+async function refreshSavedPortfolio(owner, version) {
+  if (!owner || state.largeInventory.active) return false;
+  const inventoryAtStart = JSON.stringify(state.items.map(item => [item.uid, portfolioPricingKey(item), item.quantity, item.lots, item.transactions]));
+  try {
+    const response = await fetch("/api/capabilities?surface=portfolio", { method: "POST", headers: providerRequestHeaders(), signal: AbortSignal.timeout(55_000) });
+    if (response.status === 404) return false;
+    if (!response.ok) return true;
+    const { view } = await response.json();
+    if (!accountRequestIsCurrent(owner, version) || !view?.summaries || inventoryAtStart !== JSON.stringify(state.items.map(item => [item.uid, portfolioPricingKey(item), item.quantity, item.lots, item.transactions]))) return true;
+    state.portfolioView = view;
+    restorePortfolioPricing(view);
+    state.pricingStatus = view.complete ? "live" : "partial";
+    state.pricingRetrievedAt = view.updatedAt;
+    try { localStorage.setItem(`mica:portfolio-view:${owner}`, JSON.stringify(view)); } catch {}
+    renderCollection(); renderInsights();
+    if (state.route === "detail") renderDetail();
+    return true;
+  } catch { return true; }
 }
 
 async function updateLivePricing(positionIds = null) {
@@ -17058,10 +17127,22 @@ async function updateLivePricing(positionIds = null) {
   let updatedItems = [...originalItems];
   const uniqueItems = originalItems.filter(item => item.id && (!selectedPositions || selectedPositions.has(item.uid)) && !(item.historyStatus === "live" && item.pricingStatus === "live" && Date.now() - Number(item.historyLoadedAt) < 15 * 60_000));
   if (!uniqueItems.length) return;
-  const cardItems = [...new Map(uniqueItems.filter(item => item.cardState !== "sealed" && item.cardState !== "graded" && !item.gradingCompany).map(item => [item.id, item])).values()];
+  const rawPricingKey = item => JSON.stringify([item.id, item.variant || "", valuationContextForItem(item).condition, item.currency || "USD"]);
+  const rawContexts = new Map();
+  const lookupIds = new Map();
+  const seenCards = new Set();
+  for (const item of uniqueItems) {
+    if (item.cardState === "sealed" || item.cardState === "graded" || item.gradingCompany) continue;
+    const key = rawPricingKey(item);
+    if (rawContexts.has(key)) continue;
+    rawContexts.set(key, item);
+    lookupIds.set(key, seenCards.has(item.id) ? item.id + "#pricing-" + rawContexts.size : item.id);
+    seenCards.add(item.id);
+  }
+  const cardItems = [...rawContexts.values()];
   const sealedItems = [...new Map(uniqueItems.filter(item => item.cardState === "sealed").map(item => [item.id, item])).values()];
   const lookups = cardItems.map((item) => ({
-    clientId: item.id,
+    clientId: lookupIds.get(rawPricingKey(item)),
     pkmnpricesId: item.externalIds?.pkmnprices || "",
     justtcgId: item.externalIds?.justtcg || "",
     tcgplayerId: item.externalIds?.tcgplayer || "",
@@ -17070,6 +17151,9 @@ async function updateLivePricing(positionIds = null) {
     set: item.set,
     number: item.number,
     language: item.language || "en",
+    variant: item.variant || "",
+    condition: valuationContextForItem(item).condition,
+    currency: item.currency || "USD",
   }));
   const signal = AbortSignal.timeout(60_000);
   state.pricingStatus = "loading";
@@ -17079,74 +17163,57 @@ async function updateLivePricing(positionIds = null) {
     const sealedProducts = new Map();
     const processedIds = new Set();
     const failedIds = new Set();
+    const failedReasons = new Map();
     const sealedProcessed = new Set();
     let partial = false;
     let rateLimited = false;
     let retrievedAt = null;
+    const jobs = [];
     for (let start = 0; start < lookups.length; start += 2) {
-      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       const batch = lookups.slice(start, start + 2);
-      if (signal.aborted) { partial = true; break; }
-      let response;
-      try { response = await fetch(
-        `/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(batch))}`,
-        { headers: providerRequestHeaders(), signal },
-      ); } catch { partial = true; batch.forEach(lookup => failedIds.add(lookup.clientId)); if (signal.aborted) break; continue; }
-      if (response.status === 429) {
-        rateLimited = true;
-        partial = true;
-        break;
-      }
-      if (!response.ok) { partial = true; batch.forEach(lookup => failedIds.add(lookup.clientId)); continue; }
-      const payload = await response.json();
-      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-      retrievedAt = payload.retrievedAt || retrievedAt;
-      batch.forEach((lookup) => processedIds.add(lookup.clientId));
-      (payload.cards || []).forEach((card) =>
-        cards.set(card.providerCardId, card),
-      );
-      partial =
-        partial || Boolean(payload.partial) || payload.unavailable?.length > 0;
-    }
-    for (let start = 0; start < sealedItems.length; start += 1) {
-      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-      if (rateLimited || signal.aborted) { partial = true; break; }
-      const batch = sealedItems.slice(start, start + 1);
-      const results = await Promise.allSettled(
-        batch.map(async (item) => {
-          const id =
-            item.externalIds?.pkmnpricesSealed ||
-            String(item.id).replace(/^sealed:/, "");
-          signal.throwIfAborted();
-          const response = await fetch(
-            `/api/sealed?id=${encodeURIComponent(id)}`,
-            { headers: providerRequestHeaders(), signal },
-          );
-          if (!response.ok) throw new Error(String(response.status));
+      jobs.push(async () => {
+        try {
+          const response = await fetch(`/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(batch))}`, { headers: providerRequestHeaders(), signal });
+          if (response.status === 429) rateLimited = true;
+          if (!response.ok) {
+            const failure = await response.json().catch(() => ({}));
+            batch.forEach(lookup => failedReasons.set(lookup.clientId, failure.code || "provider_refresh_failed"));
+            throw new Error("pricing");
+          }
           const payload = await response.json();
-          if (!accountRequestIsCurrent(ownerId, loadVersion)) return null;
+          if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
           retrievedAt = payload.retrievedAt || retrievedAt;
-          return { item, product: payload.product };
-        }),
-      );
-      results.forEach((result, index) => {
-        const item = batch[index];
-        sealedProcessed.add(item.id);
-        if (result.status === "fulfilled" && sealedProductMatches(item, result.value?.product))
-          sealedProducts.set(item.id, result.value.product);
-        else partial = true;
+          batch.forEach(lookup => processedIds.add(lookup.clientId));
+          (payload.cards || []).forEach(card => cards.set(card.providerCardId, card));
+          partial ||= Boolean(payload.partial) || payload.unavailable?.length > 0;
+        } catch { partial = true; batch.forEach(lookup => failedIds.add(lookup.clientId)); }
       });
     }
+    for (const item of sealedItems) jobs.push(async () => {
+      try {
+        const id = item.externalIds?.pkmnpricesSealed || String(item.id).replace(/^sealed:/, "");
+        const response = await fetch(`/api/sealed?id=${encodeURIComponent(id)}`, { headers: providerRequestHeaders(), signal });
+        if (response.status === 429) rateLimited = true;
+        if (!response.ok) throw new Error("sealed pricing");
+        const payload = await response.json();
+        if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+        retrievedAt = payload.retrievedAt || retrievedAt;
+        if (sealedProductMatches(item, payload.product)) sealedProducts.set(item.id, payload.product);
+        else partial = true;
+      } catch { partial = true; }
+      sealedProcessed.add(item.id);
+    });
     function applyPricing(item) {
       if (item.cardState === "graded" || item.gradingCompany) return item;
       const sealed = item.cardState === "sealed";
-      const card = sealed ? sealedProducts.get(item.id) : cards.get(item.id);
+      const lookupId = lookupIds.get(rawPricingKey(item)) || item.id;
+      const card = sealed ? sealedProducts.get(item.id) : cards.get(lookupId);
       const processed = sealed
         ? sealedProcessed.has(item.id)
-        : processedIds.has(item.id);
-      if (!processed && failedIds.has(item.id)) {
+        : processedIds.has(lookupId);
+      if (!processed && failedIds.has(lookupId)) {
         const pricing = quotePricingFields(selectPositionQuote(item.quotes || [], item), item, item);
-        return { ...item, ...pricing, pricingStatus: pricing.price == null ? "error" : pricing.pricingStatus, pricingReason: "provider_refresh_failed" };
+        return { ...item, ...pricing, pricingStatus: pricing.price == null ? rateLimited ? "rate_limited" : "error" : pricing.pricingStatus, pricingReason: failedReasons.get(lookupId) || "provider_refresh_failed" };
       }
       if (!processed)
         return rateLimited && (!selectedPositions || selectedPositions.has(item.uid))
@@ -17196,32 +17263,37 @@ async function updateLivePricing(positionIds = null) {
       return { ...updated, move: movement?.changePercent ?? null, movement };
     }
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-    updatedItems = updatedItems.map(applyPricing);
-
     const gradedGroups = new Map();
     for (const item of updatedItems) {
       if (!(item.cardState === "graded" || item.gradingCompany) || (selectedPositions && !selectedPositions.has(item.uid))) continue;
       const printing = selectedPrinting(item);
       if (printing.status !== "exact" || [printing.finish, printing.edition, printing.promoType].includes("unknown") || item.gradeQualifier == null) {
-        item.pricingStatus = "missing"; item.pricingReason = "printing_confirmation_required";
+        updatedItems = updatedItems.map(copy => copy.uid === item.uid ? { ...copy, pricingStatus: "missing", pricingReason: "printing_confirmation_required" } : copy);
         continue;
       }
       const key = detailIdentityKey(item) + "|" + detailContextKey(valuationContextForItem(item));
       if (uniqueItems.includes(originalItems.find(copy => copy.uid === item.uid)) && !gradedGroups.has(key)) gradedGroups.set(key, item);
     }
-    for (const [key, item] of gradedGroups) {
+    for (const [key, item] of gradedGroups) jobs.push(async () => {
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       try {
-        if (signal.aborted) { partial = true; break; }
+        if (signal.aborted) { partial = true; return; }
         const { response, payload } = await fetchSaleEvidence(saleLookupForItem(item), signal);
         if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-        if (!response.ok) { partial = true; if (response.status === 429) break; continue; }
+        if (!response.ok) { partial = true; if (response.status === 429) rateLimited = true; return; }
         const evidence = { ...payload, salesStatus: "live", selectionKey: detailIdentityKey(item), contextKey: detailContextKey(valuationContextForItem(item)) };
-        const result = exactSoldValuation(evidence.sales || [], exactSaleContext(item, valuationContextForItem(item)), { validatedContext: evidence.validatedContext, retrievedAt: evidence.retrievedAt, hasMore: evidence.hasMore });
+        const result = latestEbaySoldValuation(evidence.sales || [], exactSaleContext(item, valuationContextForItem(item)), { validatedContext: evidence.validatedContext, retrievedAt: evidence.retrievedAt, hasMore: evidence.hasMore });
         updatedItems = updatedItems.map(copy => detailIdentityKey(copy) + "|" + detailContextKey(valuationContextForItem(copy)) === key ? { ...copy, exactSaleEvidence: evidence, historyLoadedAt: Date.now(), historyStatus: "live", price: result.status === "ready" ? result.estimate : null, referencePrice: result.estimate, pricingStatus: result.status === "ready" ? "live" : result.status === "stale" ? "stale" : "missing", pricingUpdatedAt: result.newestSoldAt } : copy);
       } catch { partial = true; }
-    }
+    });
+    let nextJob = 0;
+    // ponytail: three overlapping API jobs (six raw cards); the shared server ledger enforces 60/min.
+    await Promise.all(Array.from({ length: Math.min(3, jobs.length) }, async () => {
+      while (nextJob < jobs.length && !rateLimited && !signal.aborted && accountRequestIsCurrent(ownerId, loadVersion)) await jobs[nextJob++]();
+    }));
+    if (signal.aborted || rateLimited) partial = true;
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    updatedItems = updatedItems.map(applyPricing);
     state.items = state.items.map(item => {
       const original = originalItems.find(copy => copy.uid === item.uid);
       return original === item ? updatedItems.find(copy => copy.uid === item.uid) || item : item;
@@ -17263,108 +17335,19 @@ async function updateLivePricing(positionIds = null) {
 async function refreshMovementHistory() {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
-  if (
-    !ownerId ||
-    !["idle", "error"].includes(state.movementStatus) ||
-    !state.items.some((item) => item.cardState !== "sealed")
-  )
-    return;
-  const cardItems = [
-    ...new Map(
-      state.items
-        .filter((item) => item.cardState !== "sealed" && item.id)
-        .map((item) => [item.id, item]),
-    ).values(),
-  ];
-  const lookups = cardItems.map((item) => ({
-    clientId: item.id,
-    pkmnpricesId: item.externalIds?.pkmnprices || "",
-    justtcgId: item.externalIds?.justtcg || "",
-    tcgplayerId: item.externalIds?.tcgplayer || "",
-    tcgdexId: item.externalIds?.tcgdex || "",
-    name: item.name,
-    set: item.set,
-    number: item.number,
-    language: item.language || "en",
-  }));
+  if (!ownerId || !["idle", "error"].includes(state.movementStatus)) return;
   state.movementStatus = "loading";
   renderInsights();
-  try {
-    const cards = new Map();
-    let planLimited = false;
-    let failed = false;
-    for (let start = 0; start < lookups.length; start += 1) {
-      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-      const batch = lookups.slice(start, start + 1);
-      const response = await fetch(
-        `/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(batch))}`,
-        { headers: providerRequestHeaders() },
-      );
-      if (!response.ok) {
-        failed = true;
-        if ([401, 403, 429].includes(response.status)) break;
-        continue;
-      }
-      const payload = await response.json();
-      if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-      (payload.cards || []).forEach((card) => {
-        cards.set(card.providerCardId, card);
-        if (card.historyStatus === "plan_required") planLimited = true;
-      });
-    }
-    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-    state.items = state.items.map((item) => {
-      const card = cards.get(item.id);
-      if (!card) return item;
-      const quote = selectPositionQuote(card.quotes, item);
-      const quoteState = quote ? quoteStatus(quote) : null;
-      const capabilityState = capabilityStatusForItem(card, item);
-      const updated = {
-        ...item,
-        externalIds: {
-          ...(item.externalIds || {}),
-          ...(card.externalIds || {}),
-        },
-        metadata: card.metadata || item.metadata || null,
-        priceCapabilities:
-          card.capabilities ||
-          card.priceCapabilities ||
-          item.priceCapabilities ||
-          null,
-        price: quoteState === "live" ? quote.amount : quote ? null : item.price,
-        referencePrice: quote?.amount ?? item.referencePrice ?? null,
-        quotes: card.quotes || item.quotes || [],
-        historyStatus: card.historyStatus || item.historyStatus || null,
-        priceHistory: recordPriceObservation(
-          item,
-          quote,
-          mergePriceHistory(item.priceHistory || [], card.history || []),
-        ),
-        pricingStatus:
-          quoteState || capabilityState.status || item.pricingStatus,
-        pricingReason: quoteState
-          ? priceFreshness(quote).reason
-          : capabilityState.reason,
-        pricingUpdatedAt:
-          quote?.observedAt ||
-          quote?.retrievedAt?.slice?.(0, 10) ||
-          item.pricingUpdatedAt,
-      };
-      const movement = movementForItem(updated);
-      return { ...updated, move: movement?.changePercent ?? null, movement };
-    });
-    state.movementStatus = state.items.some((item) => movementForItem(item))
-      ? "live"
-      : planLimited
-        ? "plan_required"
-        : failed
-          ? "error"
-          : "unavailable";
-    void backfillPurchaseMarketReferences();
-  } catch {
-    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-    state.movementStatus = "error";
-  }
+  // Reuse the same scoped background batch; insights must not fetch all conditions again.
+  await refreshLivePricing();
+  if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+  state.movementStatus = state.items.some(item => movementForItem(item))
+    ? "live"
+    : state.items.some(item => item.historyStatus === "plan_required")
+      ? "plan_required"
+      : state.pricingStatus === "error" || state.pricingStatus === "partial"
+        ? "error"
+        : "unavailable";
   renderCollection();
   renderInsights();
   if (state.route === "detail") renderDetail();
@@ -20752,7 +20735,7 @@ async function retryAccountLoad() {
   state.accountLoading = true;
   renderCollection();
   try {
-    const [organization, watchlist, history, profile, actionCenter] =
+    const [organization, watchlist, history, profile, actionCenter, portfolioView] =
       await Promise.all([
         loadCollectionOrganization(supabase, ownerId),
         loadWatchlist(supabase, ownerId),
@@ -20763,10 +20746,12 @@ async function retryAccountLoad() {
         loadActionCenter(supabase, ownerId)
           .then((data) => ({ data, error: null }))
           .catch((error) => ({ data: null, error })),
+        loadSavedPortfolio(ownerId),
       ]);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
+    state.portfolioView = portfolioView || state.portfolioView;
     state.profile = profile;
     state.preferences = profile.preferences;
     state.actionCenter = actionCenter.error
@@ -20778,6 +20763,7 @@ async function retryAccountLoad() {
     const inventory = await loadCollectionInventory(ownerId, organization);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = inventory.items;
+    restorePortfolioPricing(state.portfolioView);
     state.largeInventory = inventory.largeInventory;
     applyLoadedOrganization(organization);
     state.portfolioHistoryStatus = history.error ? "error" : "ready";
@@ -20983,6 +20969,7 @@ async function applySession(session) {
     state.watchlist = [];
     state.actionCenter = emptyActionCenter("local");
     state.portfolioHistory = [];
+    state.portfolioView = null;
     state.portfolioHistoryStatus = "idle";
     state.largeInventory = {
       active: false,
@@ -21039,6 +21026,7 @@ async function applySession(session) {
   state.items = [];
   state.watchlist = [];
   state.portfolioHistory = [];
+    state.portfolioView = null;
   state.portfolioHistoryStatus = "loading";
   state.detailId = null;
   state.detailCard = null;
@@ -21063,7 +21051,7 @@ async function applySession(session) {
     { instant: true, history: "replace" },
   );
   try {
-    const [organization, watchlist, history, profile, actionCenter] =
+    const [organization, watchlist, history, profile, actionCenter, portfolioView] =
       await Promise.all([
         loadCollectionOrganization(supabase, ownerId),
         loadWatchlist(supabase, ownerId),
@@ -21074,10 +21062,12 @@ async function applySession(session) {
         loadActionCenter(supabase, ownerId)
           .then((data) => ({ data, error: null }))
           .catch((error) => ({ data: null, error })),
+        loadSavedPortfolio(ownerId),
       ]);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
+    state.portfolioView = portfolioView || state.portfolioView;
     state.profile = profile;
     state.preferences = profile.preferences;
     state.actionCenter = actionCenter.error
@@ -21089,6 +21079,7 @@ async function applySession(session) {
     const inventory = await loadCollectionInventory(ownerId, organization);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = inventory.items;
+    restorePortfolioPricing(state.portfolioView);
     state.largeInventory = inventory.largeInventory;
     applyLoadedOrganization(organization);
     state.portfolioHistoryStatus = history.error ? "error" : "ready";

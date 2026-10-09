@@ -52,6 +52,10 @@
     {
       "path": "/api/capabilities?surface=grading-deletion",
       "schedule": "15 5 * * *"
+    },
+    {
+      "path": "/api/capabilities?surface=portfolio-sync",
+      "schedule": "25 6 * * *"
     }
   ],
   "headers": [

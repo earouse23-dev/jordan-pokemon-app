@@ -180,6 +180,11 @@ export async function retainedHandler(request, response, publicOnly = false, pro
             currencies: fullHistory && lookup.currency ? [lookup.currency.toLowerCase()] : undefined,
           }),
       );
+      // A local allowance failure is not a missing card or an upstream outage.
+      if (primary.length && primary.every(result => result.status === "rejected" && result.reason?.status === 429)) {
+        const daily = primary.some(result => result.reason?.code === "provider_daily_budget_reached");
+        return send(response, 429, { error: daily ? "Today's pricing allowance is exhausted." : "The pricing request limit was reached.", code: daily ? "provider_daily_budget_reached" : "provider_rate_limited" });
+      }
       primary.forEach((result, index) => {
         if (result.status !== "fulfilled" || !result.value.card) return;
         const card = normalizePkmnPricesCard(

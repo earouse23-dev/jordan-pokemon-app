@@ -487,15 +487,15 @@ test("all-time P/L includes sold gains without inventing unknown sale costs", ()
 });
 
 
-test("portfolio carries only earlier matching history within freshness and separates value from unknown cost", () => {
+test("portfolio carries earlier matching history without live-price expiry and separates value from unknown cost", () => {
   const a = { currency: "USD", cardState: "raw", quantity: 2, costBasis: null, lots: [{ ...lot("2026-09-01", null), quantityAcquired: 2, quantityRemaining: 2 }], matchedHistory: [point("2026-09-01", 100), point("2026-09-07", 200)] };
   assert.equal(portfolioProfitLoss([a], "USD", "2026-09-03").valueMinor, 20000);
   assert.equal(portfolioProfitLoss([a], "USD", "2026-09-03").valueComplete, true);
   assert.equal(portfolioProfitLoss([a], "USD", "2026-09-03").historyComplete, false);
-  assert.equal(portfolioProfitLoss([a], "USD", "2026-09-06").missingUnits, 2);
+  assert.equal(portfolioProfitLoss([a], "USD", "2026-09-06").missingUnits, 0);
   assert.equal(portfolioProfitLoss([a], "USD", "2026-08-31").valueMinor, 0);
   const daily = portfolioProfitLossHistory([a], "USD", true);
   assert.equal(daily.length, 7);
-  assert.equal(daily.find(row => row.date === "2026-09-06").valueComplete, false);
+  assert.equal(daily.find(row => row.date === "2026-09-06").valueComplete, true);
   assert.deepEqual(a.matchedHistory.map(row => row.amount), [100, 200]);
 });

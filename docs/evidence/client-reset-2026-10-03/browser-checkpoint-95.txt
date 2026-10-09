@@ -1,0 +1,200 @@
+
+Running 123 tests using 4 workers
+
+[1A[2K(node:95258) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95259) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95256) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95257) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95258) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95257) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95259) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95256) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[1/123] [desktop-chromium] › tests/browser/card-profile.spec.js:363:1 › catalog profile loads a labeled reference without assessing the owned condition, then matches raw and graded evidence
+[1A[2K[2/123] [desktop-chromium] › tests/browser/card-profile.spec.js:864:1 › same-owner Watch draft waits for automatic account setup and preserves stored preferences
+[1A[2K[3/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1861:1 › captures Packet 02 PSA action-prefill viewports
+[1A[2K[4/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1272:1 › provider-normalized first-edition uncertainty stays unpriced through add and watch
+[1A[2K[5/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1891:1 › captures owner-safe automatic account setup and resumed Watch viewports
+[1A[2K[6/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1931:1 › card result leads with price and recovers provider images through the validated proxy
+[1A[2K[7/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1948:1 › public display rate completes across session changes instead of stranding loading
+[1A[2K[8/123] [desktop-chromium] › tests/browser/card-profile.spec.js:429:1 › raw profile rejects graded-only evidence, then prices the matching slab context
+[1A[2K[9/123] [desktop-chromium] › tests/browser/card-profile.spec.js:920:1 › late account setup cannot replace another owner's profile or reopen a private draft
+[1A[2K[10/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1369:1 › owned raw value stays separate through graded loading, failure, and retry
+[1A[2K[11/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1965:57 › same-account Safari auth announcement preserves card prices and history while loading
+[1A[2K[12/123] [desktop-chromium] › tests/browser/card-profile.spec.js:532:3 › Watchlist raw row opens its saved context and reaches a matching price
+[1A[2K[13/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1965:57 › same-account Safari auth announcement preserves card prices and history after loading
+[1A[2K[14/123] [desktop-chromium] › tests/browser/card-profile.spec.js:948:1 › visible fee preference saves preserve hidden mode and trade values
+[1A[2K[15/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1483:1 › late raw pricing cannot replace the newly selected graded context
+[1A[2K[16/123] [desktop-chromium] › tests/browser/card-profile.spec.js:532:3 › Watchlist graded row opens its saved context and reaches a matching price
+[1A[2K[17/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1976:1 › a scan condition enum renders its exact quote and history without changing the copy facts
+[1A[2K[18/123] [desktop-chromium] › tests/browser/card-profile.spec.js:980:1 › saved display currency converts the portfolio and survives profile reload without changing native items
+[1A[2K[19/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1536:1 › late raw-condition evidence cannot replace a newer owned research context
+[1A[2K[20/123] [desktop-chromium] › tests/browser/card-profile.spec.js:577:1 › a lone raw watch never masquerades as the selected graded research context
+[1A[2K[21/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1995:1 › Watch All time preserves full recorded history through a current-price-only refresh
+[1A[2K[22/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1627:1 › add and watch payloads retain the selected canonical identity and unknown raw condition
+[1A[2K[23/123] [desktop-chromium] › tests/browser/card-profile.spec.js:2016:1 › All time with one observation explains missing history without an empty chart or grading comparison
+[1A[2K[24/123] [desktop-chromium] › tests/browser/card-profile.spec.js:638:1 › sign-in interruption restores the exact PSA 10 Add draft and idempotent retry
+[1A[2K[25/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1093:3 › initializer discards a legacy ownerless private draft
+[1A[2K[26/123] [desktop-chromium] › tests/browser/portfolio-history.spec.js:43:1 › synthetic portfolio P/L, ranges, value toggle and honest movement filters
+[1A[2K[27/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1093:3 › initializer discards a expired private draft
+[1A[2K[28/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1746:3 › Trainer profile works without a Pokémon character or image
+[1A[2K[29/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1746:3 › Energy profile works without a Pokémon character or image
+[1A[2K[30/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1093:3 › initializer discards a malformed private draft
+[1A[2K[31/123] [desktop-chromium] › tests/browser/card-profile.spec.js:729:1 › sign-in interruption restores the exact graded Watch draft without writing
+[1A[2K[32/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1764:1 › focused valuation controls stay visible above the sticky actions
+[1A[2K[33/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1114:1 › Library row opens the chosen saved position and research does not mutate either copy
+[1A[2K[34/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1807:1 › captures revised normal and uncertain profile viewports
+[1A[2K[35/123] [desktop-chromium] › tests/browser/card-profile.spec.js:769:1 › a different account cannot see or revive an interrupted private Watch draft
+[1A[2K[36/123] [desktop-chromium] › tests/browser/portfolio-history.spec.js:634:1 › portfolio refresh publishes once, shares requests and retains values on failed batches
+[1A[2K[37/123] [desktop-chromium] › tests/browser/card-profile.spec.js:1225:1 › existing missing-set card link opens the exact catalog profile
+[1A[2K[38/123] [desktop-chromium] › tests/browser/portfolio-history.spec.js:733:1 › saved chart and total restore together and publish only after a completed refresh
+[1A[2K[39/123] [desktop-chromium] › tests/browser/card-profile.spec.js:821:1 › a different account cannot see an interrupted private Add purchase draft
+[1A[2K[40/123] [desktop-chromium] › tests/browser/portfolio-history.spec.js:693:1 › portfolio overlaps three batches and publishes only after the final batch
+[1A[2K(node:95418) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95418) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[41/123] [mobile-chromium] › tests/browser/card-profile.spec.js:363:1 › catalog profile loads a labeled reference without assessing the owned condition, then matches raw and graded evidence
+[1A[2K(node:95420) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[42/123] [desktop-chromium] › tests/browser/portfolio-history.spec.js:448:1 › graded reference index cannot enter portfolio totals or snapshots; exact sold cache can
+[1A[2K[43/123] [mobile-chromium] › tests/browser/card-profile.spec.js:864:1 › same-owner Watch draft waits for automatic account setup and preserves stored preferences
+[1A[2K(node:95437) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95437) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K(node:95453) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[44/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1272:1 › provider-normalized first-edition uncertainty stays unpriced through add and watch
+[1A[2K[45/123] [mobile-chromium] › tests/browser/card-profile.spec.js:429:1 › raw profile rejects graded-only evidence, then prices the matching slab context
+[1A[2K(node:95453) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[46/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1861:1 › captures Packet 02 PSA action-prefill viewports
+[1A[2K[47/123] [mobile-chromium] › tests/browser/card-profile.spec.js:920:1 › late account setup cannot replace another owner's profile or reopen a private draft
+[1A[2K[48/123] [mobile-chromium] › tests/browser/card-profile.spec.js:532:3 › Watchlist raw row opens its saved context and reaches a matching price
+[1A[2K[49/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1891:1 › captures owner-safe automatic account setup and resumed Watch viewports
+[1A[2K[50/123] [mobile-chromium] › tests/browser/card-profile.spec.js:532:3 › Watchlist graded row opens its saved context and reaches a matching price
+[1A[2K[51/123] [mobile-chromium] › tests/browser/card-profile.spec.js:948:1 › visible fee preference saves preserve hidden mode and trade values
+[1A[2K[52/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1931:1 › card result leads with price and recovers provider images through the validated proxy
+[1A[2K[53/123] [mobile-chromium] › tests/browser/card-profile.spec.js:577:1 › a lone raw watch never masquerades as the selected graded research context
+[1A[2K[54/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1948:1 › public display rate completes across session changes instead of stranding loading
+[1A[2K[55/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1369:1 › owned raw value stays separate through graded loading, failure, and retry
+[1A[2K[56/123] [mobile-chromium] › tests/browser/card-profile.spec.js:980:1 › saved display currency converts the portfolio and survives profile reload without changing native items
+[1A[2K[57/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1965:57 › same-account Safari auth announcement preserves card prices and history while loading
+[1A[2K[58/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1483:1 › late raw pricing cannot replace the newly selected graded context
+[1A[2K[59/123] [mobile-chromium] › tests/browser/card-profile.spec.js:638:1 › sign-in interruption restores the exact PSA 10 Add draft and idempotent retry
+[1A[2K[60/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1965:57 › same-account Safari auth announcement preserves card prices and history after loading
+[1A[2K[61/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1536:1 › late raw-condition evidence cannot replace a newer owned research context
+[1A[2K[62/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1093:3 › initializer discards a legacy ownerless private draft
+[1A[2K[63/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1976:1 › a scan condition enum renders its exact quote and history without changing the copy facts
+[1A[2K[64/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1093:3 › initializer discards a expired private draft
+[1A[2K[65/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1627:1 › add and watch payloads retain the selected canonical identity and unknown raw condition
+[1A[2K[66/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1995:1 › Watch All time preserves full recorded history through a current-price-only refresh
+[1A[2K[67/123] [mobile-chromium] › tests/browser/card-profile.spec.js:729:1 › sign-in interruption restores the exact graded Watch draft without writing
+[1A[2K[68/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1093:3 › initializer discards a malformed private draft
+[1A[2K[69/123] [mobile-chromium] › tests/browser/card-profile.spec.js:2016:1 › All time with one observation explains missing history without an empty chart or grading comparison
+[1A[2K[70/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1114:1 › Library row opens the chosen saved position and research does not mutate either copy
+[1A[2K[71/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1746:3 › Trainer profile works without a Pokémon character or image
+[1A[2K[72/123] [mobile-chromium] › tests/browser/card-profile.spec.js:769:1 › a different account cannot see or revive an interrupted private Watch draft
+[1A[2K[73/123] [mobile-chromium] › tests/browser/portfolio-history.spec.js:43:1 › synthetic portfolio P/L, ranges, value toggle and honest movement filters
+[1A[2K[74/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1746:3 › Energy profile works without a Pokémon character or image
+[1A[2K[75/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1225:1 › existing missing-set card link opens the exact catalog profile
+[1A[2K[76/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1764:1 › focused valuation controls stay visible above the sticky actions
+[1A[2K[77/123] [mobile-chromium] › tests/browser/card-profile.spec.js:821:1 › a different account cannot see an interrupted private Add purchase draft
+[1A[2K[78/123] [mobile-chromium] › tests/browser/portfolio-history.spec.js:634:1 › portfolio refresh publishes once, shares requests and retains values on failed batches
+[1A[2K[79/123] [mobile-chromium] › tests/browser/card-profile.spec.js:1807:1 › captures revised normal and uncertain profile viewports
+[1A[2K[80/123] [mobile-chromium] › tests/browser/portfolio-history.spec.js:733:1 › saved chart and total restore together and publish only after a completed refresh
+[1A[2K(node:95580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[81/123] [mobile-chromium] › tests/browser/portfolio-history.spec.js:693:1 › portfolio overlaps three batches and publishes only after the final batch
+[1A[2K(node:95580) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1A[2K[82/123] [mobile-webkit] › tests/browser/card-profile.spec.js:363:1 › catalog profile loads a labeled reference without assessing the owned condition, then matches raw and graded evidence
+[1A[2K[83/123] [mobile-webkit] › tests/browser/card-profile.spec.js:429:1 › raw profile rejects graded-only evidence, then prices the matching slab context
+[1A[2K[84/123] [mobile-webkit] › tests/browser/card-profile.spec.js:532:3 › Watchlist raw row opens its saved context and reaches a matching price
+[1A[2K[85/123] [mobile-chromium] › tests/browser/portfolio-history.spec.js:448:1 › graded reference index cannot enter portfolio totals or snapshots; exact sold cache can
+[1A[2K[86/123] [mobile-webkit] › tests/browser/card-profile.spec.js:532:3 › Watchlist graded row opens its saved context and reaches a matching price
+[1A[2K[87/123] [mobile-webkit] › tests/browser/card-profile.spec.js:577:1 › a lone raw watch never masquerades as the selected graded research context
+[1A[2K[88/123] [mobile-webkit] › tests/browser/card-profile.spec.js:638:1 › sign-in interruption restores the exact PSA 10 Add draft and idempotent retry
+[1A[2K[89/123] [mobile-webkit] › tests/browser/card-profile.spec.js:729:1 › sign-in interruption restores the exact graded Watch draft without writing
+[1A[2K[90/123] [mobile-webkit] › tests/browser/card-profile.spec.js:769:1 › a different account cannot see or revive an interrupted private Watch draft
+[1A[2K[91/123] [mobile-webkit] › tests/browser/card-profile.spec.js:821:1 › a different account cannot see an interrupted private Add purchase draft
+[1A[2K[92/123] [mobile-webkit] › tests/browser/card-profile.spec.js:864:1 › same-owner Watch draft waits for automatic account setup and preserves stored preferences
+[1A[2K[93/123] [mobile-webkit] › tests/browser/card-profile.spec.js:920:1 › late account setup cannot replace another owner's profile or reopen a private draft
+[1A[2K[94/123] [mobile-webkit] › tests/browser/card-profile.spec.js:948:1 › visible fee preference saves preserve hidden mode and trade values
+[1A[2K[95/123] [mobile-webkit] › tests/browser/card-profile.spec.js:980:1 › saved display currency converts the portfolio and survives profile reload without changing native items
+[1A[2K[96/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1093:3 › initializer discards a legacy ownerless private draft
+[1A[2K[97/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1093:3 › initializer discards a expired private draft
+[1A[2K[98/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1093:3 › initializer discards a malformed private draft
+[1A[2K[99/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1114:1 › Library row opens the chosen saved position and research does not mutate either copy
+[1A[2K[100/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1225:1 › existing missing-set card link opens the exact catalog profile
+[1A[2K[101/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1272:1 › provider-normalized first-edition uncertainty stays unpriced through add and watch
+[1A[2K[102/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1369:1 › owned raw value stays separate through graded loading, failure, and retry
+[1A[2K[103/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1483:1 › late raw pricing cannot replace the newly selected graded context
+[1A[2K[104/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1536:1 › late raw-condition evidence cannot replace a newer owned research context
+[1A[2K[105/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1627:1 › add and watch payloads retain the selected canonical identity and unknown raw condition
+[1A[2K[106/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1746:3 › Trainer profile works without a Pokémon character or image
+[1A[2K[107/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1746:3 › Energy profile works without a Pokémon character or image
+[1A[2K[108/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1764:1 › focused valuation controls stay visible above the sticky actions
+[1A[2K[109/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1807:1 › captures revised normal and uncertain profile viewports
+[1A[2K[110/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1861:1 › captures Packet 02 PSA action-prefill viewports
+[1A[2K[111/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1891:1 › captures owner-safe automatic account setup and resumed Watch viewports
+[1A[2K[112/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1931:1 › card result leads with price and recovers provider images through the validated proxy
+[1A[2K[113/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1948:1 › public display rate completes across session changes instead of stranding loading
+[1A[2K[114/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1965:57 › same-account Safari auth announcement preserves card prices and history while loading
+[1A[2K[115/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1965:57 › same-account Safari auth announcement preserves card prices and history after loading
+[1A[2K[116/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1976:1 › a scan condition enum renders its exact quote and history without changing the copy facts
+[1A[2K[117/123] [mobile-webkit] › tests/browser/card-profile.spec.js:1995:1 › Watch All time preserves full recorded history through a current-price-only refresh
+[1A[2K[118/123] [mobile-webkit] › tests/browser/card-profile.spec.js:2016:1 › All time with one observation explains missing history without an empty chart or grading comparison
+[1A[2K[119/123] [mobile-webkit] › tests/browser/portfolio-history.spec.js:43:1 › synthetic portfolio P/L, ranges, value toggle and honest movement filters
+[1A[2K[120/123] [mobile-webkit] › tests/browser/portfolio-history.spec.js:448:1 › graded reference index cannot enter portfolio totals or snapshots; exact sold cache can
+[1A[2K[121/123] [mobile-webkit] › tests/browser/portfolio-history.spec.js:634:1 › portfolio refresh publishes once, shares requests and retains values on failed batches
+[1A[2K[122/123] [mobile-webkit] › tests/browser/portfolio-history.spec.js:693:1 › portfolio overlaps three batches and publishes only after the final batch
+[1A[2K[123/123] [mobile-webkit] › tests/browser/portfolio-history.spec.js:733:1 › saved chart and total restore together and publish only after a completed refresh
+[1A[2K  9 skipped
+  114 passed (1.1m)

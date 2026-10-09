@@ -1,11 +1,14 @@
 import { withNativeCors } from "../lib/native-cors.js";
 import { serverEnvironment } from "../lib/env.js";
 import { notificationDeliveryCapabilities } from "../lib/notification-delivery.js";
+import { portfolioService } from "../lib/portfolio-service.js";
 import gradingPilotHandler, {
   gradingDeletionCronHandler,
 } from "../lib/grading-pilot-api.js";
 
 async function handler(request, response) {
+  if (["portfolio", "portfolio-sync"].includes(request.query?.surface))
+    return portfolioService(request, response);
   if (request.query?.surface === "grading-pilot")
     return gradingPilotHandler(request, response);
   if (request.query?.surface === "grading-deletion")
@@ -62,4 +65,4 @@ async function handler(request, response) {
   }
 }
 
-export default withNativeCors(handler, ["GET"]);
+export default withNativeCors(handler, ["GET", "POST"]);

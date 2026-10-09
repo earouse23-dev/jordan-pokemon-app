@@ -321,3 +321,34 @@ for (const currency of ["USD", "EUR"]) test(currency + " real cent prices produc
   assert.equal(positionPerformance({quantityOwned:1,remainingCostBasisMinor:20000,currentUnitPrice:result.estimate}).unrealizedGainMinor,2023);
   assert.deepEqual(rows.map(row=>row.amount),amounts);
 });
+
+test("last eBay slab value accepts documented sold types, one comp and exact label tiers", async () => {
+  const { latestEbaySoldValuation } = await import("../lib/pricing.js");
+  for (const grader of ["PSA", "CGC", "BGS"]) for (const saleType of ["auction", "fixed_price", "best_offer_accepted"]) {
+    const ctx = { ...context, grader, grade: grader === "BGS" ? "9.5" : "10", qualifier: grader === "CGC" ? "Pristine" : "" };
+    const opts = { ...options, validatedContext: { ...validatedContext, grader, grade: ctx.grade, gradeQualifier: ctx.qualifier } };
+    const row = sale(9901, 225, "2026-09-21", { gradingCompany: grader, grade: ctx.grade, gradeQualifier: ctx.qualifier, saleType });
+    const result = latestEbaySoldValuation([row], ctx, opts);
+    assert.equal(result.status, "ready"); assert.equal(result.estimate, 225);
+    assert.equal(result.ruleVersion, "mica-last-ebay-sale-v1");
+    assert.equal(latestEbaySoldValuation([{ ...row, grade: "9" }], ctx, opts).estimate, null);
+    assert.equal(latestEbaySoldValuation([{ ...row, gradeQualifier: ctx.qualifier ? "" : "Black Label" }], ctx, opts).estimate, null);
+  }
+  const rows = [sale(9901, 100, "2026-09-18", { saleType: "auction" }), sale(9902, 200, "2026-09-22", { saleType: "fixed_price" }), sale(9903, 150, "2026-09-20", { saleType: "best_offer_accepted" })];
+  assert.equal(latestEbaySoldValuation(rows, context, options).estimate, 200);
+  assert.equal(exactSoldValuation(rows, context, options).estimate, 150); // Historical median contract remains intact.
+  for (const extra of [{ saleType: "active" }, { saleType: null }, { attribution: "shared" }, { printing: "Reverse Holofoil" }, { soldAt: "2026-09-25" }, { sourceUrl: "https://evil.invalid/itm/9902" }, { currency: "EUR" }]) {
+    assert.equal(latestEbaySoldValuation([{ ...rows[1], ...extra }], context, options).estimate, null);
+  }
+  assert.equal(latestEbaySoldValuation(rows, { ...context, edition: "unknown" }, options).estimate, null);
+  assert.equal(latestEbaySoldValuation([sale(9904, 90, "2026-08-01", { saleType: "auction" })], context, options).status, "stale");
+});
+
+test('last eBay sale retains an older exact comp as stale evidence while the median live window stays bounded',async()=>{
+ const {latestEbaySoldValuation}=await import('../lib/pricing.js');
+ const old=sale(9910,90,'2025-12-01',{saleType:'auction'});
+ assert.equal(evaluate([old]).estimate,null);
+ const result=latestEbaySoldValuation([old],context,options);
+ assert.equal(result.estimate,90);assert.equal(result.status,'stale');
+ assert.equal(result.newestSoldAt,'2025-12-01');
+});

@@ -2094,7 +2094,7 @@ test("sold evidence preserves printing attribution and excludes unrelated raw co
   globalThis.fetch = async (input) => {
     requests.push(new URL(input));
     return new Response(
-      JSON.stringify({ data: rows, pagination: { has_more: true } }),
+      JSON.stringify({ data: rows, pagination: { has_more: true, next_cursor: "fixture-next" } }),
     );
   };
   try {
@@ -2113,6 +2113,12 @@ test("sold evidence preserves printing attribution and excludes unrelated raw co
     assert.equal(result.conditionScope, "not_provided");
     assert.equal(result.excludedCount, 8);
     assert.equal(result.hasMore, true);
+    assert.equal(result.nextCursor, "fixture-next");
+    assert.equal(result.highestIngestedAt, base.ingested_at);
+    await fetchPkmnPricesSales("key", { pkmnpricesId: "123", variant: "reverse_holofoil" }, undefined, {limit:99,cursor:"fixture-cursor",since:"2026-09-01T00:00:00Z"});
+    assert.equal(requests[1].searchParams.get("limit"), "20");
+    assert.equal(requests[1].searchParams.get("cursor"), "fixture-cursor");
+    assert.equal(requests[1].searchParams.get("since"), "2026-09-01T00:00:00Z");
     assert.equal(requests[0].searchParams.get("graded"), "false");
     assert.equal(requests[0].searchParams.get("variant"), "Reverse Holofoil");
     assert.equal(requests[0].searchParams.has("condition"), false);
@@ -2917,4 +2923,22 @@ test("scan condition enums cross the cards boundary as provider labels without l
       assert.equal(response.statusCode,400);assert.equal(requests.length,before);
     }
   } finally {globalThis.fetch=originalFetch;pkmnPricesRequests.cache.clear();if(originalKey===undefined)delete process.env.PKMNPRICES_API_KEY;else process.env.PKMNPRICES_API_KEY=originalKey;}
+});
+
+test("exhausted shared daily allowance remains explicit and never falls through to another provider", async t => {
+  const key = process.env.PKMNPRICES_API_KEY;
+  process.env.PKMNPRICES_API_KEY = "quota-contract-fixture";
+  t.mock.method(pkmnPricesRequests, "claim", async () => { throw Object.assign(new Error("allowance"), { status: 429, code: "provider_daily_budget_reached" }); });
+  let outbound = 0;
+  t.mock.method(globalThis, "fetch", async () => { outbound++; throw new Error("must not fetch"); });
+  const lookup = { clientId: "quota-contract", pkmnpricesId: "19484", variant: "Holofoil", condition: "Near Mint", currency: "USD" };
+  try {
+    for (const [operation, query] of [[handler, { lookups: JSON.stringify([lookup]), history: "full" }], [salesHandler, { lookup: JSON.stringify({ ...lookup, grader: "PSA", grade: "10" }) }]]) {
+      let body; const response = { setHeader() {}, status(value) { this.statusCode = value; return this; }, json(value) { body = value; } };
+      await operation({ method: "GET", headers: {}, socket: { remoteAddress: "quota-contract" }, query }, response);
+      assert.equal(response.statusCode, 429);
+      assert.equal(body.code, "provider_daily_budget_reached");
+    }
+    assert.equal(outbound, 0);
+  } finally { if (key === undefined) delete process.env.PKMNPRICES_API_KEY; else process.env.PKMNPRICES_API_KEY = key; }
 });

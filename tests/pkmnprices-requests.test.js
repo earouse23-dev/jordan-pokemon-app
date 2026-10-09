@@ -312,3 +312,26 @@ test("sealed optional history quota failure retains current prices and stops fur
   const product=await fetchPkmnPricesSealedProduct("fixture",88,undefined,{includeHistory:true});
   assert.equal(product.quotes[0].amount,120);assert.equal(product.quotes[0].currency,"USD");assert.equal(product.historyStatus,"rate_limited");assert.deepEqual(product.history,[]);assert.equal(calls,2);
 });
+
+test('durable history survives cold reads and refreshes only the new overlapping days',async t=>{
+ pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
+ const saved=new Map();let calls=0;const periods=[];
+ t.mock.method(pkmnPricesRequests,'claim',async()=>{});
+ t.mock.method(pkmnPricesRequests,'claimCache',async()=>true);
+ t.mock.method(pkmnPricesRequests,'readCache',async key=>saved.get(key) || null);
+ t.mock.method(pkmnPricesRequests,'saveCache',async(key,body)=>saved.set(key,{body:structuredClone(body),fetchedAt:Date.now(),expires:Date.now()+86_400_000}));
+ t.mock.method(globalThis,'fetch',async input=>{
+  calls++;const url=new URL(input);
+  if(url.pathname.endsWith('/prices/history')){
+   periods.push(url.searchParams.get('period'));
+   return Response.json({data:[{date:periods.length===1?'2026-01-01':'2026-01-03',source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',avg:100+periods.length}],pagination:{page:1,total_pages:1}});
+  }
+  return Response.json({id:5678,name:'Fixture ETB',prices:[]});
+ });
+ const get=()=>fetchPkmnPricesSealedProduct('fixture',5678,undefined,{includeHistory:true,currencies:['usd']});
+ const first=await get();assert.equal(first.history.length,1);assert.equal(calls,2);
+ pkmnPricesRequests.cache.clear();await get();assert.equal(calls,2,'cold instance reads the durable response without spending');
+ for(const entry of saved.values())if(entry.body.pagination){entry.expires=Date.now()-1;entry.fetchedAt=Date.now()-86_400_000;}
+ pkmnPricesRequests.cache.clear();const next=await get();
+ assert.equal(periods[0],'365d');assert.ok(['2d','3d'].includes(periods[1]));assert.equal(next.history.length,2);assert.equal(calls,3);
+});

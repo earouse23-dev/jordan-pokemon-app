@@ -1,4 +1,4 @@
-const SHELL_CACHE = "mica-shell-watch-history-94";
+const SHELL_CACHE = "mica-shell-saved-portfolio-95";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [

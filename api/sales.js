@@ -179,7 +179,7 @@ async function handler(request, response) {
         status === 429
           ? "The sales-provider rate limit was reached."
           : "Sold-listing data is temporarily unavailable.",
-      code: status === 429 ? "provider_rate_limited" : "provider_unavailable",
+      code: status === 429 ? (error?.code === "provider_daily_budget_reached" ? "provider_daily_budget_reached" : "provider_rate_limited") : "provider_unavailable",
       provider: "pkmnprices",
       capability: "completed_sales",
       capabilityStatus: status === 429 ? "rate_limited" : "provider_error",
