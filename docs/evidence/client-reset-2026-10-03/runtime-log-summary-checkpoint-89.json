@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-10-09T01:03:17.735Z",
+  "deployment": "dpl_F2UY1RLUgpAqsXyJTSC4Y1xd9pzx",
+  "entries": 35,
+  "requestStatusCounts": {
+    "/api/cards 502": 1,
+    "/api/cards 200": 30,
+    "/api/sales 200": 2,
+    "/api/fx 200": 1,
+    "/api/cards 429": 1
+  },
+  "card502Observed": true,
+  "failureCauseNotEstablishedFromEmptyLogs": true,
+  "nodeDeprecationWarningObserved": true,
+  "uncaughtBrowserErrors": 0,
+  "rawLogsPrivate": true
+}
