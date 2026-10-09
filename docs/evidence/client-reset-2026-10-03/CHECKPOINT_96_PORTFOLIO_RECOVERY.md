@@ -8,4 +8,4 @@ Verification: 557 unit checks passed, three conditional skips; 15 portfolio brow
 
 No SQL migration, customer-record write test, new dependency, budget reset/increase, or cron change. Today's provider allowance is still exhausted, so fresh per-card pricing and full historical coverage cannot be verified. Last saved total recovery does not make absent slab/history data available.
 
-Publication IDs and live evidence will be appended after verification.
+Source commit: 7862c49. Published READY deployment dpl_8wv11sskNWMaVvYsTDgzeWHqCrW3 to https://jordan-pokemon-app.vercel.app . Frozen app/config hashes match the canonical deployment. Staged and live runtime checks pass; both existing crons and Git build suppression are unchanged. Isolated demo GET/POST/GET returned 200 and preserved/reloaded its recovered legacy snapshot under blocked pricing. No customer-record write test. Evidence: staged-runtime-checkpoint-96.json, live-runtime-checkpoint-96.json, live-state-checkpoint-96.json and demo-portfolio-checkpoint-96.json.
