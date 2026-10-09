@@ -1,4 +1,4 @@
-const SHELL_CACHE = "mica-shell-dashboard-free-trade-93";
+const SHELL_CACHE = "mica-shell-watch-history-94";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [

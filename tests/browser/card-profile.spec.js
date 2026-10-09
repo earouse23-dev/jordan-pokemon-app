@@ -31,10 +31,11 @@ test.beforeAll(async () => {
     );
   const result = await build({
     stdin: {
-      contents: `${source.replace("void bootstrap();", "")}\nexport { valuationContextForItem, state, loadDisplayFx, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, supabase as testSupabase };`,
-      resolveDir: root,
+      contents: `${source.replace("void bootstrap();", "")}\nexport { valuationContextForItem, state, loadDisplayFx, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, refreshWatchlistPricing, supabase as testSupabase };`,
+      resolveDir: baselineFile ? baselineFile.slice(0, baselineFile.lastIndexOf("/")) : root,
       sourcefile: "app.js",
     },
+    define: { __MICA_INTERNAL_CERTIFICATES__: "false" },
     bundle: true,
     format: "esm",
     platform: "browser",
@@ -1989,4 +1990,36 @@ test("a scan condition enum renders its exact quote and history without changing
   await expect(page.locator(".detail-image img")).toHaveAttribute("src",/images\.pkmnprices\.com/);
   expect(lookups).toHaveLength(1);expect(lookups[0].condition).toBe("Near Mint");
   expect(await page.evaluate(async appUrl=>(await import(appUrl)).state.detailCard.condition,appUrl)).toBe("near_mint");
+});
+
+test("Watch All time preserves full recorded history through a current-price-only refresh", async ({page}) => {
+  const requests=[];
+  await setup(page,{onCards:async route=>{
+    const url=new URL(route.request().url());requests.push(url.searchParams.get("history"));
+    const lookup=JSON.parse(url.searchParams.get("lookups"))[0];
+    const payload=pricingPayload([quote()]);payload.cards[0].providerCardId=lookup.clientId;
+    payload.cards[0].historyStatus=url.searchParams.get("history")==="full"?"live":"not_requested";
+    payload.cards[0].history=url.searchParams.get("history")==="full"?[{...quote(),recordedAt:"2025-01-01T00:00:00Z",amount:5},{...quote(),recordedAt:"2026-10-01T00:00:00Z",amount:9}]:[];
+    await route.fulfill({contentType:"application/json",body:JSON.stringify(payload)});
+  }});
+  await openWatchFromCollection(page,watchEntry());
+  await expect(page.locator("#cardHistoryRange")).toHaveValue("all");
+  await expect(page.locator("#cardPriceHistory")).toContainText("2025");
+  expect(requests[0]).toBe("full");
+  await page.evaluate(async url=>{const app=await import(url);await app.refreshWatchlistPricing();},appUrl);
+  await expect(page.locator("#cardPriceHistory")).toContainText("2025");
+  expect(await page.evaluate(async url=>(await import(url)).state.watchlist[0].priceHistory.some(point=>point.recordedAt.startsWith("2025-01-01")),appUrl)).toBe(true);
+  await page.locator("#detailMoreToolsButton").click();
+  await expect(page.locator('[data-detail-tool="grading-comparison"]')).toHaveCount(0);
+});
+
+test("All time with one observation explains missing history without an empty chart or grading comparison", async ({page},testInfo) => {
+  await setup(page);
+  await openCard(page);
+  await expect(page.locator("#cardPriceHistory")).toContainText("Only one recorded price is available");
+  await expect(page.locator("#positionChart")).toHaveCount(0);
+  await page.locator("#detailMoreToolsButton").click();
+  await expect(page.locator('[data-detail-tool="grading-comparison"]')).toHaveCount(0);
+  await expect(page.getByText("Compare grading outcomes",{exact:true})).toHaveCount(0);
+  await page.screenshot({path:`docs/evidence/client-reset-2026-10-03/checkpoint-94-${testInfo.project.name}.png`,fullPage:true});
 });
