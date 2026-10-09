@@ -17110,11 +17110,13 @@ async function refreshSavedPortfolio(owner, version) {
   if (!owner || state.largeInventory.active) return false;
   const inventoryAtStart = JSON.stringify(state.items.map(item => [item.uid, portfolioPricingKey(item), item.quantity, item.lots, item.transactions]));
   try {
-    const response = await fetch("/api/capabilities?surface=portfolio", { method: "POST", headers: providerRequestHeaders(), signal: AbortSignal.timeout(55_000) });
+    for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await fetch("/api/capabilities?surface=portfolio", { method: "POST", headers: providerRequestHeaders(), signal: AbortSignal.timeout(65_000) });
     if (response.status === 404) return false;
     if (!response.ok) return true;
     const { view } = await response.json();
     if (!accountRequestIsCurrent(owner, version) || !view?.summaries || inventoryAtStart !== JSON.stringify(state.items.map(item => [item.uid, portfolioPricingKey(item), item.quantity, item.lots, item.transactions]))) return true;
+    if (attempt === 0 && view?.refreshIncomplete && view.refreshReason !== "provider_daily_budget_reached" && view.pendingPricing?.some(p => p.price != null)) continue;
     if (!hasPortfolioValue(view)) return true;
     state.portfolioView = view;
     restorePortfolioPricing(view);
@@ -17124,6 +17126,7 @@ async function refreshSavedPortfolio(owner, version) {
     renderCollection(); renderInsights();
     if (state.route === "detail") renderDetail();
     return true;
+    }
   } catch { return true; }
 }
 

@@ -1,0 +1,9 @@
+# Checkpoint 98 — Complete initial refresh without a second manual reload
+
+Canonical checkpoint 97 verification found the initial customer history download reached the existing refresh deadline after 12 of 13 positions. The old saved portfolio correctly remained visible and progress was durable. A second normal app load then published $9,102.11, all four PSA positions, and a continuous chart. Espeon CGC 8.5 is the sole unpriced position because the exact provider query returns no comps. History begins at the earliest date with consistent coverage (currently September 1), not a fabricated value before provider evidence.
+
+Correction: the browser continues a partially completed initial refresh once in the background when saved progress contains numeric prices, keeping the visible snapshot unchanged until the result is ready. It does not retry exhausted daily allowance or loop indefinitely. The client deadline now allows the server's controlled response to arrive. Resolved provider IDs are reused from saved progress. No full-year history redownload: the existing durable response cache remains in use.
+
+Validation: 560 unit checks pass, three conditional skips; lint passes; 15 portfolio checks pass across desktop Chromium, mobile Chromium and mobile WebKit. The saved-view browser regression now returns an incomplete first response with durable progress, asserts exactly two POSTs, keeps $400 while the continuation is pending, then publishes $450 and its chart together. Error/empty-response and reload checks remain. Routing verifies nine functions and existing auth/CORS/held routes. No SQL, dependency, budget, plan or cron change.
+
+Source and production publication details follow after live verification. See checkpoint 97 for verified provider requests, service-only credit settlement and support follow-up. Customer acquisition/sale records were not modified.
