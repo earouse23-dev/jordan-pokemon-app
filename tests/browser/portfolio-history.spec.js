@@ -733,14 +733,14 @@ test("portfolio overlaps three batches and publishes only after the final batch"
 test('saved chart and total restore together and publish only after a completed refresh',async({page},testInfo)=>{
  const owner='11111111-1111-4111-8111-111111111111';
  const makeView=(total,day)=>({version:1,complete:true,updatedAt:`2026-01-${day}T12:00:00Z`,summaries:[{currency:'USD',total,knownTotal:total,missingUnits:0,historyStartsAt:'2026-01-01',history:[{date:'2026-01-01',total:400},{date:'2026-01-02',total}]}],pricing:[]});
- let saved=makeView(400,'02'),release,fail=false,paid=0;
+ let saved=makeView(400,'02'),release,fail=false,empty=false,paid=0;
  await page.route('**/app.js?v=114',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
  await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
  await page.route('https://mica-portfolio-test.supabase.co/**',route=>route.fulfill({contentType:'application/json',body:'[]'}));
  await page.route('**/api/**',async route=>{
   if(route.request().url().includes('surface=portfolio')){
    if(route.request().method()==='POST'){
-    if(fail)return route.fulfill({status:503,body:'{}'});
+    if(fail)return route.fulfill({status:empty?200:503,contentType:'application/json',body:empty?JSON.stringify({view:{version:1,refreshIncomplete:true,updatedAt:'2026-01-04T12:00:00Z',summaries:[{currency:'USD',total:null,knownTotal:null,missingUnits:24,history:[]}],pricing:[]}}):'{}'});
     await new Promise(resolve=>release=resolve);saved=makeView(450,'03');
    }
    return route.fulfill({contentType:'application/json',body:JSON.stringify({view:saved})});
@@ -758,6 +758,7 @@ test('saved chart and total restore together and publish only after a completed 
  await expect.poll(()=>Boolean(release)).toBe(true);await expect(page.locator('#portfolioValue')).toHaveText('$400.00');release();await page.evaluate(()=>window.fixtureRefresh);
  await expect(page.locator('#portfolioValue')).toHaveText('$450.00');
  fail=true;await page.evaluate(async({appUrl,owner})=>{const a=await import(appUrl);await a.refreshSavedPortfolio(owner,a.sessionLoadVersion);},{appUrl,owner});await expect(page.locator('#portfolioValue')).toHaveText('$450.00');
+ empty=true;await page.evaluate(async({appUrl,owner})=>{const a=await import(appUrl);await a.refreshSavedPortfolio(owner,a.sessionLoadVersion);},{appUrl,owner});await expect(page.locator('#portfolioValue')).toHaveText('$450.00');
  await page.reload();await restore();await expect(page.locator('#portfolioValue')).toHaveText('$450.00');await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
  expect(paid).toBe(0);
  await expect.poll(()=>page.evaluate(async url=>(await import(url)).portfolioChartInstance?.data.datasets[0].data,appUrl)).toEqual([400,450]);

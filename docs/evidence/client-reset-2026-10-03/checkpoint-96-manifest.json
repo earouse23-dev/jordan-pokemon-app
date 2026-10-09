@@ -1,0 +1,985 @@
+{
+  "activation04ManifestSha256": "8966004f6297f2bad4089edd3644da271bf6b622d09ad68c61a5927263a8758c",
+  "buildScriptSha256": "7c0dc8eac03151c19c6b14cec95491f8903f462a5e1953946ffdf2b31d687abd",
+  "node": "v24.21.0",
+  "dependencies": [
+    {
+      "name": "@capacitor/app",
+      "version": "8.1.1"
+    },
+    {
+      "name": "@capacitor/core",
+      "version": "8.5.2"
+    },
+    {
+      "name": "@capacitor/ios",
+      "version": "8.5.2"
+    },
+    {
+      "name": "@capacitor/preferences",
+      "version": "8.0.1"
+    },
+    {
+      "name": "@supabase/supabase-js",
+      "version": "2.110.7"
+    },
+    {
+      "name": "@vercel/oidc",
+      "version": "3.8.0"
+    },
+    {
+      "name": "ai",
+      "version": "7.0.42"
+    },
+    {
+      "name": "chart.js",
+      "version": "4.5.1"
+    },
+    {
+      "name": "esbuild",
+      "version": "0.28.1"
+    }
+  ],
+  "publicConfigSha256": "f0dc0e0064c32e5ab6c47560bf8b038fae917e970c22e344bff4a8e3560a2574",
+  "configuration": {
+    "supabaseUrl": "https://kdkzdflrxajfdcithrfj.supabase.co",
+    "apiOrigin": "https://jordan-pokemon-app.vercel.app",
+    "publishableKeySha256": "0c25b3039cb7141ac61e3a428de55efa5d159b1d1651d237a23a7a6a5ab9e79c",
+    "authReturnOrigin": "https://jordan-pokemon-app.vercel.app"
+  },
+  "configuredPublicAssetSha256": "65b310fcb5dd0692eddd945de91ca439995bce48a040cccd1afa4bf8602e745f",
+  "functionCount": 9,
+  "observedFunctionLimit": 12,
+  "heldRoutes": {
+    "price-sync": [
+      "GET",
+      "POST"
+    ],
+    "maintenance": [
+      "GET"
+    ],
+    "alert-delivery": [
+      "GET"
+    ]
+  },
+  "proRoutes": {
+    "vision": [
+      "POST"
+    ],
+    "sales": [
+      "GET"
+    ],
+    "offers": [
+      "GET"
+    ],
+    "sealed": [
+      "GET"
+    ],
+    "graded-valuation": [
+      "POST"
+    ]
+  },
+  "crons": [
+    {
+      "path": "/api/capabilities?surface=grading-deletion",
+      "schedule": "15 5 * * *"
+    },
+    {
+      "path": "/api/capabilities?surface=portfolio-sync",
+      "schedule": "25 6 * * *"
+    }
+  ],
+  "source": [
+    {
+      "path": "api/account.js",
+      "sha256": "b36217648ee00360e4f240e5f7e3745388c37f4df350f50a6044161ef5716bf5",
+      "activation04Sha256": "b36217648ee00360e4f240e5f7e3745388c37f4df350f50a6044161ef5716bf5"
+    },
+    {
+      "path": "api/alert-delivery.js",
+      "sha256": "36ec7a3f110e799f8442b3e4ef6b92155c38b07d55ad7bb67bfd9e801038ec2e",
+      "activation04Sha256": "36ec7a3f110e799f8442b3e4ef6b92155c38b07d55ad7bb67bfd9e801038ec2e"
+    },
+    {
+      "path": "api/capabilities.js",
+      "sha256": "eb00070dcff1f27e03bfd6a5f000edca3bd84e112df5e2a8c4bbde1e013f5b49",
+      "activation04Sha256": "7d856741aa65417665e50d534d86a585068ec44e6e8a88c57c9099724da90a5b"
+    },
+    {
+      "path": "api/card-image.js",
+      "sha256": "054676a4dc505528bce11aa2ae35f06cf133195444b07496d3fd4e5edbc02f5d",
+      "activation04Sha256": "054676a4dc505528bce11aa2ae35f06cf133195444b07496d3fd4e5edbc02f5d"
+    },
+    {
+      "path": "api/cards.js",
+      "sha256": "d0f262abb4a549ce724ce9422c99a4037a28babc05445fc5cd3231b69d7217fa",
+      "activation04Sha256": "d42fb68f75bd6abedd9f648bc6c84c241748af2aabfb21eb131b802c61e3d882"
+    },
+    {
+      "path": "api/catalog.js",
+      "sha256": "89c3d9306a4181dcf3ba530462af26d17c72e0853d3115dbfe2b021d07a49f78",
+      "activation04Sha256": "89c3d9306a4181dcf3ba530462af26d17c72e0853d3115dbfe2b021d07a49f78"
+    },
+    {
+      "path": "api/fx.js",
+      "sha256": "d23465f88906bb18ce5ed748fc53a33ca1504b70a6c5f1d179fd78c3089552ba",
+      "activation04Sha256": "d23465f88906bb18ce5ed748fc53a33ca1504b70a6c5f1d179fd78c3089552ba"
+    },
+    {
+      "path": "api/graded-valuation.js",
+      "sha256": "2cc14e78cba35b661abdec95af3895e2b18023a5daa314c62dd81f01277fbfa6",
+      "activation04Sha256": "963583dc3185c945f35df5fcb58a4f0c307a0087e70c81b4958b0db27f30c0e9"
+    },
+    {
+      "path": "api/health.js",
+      "sha256": "a03440a3bf210f3c50b79e165ac8a0ba47f279da037bd824ef90259286907909",
+      "activation04Sha256": "45a34e8c6f12ea29d18f678bfd91fadd86e1e84e387f5ca16d5743c40a6e1f94"
+    },
+    {
+      "path": "api/maintenance.js",
+      "sha256": "f6210a8554c3260accce2bafa91d8b4d6c558c3f50df9daa85504f226b985705",
+      "activation04Sha256": "784e86819b071f2ffe31a76104f6da3748c1b726ab60ba6ffbfde11ae5e5dda3"
+    },
+    {
+      "path": "api/offers.js",
+      "sha256": "e754220962a7a278c5c23e31f52c6211b89cc8ba49572127280fe5b65d8a9531",
+      "activation04Sha256": "8defa72475e5b1d0f62b67069310dbca95ab07e8cbeab51974ac62ebea896766"
+    },
+    {
+      "path": "api/price-sync.js",
+      "sha256": "b65d8b12c928286d847812731d841d205f55a51cbf2b58770402289ca5d95916",
+      "activation04Sha256": "4e0acc5e9b222cc5917f6a120cb6ee68172c26c56a3355ef20d03a13ae28187d"
+    },
+    {
+      "path": "api/sales.js",
+      "sha256": "d6a3572fe1e9cada76bdc41eae33426d93729aad27e1a719a10221a8340ded16",
+      "activation04Sha256": "43b7312b3b13c56376a51956141c73e4f34c4835b24e048c598a8e92dfdd38f0"
+    },
+    {
+      "path": "api/sealed.js",
+      "sha256": "d4f9efdc7a4c21436367242ed5e7f00f6b05d2e9d132499efeb3a220afb9a273",
+      "activation04Sha256": "973a791105013cf890f212fe4cf531169b37ae23f242b72eed4177c26279e61c"
+    },
+    {
+      "path": "api/set.js",
+      "sha256": "f592f45954a63ee0ed1067028b3bfb2a51d375ee1f3141c04cb93dccfb679a72",
+      "activation04Sha256": "f592f45954a63ee0ed1067028b3bfb2a51d375ee1f3141c04cb93dccfb679a72"
+    },
+    {
+      "path": "api/vision.js",
+      "sha256": "66214fb7410e43b6fffcc1cbbe845150d9e968088f09586b3bac328f5b2a7fc7",
+      "activation04Sha256": "789d4721da62926b1b10b66d39f0c88c58aa2166cf49078ba17c61d4b5a7e59d"
+    },
+    {
+      "path": "app.js",
+      "sha256": "ecef98dc953bdd6c9010dbfd5b6bc1f225246ad54343d26d1c85835cef7b41ff",
+      "activation04Sha256": "3a6148a8a9b99733300b7f592168dcaf7f2671193030c05657cddf0b0a6b60bf"
+    },
+    {
+      "path": "assets/coach-background-pass.jpg",
+      "sha256": "ee2bf1579c20bdc5be015ef965ca20af71a04c9a3d747689e8730d1013fb3694",
+      "activation04Sha256": "ee2bf1579c20bdc5be015ef965ca20af71a04c9a3d747689e8730d1013fb3694"
+    },
+    {
+      "path": "assets/coach-background-retake.jpg",
+      "sha256": "fa4a70c9fb65d0e53e50f99b36df30e092553433787e1cd02c9d6c87cae87101",
+      "activation04Sha256": "fa4a70c9fb65d0e53e50f99b36df30e092553433787e1cd02c9d6c87cae87101"
+    },
+    {
+      "path": "assets/coach-frame-pass.jpg",
+      "sha256": "3407a7743f7f5773ed4f4d6e8cf4a70b8eba1d4267865a57f494bb6e6e44930f",
+      "activation04Sha256": "3407a7743f7f5773ed4f4d6e8cf4a70b8eba1d4267865a57f494bb6e6e44930f"
+    },
+    {
+      "path": "assets/coach-frame-retake.jpg",
+      "sha256": "7549d544b9f92f5fe422f2ff6eeb750bd7815c616fc66f0b8ff272468d87b695",
+      "activation04Sha256": "7549d544b9f92f5fe422f2ff6eeb750bd7815c616fc66f0b8ff272468d87b695"
+    },
+    {
+      "path": "assets/coach-light-pass.jpg",
+      "sha256": "4f84fdf28b260c1340d04e235e4dd7514482e7206ca2db846b73085ad0b7e42c",
+      "activation04Sha256": "4f84fdf28b260c1340d04e235e4dd7514482e7206ca2db846b73085ad0b7e42c"
+    },
+    {
+      "path": "assets/coach-light-retake.jpg",
+      "sha256": "6710b4edf27d9049192723b866c1aaf5092ca4521764b7003820ed454fe3d6b3",
+      "activation04Sha256": "6710b4edf27d9049192723b866c1aaf5092ca4521764b7003820ed454fe3d6b3"
+    },
+    {
+      "path": "assets/coach-parallel-pass.jpg",
+      "sha256": "dd5e0f1bfb31791b2fca9508cc6ab33eb900607d235add4ab91ee9b1fcbcb037",
+      "activation04Sha256": "dd5e0f1bfb31791b2fca9508cc6ab33eb900607d235add4ab91ee9b1fcbcb037"
+    },
+    {
+      "path": "assets/coach-parallel-retake.jpg",
+      "sha256": "78d80edee1b6341016d7957ccaf87ca4a60d67c8c799c141009a15c7cc08ac73",
+      "activation04Sha256": "78d80edee1b6341016d7957ccaf87ca4a60d67c8c799c141009a15c7cc08ac73"
+    },
+    {
+      "path": "assets/mica-collection-ornament.jpg",
+      "sha256": "0ec64cd1a9f930157f31d9b50b2b4db03e820da11150ccd6b956285f408397aa",
+      "activation04Sha256": "0ec64cd1a9f930157f31d9b50b2b4db03e820da11150ccd6b956285f408397aa"
+    },
+    {
+      "path": "assets/mica-mineral-paper.jpg",
+      "sha256": "9d733caea14da0bdda8231d6f491ba04e2388bbeedb41baed4d5665bbaee9759",
+      "activation04Sha256": "9d733caea14da0bdda8231d6f491ba04e2388bbeedb41baed4d5665bbaee9759"
+    },
+    {
+      "path": "assets/ocr/README.md",
+      "sha256": "0501c40bff19ad54a5a5048600c09a57fa580e8bd37c2dc6748d786892daeef6",
+      "activation04Sha256": null
+    },
+    {
+      "path": "assets/ocr/deu.traineddata.gz",
+      "sha256": "306c4280d0cbed46fbff727486bd43b92730181bae80f56941a091f363bdf28b",
+      "activation04Sha256": null
+    },
+    {
+      "path": "assets/ocr/eng.traineddata.gz",
+      "sha256": "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91",
+      "activation04Sha256": null
+    },
+    {
+      "path": "assets/ocr/jpn.traineddata.gz",
+      "sha256": "2b63ebfbf1484de4a08ce53b29ef98a1c17658a93cbd38acb665d7d316d0be88",
+      "activation04Sha256": null
+    },
+    {
+      "path": "capacitor.config.json",
+      "sha256": "c9ef13bec35f2f6373a502fab5eb3d00adb8d72ac747e745acf420f5318c8df6",
+      "activation04Sha256": "c9ef13bec35f2f6373a502fab5eb3d00adb8d72ac747e745acf420f5318c8df6"
+    },
+    {
+      "path": "docs/evidence/sol-release-activation-04/public-config.json",
+      "sha256": "f0dc0e0064c32e5ab6c47560bf8b038fae917e970c22e344bff4a8e3560a2574",
+      "activation04Sha256": null
+    },
+    {
+      "path": "icons/apple-touch-icon.png",
+      "sha256": "6c3f06a32100d27bf052ec464d8e396ca55a1977efbff89e126eb560b2c18b32",
+      "activation04Sha256": "6c3f06a32100d27bf052ec464d8e396ca55a1977efbff89e126eb560b2c18b32"
+    },
+    {
+      "path": "icons/icon-192.png",
+      "sha256": "a41e0f47e99823aed2b6267db94176a8600542eadfd0113a2f3907a2ff73568f",
+      "activation04Sha256": "a41e0f47e99823aed2b6267db94176a8600542eadfd0113a2f3907a2ff73568f"
+    },
+    {
+      "path": "icons/icon-512.png",
+      "sha256": "3b285a525ff42de9a27b522be01b046b6ad1de44a48e794726aa5fbb29041227",
+      "activation04Sha256": "3b285a525ff42de9a27b522be01b046b6ad1de44a48e794726aa5fbb29041227"
+    },
+    {
+      "path": "icons/icon.svg",
+      "sha256": "924acc1d5c054eaecba7947403764f77aeb14b0a17600954fa5d2a0a7287714a",
+      "activation04Sha256": "924acc1d5c054eaecba7947403764f77aeb14b0a17600954fa5d2a0a7287714a"
+    },
+    {
+      "path": "index.html",
+      "sha256": "541fe39e612fd8a97f5cc9915868297247c28cb4c5d19caf7841305b22998d54",
+      "activation04Sha256": "dffaae3d64e6ae5fe1eced62288534827738f9b3b019645513d9002f051e446b"
+    },
+    {
+      "path": "lib/action-center.js",
+      "sha256": "7615b268d58d96b3c0bbda3f89bca8c7830acf8faa5f712efdf45be8ede96f4f",
+      "activation04Sha256": "7615b268d58d96b3c0bbda3f89bca8c7830acf8faa5f712efdf45be8ede96f4f"
+    },
+    {
+      "path": "lib/advisor.js",
+      "sha256": "840e6a8ac92951c76ae80db61baed6cc78357b0f01ab349684373382ded590f5",
+      "activation04Sha256": "840e6a8ac92951c76ae80db61baed6cc78357b0f01ab349684373382ded590f5"
+    },
+    {
+      "path": "lib/capture-precision.js",
+      "sha256": "1e54912b771a68ced5edc9cf08c078ed3bafdffceee8c35bf6ab06875cae4953",
+      "activation04Sha256": "5835a48aef55b0718bb50b0314c3f7526e75893836e3a9557364dce72fcf3522"
+    },
+    {
+      "path": "lib/card-ocr.js",
+      "sha256": "5080e8b4bb48224a3375cf846f5388bda58f733e98b95440a6df26e7ba3da015",
+      "activation04Sha256": null
+    },
+    {
+      "path": "lib/catalog-db.js",
+      "sha256": "3b62c0980809ad4d746554dc9605bd21f74981610d180c3bd7ac092e8783c124",
+      "activation04Sha256": "3b62c0980809ad4d746554dc9605bd21f74981610d180c3bd7ac092e8783c124"
+    },
+    {
+      "path": "lib/collection-organization.js",
+      "sha256": "5d4c4e592b8d9710b2eb64f0416bb4ea4aac917a447020bc3f7769b7b5bbca48",
+      "activation04Sha256": "5d4c4e592b8d9710b2eb64f0416bb4ea4aac917a447020bc3f7769b7b5bbca48"
+    },
+    {
+      "path": "lib/core.js",
+      "sha256": "9cc486bb2a50eeaa679cafc990ba963580be8fe1ea7fc5590bdfdf72c92b5889",
+      "activation04Sha256": "9cc486bb2a50eeaa679cafc990ba963580be8fe1ea7fc5590bdfdf72c92b5889"
+    },
+    {
+      "path": "lib/domain.js",
+      "sha256": "3872603d2ae54f6068cd8352ce82b443e4f5ac67bf1ace2125f36d03063c1b4e",
+      "activation04Sha256": "3872603d2ae54f6068cd8352ce82b443e4f5ac67bf1ace2125f36d03063c1b4e"
+    },
+    {
+      "path": "lib/env.js",
+      "sha256": "61dec8faf018d886d890f726f8282d24c3f05599d15b358b0b14ec39ffcf5b0f",
+      "activation04Sha256": "61dec8faf018d886d890f726f8282d24c3f05599d15b358b0b14ec39ffcf5b0f"
+    },
+    {
+      "path": "lib/fx.js",
+      "sha256": "2596780a21c0a9146c1f7138ad5805f422606246c6ba544b86091a73db63608d",
+      "activation04Sha256": "2596780a21c0a9146c1f7138ad5805f422606246c6ba544b86091a73db63608d"
+    },
+    {
+      "path": "lib/gateway-models.js",
+      "sha256": "a91f1319908e1aa9f916d86315fe9b7238294bd1f5aef8ec9d597045acab7ca4",
+      "activation04Sha256": "a91f1319908e1aa9f916d86315fe9b7238294bd1f5aef8ec9d597045acab7ca4"
+    },
+    {
+      "path": "lib/graded-valuation.js",
+      "sha256": "ae024a5734a935d164877b053e0b2fc8ae240b637fbef8a5322afc186414e753",
+      "activation04Sha256": "ae024a5734a935d164877b053e0b2fc8ae240b637fbef8a5322afc186414e753"
+    },
+    {
+      "path": "lib/grading-capture.js",
+      "sha256": "c384c2fee77e1221e09590629cd04ab16cfbc8a98b1a9c2b7e2456d4bfd53ac3",
+      "activation04Sha256": "c384c2fee77e1221e09590629cd04ab16cfbc8a98b1a9c2b7e2456d4bfd53ac3"
+    },
+    {
+      "path": "lib/grading-dataset-v3.js",
+      "sha256": "4d2cdbe2ba226b08f6ca8f7fb2c346d26360f46e64a70e2f8180946da5c1e789",
+      "activation04Sha256": "4d2cdbe2ba226b08f6ca8f7fb2c346d26360f46e64a70e2f8180946da5c1e789"
+    },
+    {
+      "path": "lib/grading-economics.js",
+      "sha256": "fdf4af9ef90863ce8e0ab1cae19ab0adba49724dab6135918ddba9bdb746eb02",
+      "activation04Sha256": "fdf4af9ef90863ce8e0ab1cae19ab0adba49724dab6135918ddba9bdb746eb02"
+    },
+    {
+      "path": "lib/grading-lifecycle.js",
+      "sha256": "1cbfcfab80e994f2d23cedce269230d52c6a50c8eb37eeba247a763d3ae48a99",
+      "activation04Sha256": "1cbfcfab80e994f2d23cedce269230d52c6a50c8eb37eeba247a763d3ae48a99"
+    },
+    {
+      "path": "lib/grading-pilot-api.js",
+      "sha256": "9bef202b2673feb87f34bb93f2fadd9c25e6adfaf026947f0f727254b3daa5e1",
+      "activation04Sha256": "9bef202b2673feb87f34bb93f2fadd9c25e6adfaf026947f0f727254b3daa5e1"
+    },
+    {
+      "path": "lib/grading-v3.js",
+      "sha256": "a3d81c7152c4ca6988d1876426541d624475cbea9e03f9d24791107b71cfc16e",
+      "activation04Sha256": "a3d81c7152c4ca6988d1876426541d624475cbea9e03f9d24791107b71cfc16e"
+    },
+    {
+      "path": "lib/grading.js",
+      "sha256": "1fbd5055a388ae9714307e43187434ea667f3cac8f1b813800a675016b647958",
+      "activation04Sha256": "1fbd5055a388ae9714307e43187434ea667f3cac8f1b813800a675016b647958"
+    },
+    {
+      "path": "lib/held-routes.js",
+      "sha256": "104de57376eec9b76d5b2b1a94bbd007eea768b115acf4e10911d5ffac4147c7",
+      "activation04Sha256": null
+    },
+    {
+      "path": "lib/identity.js",
+      "sha256": "ac83d1063b0099619d875818ce20c742fb4878fbcdd75119354622391d06f4c4",
+      "activation04Sha256": "f91925728338d63879e6ebae8fed59e733bc56850b44e6ad4bf70086da38bda3"
+    },
+    {
+      "path": "lib/image-source.js",
+      "sha256": "6a8d3cc3adab0bfaac6d9b73dfa5d2d5808be63ff38dfc4f8d108ca45f710562",
+      "activation04Sha256": "886b3b6cec9da5ef2591cc7a38cfdf4814437f3155ce78f9c2a0ced62bb8f2ec"
+    },
+    {
+      "path": "lib/ingestion.js",
+      "sha256": "7a869714a06f4b25956fd8f5e3c5cc29564a9e2ae8f783db9f762b7cf5a1fcf6",
+      "activation04Sha256": "7a869714a06f4b25956fd8f5e3c5cc29564a9e2ae8f783db9f762b7cf5a1fcf6"
+    },
+    {
+      "path": "lib/native-cors.js",
+      "sha256": "b2aaac1efb77e1a378e80c71658de18d3caee73a2e7047923d5e5a9028fd8629",
+      "activation04Sha256": "c1635c0aae723fae086d08f494ee986600629bade25aa63894209844c19c225a"
+    },
+    {
+      "path": "lib/native-runtime.js",
+      "sha256": "3870fe9a3e2c74333cca811afbec29dc5ad808bb10fabc775cd089eb8efb357c",
+      "activation04Sha256": "3870fe9a3e2c74333cca811afbec29dc5ad808bb10fabc775cd089eb8efb357c"
+    },
+    {
+      "path": "lib/notification-delivery.js",
+      "sha256": "590d0a1d7a1f229b11299c47f425f342230f5ba3f58e6800c28ec0cd6afc0f0f",
+      "activation04Sha256": "590d0a1d7a1f229b11299c47f425f342230f5ba3f58e6800c28ec0cd6afc0f0f"
+    },
+    {
+      "path": "lib/pkmnprices-readiness.js",
+      "sha256": "f71db328538f58fd0f4f480853a3638862cf905eb2ac932515e844299b5b9dd1",
+      "activation04Sha256": "6eaf5321c0ee9257d8fa572af2859315d437bf1192e2d5c7b97f8482e399d2be"
+    },
+    {
+      "path": "lib/pkmnprices-requests.js",
+      "sha256": "38163aa8523c79925749371ca47bfc5ea148ad6876419f1fa1dac8aed36e424f",
+      "activation04Sha256": null
+    },
+    {
+      "path": "lib/portfolio-service.js",
+      "sha256": "045aef9ffa0d24ff7e7f761b73951032353d8ac38f4f2dd6a2fd0b45c858ec04",
+      "activation04Sha256": null
+    },
+    {
+      "path": "lib/portfolio-view.js",
+      "sha256": "9a449a564c23fec1105278024ff950720aaf9fab3ca677b2c88d98be0d9ac77b",
+      "activation04Sha256": null
+    },
+    {
+      "path": "lib/portfolio.js",
+      "sha256": "7b813eef41df0f392e4cf9b2834efc2fbeba255f13027f725798b48892299245",
+      "activation04Sha256": "7ab27e08b0cfb84f1c911a5d70dadcbe8df8073e84ed732d571cff5d0b618af2"
+    },
+    {
+      "path": "lib/price-history.js",
+      "sha256": "8ed051c7161d3dab656abd8607e41f838bacde3511b29382a094b9b3cf196208",
+      "activation04Sha256": "249a952a4435e521fa0e8d69e5aeb4b27962749e8a69e74a7fe2f460b3b85383"
+    },
+    {
+      "path": "lib/pricing.js",
+      "sha256": "bed0c303b41b6ff456e356d17760a0c146d5b0744475b02ae4eb092756a11038",
+      "activation04Sha256": "73026edce545db2ee3569bef5d09bb8acca29e079bb09a7d028c3b124191cf8a"
+    },
+    {
+      "path": "lib/providers/alt.js",
+      "sha256": "f2852f64a335c14fc29910d89c81a96feaea1941508d444b3c9a135863aba7ba",
+      "activation04Sha256": "f2852f64a335c14fc29910d89c81a96feaea1941508d444b3c9a135863aba7ba"
+    },
+    {
+      "path": "lib/providers/base.js",
+      "sha256": "b0168e4e6dee21a53ef643bb7eacb119f708245d118dcd9afe539c52ce87609e",
+      "activation04Sha256": "b0168e4e6dee21a53ef643bb7eacb119f708245d118dcd9afe539c52ce87609e"
+    },
+    {
+      "path": "lib/providers/cardladder.js",
+      "sha256": "9dd9bad38a7a4760df974724f3fc4a063067345675ea127545e0c6d7ae13263b",
+      "activation04Sha256": "9dd9bad38a7a4760df974724f3fc4a063067345675ea127545e0c6d7ae13263b"
+    },
+    {
+      "path": "lib/providers/index.js",
+      "sha256": "b5bff7ef201f03c25e626fb75542ec644f76ef6fb9981522866b77a75ed4e1d4",
+      "activation04Sha256": "b5bff7ef201f03c25e626fb75542ec644f76ef6fb9981522866b77a75ed4e1d4"
+    },
+    {
+      "path": "lib/providers/justtcg.js",
+      "sha256": "3c78adc0bcbd598625de2bc0a08bca02ee3573f9960e523733d31d8c0b986294",
+      "activation04Sha256": "3c78adc0bcbd598625de2bc0a08bca02ee3573f9960e523733d31d8c0b986294"
+    },
+    {
+      "path": "lib/providers/pkmnprices.js",
+      "sha256": "7ae186d8a45483281522078e5bdc77c2ab3a74ef36331fe76af30193c1c106ec",
+      "activation04Sha256": "eef0b0269f3ebec03f291f2af7412bdd58fcdb2370d653bc557b2b77e6e7f430"
+    },
+    {
+      "path": "lib/providers/tcgdex.js",
+      "sha256": "3ebfe4ed32e78bcffe4e7788a356b9d1047567e8cd03842b8c27fb478a7c45ff",
+      "activation04Sha256": "bbf702ad73e53160ddff9e6c36b92454e81f8726923cae5b1f9bb09c92682944"
+    },
+    {
+      "path": "lib/psa-calibration.js",
+      "sha256": "7ce6af83d58de49515557597c791a145c8fbf95920c2b5d8e61ada30025cadbd",
+      "activation04Sha256": "7ce6af83d58de49515557597c791a145c8fbf95920c2b5d8e61ada30025cadbd"
+    },
+    {
+      "path": "lib/psa-pilot.js",
+      "sha256": "f0a9003c013a250d76362389cc96a56a603111b550f668e5225c1e0ee8659adb",
+      "activation04Sha256": "f0a9003c013a250d76362389cc96a56a603111b550f668e5225c1e0ee8659adb"
+    },
+    {
+      "path": "lib/release-hold.js",
+      "sha256": "7f9b793bd67e5ee608711a4fcbedd0b06a5722165e21dd252f75c63f522bf6b1",
+      "activation04Sha256": "7f9b793bd67e5ee608711a4fcbedd0b06a5722165e21dd252f75c63f522bf6b1"
+    },
+    {
+      "path": "lib/software-modes.js",
+      "sha256": "ecc61a16009c0f7b2b4960c92b8542e8cda37dd82c5e0f12f2ab77bad416fef3",
+      "activation04Sha256": "ecc61a16009c0f7b2b4960c92b8542e8cda37dd82c5e0f12f2ab77bad416fef3"
+    },
+    {
+      "path": "lib/supabase-data.js",
+      "sha256": "83e1fc91969f61c92693bbbdb51a73d14527dfb28552f4cee874dfe786459c4b",
+      "activation04Sha256": "90026852dc00e93536881800f8c7e4ddcc1c85ac94fb89e69809ef0860773793"
+    },
+    {
+      "path": "lib/vision-evaluation.js",
+      "sha256": "71a5d48cf9dbca58230983f6114c31a30e50c5b0577b9ee6187f6a1c4c3edb7e",
+      "activation04Sha256": "71a5d48cf9dbca58230983f6114c31a30e50c5b0577b9ee6187f6a1c4c3edb7e"
+    },
+    {
+      "path": "lib/vision.js",
+      "sha256": "fa0e571d807be153dd9ae09f72ecfeb6ecfa896f306d34f525433bedff22813d",
+      "activation04Sha256": "c13b039b1c476990ecf6a1ab01c1f8f4c7cf0f0c34987e81363ef59ba0a722f8"
+    },
+    {
+      "path": "lib/web-push-client.js",
+      "sha256": "de21ea30f60a24f1d5d83ca50980ae9145d34e0715b8e2c0b4a0211fe6e29be4",
+      "activation04Sha256": "de21ea30f60a24f1d5d83ca50980ae9145d34e0715b8e2c0b4a0211fe6e29be4"
+    },
+    {
+      "path": "lib/web-push.js",
+      "sha256": "513eba26745e07651fc991cbed3135626f26f3ca94953f79c01731da92feb5f3",
+      "activation04Sha256": "513eba26745e07651fc991cbed3135626f26f3ca94953f79c01731da92feb5f3"
+    },
+    {
+      "path": "manifest.webmanifest",
+      "sha256": "2db940851dc90775bea5a33dc838fc518481839de996f6503a1f06545c8f9bbe",
+      "activation04Sha256": "2db940851dc90775bea5a33dc838fc518481839de996f6503a1f06545c8f9bbe"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "ae95a3d6082ef5d95ea53d6f4d078ea5fc9715c764cf047a2dd4c56ddc7e9d04",
+      "activation04Sha256": null
+    },
+    {
+      "path": "package.json",
+      "sha256": "7d6a47a7e2cb36724e4deac8d953453da4ccfc235174f7ffd63a4e5fb00d4e73",
+      "activation04Sha256": "186c7b26c8fc67216f315df514ad81367deff80ca10d7e3fea3c1b39f9ef636e"
+    },
+    {
+      "path": "scripts/build-release.mjs",
+      "sha256": "7c0dc8eac03151c19c6b14cec95491f8903f462a5e1953946ffdf2b31d687abd",
+      "activation04Sha256": null
+    },
+    {
+      "path": "scripts/build.mjs",
+      "sha256": "0a3de8d08a0215d3e84f7e6b3314f8067882ff84fa9b8b1bd3e22f177cbc3d70",
+      "activation04Sha256": "d845a0e912c5e7f444cacaf622c84e0f72c83b42edb8d966b7ecfc689f8c36e2"
+    },
+    {
+      "path": "scripts/serve.mjs",
+      "sha256": "a7121a27d3d4dfb729465a2f64e679a6c106e0c45631ad9d3ef9fefcbf334042",
+      "activation04Sha256": "a7121a27d3d4dfb729465a2f64e679a6c106e0c45631ad9d3ef9fefcbf334042"
+    },
+    {
+      "path": "scripts/verify-pkmnprices.mjs",
+      "sha256": "cc5dc2a0560466cb800de3ac18008dcf38583779250fee124b07db3f4a5b3be2",
+      "activation04Sha256": null
+    },
+    {
+      "path": "styles.css",
+      "sha256": "9591224a7faa04e612732d3c7a8703c1ebcf5881f9b73ea09dd00a2cd62f12ea",
+      "activation04Sha256": "ae443ce2f06cc0153e5d10957160aa19dbe3fcf7335b18a35e65750588d0dec8"
+    },
+    {
+      "path": "sw.js",
+      "sha256": "65098fc4dc7a271d2827efdb6a1abdcb8817ceb92962e09ce39faf27246f59df",
+      "activation04Sha256": "b1d54eb967a4f9a973e89c9e135d01bde6e6c24c0906dd07dcd214af8d10497b"
+    },
+    {
+      "path": "themes.css",
+      "sha256": "55af1a2fd732a9c47b72e17bf2358e4d05ad5dd6c52059d2a067e1a42ea5539c",
+      "activation04Sha256": "133ec660fb80588f4889c02fed4545b468ae3fa181fc4fc7a4b60bb40386ebfe"
+    },
+    {
+      "path": "vercel.json",
+      "sha256": "c87f695ca979be0cf99f409017b1938988d4165a5f0187c41caf54c062256a40",
+      "activation04Sha256": "eec752c320dacfb49fc1596136fab6896e0e31f1fdb3f4db1fd0271d5ea951ff"
+    }
+  ],
+  "deployment": [
+    {
+      "path": ".vercel/output/config.json",
+      "sha256": "658d1a6f1f4cf47cf14f6d62ccf770781675291caca5a7eae816d584419fb42b",
+      "bytes": 3527
+    },
+    {
+      "path": ".vercel/output/functions/_release-hold.func/.vc-config.json",
+      "sha256": "c9f45843e30d031688d24c299d49b131549fd44f8ca2ccc5adfe0bfe9d5de950",
+      "bytes": 133
+    },
+    {
+      "path": ".vercel/output/functions/_release-hold.func/index.mjs",
+      "sha256": "085806950f131650ac8e5d92db8cc231a37fb38dcf943997abcdb862695e3cb2",
+      "bytes": 912799
+    },
+    {
+      "path": ".vercel/output/functions/api/account.func/.vc-config.json",
+      "sha256": "662b53f8e5b6389ca025331c5d01fc8a9d315796927eaf40b73b676f6af64b78",
+      "bytes": 326
+    },
+    {
+      "path": ".vercel/output/functions/api/account.func/index.mjs",
+      "sha256": "2dfdbce079a4f04ed2ecf5bc1b6f8a817269d21a492bfdf2ee57dc9f2588b287",
+      "bytes": 256152
+    },
+    {
+      "path": ".vercel/output/functions/api/capabilities.func/.vc-config.json",
+      "sha256": "caa5040363a53f4a0f22b0c1d88fa3fe0b7f36309bdafa8d0545c7d13c9d5829",
+      "bytes": 326
+    },
+    {
+      "path": ".vercel/output/functions/api/capabilities.func/index.mjs",
+      "sha256": "de19d5da73ba40bce35ee30af2bc5ab68cedf0e44c15a5cbed91667018117a35",
+      "bytes": 352683
+    },
+    {
+      "path": ".vercel/output/functions/api/card-image.func/.vc-config.json",
+      "sha256": "662b53f8e5b6389ca025331c5d01fc8a9d315796927eaf40b73b676f6af64b78",
+      "bytes": 326
+    },
+    {
+      "path": ".vercel/output/functions/api/card-image.func/index.mjs",
+      "sha256": "26c2a46f6352939193c4ab0a48ae1be408e21eee951906db5883770fa78916db",
+      "bytes": 4089
+    },
+    {
+      "path": ".vercel/output/functions/api/cards.func/.vc-config.json",
+      "sha256": "caa5040363a53f4a0f22b0c1d88fa3fe0b7f36309bdafa8d0545c7d13c9d5829",
+      "bytes": 326
+    },
+    {
+      "path": ".vercel/output/functions/api/cards.func/index.mjs",
+      "sha256": "4bce1e01b81036a1af26aaa56102726ff48790a530087799d2c0ad504e557ae5",
+      "bytes": 285616
+    },
+    {
+      "path": ".vercel/output/functions/api/catalog.func/.vc-config.json",
+      "sha256": "662b53f8e5b6389ca025331c5d01fc8a9d315796927eaf40b73b676f6af64b78",
+      "bytes": 326
+    },
+    {
+      "path": ".vercel/output/functions/api/catalog.func/index.mjs",
+      "sha256": "1258285b4322a0ee00043d89a5b22a1075f758567a73c27542646e10e0391ea5",
+      "bytes": 275794
+    },
+    {
+      "path": ".vercel/output/functions/api/fx.func/.vc-config.json",
+      "sha256": "662b53f8e5b6389ca025331c5d01fc8a9d315796927eaf40b73b676f6af64b78",
+      "bytes": 326
+    },
+    {
+      "path": ".vercel/output/functions/api/fx.func/index.mjs",
+      "sha256": "25c73e06bbada05d89ac4a9dbc42996216ae9b4267b0ed9fc54085ab877b5ef3",
+      "bytes": 6411
+    },
+    {
+      "path": ".vercel/output/functions/api/health.func/.vc-config.json",
+      "sha256": "662b53f8e5b6389ca025331c5d01fc8a9d315796927eaf40b73b676f6af64b78",
+      "bytes": 326
+    },
+    {
+      "path": ".vercel/output/functions/api/health.func/index.mjs",
+      "sha256": "9b507d0524f231a15e7960b003aff083bbe4b21cfa1c9e6d6a4fc23cf26a50d9",
+      "bytes": 4210
+    },
+    {
+      "path": ".vercel/output/functions/api/set.func/.vc-config.json",
+      "sha256": "662b53f8e5b6389ca025331c5d01fc8a9d315796927eaf40b73b676f6af64b78",
+      "bytes": 326
+    },
+    {
+      "path": ".vercel/output/functions/api/set.func/index.mjs",
+      "sha256": "b4be02507f3f300a75f1acb41761b19849f6f32d375475d30d8f906ba4973c7e",
+      "bytes": 3061
+    },
+    {
+      "path": ".vercel/output/static/app-config.js",
+      "sha256": "65b310fcb5dd0692eddd945de91ca439995bce48a040cccd1afa4bf8602e745f",
+      "bytes": 286
+    },
+    {
+      "path": ".vercel/output/static/app.js",
+      "sha256": "a7cb34d9593a7584ea522989c9e063bb354cbc11d86d755e9126fb90b1aecab0",
+      "bytes": 1024857
+    },
+    {
+      "path": ".vercel/output/static/assets/coach-background-pass.jpg",
+      "sha256": "ee2bf1579c20bdc5be015ef965ca20af71a04c9a3d747689e8730d1013fb3694",
+      "bytes": 90399
+    },
+    {
+      "path": ".vercel/output/static/assets/coach-background-retake.jpg",
+      "sha256": "fa4a70c9fb65d0e53e50f99b36df30e092553433787e1cd02c9d6c87cae87101",
+      "bytes": 211159
+    },
+    {
+      "path": ".vercel/output/static/assets/coach-frame-pass.jpg",
+      "sha256": "3407a7743f7f5773ed4f4d6e8cf4a70b8eba1d4267865a57f494bb6e6e44930f",
+      "bytes": 109699
+    },
+    {
+      "path": ".vercel/output/static/assets/coach-frame-retake.jpg",
+      "sha256": "7549d544b9f92f5fe422f2ff6eeb750bd7815c616fc66f0b8ff272468d87b695",
+      "bytes": 92261
+    },
+    {
+      "path": ".vercel/output/static/assets/coach-light-pass.jpg",
+      "sha256": "4f84fdf28b260c1340d04e235e4dd7514482e7206ca2db846b73085ad0b7e42c",
+      "bytes": 109887
+    },
+    {
+      "path": ".vercel/output/static/assets/coach-light-retake.jpg",
+      "sha256": "6710b4edf27d9049192723b866c1aaf5092ca4521764b7003820ed454fe3d6b3",
+      "bytes": 115902
+    },
+    {
+      "path": ".vercel/output/static/assets/coach-parallel-pass.jpg",
+      "sha256": "dd5e0f1bfb31791b2fca9508cc6ab33eb900607d235add4ab91ee9b1fcbcb037",
+      "bytes": 76415
+    },
+    {
+      "path": ".vercel/output/static/assets/coach-parallel-retake.jpg",
+      "sha256": "78d80edee1b6341016d7957ccaf87ca4a60d67c8c799c141009a15c7cc08ac73",
+      "bytes": 85024
+    },
+    {
+      "path": ".vercel/output/static/assets/mica-collection-ornament.jpg",
+      "sha256": "0ec64cd1a9f930157f31d9b50b2b4db03e820da11150ccd6b956285f408397aa",
+      "bytes": 336641
+    },
+    {
+      "path": ".vercel/output/static/assets/mica-mineral-paper.jpg",
+      "sha256": "9d733caea14da0bdda8231d6f491ba04e2388bbeedb41baed4d5665bbaee9759",
+      "bytes": 228861
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/CORE-LICENSE.txt",
+      "sha256": "c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08",
+      "bytes": 11358
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/README.md",
+      "sha256": "0501c40bff19ad54a5a5048600c09a57fa580e8bd37c2dc6748d786892daeef6",
+      "bytes": 883
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/TESSERACT-LICENSE.txt",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "bytes": 11357
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/deu.traineddata.gz",
+      "sha256": "306c4280d0cbed46fbff727486bd43b92730181bae80f56941a091f363bdf28b",
+      "bytes": 1333102
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/eng.traineddata.gz",
+      "sha256": "45b4cb346724ac1774f1c36f42f182b887bcdb28ebe63e6fff90ac41f3fcff91",
+      "bytes": 2952873
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/jpn.traineddata.gz",
+      "sha256": "2b63ebfbf1484de4a08ce53b29ef98a1c17658a93cbd38acb665d7d316d0be88",
+      "bytes": 2030256
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/tesseract-core-lstm.wasm.js",
+      "sha256": "eef5f8b2f8e20e150680b20adaec4a60babafee3adbe8a94583c81fee46e8680",
+      "bytes": 3896484
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/tesseract-core-relaxedsimd-lstm.wasm.js",
+      "sha256": "861a536cf9ef8e63cb644d57bab39c388f37f7d6b6f60024b741c5f6b39a59b3",
+      "bytes": 3905767
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/tesseract-core-relaxedsimd.wasm.js",
+      "sha256": "843074aa5bad1cc6421b74a86201768ced9f244795e4d81435435a61a40ce535",
+      "bytes": 4697227
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/tesseract-core-simd-lstm.wasm.js",
+      "sha256": "c58b46a4c796c0b8afccf77591d5b875b6896b45d402bbce8caa6f5362447b38",
+      "bytes": 3899472
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/tesseract-core-simd.wasm.js",
+      "sha256": "6b61ef4e911b5cf57e656bbfe983d6e2b3711a02dd164154ddda064566e8e09d",
+      "bytes": 4690932
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/tesseract-core.wasm.js",
+      "sha256": "0bc6ce3e5fbbd0cd89706cf2fd70960e3372f4f01ee24265b26990808aaeb286",
+      "bytes": 4687944
+    },
+    {
+      "path": ".vercel/output/static/assets/ocr/worker.min.js",
+      "sha256": "576b7df7e3393e137e51849357c9adb53fe7ac1bb69bfa06cf3d61520f182c6d",
+      "bytes": 111307
+    },
+    {
+      "path": ".vercel/output/static/chunks/auto-DPN3JED2.js",
+      "sha256": "9dd46a4f0ecaf134dc7bd03e198d9ab8d40bd479b95e8dd353533771f38e601f",
+      "bytes": 205340
+    },
+    {
+      "path": ".vercel/output/static/chunks/card-ocr-766N63A7.js",
+      "sha256": "fa36452edb4b2498fdd0edef2d24f1f9a85dde43f90c718ec0a8cef6640d9ed4",
+      "bytes": 6080
+    },
+    {
+      "path": ".vercel/output/static/chunks/chunk-7UP7ZM55.js",
+      "sha256": "56b93ce794652099c52173b128bfa69d46c51750e1c959821a9a14350ed3bf5b",
+      "bytes": 8248
+    },
+    {
+      "path": ".vercel/output/static/chunks/chunk-IUFDSBGV.js",
+      "sha256": "97b6aed882e6a6b8d51cca6979cd3d83ba371ba52d2a07120d2968e4985d3ebb",
+      "bytes": 367
+    },
+    {
+      "path": ".vercel/output/static/chunks/dist-WCNWKNQV.js",
+      "sha256": "fecc7dcd53d5d7759a3c5ff6d654b40f9b0a65b1fec7f0bcf2ac88ce02e000db",
+      "bytes": 319
+    },
+    {
+      "path": ".vercel/output/static/chunks/esm-CVVTAYHK.js",
+      "sha256": "5aa9efa8530b6b2fb0e6e8387156de8007d82c830fb7d4c1ab5882723ff804eb",
+      "bytes": 161
+    },
+    {
+      "path": ".vercel/output/static/chunks/esm-TEOS2DOJ.js",
+      "sha256": "d9b9a8b082e9bf857915b8d0a1b2475ce87e2fe01751e93ae45d1448015c944f",
+      "bytes": 185
+    },
+    {
+      "path": ".vercel/output/static/chunks/src-SDHZUK6T.js",
+      "sha256": "36ab4d0a187b8095749d66065948e526c4b7daacd5bcb1468dcf8461e730af46",
+      "bytes": 17409
+    },
+    {
+      "path": ".vercel/output/static/chunks/web-B3HCCM6Z.js",
+      "sha256": "63a08aff96a842f487811d35b761eb7a215114b76435690cde5ff6a40d6cf866",
+      "bytes": 1266
+    },
+    {
+      "path": ".vercel/output/static/chunks/web-GIHVZDBN.js",
+      "sha256": "b2876488542230b34f4439979e3939e3f8e8562eebf0e77455275fe23bed8c08",
+      "bytes": 868
+    },
+    {
+      "path": ".vercel/output/static/icons/apple-touch-icon.png",
+      "sha256": "6c3f06a32100d27bf052ec464d8e396ca55a1977efbff89e126eb560b2c18b32",
+      "bytes": 4867
+    },
+    {
+      "path": ".vercel/output/static/icons/icon-192.png",
+      "sha256": "a41e0f47e99823aed2b6267db94176a8600542eadfd0113a2f3907a2ff73568f",
+      "bytes": 5207
+    },
+    {
+      "path": ".vercel/output/static/icons/icon-512.png",
+      "sha256": "3b285a525ff42de9a27b522be01b046b6ad1de44a48e794726aa5fbb29041227",
+      "bytes": 17885
+    },
+    {
+      "path": ".vercel/output/static/icons/icon.svg",
+      "sha256": "924acc1d5c054eaecba7947403764f77aeb14b0a17600954fa5d2a0a7287714a",
+      "bytes": 457
+    },
+    {
+      "path": ".vercel/output/static/index.html",
+      "sha256": "541fe39e612fd8a97f5cc9915868297247c28cb4c5d19caf7841305b22998d54",
+      "bytes": 59249
+    },
+    {
+      "path": ".vercel/output/static/manifest.webmanifest",
+      "sha256": "2db940851dc90775bea5a33dc838fc518481839de996f6503a1f06545c8f9bbe",
+      "bytes": 568
+    },
+    {
+      "path": ".vercel/output/static/styles.css",
+      "sha256": "9591224a7faa04e612732d3c7a8703c1ebcf5881f9b73ea09dd00a2cd62f12ea",
+      "bytes": 243656
+    },
+    {
+      "path": ".vercel/output/static/sw.js",
+      "sha256": "65098fc4dc7a271d2827efdb6a1abdcb8817ceb92962e09ce39faf27246f59df",
+      "bytes": 8530
+    },
+    {
+      "path": ".vercel/output/static/themes.css",
+      "sha256": "55af1a2fd732a9c47b72e17bf2358e4d05ad5dd6c52059d2a067e1a42ea5539c",
+      "bytes": 168798
+    },
+    {
+      "path": ".vercel/project.json",
+      "sha256": "2150fa6b09a6805254f0f94ab0c50df51b70aa7c192bdf3b28f28d5c241d87b7",
+      "bytes": 137
+    },
+    {
+      "path": "vercel.json",
+      "sha256": "c87f695ca979be0cf99f409017b1938988d4165a5f0187c41caf54c062256a40",
+      "bytes": 2553
+    }
+  ],
+  "delta": {
+    "removed": [
+      ".vercel/output/functions/api/alert-delivery.func/.vc-config.json",
+      ".vercel/output/functions/api/alert-delivery.func/index.mjs",
+      ".vercel/output/functions/api/graded-valuation.func/.vc-config.json",
+      ".vercel/output/functions/api/graded-valuation.func/index.mjs",
+      ".vercel/output/functions/api/maintenance.func/.vc-config.json",
+      ".vercel/output/functions/api/maintenance.func/index.mjs",
+      ".vercel/output/functions/api/offers.func/.vc-config.json",
+      ".vercel/output/functions/api/offers.func/index.mjs",
+      ".vercel/output/functions/api/price-sync.func/.vc-config.json",
+      ".vercel/output/functions/api/price-sync.func/index.mjs",
+      ".vercel/output/functions/api/sales.func/.vc-config.json",
+      ".vercel/output/functions/api/sales.func/index.mjs",
+      ".vercel/output/functions/api/sealed.func/.vc-config.json",
+      ".vercel/output/functions/api/sealed.func/index.mjs",
+      ".vercel/output/functions/api/vision.func/.vc-config.json",
+      ".vercel/output/functions/api/vision.func/index.mjs",
+      ".vercel/output/static/chunks/auto-3VVBLW4X.js",
+      ".vercel/output/static/chunks/chunk-K74TEEVY.js",
+      ".vercel/output/static/chunks/dist-ST2LRX2T.js",
+      ".vercel/output/static/chunks/esm-4WOYDAPL.js",
+      ".vercel/output/static/chunks/esm-64YJGOOE.js",
+      ".vercel/output/static/chunks/web-QQJPYETW.js",
+      ".vercel/output/static/chunks/web-TPAXWGUK.js"
+    ],
+    "added": [
+      ".vercel/output/functions/_release-hold.func/.vc-config.json",
+      ".vercel/output/functions/_release-hold.func/index.mjs",
+      ".vercel/output/static/assets/ocr/CORE-LICENSE.txt",
+      ".vercel/output/static/assets/ocr/README.md",
+      ".vercel/output/static/assets/ocr/TESSERACT-LICENSE.txt",
+      ".vercel/output/static/assets/ocr/deu.traineddata.gz",
+      ".vercel/output/static/assets/ocr/eng.traineddata.gz",
+      ".vercel/output/static/assets/ocr/jpn.traineddata.gz",
+      ".vercel/output/static/assets/ocr/tesseract-core-lstm.wasm.js",
+      ".vercel/output/static/assets/ocr/tesseract-core-relaxedsimd-lstm.wasm.js",
+      ".vercel/output/static/assets/ocr/tesseract-core-relaxedsimd.wasm.js",
+      ".vercel/output/static/assets/ocr/tesseract-core-simd-lstm.wasm.js",
+      ".vercel/output/static/assets/ocr/tesseract-core-simd.wasm.js",
+      ".vercel/output/static/assets/ocr/tesseract-core.wasm.js",
+      ".vercel/output/static/assets/ocr/worker.min.js",
+      ".vercel/output/static/chunks/auto-DPN3JED2.js",
+      ".vercel/output/static/chunks/card-ocr-766N63A7.js",
+      ".vercel/output/static/chunks/chunk-7UP7ZM55.js",
+      ".vercel/output/static/chunks/chunk-IUFDSBGV.js",
+      ".vercel/output/static/chunks/dist-WCNWKNQV.js",
+      ".vercel/output/static/chunks/esm-CVVTAYHK.js",
+      ".vercel/output/static/chunks/esm-TEOS2DOJ.js",
+      ".vercel/output/static/chunks/src-SDHZUK6T.js",
+      ".vercel/output/static/chunks/web-B3HCCM6Z.js",
+      ".vercel/output/static/chunks/web-GIHVZDBN.js"
+    ],
+    "changed": [
+      ".vercel/output/config.json",
+      ".vercel/output/functions/api/account.func/index.mjs",
+      ".vercel/output/functions/api/capabilities.func/index.mjs",
+      ".vercel/output/functions/api/card-image.func/index.mjs",
+      ".vercel/output/functions/api/cards.func/.vc-config.json",
+      ".vercel/output/functions/api/cards.func/index.mjs",
+      ".vercel/output/functions/api/catalog.func/index.mjs",
+      ".vercel/output/functions/api/fx.func/index.mjs",
+      ".vercel/output/functions/api/health.func/index.mjs",
+      ".vercel/output/functions/api/set.func/index.mjs",
+      ".vercel/output/static/app-config.js",
+      ".vercel/output/static/app.js",
+      ".vercel/output/static/index.html",
+      ".vercel/output/static/styles.css",
+      ".vercel/output/static/sw.js",
+      ".vercel/output/static/themes.css",
+      "vercel.json"
+    ]
+  },
+  "outputTreeSha256": "d46c28eaed594f4cca63b2a89f80d85c56b2be69d9ab34348c3dcdd21ef9f225"
+}

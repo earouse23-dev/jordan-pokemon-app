@@ -1,0 +1,11 @@
+# Checkpoint 96 — Recover saved portfolio after a failed first refresh
+
+The client screenshot exposed a real release regression. The server used get_portfolio_price_history, which filters on auth.uid(); a service-role client has no user session, so it read zero active-position observations. A failed initial refresh also published an empty valuation when no new-style saved view existed. Existing DB hydration initializes current prices as loading, so the exhausted daily provider allowance left every position unpriced. The prior $2,432.11 valuation still exists in valuation_snapshots (19 priced units, five unpriced).
+
+Fix: server-only portfolio loads use explicit authenticated-owner filters and stable paginated observation reads. Existing browser/RLS RPC behavior is unchanged. GET and refresh recover legacy saved totals when the new-style view is empty; these are labeled Last saved portfolio value and retain the saved timestamp/coverage. Failed first refreshes retain pending progress without publishing a freshly dated empty valuation. Browser restore rejects all-unpriced views and prevents empty cached prices from erasing existing prices. Timestamp formatting accepts ISO timestamps. Missing-price copy uses the saved snapshot's five units, rather than the current failed read's 24. No fabricated graph or historical backfill.
+
+Verification: 557 unit checks passed, three conditional skips; 15 portfolio browser checks passed across desktop Chromium, mobile Chromium and mobile WebKit. Added a service-role fixture that rejects auth.uid() RPC usage, asserts explicit owner history filtering, preserves a legacy total under quota exhaustion and rejects an empty first valuation. Browser regression returns a 200 empty/incomplete view and verifies saved total/chart survive. Nine-function Build Output routing, auth and CORS checks pass with zero provider calls. Frozen artifacts scanned against private environment values with no findings.
+
+No SQL migration, customer-record write test, new dependency, budget reset/increase, or cron change. Today's provider allowance is still exhausted, so fresh per-card pricing and full historical coverage cannot be verified. Last saved total recovery does not make absent slab/history data available.
+
+Publication IDs and live evidence will be appended after verification.

@@ -1,4 +1,4 @@
-import { portfolioPricingKey, displayPortfolioView } from "./lib/portfolio-view.js";
+import { portfolioPricingKey, displayPortfolioView, hasPortfolioValue } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -5206,7 +5206,7 @@ function portfolioHistoryRangePoints(points, range) {
 }
 
 function shortPortfolioDate(value, includeYear = false) {
-  const date = new Date(`${value}T00:00:00Z`);
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
   if (!Number.isFinite(date.getTime())) return value;
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -6699,7 +6699,7 @@ function renderCollection() {
   if (restoreSnapshot) $("#portfolioToplineLabel").textContent = lastSnapshot.unpricedItems ? "Last known portfolio value" : "Last updated portfolio value";
   const savedPortfolio = displayPortfolioView(state.portfolioView, selectedCurrency, lastValidatedFxRate);
   if (savedPortfolio && (savedPortfolio.total !== null || savedPortfolio.knownTotal !== null)) {
-    $("#portfolioToplineLabel").textContent = savedPortfolio.total === null ? "Known portfolio value" : "Total portfolio value";
+    $("#portfolioToplineLabel").textContent = state.portfolioView.legacySnapshot ? "Last saved portfolio value" : savedPortfolio.total === null ? "Known portfolio value" : "Total portfolio value";
     $("#portfolioValue").textContent = money(savedPortfolio.total ?? savedPortfolio.knownTotal, selectedCurrency);
     $("#portfolioValue").dataset.savedSnapshot = "true";
   }
@@ -6737,8 +6737,9 @@ function renderCollection() {
   const hasProviderPricing = ["live", "partial"].includes(state.pricingStatus);
   $("#freshCoverage").textContent =
     `${priceCoverage.automaticCoveragePercent.toFixed(0)}% original USD automatic price coverage · ${priceCoverage.liveAutomaticUnits.toLocaleString()} of ${priceCoverage.totalUnits.toLocaleString()} units`;
-  const partial = profitLoss.missingUnits
-    ? ` · ${profitLoss.missingUnits} unpriced ${selectedCurrency} unit${profitLoss.missingUnits === 1 ? "" : "s"} excluded`
+  const missingValueUnits = savedPortfolio?.missingUnits ?? profitLoss.missingUnits;
+  const partial = missingValueUnits
+    ? ` · ${missingValueUnits} unpriced ${selectedCurrency} unit${missingValueUnits === 1 ? "" : "s"} excluded`
     : "";
   const costCoverage = totals.unknownCost
     ? ` · ${totals.unknownCost} missing purchase cost`
@@ -6809,7 +6810,7 @@ function renderCollection() {
           : state.pricingStatus === "error"
             ? "Live pricing is temporarily unavailable"
             : "Waiting for live prices";
-  $(".status-label").innerHTML = `<i></i> ${savedPortfolio && state.portfolioView.updatedAt ? `Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}` : state.pricingStatus === "loading" ? "Updating prices" : pricingLabel}`;
+  $(".status-label").innerHTML = `<i></i> ${savedPortfolio && state.portfolioView.updatedAt ? `Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}` : state.pricingStatus === "loading" ? "Updating prices" : pricingLabel}`;
   const syncLabels = {
     loading: "Prices updating",
     live: "Prices current",
@@ -17085,16 +17086,19 @@ function restorePortfolioPricing(view) {
   const pricing = new Map((view?.pricing || []).map(item => [item.uid, item]));
   state.items = state.items.map(item => {
     const saved = pricing.get(item.uid);
+    if (view?.refreshIncomplete && saved?.price == null && item.price != null) return item;
     return saved && [saved.key, saved.resolvedKey].includes(portfolioPricingKey(item)) ? { ...item, ...saved, quantity:item.quantity, lots:item.lots, transactions:item.transactions } : item;
   });
 }
 
 async function loadSavedPortfolio(owner) {
   try { state.portfolioView = JSON.parse(localStorage.getItem(`mica:portfolio-view:${owner}`) || "null"); } catch { state.portfolioView = null; }
+  if (!hasPortfolioValue(state.portfolioView)) state.portfolioView = null;
   try {
     const response = await fetch("/api/capabilities?surface=portfolio", { headers: providerRequestHeaders(), signal: AbortSignal.timeout(5000) });
     if (!response.ok) return null;
-    return (await response.json()).view || null;
+    const view = (await response.json()).view;
+    return hasPortfolioValue(view) ? view : null;
   } catch { return null; }
 }
 
@@ -17107,6 +17111,7 @@ async function refreshSavedPortfolio(owner, version) {
     if (!response.ok) return true;
     const { view } = await response.json();
     if (!accountRequestIsCurrent(owner, version) || !view?.summaries || inventoryAtStart !== JSON.stringify(state.items.map(item => [item.uid, portfolioPricingKey(item), item.quantity, item.lots, item.transactions]))) return true;
+    if (!hasPortfolioValue(view)) return true;
     state.portfolioView = view;
     restorePortfolioPricing(view);
     state.pricingStatus = view.complete ? "live" : "partial";
