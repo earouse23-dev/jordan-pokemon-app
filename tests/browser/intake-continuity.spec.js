@@ -3,7 +3,7 @@ import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-const appUrl = "/app.js?v=111";
+const appUrl = "/app.js?v=114";
 const ownerA = "11111111-1111-4111-8111-111111111111";
 const ownerB = "22222222-2222-4222-8222-222222222222";
 let bundle;
@@ -49,7 +49,7 @@ function card(name, index, language = "en") {
 
 async function setup(page, { failAttempt = 0 } = {}) {
   const requests = [];
-  await page.route("**/app.js?v=111", (route) =>
+  await page.route("**/app.js?v=114", (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
   await page.route("**/app-config.js*", (route) =>
@@ -100,6 +100,7 @@ async function setup(page, { failAttempt = 0 } = {}) {
 }
 
 async function saveUnknownCost(page) {
+  await page.locator("#positionState").selectOption("raw");
   await page.getByRole("button", { name: "Add card", exact: true }).click();
 }
 
@@ -341,7 +342,7 @@ test("mobile intake keeps identity readable and quantity directly editable", asy
         width: document.documentElement.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,
         camera: bounds("#autoCaptureButton"),
-        mode: bounds("#softwareModeSelect"),
+        mode: bounds("label[for=galleryInput]"),
         language: bounds("#quickSearchLanguage"),
         results: bounds("#quickSearchResults"),
         text: bounds(".quick-card-result > span"),
@@ -363,6 +364,7 @@ test("mobile intake keeps identity readable and quantity directly editable", asy
   }
   await page.locator("[data-add-search-card]").first().click();
   await expect(page.locator("#positionQuantity")).toBeVisible();
+  await page.locator("#positionState").selectOption("raw");
   await page.locator("#positionQuantity").fill("3");
   await page.locator("#positionMoreSummary").click();
   await page.locator("#positionTotalCost").fill("12");
@@ -405,12 +407,12 @@ test("printing choices retain the selected version and quantity after a failed a
     name: /^Reverse Holofoil/,
   });
   await expect(normal).toBeChecked();
-  await normal.focus();
-  await page.keyboard.press("ArrowRight");
+  if (testInfo.project.name.startsWith("mobile-")) await reverse.check();
+  else { await normal.focus(); await page.keyboard.press("ArrowRight"); }
   await expect(reverse).toBeChecked();
   if (testInfo.project.name.startsWith("mobile-")) {
     await page.locator("#positionMoreSummary").click();
-    for (const selector of ["#positionState", "#positionAcquisitionMethod"]) {
+    for (const selector of ["#positionState", "#positionDate"]) {
       expect(
         (await page.locator(selector).boundingBox()).height,
       ).toBeGreaterThanOrEqual(44);
@@ -420,6 +422,7 @@ test("printing choices retain the selected version and quantity after a failed a
   await expect(page.locator("#positionVariantId")).toHaveValue(
     "reverse-version",
   );
+  await page.locator("#positionState").selectOption("raw");
   await page.locator("#positionQuantity").fill("2");
   await page.getByRole("button", { name: "Add card", exact: true }).click();
   await expect(page.locator("#positionError")).not.toBeEmpty();

@@ -31,7 +31,7 @@ test.beforeAll(async () => {
     );
   const result = await build({
     stdin: {
-      contents: `${source.replace("void bootstrap();", "")}\nexport { state, loadDisplayFx, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, supabase as testSupabase };`,
+      contents: `${source.replace("void bootstrap();", "")}\nexport { valuationContextForItem, state, loadDisplayFx, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, supabase as testSupabase };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -669,7 +669,7 @@ test("sign-in interruption restores the exact PSA 10 Add draft and idempotent re
   await expect(page.locator("#positionQuantity")).toHaveAttribute("readonly");
   await page.locator("#positionMoreSummary").click();
   await expect(page.locator("#positionAcquisitionMethod")).not.toBeVisible();
-  await expect(page.locator("#positionAcquisitionMethod")).toHaveValue("unknown");
+  await expect(page.locator("#positionAcquisitionMethod")).toHaveValue("direct_purchase");
   await page.locator("#positionTotalCost").fill("27.50");
   await page.locator("#positionDate").fill("2026-09-01");
 
@@ -1970,4 +1970,23 @@ for (const phase of ["while loading", "after loading"]) test(`same-account Safar
  if (phase === "while loading") await pending.fulfill({contentType:"application/json",body:JSON.stringify(payload)});
  await expect(page.locator(".market-hero")).toContainText("$100.00"); await expect(page.locator("#positionChart")).toBeVisible();
  expect(await page.evaluate(async url=>{const app=await import(url);return app.state.session.access_token;},appUrl)).toBe("refreshed-fixture-token");
+});
+
+test("a scan condition enum renders its exact quote and history without changing the copy facts", async ({ page }) => {
+  const lookups=[];
+  await page.route("https://images.pkmnprices.com/cards/scan-fixture.webp",route=>route.fulfill({contentType:"image/svg+xml",body:fixtureCardImage}));
+  await setup(page,{onCards:async route=>{
+    lookups.push(JSON.parse(new URL(route.request().url()).searchParams.get("lookups"))[0]);
+    const payload=pricingPayload();payload.cards[0].history=[{provider:"tcgplayer",currency:"USD",condition:"Near Mint",finish:"reverseHolofoil",amount:10,recordedAt:"2026-10-07T12:00:00Z"},{provider:"tcgplayer",currency:"USD",condition:"Near Mint",finish:"reverseHolofoil",amount:11,recordedAt:"2026-10-08T12:00:00Z"}];payload.cards[0].images={large:"https://images.pkmnprices.com/cards/scan-fixture.webp",small:"https://images.pkmnprices.com/cards/scan-fixture.webp"};payload.cards[0].historyStatus="live";
+    await route.fulfill({contentType:"application/json",body:JSON.stringify(payload)});
+  }});
+  await page.evaluate(async appUrl=>{
+    const app=await import(appUrl),card={id:"tcgdex:en:test-25",name:"Pikachu",set:"Exact Test Set",number:"025/100",language:"en",variant:"Reverse Holo",finish:"reverse_holofoil",edition:"unknown",cardState:"raw",condition:"near_mint",externalIds:{tcgdex:"test-25"}};
+    app.openCardDetail(card,false,app.valuationContextForItem(card));
+  },appUrl);
+  await expect(page.locator(".market-hero")).toContainText("$10.00");
+  await expect(page.locator("#positionChart")).toBeVisible();
+  await expect(page.locator(".detail-image img")).toHaveAttribute("src",/images\.pkmnprices\.com/);
+  expect(lookups).toHaveLength(1);expect(lookups[0].condition).toBe("Near Mint");
+  expect(await page.evaluate(async appUrl=>(await import(appUrl)).state.detailCard.condition,appUrl)).toBe("near_mint");
 });

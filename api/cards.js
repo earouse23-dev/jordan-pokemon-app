@@ -1,3 +1,4 @@
+import { RAW_CONDITIONS } from "../lib/domain.js";
 import { pkmnPricesRequests } from "../lib/pkmnprices-requests.js";
 import { withNativeCors } from "../lib/native-cors.js";
 import {
@@ -81,7 +82,9 @@ function parseLookups(request) {
       set: String(raw?.set || "").trim(),
       number: String(raw?.number || "").trim(),
       variant: String(raw?.variant || "").trim(),
-      condition: String(raw?.condition || "").trim(),
+      condition: RAW_CONDITIONS.includes(raw?.condition) && raw.condition !== "unknown"
+        ? raw.condition.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+        : String(raw?.condition || "").trim(),
       currency: String(raw?.currency || "").toUpperCase(),
       language: String(raw?.language || "en")
         .trim()

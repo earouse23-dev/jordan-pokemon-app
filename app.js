@@ -800,9 +800,9 @@ function valuationContextForItem(item = {}, { catalogPreview = false } = {}) {
   return {
     cardState: "raw",
     condition:
-      catalogPreview || normalizedCondition === "unknown"
+      catalogPreview || !normalizedCondition || normalizedCondition === "unknown"
         ? ""
-        : item.condition || "",
+        : identityFieldLabel(normalizedCondition),
     gradingCompany: "",
     grade: "",
     currency,
@@ -10190,7 +10190,7 @@ export function openPositionSheet(card, options = {}) {
     matchConfidence: options.ingestionConfidence,
     source: card.imageProvider || card.provider || "catalog",
   });
-  const prefill = options.prefill || {};
+  const prefill = { currency: card.currency || "USD", ...options.prefill };
   let variantOptions = Array.isArray(card.variantOptions)
     ? card.variantOptions.map((option) => normalizeVariantOption(option, { language: card.language }))
     : [selectVariantOption(card, prefill.variantId || card.variantId || prefill.variant || card.variant)];
@@ -10213,7 +10213,7 @@ export function openPositionSheet(card, options = {}) {
   const initialState = prefill.cardState === "graded" ? "graded" : prefill.cardState === "raw" || options.visionAnalysis?.mode === "grade" ? "raw" : "graded";
   const initialQuantity = Number(prefill.quantity) > 0 ? prefill.quantity : 1;
   const initialDate =
-    prefill.acquisitionDateKnown === false ? "" : prefill.transactionDate || "";
+    prefill.acquisitionDateKnown === false ? "" : prefill.transactionDate || today;
   const initialTotal = prefill.totalAcquisitionCost ?? "";
   const idempotencyKey = options.idempotencyKey || crypto.randomUUID();
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to your library</h2><p id="positionIdentitySummary"></p></div><button class="sheet-close" aria-label="Close">×</button></div>
@@ -10229,9 +10229,9 @@ export function openPositionSheet(card, options = {}) {
       <div class="field graded-position full" hidden><label for="positionCertification">Certification number <span class="optional-label">Optional</span></label><input id="positionCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(prefill.certificationNumber || "")}"><small>Saved exactly as entered, including leading zeros. Until official provider access is connected, this is a user-entered claim.</small></div>
       ${options.visionAnalysis ? options.visionAnalysis.mode === "grade" ? `<div class="vision-prefill-note full"><strong>AI suggestion · confirm before saving</strong><span>Mica pregrade ${esc(options.visionAnalysis.gradeRange || "unavailable")} · ${esc(conditionLabel(options.visionAnalysis.condition))} · ${esc(confidenceLabel(options.visionAnalysis.confidence))}. This is not an official grade or condition guarantee.</span></div>` : '<p class="simple-note full">Read from photo · confirm the card and slab details.</p>' : ""}
       <details class="full intake-more" id="positionPurchaseDetails"><summary id="positionMoreSummary">Purchase details · optional</summary><div class="form-grid">
-      <div class="field full raw-position"><label for="positionAcquisitionMethod">How did you get it?</label><select id="positionAcquisitionMethod" name="acquisitionMethod"><option value="direct_purchase">Bought the card</option><option value="paid_pack">Opened from a pack you bought</option><option value="free_pack">Opened from a free pack</option><option value="trade">Trade</option><option value="gift">Gift</option><option value="prize">Prize</option><option value="free_card">Free card</option><option value="unknown">I’m not sure</option></select></div>
-      <div class="field full acquisition-field" id="positionPaidField"><label for="positionTotalCost">Total paid</label><label for="positionCurrency">Currency</label><select id="positionCurrency" name="currency"><option value="USD" ${prefill.currency !== "EUR" ? "selected" : ""}>USD</option><option value="EUR" ${prefill.currency === "EUR" ? "selected" : ""}>EUR</option></select><div class="money-input"><span id="positionCurrencyMark">$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="Not recorded"></div><small id="positionPaidHelp">Include tax, shipping, and fees in one total.</small><label class="field-choice"><input id="positionCostUnknown" type="checkbox"> I don't know what I paid</label></div>
-      <div class="field full"><label for="positionDate">When did you get it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}"><label class="field-choice"><input id="positionDateUnknown" type="checkbox"> I don't know the date</label></div><div class="field full"><label for="positionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="positionNotes" name="notes" maxlength="10000" placeholder="A note about this copy or purchase…">${esc(prefill.notes || "")}</textarea></div></div></details>
+      <input id="positionAcquisitionMethod" name="acquisitionMethod" type="hidden" value="direct_purchase">
+      <div class="field full acquisition-field" id="positionPaidField"><label for="positionTotalCost">Total paid</label><label for="positionCurrency">Currency</label><select id="positionCurrency" name="currency"><option value="USD" ${prefill.currency !== "EUR" ? "selected" : ""}>USD</option><option value="EUR" ${prefill.currency === "EUR" ? "selected" : ""}>EUR</option></select><div class="money-input"><span id="positionCurrencyMark">$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="Not recorded"></div><input id="positionCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="positionFree" type="checkbox"> Free (trade)</label></div>
+      <div class="field full"><label for="positionDate">When did you get it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}"><input id="positionDateUnknown" type="checkbox" hidden></div><div class="field full"><label for="positionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="positionNotes" name="notes" maxlength="10000" placeholder="A note about this copy or purchase…">${esc(prefill.notes || "")}</textarea></div></div></details>
       <p class="form-error" id="positionError" role="alert"></p>
     </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>Add the missing purchase details later to see profit or loss.</p>
     <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Add card</button>${!options.visionAnalysis ? '<button class="secondary raw-position" type="submit" id="positionGradeFirst">Grade first</button>' : ""}</div></form>`);
@@ -10248,7 +10248,7 @@ export function openPositionSheet(card, options = {}) {
     };
   $("#positionAcquisitionMethod").value =
     prefill.acquisitionMethod ||
-    (initialTotal !== "" ? "direct_purchase" : "unknown");
+    "direct_purchase";
   $("#positionCostUnknown").checked = prefill.acquisitionCostKnown === false;
   $("#positionDateUnknown").checked = prefill.acquisitionDateKnown === false;
   const syncVariant = () => {
@@ -10314,34 +10314,29 @@ export function openPositionSheet(card, options = {}) {
     $(".position-total", form).hidden = costUnknown;
   };
   let amountBeforeFree = null;
+  $("#positionFree").checked = ["free_pack", "gift", "prize", "free_card"].includes($("#positionAcquisitionMethod").value);
   const syncKnownFacts = () => {
-    const method = $("#positionAcquisitionMethod").value;
-    const free = ["free_pack", "gift", "prize", "free_card"].includes(method);
-    const trade = method === "trade";
-    const costUnknown = $("#positionCostUnknown").checked;
-    const dateUnknown = $("#positionDateUnknown").checked;
-    $("#positionPaidField").hidden = free;
+    const free = $("#positionFree").checked;
     if (free) {
-      if (amountBeforeFree === null)
-        amountBeforeFree = $("#positionTotalCost").value;
+      if (amountBeforeFree === null) amountBeforeFree = $("#positionTotalCost").value;
       $("#positionTotalCost").value = "0.00";
       $("#positionCostUnknown").checked = false;
     } else if (amountBeforeFree !== null) {
       $("#positionTotalCost").value = amountBeforeFree;
       amountBeforeFree = null;
     }
-    $("#positionPaidField label[for='positionTotalCost']").textContent = trade
-      ? "Cash you added"
-      : "Total paid";
-    $("#positionPaidHelp").textContent = trade
-      ? "Only enter cash added. The cards exchanged stay in the trade context."
-      : "Include tax, shipping, and fees in one total.";
-    $("#positionTotalCost").disabled = free || costUnknown;
+    $("#positionTotalCost").disabled = free;
     $("#positionTotalCost").required = false;
-    $("#positionDate").disabled = dateUnknown;
+    $("#positionDate").disabled = false;
     $("#positionDate").required = false;
     updateTotal();
   };
+  $("#positionFree").addEventListener("change", () => {
+    $("#positionAcquisitionMethod").value = $("#positionFree").checked ? "free_card" : "direct_purchase";
+    syncKnownFacts();
+  });
+  $("#positionTotalCost").addEventListener("input", () => { $("#positionCostUnknown").checked = false; });
+  $("#positionDate").addEventListener("input", () => { $("#positionDateUnknown").checked = false; });
   $("#positionState").addEventListener("change", () => {
     syncState();
     updateTotal();

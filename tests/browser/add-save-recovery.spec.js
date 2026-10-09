@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { expect, test } from "@playwright/test";
 
-const appUrl = "/app.js?v=111";
+const appUrl = "/app.js?v=114";
 const ownerA = "11111111-1111-4111-8111-111111111111";
 const ownerB = "22222222-2222-4222-8222-222222222222";
 let bundle;
@@ -35,7 +35,7 @@ export { state, applySession, bindEvents, restoreIntakeQueue };`,
 
 async function setup(page, { deferWrite = false, failRefreshes = 0, failWrites = 0, failWriteAt = 0, rejectionCode = null } = {}) {
   const requests = { writes: [], refreshes: 0, pendingWrite: null };
-  await page.route("**/app.js?v=111", (route) =>
+  await page.route("**/app.js?v=114", (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
   await page.route("**/app-config.js*", (route) =>
@@ -293,15 +293,15 @@ test("a definite rejected queue save remains editable", async ({ page }) => {
 });
 
 
-test("ordinary collection add needs no purchase facts", async ({ page }) => {
+test("ordinary collection add defaults to purchase and today without inventing a cost", async ({ page }) => {
   const requests = await setup(page);
   await expect(page.locator("#positionPurchaseDetails")).not.toHaveAttribute("open", "");
-  await expect(page.locator("#positionDate")).toHaveValue("");
+  await expect(page.locator("#positionDate")).toHaveValue(await page.evaluate(() => {const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}));
   await page.getByRole("button", { name: "Add card", exact: true }).click();
   await expect.poll(() => requests.writes.length).toBe(1);
   expect(requests.writes[0].p_identity.acquisitionCostKnown).toBe(false);
-  expect(requests.writes[0].p_identity.acquisitionDateKnown).toBe(false);
-  expect(requests.writes[0].p_acquisition_method).toBe("unknown");
+  expect(requests.writes[0].p_identity.acquisitionDateKnown).toBe(true);
+  expect(requests.writes[0].p_acquisition_method).toBe("direct_purchase");
 });
 
 test("batch adds reviewed versions together and retries only remaining rows", async ({ page }) => {
@@ -361,13 +361,36 @@ test("changing a queued printing cannot turn later normal copies into reverse co
   expect(requests.writes.map(row => row.p_quantity)).toEqual([1, 1]);
 });
 
-test("changing a free acquisition back to unknown cannot invent zero cost", async ({ page }) => {
+test("unchecking Free (trade) restores an unrecorded cost without inventing zero", async ({ page }) => {
   const requests = await setup(page);
   await page.locator("#positionMoreSummary").click();
-  await page.locator("#positionAcquisitionMethod").selectOption("gift");
-  await page.locator("#positionAcquisitionMethod").selectOption("unknown");
+  await page.locator("#positionFree").check();
+  await expect(page.locator("#positionTotalCost")).toHaveValue("0.00");
+  await page.locator("#positionFree").uncheck();
   await expect(page.locator("#positionTotalCost")).toHaveValue("");
   await page.getByRole("button", { name: "Add card", exact: true }).click();
   await expect.poll(() => requests.writes.length).toBe(1);
   expect(requests.writes[0].p_identity.acquisitionCostKnown).toBe(false);
+});
+
+
+test("Free (trade) saves explicit zero cost and preserves a typed paid amount when toggled", async ({ page }) => {
+  const requests = await setup(page);
+  await page.locator("#positionMoreSummary").click();
+  await expect(page.getByText("How did you get it?", {exact:true})).toHaveCount(0);
+  await expect(page.getByText("Include tax, shipping, and fees in one total.", {exact:true})).toHaveCount(0);
+  await expect(page.getByText("I don't know the date", {exact:true})).toHaveCount(0);
+  await page.locator("#positionTotalCost").fill("12.50");
+  await page.getByLabel("Free (trade)", {exact:true}).check();
+  await expect(page.locator("#positionTotalCost")).toBeDisabled();
+  await expect(page.locator("#positionTotalCost")).toHaveValue("0.00");
+  await page.locator("#positionFree").uncheck();
+  await expect(page.locator("#positionTotalCost")).toHaveValue("12.50");
+  await page.locator("#positionFree").check();
+  await page.getByRole("button", {name:"Add card",exact:true}).click();
+  await expect.poll(() => requests.writes.length).toBe(1);
+  expect(requests.writes[0].p_identity.acquisitionCostKnown).toBe(true);
+  expect(requests.writes[0].p_identity.acquisitionDateKnown).toBe(true);
+  expect(requests.writes[0].p_acquisition_method).toBe("free_card");
+  expect(requests.writes[0].p_unit_price).toBe("0.00");
 });

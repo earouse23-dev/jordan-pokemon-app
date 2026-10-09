@@ -1,0 +1,65 @@
+{
+  "checkedAt": "2026-10-08T23:30:31.885Z",
+  "priorDeployment": "dpl_9qnUz6eCQsVNkcWsFimf6ucsVpB8",
+  "pricingRequestStatuses": [
+    {
+      "at": "2026-10-08T23:02:55.953Z",
+      "status": 400
+    },
+    {
+      "at": "2026-10-08T23:02:34.825Z",
+      "status": 200
+    },
+    {
+      "at": "2026-10-08T23:02:33.725Z",
+      "status": 200
+    },
+    {
+      "at": "2026-10-08T23:02:33.545Z",
+      "status": 200
+    },
+    {
+      "at": "2026-10-08T23:02:33.358Z",
+      "status": 200
+    },
+    {
+      "at": "2026-10-08T23:02:26.873Z",
+      "status": 200
+    },
+    {
+      "at": "2026-10-08T23:02:20.441Z",
+      "status": 200
+    },
+    {
+      "at": "2026-10-08T23:02:13.905Z",
+      "status": 200
+    },
+    {
+      "at": "2026-10-08T23:02:06.249Z",
+      "status": 200
+    }
+  ],
+  "reproducedZoroarkRequests": [
+    {
+      "condition": "near_mint",
+      "status": 400,
+      "elapsedMs": 173,
+      "error": "Provide 1 to 8 valid card lookups."
+    },
+    {
+      "condition": "Near Mint",
+      "status": 200,
+      "elapsedMs": 4657,
+      "image": "https://images.pkmnprices.com/cards/ca4872f0adb96841.webp",
+      "quotes": 9,
+      "history": 105
+    }
+  ],
+  "diagnosis": [
+    "Known internal raw-condition enums rejected by API text validation before provider I/O",
+    "Untranslated internal enum does not compare equal to provider quote condition in detail valuation"
+  ],
+  "customerDataIncluded": false,
+  "paidAiCalls": 0,
+  "sqlExecuted": false
+}

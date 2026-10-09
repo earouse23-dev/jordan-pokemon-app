@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-10-08T23:30:31.886Z",
+  "unit": {
+    "passed": 546,
+    "skipped": 3
+  },
+  "pricing": {
+    "passed": 65
+  },
+  "affectedBrowser": {
+    "passed": 146,
+    "skipped": 10,
+    "details": {
+      "cardProfile": 93,
+      "addAndIntake": 47,
+      "internalCertificateRecovery": 6
+    }
+  },
+  "lintSourceFiles": 98,
+  "syntax": true,
+  "obsoleteExpectationsTraced": [
+    "Fresh Add defaults today and direct_purchase; blank cost remains unknown",
+    "Removed acquisition selector/unknown-date label; recovery flags stay hidden and tested",
+    "Existing fixture module URL aligned with actual shipping v114 to avoid duplicate app instances",
+    "Raw quantity tests explicitly choose Raw; desktop native radio keyboard and mobile touch choice retained",
+    "Exact service-worker cache version updated",
+    "Free zero money assertion uses actual RPC decimal string p_unit_price",
+    "Image regression uses allowed provider URL rather than rejected arbitrary fixture pathname"
+  ],
+  "privateWrites": 0,
+  "sqlExecuted": false
+}

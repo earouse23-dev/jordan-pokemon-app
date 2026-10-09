@@ -2886,3 +2886,35 @@ test("resolved provider set and rarity explain real PSA titles without admitting
   for(const title of ["Pokemon Mew ex Ultra Rare 151/165 PSA 10","Pokemon Mew ex 193/165 Celebrations PSA 10","Pokemon Mew ex 193/165 151 Metal PSA 10","Pokemon Mew ex 193/165 Japanese 151 PSA 10"])
     assert.equal(saleMatchesCanonicalIdentity({title},card,lookup),false,title);
 });
+
+test("scan condition enums cross the cards boundary as provider labels without loosening validation", async () => {
+  const originalFetch = globalThis.fetch, originalKey = process.env.PKMNPRICES_API_KEY;
+  process.env.PKMNPRICES_API_KEY = "scan-condition-fixture";
+  pkmnPricesRequests.cache.clear();
+  const requests = [];
+  globalThis.fetch = async input => {
+    const url = new URL(input); requests.push(url);
+    assert.equal(url.hostname, "api.pkmnprices.com");
+    return new Response(JSON.stringify(url.pathname.endsWith("/history")
+      ? {data:[{date:"2026-10-08",source:"tcgplayer",currency:"USD",condition:url.searchParams.get("condition"),variant:"Holofoil",avg:7}],pagination:{page:1,total_pages:1}}
+      : {id:19484,name:"Zoroark GX",number:"53",total_set_number:"73",set:{name:"Shining Legends"},language:"English",image_url:"https://images.pkmnprices.com/cards/public-fixture.webp",prices:[{source:"tcgplayer",currency:"USD",condition:"Near Mint",variant:"Holofoil",market_price:7}]}), {status:200});
+  };
+  try {
+    for (const [condition, expected] of [["near_mint","Near Mint"],["lightly_played","Lightly Played"],["moderately_played","Moderately Played"],["heavily_played","Heavily Played"],["damaged","Damaged"],["Near Mint","Near Mint"]]) {
+      let body;
+      const response = {setHeader(){},status(value){this.statusCode=value;return this;},json(value){body=value;return value;}};
+      await handler({method:"GET",headers:{},socket:{remoteAddress:condition},query:{history:"full",lookups:JSON.stringify([{clientId:"scan-zoroark",pkmnpricesId:"19484",name:"Zoroark GX",set:"Shining Legends",number:"53/73",language:"en",condition,currency:"USD"}])}},response);
+      assert.equal(response.statusCode,200,condition);
+      assert(body.cards[0].images.large);
+      assert(body.cards[0].quotes.length);
+      assert(body.cards[0].history.length);
+      assert(requests.some(url=>url.searchParams.get("condition")===expected));
+    }
+    for (const condition of ["near_mint<script>","not_a_condition"]) {
+      const before=requests.length;
+      const response={setHeader(){},status(value){this.statusCode=value;return this;},json(){}};
+      await handler({method:"GET",headers:{},socket:{remoteAddress:condition},query:{lookups:JSON.stringify([{clientId:"bad",pkmnpricesId:"19484",condition}])}},response);
+      assert.equal(response.statusCode,400);assert.equal(requests.length,before);
+    }
+  } finally {globalThis.fetch=originalFetch;pkmnPricesRequests.cache.clear();if(originalKey===undefined)delete process.env.PKMNPRICES_API_KEY;else process.env.PKMNPRICES_API_KEY=originalKey;}
+});

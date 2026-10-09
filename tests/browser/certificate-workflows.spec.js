@@ -192,9 +192,7 @@ test("populated draft survives back, failure, repeated lookup and explicit save"
   await page.locator("#positionGrade").fill("9");
   await page.locator("#positionQualifier").fill("OC");
   await page.locator("#positionPurchaseDetails summary").click();
-  await page
-    .locator("#positionAcquisitionMethod")
-    .selectOption("direct_purchase");
+  await expect(page.locator("#positionAcquisitionMethod")).toHaveValue("direct_purchase");
   await page.locator("#positionTotalCost").fill("87.65");
   await page.locator("#positionDate").fill("2026-09-01");
   await page.locator("#certificateLookupFromAdd").click();
@@ -286,8 +284,8 @@ test("unknown purchase flags and queue callback survive lookup without duplicate
     });
   });
   await page.locator("#positionPurchaseDetails summary").click();
-  await page.locator("#positionCostUnknown").check();
-  await page.locator("#positionDateUnknown").check();
+  await expect(page.locator("#positionCostUnknown")).toBeChecked();
+  await expect(page.locator("#positionDateUnknown")).toBeChecked();
   await page.locator("#certificateLookupFromAdd").click();
   await page.locator("#certificateBack").click();
   await expect(page.locator("#positionCancel")).toHaveText("Back to queue");
