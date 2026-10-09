@@ -1,0 +1,190 @@
+--- app.js
++++ app.js
+@@ -15,7 +15,6 @@
+   nextMissingCaptureIndex,
+   replaceRequiredCapture,
+ } from "./lib/grading-capture.js";
+-import { compareGradingOutcome } from "./lib/grading-economics.js";
+ import { normalizeCardImageSource } from "./lib/image-source.js";
+ import { cardPriceHistoryWindow, displayHistoryCurrency } from "./lib/price-history.js";
+ import {
+@@ -2171,97 +2170,8 @@
+         ? `One observation · ${money(report.rangeLow, item.currency || "USD")}`
+         : `Range ${money(report.rangeLow, item.currency || "USD")}–${money(report.rangeHigh, item.currency || "USD")}`;
+   return `<section class="price-confidence ${report.level}" aria-label="How reliable this price is"><div class="price-confidence-head"><div><span>How reliable is this price?</span><strong>${esc(report.label)}</strong></div><b>${Math.round(report.confidenceScore * 100)}% evidence confidence</b></div><p>${esc(report.summary)}</p><div class="price-confidence-facts"><span>${esc(contextLabel)}</span><span>${esc(agreement)}</span><span>${esc(range)}</span><span>${esc(freshness)}</span><span>${report.liveSourceCount} live of ${report.sourceCount} matching market${report.sourceCount === 1 ? "" : "s"}</span></div></section>`;
+-}
+-
+-const gradingComparisonDrafts = new Map();
+-
+-function gradingComparisonKey(item) {
+-  return `${state.session?.user?.id || "guest"}:${item.uid || item.id || [item.name, item.set, item.number].join("|")}:${item.variantId || item.variant}:${item.language}`;
+-}
+-
+-function gradingComparisonQuote(item, grade) {
+-  const quotes = (item.quotes || []).filter(
+-    (quote) =>
+-      quote.priceType === "market" &&
+-      Number.isFinite(quote.amount) &&
+-      quote.amount >= 0 &&
+-      priceFreshness(quote).status === "live" &&
+-      (grade || (!quote.gradingCompany && quote.condition === item.condition)),
+-  );
+-  return grade
+-    ? selectReferenceQuote(quotes, item.variant, "USD", {
+-        gradingCompany: "PSA",
+-        grade: String(grade),
+-      })
+-    : item.gradingCompany || !item.condition
+-      ? null
+-      : selectReferenceQuote(quotes, item.variant, "USD", {
+-          condition: item.condition,
+-        });
+ }
+ 
+-function renderGradingComparison(item) {
+-  if (item.cardState === "sealed" || item.productType) return "";
+-  const draft = gradingComparisonDrafts.get(gradingComparisonKey(item)) || {};
+-  const rawQuote = gradingComparisonQuote(item, null);
+-  const rawValue = draft.raw ?? currencyInputValue(rawQuote?.amount);
+-  return `<details class="detail-tool-group" data-detail-tool="grading-comparison"><summary><span><strong>Compare grading outcomes</strong><small>PSA 8, 9 and 10 · after your costs</small></span><b>Compare</b></summary><div class="detail-tool-content"><section class="grading-comparison" aria-label="Grading outcome calculator"><p>Compare selling raw with three possible grades. These are scenarios, not predicted grades.</p><div class="form-grid"><div class="field"><label for="compareRaw">Raw sale value · USD</label><input id="compareRaw" data-grading-comparison="raw" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(rawValue)}" placeholder="Enter a value"><small id="compareRawSource">${draft.raw != null ? "Your estimate" : rawQuote ? esc(`${rawQuote.market || rawQuote.provider} · ${friendlyObservedAt(rawQuote.observedAt || rawQuote.retrievedAt)}`) : "No current matching raw price"}</small></div><div class="field"><label for="compareCost">Grading + shipping per card · USD</label><input id="compareCost" data-grading-comparison="cost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(draft.cost ?? "")}" placeholder="Enter all-in cost"></div><div class="field full"><label for="compareFee">Selling fee · %</label><input id="compareFee" data-grading-comparison="fee" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${esc(draft.fee ?? "")}" placeholder="Enter fee, or 0"><small>Same fee rate for raw and graded sales. Include grading, round-trip shipping and other fixed costs above.</small></div></div><div class="grading-outcomes">${[
+-    8, 9, 10,
+-  ]
+-    .map((grade) => {
+-      const quote = gradingComparisonQuote(item, grade);
+-      return `<article class="grading-outcome"><label for="compareGrade${grade}">PSA ${grade}</label><div class="money-input"><span>$</span><input id="compareGrade${grade}" data-grading-comparison="grade${grade}" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(draft[`grade${grade}`] ?? currencyInputValue(quote?.amount))}" placeholder="No price yet"></div><small data-comparison-source="grade${grade}">${draft[`grade${grade}`] != null ? "Your estimate" : quote ? esc(`${quote.market || quote.provider} · ${friendlyObservedAt(quote.observedAt || quote.retrievedAt)}`) : "No current matching price"}</small><div data-comparison-result="${grade}"></div></article>`;
+-    })
+-    .join(
+-      "",
+-    )}</div><p class="chart-context" id="gradingComparisonStatus" role="status" aria-live="polite">Enter your costs and sale values to compare.</p></section></div></details>`;
+-}
+-
+-function bindGradingComparison(item) {
+-  const root = document.querySelector(".grading-comparison");
+-  if (!root) return;
+-  const key = gradingComparisonKey(item);
+-  const fields = [...root.querySelectorAll("[data-grading-comparison]")];
+-  const update = () => {
+-    const values = Object.fromEntries(
+-      fields.map((input) => [input.dataset.gradingComparison, input.value]),
+-    );
+-    let count = 0;
+-    for (const grade of [8, 9, 10]) {
+-      const result = compareGradingOutcome({
+-        rawValue: values.raw,
+-        gradedValue: values[`grade${grade}`],
+-        gradingCost: values.cost,
+-        sellingFeePercent: values.fee,
+-      });
+-      const output = root.querySelector(`[data-comparison-result="${grade}"]`);
+-      output.innerHTML = result
+-        ? `<strong class="${result.differenceMinor >= 0 ? "positive" : "negative"}">${result.differenceMinor >= 0 ? "+" : "−"}${money(Math.abs(result.differenceMinor) / 100)}</strong><span>vs selling raw</span><small>After entered costs: ${money(result.gradedNetMinor / 100)}<br>Break-even sale: ${money(result.breakEvenGradedMinor / 100)}</small>`
+-        : "<strong>—</strong><span>Value and costs needed</span>";
+-      if (result) count++;
+-    }
+-    root.querySelector("#gradingComparisonStatus").textContent = count
+-      ? `${count} scenario${count === 1 ? "" : "s"} calculated. A higher grade is not guaranteed.`
+-      : "Enter non-negative values and costs, and a fee below 100%. Missing prices stay blank.";
+-  };
+-  fields.forEach((input) =>
+-    input.addEventListener("input", () => {
+-      const draft = gradingComparisonDrafts.get(key) || {};
+-      draft[input.dataset.gradingComparison] = input.value;
+-      gradingComparisonDrafts.set(key, draft);
+-      const source =
+-        input.id === "compareRaw"
+-          ? root.querySelector("#compareRawSource")
+-          : root.querySelector(
+-              `[data-comparison-source="${input.dataset.gradingComparison}"]`,
+-            );
+-      if (source) source.textContent = "Your estimate";
+-      update();
+-    }),
+-  );
+-  update();
+-}
+-
+ function renderGradedPriceLadder(item) {
+   if (item.cardState === "sealed") return "";
+   const rows = [...PSA_NUMERIC_LABELS]
+@@ -2849,6 +2759,7 @@
+   const itemKey = String(item.uid || item.id || "");
+   if (focusedRange) queueMicrotask(() => $("#cardHistoryRange")?.focus({ preventScroll: true }));
+   const { summary, points, currency } = model;
++  const insufficientHistory = points.length < 2;
+   const controls = `<label class="history-range-select">Timeframe<select id="cardHistoryRange" aria-label="Price history timeframe">${[["1m", "1 month"], ["6m", "6 months"], ["1y", "1 year"], ["all", "All time"]].map(([value, label]) => `<option value="${value}" ${model.range === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>`;
+   const context =
+     item.cardState === "sealed"
+@@ -2887,7 +2798,7 @@
+     ? `<p class="chart-purchases-note">${model.purchases.length} purchase${model.purchases.length === 1 ? "" : "s"} with a known date and amount in this range.</p>`
+     : "";
+   return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${item.cardState !== "graded" && ["partial", "unavailable", "error"].includes(item.historyStatus) && points.length ? '<p class="chart-context">Some historical prices could not be loaded. This chart shows the available records.</p>' : ""}
+-    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${points.length === 1 ? '<p class="chart-context">One recorded price in this range. More prices are needed to show a trend.</p>' : ""}<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}</div>`;
++    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${insufficientHistory ? '<p class="unavailable-panel" role="status">Only one recorded price is available. Historical prices have not loaded, so there is no trend to show yet.</p>' : `<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>`}${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}</div>`;
+ }
+ 
+ async function mountPriceChart(item, history = historyForItem(item)) {
+@@ -7988,7 +7899,7 @@
+         selectionKey: guard.selectionKey,
+         contextKey: guard.contextKey,
+         pricingStatus: response.status === 429 ? "rate_limited" : "error",
+-        historyStatus: card.historyStatus || "unavailable",
++        historyStatus: response.status === 429 ? "rate_limited" : "error",
+       };
+       renderDetailPreservingValuationFocus();
+       return;
+@@ -8037,7 +7948,7 @@
+       priceCapabilities: priced.capabilities || null,
+       ...pricing,
+       quotes: priced.quotes || [],
+-      priceHistory: recordPriceObservation(card, quote, priced.history || []),
++      priceHistory: recordPriceObservation(card, quote, mergePriceHistory(card.priceHistory || [], priced.history || [])),
+       historyStatus: priced.historyStatus || null,
+     };
+     const identityUpdate = {
+@@ -8055,6 +7966,11 @@
+         ? { ...item, ...identityUpdate }
+         : item,
+     );
++    if (card.watchlistId && detailContextKey(valuationContextForItem(card)) === guard.contextKey) {
++      state.watchlist = state.watchlist.map(item => item.watchlistId === card.watchlistId
++        ? { ...item, ...identityUpdate, priceHistory: mergePriceHistory(item.priceHistory || [], state.detailPricing.priceHistory), historyStatus: state.detailPricing.historyStatus }
++        : item);
++    }
+     state.detailCard = { ...state.detailCard, ...identityUpdate };
+     renderDetailPreservingValuationFocus();
+   } catch {
+@@ -8844,7 +8760,6 @@
+     <button class="secondary" id="detailMoreToolsButton" type="button" aria-controls="detailMoreTools" aria-expanded="false">More options</button>
+     <div id="detailMoreTools" hidden>    <details class="detail-tool-group" data-detail-tool="prices"><summary><span><strong>Price details</strong><small>Matching sources and price history</small></span><b>Details</b></summary><div class="detail-tool-content"><section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
+     ${!sealed ? `<details data-detail-tool="grade-prices"><summary>Compare PSA grades</summary>${renderGradedPriceLadder(valuationItem)}</details>` : ""}${!sealed ? `<details id="marketProofDetails" data-detail-tool="sales"><summary>Recent sold listings</summary><section class="detail-section" aria-label="Recent sold listings">${renderSales(valuationItem)}</section></details>` : ""}</div></details>
+-    ${renderGradingComparison(valuationItem)}
+ 
+     ${owned ? collectionAttachmentMarkup(item) : ""}</div>
+     <p class="legal-copy">Prices are estimates, not guaranteed sale amounts. ${sealed ? "The box and seal" : "Wear on the card"} can change what someone will pay.</p>`;
+@@ -8854,7 +8769,6 @@
+   });
+   if (moreToolsOpen) { $("#detailMoreTools").hidden = false; $("#detailMoreToolsButton").setAttribute("aria-expanded", "true"); }
+   bindDetailValuationControls(baseItem);
+-  bindGradingComparison(valuationItem);
+   detailRoot.querySelectorAll("details[data-detail-tool]").forEach((tool) => {
+     tool.open = openTools.has(tool.dataset.detailTool);
+   });
+@@ -17515,8 +17429,8 @@
+         referencePrice: quote?.amount ?? null,
+         quotes: card.quotes || [],
+         priceCapabilities: card.capabilities || null,
+-        priceHistory: card.history || [],
+-        historyStatus: card.historyStatus || null,
++        priceHistory: mergePriceHistory(item.priceHistory || [], card.history || []),
++        historyStatus: card.historyStatus === "not_requested" ? item.historyStatus : card.historyStatus || item.historyStatus || null,
+         pricingStatus: quoteState || capabilityState.status,
+         pricingReason: quoteState
+           ? priceFreshness(quote).reason
+@@ -20845,7 +20759,6 @@
+     state.detailValuationContext = null;
+     if (previousOwnerId)
+       void clearAccountDevicePush(previousOwnerId).catch(() => {});
+-    gradingComparisonDrafts.clear();
+     state.intakeQueue = nativeBuild ? [] : restoreIntakeQueue();
+     renderIntakeQueueBar();
+     closeSheet({ discardHistory: true, force: true });

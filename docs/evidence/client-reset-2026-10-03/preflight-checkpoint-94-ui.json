@@ -1,0 +1,12 @@
+{
+  "changedSource": [
+    "app.js",
+    "sw.js"
+  ],
+  "functionsUnchangedFrom93": true,
+  "privateFindings": 0,
+  "entriesScanned": 161,
+  "deploymentZipSha256": "c44722c2094d9c916fe64377154bc098e5ea79cb9309dee73d294336f2e3b695",
+  "sourceZipSha256": "5f966a2161dbab79da3dc8e53749a3207306f9050023fefa6108e33ce9322f32",
+  "manifestSha256": "b4cd1e99cf9d6bbcfeed343d202d947e1e3c145b6e8a6f3bd662b45bc93118bb"
+}
