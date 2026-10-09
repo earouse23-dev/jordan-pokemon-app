@@ -123,8 +123,8 @@ test("controlled A/B/C history reconciles dated membership, partial coverage, fe
   const history = portfolioProfitLossHistory(items);
   const byDate = Object.fromEntries(history.map((row) => [row.date, row]));
   assert.equal(byDate["2026-09-01"].valueMinor, 12000);
-  assert.equal(byDate["2026-09-05"].pricedUnits, 1);
-  assert.equal(byDate["2026-09-05"].missingUnits, 1);
+  assert.equal(byDate["2026-09-05"].pricedUnits, 2);
+  assert.equal(byDate["2026-09-05"].missingUnits, 0);
   assert.equal(byDate["2026-09-10"].valueMinor, 38000);
   assert.equal(byDate["2026-09-10"].unrealizedMinor, 8000);
   assert.ok(
@@ -456,9 +456,9 @@ test("converted portfolio history combines only dated native evidence and preser
   assert.equal(history[1].unrealizedMinor, 6000);
   assert.equal(history[1].historyComplete, true);
   assert.equal(history[1].rateRef, rate.rateRef);
-  assert.equal(history[2].pricedUnits, 0);
-  assert.equal(history[2].missingUnits, 2);
-  assert.equal(history[2].historyComplete, false);
+  assert.equal(history[2].pricedUnits, 2);
+  assert.equal(history[2].missingUnits, 0);
+  assert.equal(history[2].historyComplete, true);
   const missingRate = portfolioDisplayProfitLossHistory(items, "EUR", null, now);
   assert.equal(missingRate[1].valueMinor, 10000);
   assert.equal(missingRate[1].unconvertedUnits, 1);
@@ -484,4 +484,18 @@ test("all-time P/L includes sold gains without inventing unknown sale costs", ()
   assert.equal(result.unknownRealizedSales, 1);
   assert.equal(result.historyComplete, false);
   assert.deepEqual(items, original);
+});
+
+
+test("portfolio carries only earlier matching history within freshness and separates value from unknown cost", () => {
+  const a = { currency: "USD", cardState: "raw", quantity: 2, costBasis: null, lots: [{ ...lot("2026-09-01", null), quantityAcquired: 2, quantityRemaining: 2 }], matchedHistory: [point("2026-09-01", 100), point("2026-09-07", 200)] };
+  assert.equal(portfolioProfitLoss([a], "USD", "2026-09-03").valueMinor, 20000);
+  assert.equal(portfolioProfitLoss([a], "USD", "2026-09-03").valueComplete, true);
+  assert.equal(portfolioProfitLoss([a], "USD", "2026-09-03").historyComplete, false);
+  assert.equal(portfolioProfitLoss([a], "USD", "2026-09-06").missingUnits, 2);
+  assert.equal(portfolioProfitLoss([a], "USD", "2026-08-31").valueMinor, 0);
+  const daily = portfolioProfitLossHistory([a], "USD", true);
+  assert.equal(daily.length, 7);
+  assert.equal(daily.find(row => row.date === "2026-09-06").valueComplete, false);
+  assert.deepEqual(a.matchedHistory.map(row => row.amount), [100, 200]);
 });

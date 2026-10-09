@@ -266,6 +266,9 @@ let chartInstance = null;
 let chartMountVersion = 0;
 let portfolioChartInstance = null;
 let portfolioChartMountVersion = 0;
+let portfolioRenderKey = "";
+let portfolioTraceOwner = null;
+let portfolioPricingRequest = null;
 let purchaseMarketBackfillInFlight = false;
 const purchaseMarketReferenceAttempts = new Set();
 let deferredInstallPrompt = null;
@@ -2309,13 +2312,13 @@ function providerRequestHeaders() {
   return { Accept: "application/json", ...(state.session?.access_token ? { Authorization: `Bearer ${state.session.access_token}` } : {}) };
 }
 
-async function fetchSaleEvidence(lookup) {
+async function fetchSaleEvidence(lookup, signal = null) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
   try {
     const response = await fetch(
       `/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}`,
-      { headers: providerRequestHeaders(), signal: controller.signal },
+      { headers: providerRequestHeaders(), signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal },
     );
     const payload = await response.json();
     return { response, payload };
@@ -3111,14 +3114,16 @@ function portfolioItems() {
   return state.items.map((item) =>
     item.cardState === "graded" || item.gradingCompany
       ? { ...item, soldValuation: soldValuationForItem(item) }
-      : item,
+      : { ...item, price: portfolioUnitPrice(item), pricingStatus: portfolioUnitPrice(item) == null ? item.pricingStatus : "live", retainedPrice: item.pricingStatus !== "live" && portfolioUnitPrice(item) != null },
   );
 }
 
 function portfolioUnitPrice(item) {
   if (item.cardState === "graded" || item.gradingCompany)
     return soldValuationForItem(item)?.estimate ?? null;
-  return item.pricingStatus === "live" ? item.price : null;
+  if (item.pricingStatus === "live") return item.price;
+  const quote = selectPositionQuote(item.quotes || [], item);
+  return quote && priceFreshness(quote).band === "aging" ? Number(quote.amount) : null;
 }
 
 function savedSaleEvidenceForContext(item, context) {
@@ -5343,11 +5348,13 @@ async function mountPortfolioHistoryChart({
       ctx.restore();
     },
   };
+  const animateTrace = portfolioTraceOwner !== state.session?.user?.id;
+  portfolioTraceOwner = state.session?.user?.id;
   const traceStart = performance.now();
   const trace = {
     id: "portfolioTrace",
     beforeDatasetsDraw(chart) {
-      const progress = motionPreference === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : Math.min(1, (performance.now() - traceStart) / 1200);
+      const progress = !animateTrace || motionPreference === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : Math.min(1, (performance.now() - traceStart) / 1200);
       chart.$traceProgress = progress;
       chart.ctx.save();
       chart.ctx.beginPath();
@@ -5543,13 +5550,33 @@ function renderPortfolioHistory() {
       ...item,
       matchedHistory: portfolioHistoryForItem(item),
     }));
-    const points = portfolioHistoryRangePoints(
-      portfolioDisplayProfitLossHistory(matched, currency, lastValidatedFxRate),
+    let points = portfolioHistoryRangePoints(
+      portfolioDisplayProfitLossHistory(matched, currency, lastValidatedFxRate, Date.now(), true),
       state.portfolioHistoryRange,
     );
     const needsConversion = points.some(point => point.unconvertedUnits > 0) && matched.some(item => ["USD", "EUR"].includes(item.currency || "USD") && (item.currency || "USD") !== currency);
     if (needsConversion && state.displayFxStatus === "ready" && !usableFxRate(lastValidatedFxRate)) state.displayFxStatus = "idle";
     if (needsConversion && state.displayFxStatus === "idle") void loadDisplayFx();
+    const today = new Date().toISOString().slice(0, 10);
+    const current = portfolioDisplayProfitLoss(matched, currency, lastValidatedFxRate);
+    if (matched.length && (current.pricedUnits || current.knownZeroActive) && (!points.length || points.at(-1).date <= today)) {
+      const currentPoint = { ...current, date: today };
+      if (points.at(-1)?.date === today) points[points.length - 1] = currentPoint;
+      else if (portfolioHistoryRangePoints([currentPoint], state.portfolioHistoryRange).length) points.push(currentPoint);
+    }
+    if (!current.valueComplete && $("#portfolioValue")?.dataset.savedSnapshot === "true" && !pnlMode) {
+      const nativeCurrencies = [...new Set(matched.map(item => item.currency || "USD"))];
+      const saved = [...new Set(state.portfolioHistory.map(point => point.date))].sort().flatMap(date => {
+        const snapshots = nativeCurrencies.map(native => state.portfolioHistory.find(point => point.date === date && point.currency === native && point.unpricedItems === 0));
+        const amounts = snapshots.map(point => point ? convertIndicative(point.total, point.currency, currency, lastValidatedFxRate) : null);
+        return snapshots.length && amounts.every(amount => amount !== null) ? [{ ...current, date, valueMinor: Math.round(amounts.reduce((sum, amount) => sum + amount, 0) * 100), pricedUnits: snapshots.reduce((sum, point) => sum + point.pricedItems, 0), missingUnits: 0, valueComplete: true, knownZeroActive: false, native: [] }] : [];
+      });
+      if (saved.length) points = portfolioHistoryRangePoints(saved, state.portfolioHistoryRange);
+    }
+    const complete = point => pnlMode ? point.historyComplete : point.valueComplete;
+    const key = JSON.stringify([state.session?.user?.id, currency, state.portfolioHistoryRange, pnlMode, points, needsConversion, state.displayFxStatus]);
+    if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
+    portfolioRenderKey = key;
     const latest = points.at(-1);
     const value = (point) =>
       pnlMode ? point.unrealizedMinor : point.valueMinor;
@@ -5573,7 +5600,7 @@ function renderPortfolioHistory() {
         ? `<div><span>Known unrealized P/L</span><strong>${latest.comparableUnits ? money(latest.unrealizedMinor / 100, currency) : latest.knownZeroActive ? money(0, currency) : "—"}${latest.unrealizedPercent === null ? "" : ` (${latest.unrealizedPercent.toFixed(1)}%)`}</strong></div><div><span>Known realized P/L</span><strong>${latest.knownRealizedSales ? money(latest.realizedMinor / 100, currency) : "—"}</strong></div>`
         : `<div><span>Known value</span><strong>${latest.pricedUnits || latest.knownZeroActive ? money(latest.valueMinor / 100, currency) : "—"}</strong></div><div><span>Priced copies</span><strong>${latest.pricedUnits}</strong></div>`
       : "";
-    root.innerHTML = `<div class="portfolio-history-head"><strong>${pnlMode ? "Portfolio profit or loss" : "Portfolio value"} · ${currency}</strong>${rangeControls()}</div>${latest ? `<div class="portfolio-history-metrics">${metrics}<div><span>Coverage on ${esc(latest.date)}</span><strong>${coverage(latest)}</strong></div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="${pnlMode ? "Known unrealized profit or loss" : "Known value"} by recorded date in ${currency}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${points.map((point) => `${point.date}: ${available(point) ? money(value(point) / 100, currency) : "unavailable"}${point.historyComplete ? "" : " partial"}; ${coverage(point)}`).join("; ")}</p><p class="portfolio-history-note">Round dots have complete coverage; diamonds show partial known amounts without a connecting line. No price is filled in for an unobserved date. ${points.some(point => point.rateRef) ? `Display conversion uses ECB rate ${esc(lastValidatedFxRate.effectiveDate)}, not historical exchange rates.` : ""}${needsConversion ? ` Currency conversion ${state.displayFxStatus === "loading" ? "is loading" : "is unavailable"}.` : ""}</p>${needsConversion && state.displayFxStatus === "error" ? '<button type="button" data-portfolio-fx-retry>Retry conversion</button>' : ""}${nativeDetails}` : `<div class="portfolio-history-empty"><strong>${empty}</strong><span>${state.portfolioHistoryStatus === "error" ? "Your saved records are unchanged." : "Try a longer range or wait for recorded evidence."}</span>${state.portfolioHistoryStatus === "error" ? '<button type="button" data-portfolio-history-retry>Try again</button>' : ""}</div>`}`;
+    root.innerHTML = `<div class="portfolio-history-head"><strong>${pnlMode ? "Portfolio profit or loss" : "Portfolio value"} · ${currency}</strong>${rangeControls()}</div>${latest ? `<div class="portfolio-history-metrics">${metrics}<div><span>Coverage on ${esc(latest.date)}</span><strong>${coverage(latest)}</strong></div></div><div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="${pnlMode ? "Known unrealized profit or loss" : "Known value"} by recorded date in ${currency}" aria-describedby="portfolioChartSummary"></canvas></div><p class="sr-only" id="portfolioChartSummary">${points.map((point) => `${point.date}: ${available(point) ? money(value(point) / 100, currency) : "unavailable"}${point.historyComplete ? "" : " partial"}; ${coverage(point)}`).join("; ")}</p><p class="portfolio-history-note">The line includes complete portfolio values only. Historical prices carry forward within their source freshness window; missing coverage leaves a gap. ${points.some(point => point.rateRef) ? `Display conversion uses ECB rate ${esc(lastValidatedFxRate.effectiveDate)}, not historical exchange rates.` : ""}${needsConversion ? ` Currency conversion ${state.displayFxStatus === "loading" ? "is loading" : "is unavailable"}.` : ""}</p>${needsConversion && state.displayFxStatus === "error" ? '<button type="button" data-portfolio-fx-retry>Retry conversion</button>' : ""}${nativeDetails}` : `<div class="portfolio-history-empty"><strong>${empty}</strong><span>${state.portfolioHistoryStatus === "error" ? "Your saved records are unchanged." : "Try a longer range or wait for recorded evidence."}</span>${state.portfolioHistoryStatus === "error" ? '<button type="button" data-portfolio-history-retry>Try again</button>' : ""}</div>`}`;
     const graph = $(".portfolio-chart-shell", root);
     const summary = $(".portfolio-history-metrics", root);
     const details = $(".portfolio-native-history", root);
@@ -5583,25 +5610,21 @@ function renderPortfolioHistory() {
       const note = $(".portfolio-history-note", root);
       if (note) details.insertBefore(note, $(".history-table-scroll", details));
       details.open = detailsOpen;
-      graph.insertAdjacentHTML("afterend", `<p class="portfolio-chart-coverage">${latest.historyComplete ? "Complete recorded coverage" : `Partial history · ${latest.pricedUnits} priced · ${latest.missingUnits} missing price`}${needsConversion ? " · conversion unavailable" : latest.rateRef ? ` · ECB display rate ${esc(lastValidatedFxRate.effectiveDate)}` : ""}</p>`);
+      graph.insertAdjacentHTML("afterend", `<p class="portfolio-chart-coverage">${complete(latest) ? "" : `History incomplete · ${latest.missingUnits} awaiting prices${latest.unknownMembershipUnits ? ` · ${latest.unknownMembershipUnits} need purchase dates` : ""}`}${needsConversion ? " · conversion unavailable" : latest.rateRef ? ` · ECB display rate ${esc(lastValidatedFxRate.effectiveDate)}` : ""}</p>`);
     }
     bindControls();
     $("[data-portfolio-fx-retry]", root)?.addEventListener("click", () => void loadDisplayFx());
-    if (points.length > 1 && points.some(available))
+    if (points.some(point => available(point) && complete(point)))
       requestAnimationFrame(
         () =>
           void mountPortfolioHistoryChart({
             points,
             values: points.map((point) =>
-              available(point) && point.historyComplete
+              available(point) && complete(point)
                 ? value(point) / 100
                 : null,
             ),
-            partialValues: points.map((point) =>
-              available(point) && !point.historyComplete
-                ? value(point) / 100
-                : null,
-            ),
+            partialValues: null,
             currency,
             marketMode: false,
             pnlMode,
@@ -5715,30 +5738,17 @@ async function capturePortfolioValuation() {
   state.portfolioHistoryStatus = "saving";
   try {
     for (const currency of currencies) {
-      // Existing snapshots have no exact-sold provenance fields; persist only
-      // the reference-supported raw/sealed subset until an additive schema is reviewed.
-      const summary = portfolioProfitLoss(
-        state.items.filter(
-          (item) => item.cardState !== "graded" && !item.gradingCompany,
-        ),
-        currency,
-      );
-      if (!summary.pricedUnits) continue;
+      // Aggregate display checkpoint only; never used as exact-sold card evidence.
+      const summary = portfolioProfitLoss(portfolioItems(), currency);
+      if (!summary.pricedUnits || summary.missingUnits) continue;
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       await recordPortfolioValuationSnapshot(supabase, {
         total: summary.valueMinor / 100,
         currency,
         pricedItems: summary.pricedUnits,
         unpricedItems:
-          summary.missingUnits +
-          state.items
-            .filter(
-              (item) =>
-                (item.cardState === "graded" || item.gradingCompany) &&
-                String(item.currency || "USD").toUpperCase() === currency,
-            )
-            .reduce((count, item) => count + Number(item.quantity || 0), 0),
-        freshItems: summary.pricedUnits,
+          summary.missingUnits,
+        freshItems: Math.max(0, summary.pricedUnits - portfolioItems().filter(item => item.currency === currency && item.retainedPrice).reduce((total, item) => total + Number(item.quantity || 0), 0)),
       });
     }
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
@@ -5977,7 +5987,11 @@ function renderSoftwareModeHome() {
   const chart = $("#portfolioHistory");
   const kpis = $("#view-dashboard > .dashboard-kpis");
   const details = $("#dashboardMoneyDetails");
-  if (chart && kpis) dashboard.insertBefore(chart, kpis);
+  if (chart && kpis) {
+    dashboard.insertBefore(chart, kpis);
+    const hero = $("#portfolioValue")?.closest("article");
+    if (hero) { hero.classList.add("portfolio-hero"); dashboard.insertBefore(hero, chart); }
+  }
   const accounting = $("#dashboardAccountingKpis");
   for (const id of ["ownedCount", "gradedOwnedCount", "sealedOwnedCount"]) {
     const card = $(`#${id}`)?.closest("article");
@@ -6005,8 +6019,6 @@ function renderSoftwareModeHome() {
   if ($("#dashboardTitle")) $("#dashboardTitle").textContent = "Portfolio";
   if ($("#dashboardSubtitle")) $("#dashboardSubtitle").textContent = "Your collection, over time";
   if ($("#dashboardHighestTitle")) $("#dashboardHighestTitle").textContent = "Your cards";
-  if ($("#portfolioToplineLabel")) $("#portfolioToplineLabel").textContent = `Known ${displayCurrency()} collection value`;
-  if (!state.largeInventory.active && state.items.some(item => item.status !== "sold" && Number(item.quantity) > 0) && !state.items.some(item => item.status !== "sold" && itemValue(item) != null)) $("#portfolioValue").textContent = "—";
 }
 
 function renderDashboardHighlights() {
@@ -6729,6 +6741,10 @@ function renderCollection() {
   if (state.displayFxStatus === "ready" && !usableFxRate(lastValidatedFxRate)) state.displayFxStatus = "idle";
   if (profitLoss.unconvertedUnits && state.displayFxStatus === "idle") void loadDisplayFx();
   $("#retryDisplayFx").hidden = !profitLoss.unconvertedUnits || state.displayFxStatus !== "error";
+  const storedSnapshots = [...new Set(state.items.map(item => item.currency || "USD"))].map(currency => state.portfolioHistory.filter(point => point.currency === currency && Number.isFinite(point.total)).at(-1));
+  const storedAmounts = storedSnapshots.map(point => point ? convertIndicative(point.total, point.currency, selectedCurrency, lastValidatedFxRate) : null);
+  const lastSnapshot = storedSnapshots.length && storedAmounts.every(amount => amount !== null) && new Set(storedSnapshots.map(point => point.date)).size === 1 ? { total: storedAmounts.reduce((sum, amount) => sum + amount, 0), unpricedItems: storedSnapshots.reduce((sum, point) => sum + point.unpricedItems, 0) } : null;
+  const restoreSnapshot = lastSnapshot?.unpricedItems === 0 && (profitLoss.missingUnits > 0 || !profitLoss.pricedUnits && state.items.every(item => item.pricingStatus === "loading") && ["idle", "loading"].includes(state.pricingStatus));
   const euroProfitLoss = portfolioProfitLoss(valuedItems, "EUR");
   const priceCoverage = portfolioPriceCoverage(state.items, {
     currency: "USD",
@@ -6744,10 +6760,12 @@ function renderCollection() {
     .filter((item) => item.cardState === "sealed")
     .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   const portfolioReturn = profitLoss.unrealizedPercent;
-  $("#portfolioToplineLabel").textContent = `Known ${selectedCurrency} collection value`;
-  $("#portfolioValue").textContent = profitLoss.pricedUnits
+  $("#portfolioToplineLabel").textContent = profitLoss.missingUnits ? "Known portfolio value" : "Total portfolio value";
+  $("#portfolioValue").textContent = restoreSnapshot ? money(lastSnapshot.total, selectedCurrency) : profitLoss.pricedUnits
     ? money(profitLoss.valueMinor / 100, selectedCurrency)
-    : "—";
+    : profitLoss.knownZeroActive && state.items.length === 0 ? money(0, selectedCurrency) : "—";
+  $("#portfolioValue").dataset.savedSnapshot = String(Boolean(restoreSnapshot));
+  if (restoreSnapshot) $("#portfolioToplineLabel").textContent = lastSnapshot.unpricedItems ? "Last known portfolio value" : "Last updated portfolio value";
   $("#costBasis").textContent = profitLoss.knownBasisUnits ? money(profitLoss.knownBasisMinor / 100, selectedCurrency) : "—";
   $("#unrealized").textContent = profitLoss.comparableUnits
     ? `${profitLoss.unrealizedMinor >= 0 ? "Up " : "Down "}${money(Math.abs(profitLoss.unrealizedMinor) / 100, selectedCurrency)}${profitLoss.unrealizedPercent === null ? "" : ` (${profitLoss.unrealizedPercent >= 0 ? "+" : ""}${profitLoss.unrealizedPercent.toFixed(1)}%)`}`
@@ -6790,7 +6808,7 @@ function renderCollection() {
     : "";
   $("#portfolioChange").textContent =
     workspaceMode === "collector"
-      ? `Known ${selectedCurrency} value${partial}${profitLoss.rateRef ? ` · ECB rate ${lastValidatedFxRate.effectiveDate}` : ""}${profitLoss.unconvertedUnits ? ` · ${profitLoss.unconvertedUnits} awaiting conversion` : ""}.`
+      ? `Portfolio value${partial}${valuedItems.some(item => item.retainedPrice) ? " · includes older prices" : ""}${profitLoss.rateRef ? ` · ECB rate ${lastValidatedFxRate.effectiveDate}` : ""}${profitLoss.unconvertedUnits ? ` · ${profitLoss.unconvertedUnits} awaiting conversion` : ""}.`
       : profitLoss.comparableUnits
         ? `${gain >= 0 ? "Up" : "Down"} ${money(Math.abs(gain))}${portfolioReturn === null ? "" : ` (${portfolioReturn >= 0 ? "+" : ""}${portfolioReturn.toFixed(1)}%)`} since purchase${partial}${costCoverage}`
         : hasProviderPricing
@@ -6854,7 +6872,7 @@ function renderCollection() {
           : state.pricingStatus === "error"
             ? "Live pricing is temporarily unavailable"
             : "Waiting for live prices";
-  $(".status-label").innerHTML = `<i></i> ${pricingLabel}`;
+  $(".status-label").innerHTML = `<i></i> ${state.pricingStatus === "loading" ? "Updating prices" : pricingLabel}`;
   const syncLabels = {
     loading: "Prices updating",
     live: "Prices current",
@@ -8049,6 +8067,11 @@ async function loadOwnedDetailPricing(
 ) {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
+  if (portfolioPricingRequest?.owner === ownerId && portfolioPricingRequest.version === loadVersion) {
+    await portfolioPricingRequest.promise;
+    if (!accountRequestIsCurrent(ownerId, loadVersion) || !detailRequestIsCurrent(guard)) return;
+    item = state.items.find(copy => copy.uid === item.uid) || item;
+  }
   const historyKey = JSON.stringify([ownerId, loadVersion, guard.selectionKey, guard.contextKey]);
   const historyAge = Date.now() - Number(item.historyLoadedAt);
   if (item.historyLoadedKey === historyKey && item.historyStatus === "live" && historyAge >= 0 && historyAge < 15 * 60_000 && quoteStatus(selectPositionQuote(item.quotes || [], item)) === "live") return;
@@ -11175,7 +11198,12 @@ async function reloadPortfolio(
   applyLoadedOrganization(organization);
   const inventory = await loadCollectionInventory(ownerId, organization);
   if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-  state.items = inventory.items;
+  state.items = inventory.items.map(item => {
+    const previous = state.items.find(copy => copy.uid === item.uid && detailIdentityKey(copy) === detailIdentityKey(item) && detailContextKey(valuationContextForItem(copy)) === detailContextKey(valuationContextForItem(item)));
+    if (!previous) return item;
+    const fields = ["price", "referencePrice", "quotes", "priceCapabilities", "historyStatus", "priceHistory", "pricingStatus", "pricingReason", "pricingUpdatedAt", "historyLoadedAt", "historyLoadedKey", "exactSaleEvidence", "gradedValuations"];
+    return { ...item, ...Object.fromEntries(fields.filter(key => previous[key] !== undefined).map(key => [key, previous[key]])) };
+  });
   state.largeInventory = inventory.largeInventory;
   applyLoadedOrganization(organization);
   state.movementStatus = "idle";
@@ -17082,11 +17110,25 @@ export async function openCsvImportReview(csvText, file) {
 }
 
 async function refreshLivePricing(positionIds = null) {
+  const owner = state.session?.user?.id;
+  const version = sessionLoadVersion;
+  if (portfolioPricingRequest?.owner === owner && portfolioPricingRequest.version === version) {
+    await portfolioPricingRequest.promise;
+    if (!positionIds || !accountRequestIsCurrent(owner, version)) return;
+  }
+  const request = { owner, version, promise: updateLivePricing(positionIds) };
+  portfolioPricingRequest = request;
+  try { await request.promise; } finally { if (portfolioPricingRequest === request) portfolioPricingRequest = null; }
+}
+
+async function updateLivePricing(positionIds = null) {
   const selectedPositions = positionIds ? new Set(positionIds) : null;
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
   if (!ownerId) return;
-  const uniqueItems = state.items.filter(item => item.id && (!selectedPositions || selectedPositions.has(item.uid)));
+  const originalItems = state.items;
+  let updatedItems = [...originalItems];
+  const uniqueItems = originalItems.filter(item => item.id && (!selectedPositions || selectedPositions.has(item.uid)) && !(item.historyStatus === "live" && item.pricingStatus === "live" && Date.now() - Number(item.historyLoadedAt) < 15 * 60_000));
   if (!uniqueItems.length) return;
   const cardItems = [...new Map(uniqueItems.filter(item => item.cardState !== "sealed" && item.cardState !== "graded" && !item.gradingCompany).map(item => [item.id, item])).values()];
   const sealedItems = [...new Map(uniqueItems.filter(item => item.cardState === "sealed").map(item => [item.id, item])).values()];
@@ -17101,6 +17143,7 @@ async function refreshLivePricing(positionIds = null) {
     number: item.number,
     language: item.language || "en",
   }));
+  const signal = AbortSignal.timeout(60_000);
   state.pricingStatus = "loading";
   renderCollection();
   try {
@@ -17115,10 +17158,12 @@ async function refreshLivePricing(positionIds = null) {
     for (let start = 0; start < lookups.length; start += 2) {
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       const batch = lookups.slice(start, start + 2);
-      const response = await fetch(
-        `/api/cards?lookups=${encodeURIComponent(JSON.stringify(batch))}`,
-        { headers: providerRequestHeaders() },
-      );
+      if (signal.aborted) { partial = true; break; }
+      let response;
+      try { response = await fetch(
+        `/api/cards?history=full&lookups=${encodeURIComponent(JSON.stringify(batch))}`,
+        { headers: providerRequestHeaders(), signal },
+      ); } catch { partial = true; batch.forEach(lookup => failedIds.add(lookup.clientId)); if (signal.aborted) break; continue; }
       if (response.status === 429) {
         rateLimited = true;
         partial = true;
@@ -17134,21 +17179,20 @@ async function refreshLivePricing(positionIds = null) {
       );
       partial =
         partial || Boolean(payload.partial) || payload.unavailable?.length > 0;
-      state.items = state.items.map(item => batch.some(lookup => lookup.clientId === item.id) ? applyPricing(item) : item);
-      renderCollection();
     }
     for (let start = 0; start < sealedItems.length; start += 1) {
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-      if (rateLimited) break;
+      if (rateLimited || signal.aborted) { partial = true; break; }
       const batch = sealedItems.slice(start, start + 1);
       const results = await Promise.allSettled(
         batch.map(async (item) => {
           const id =
             item.externalIds?.pkmnpricesSealed ||
             String(item.id).replace(/^sealed:/, "");
+          signal.throwIfAborted();
           const response = await fetch(
             `/api/sealed?id=${encodeURIComponent(id)}`,
-            { headers: providerRequestHeaders() },
+            { headers: providerRequestHeaders(), signal },
           );
           if (!response.ok) throw new Error(String(response.status));
           const payload = await response.json();
@@ -17184,18 +17228,9 @@ async function refreshLivePricing(positionIds = null) {
                 item.price == null ? "rate_limited" : item.pricingStatus,
             }
           : item;
-      if (!card)
-        return {
-          ...item,
-          price: null,
-          referencePrice: null,
-          move: null,
-          quotes: [],
-          pricingStatus: "missing",
-          pricingReason: "provider_match_missing",
-          pricingUpdatedAt: null,
-        };
+      if (!card) return { ...item, pricingReason: "provider_match_missing", pricingStatus: item.price != null ? item.pricingStatus : "missing" };
       const quote = selectPositionQuote(card.quotes, item);
+      if (!selectPositionQuote(card.quotes, item) && selectPositionQuote(item.quotes || [], item)) return { ...item, pricingReason: "provider_refresh_failed" };
       const quoteState = quote ? quoteStatus(quote) : null;
       const capabilityState = capabilityStatusForItem(card, item);
       const updated = {
@@ -17212,6 +17247,8 @@ async function refreshLivePricing(positionIds = null) {
         referencePrice: quote?.amount ?? null,
         quotes: card.quotes,
         priceCapabilities: card.capabilities || null,
+        historyLoadedAt: Date.now(),
+        historyLoadedKey: JSON.stringify([ownerId, loadVersion, detailIdentityKey(item), detailContextKey(valuationContextForItem(item))]),
         historyStatus: card.historyStatus === "not_requested" ? item.historyStatus : card.historyStatus || null,
         priceHistory: quote
           ? recordPriceObservation(
@@ -17231,12 +17268,10 @@ async function refreshLivePricing(positionIds = null) {
       return { ...updated, move: movement?.changePercent ?? null, movement };
     }
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-    state.items = state.items.map(applyPricing);
-    catalog = catalog.map((item) =>
-      cards.has(item.id) ? applyPricing(item) : item,
-    );
+    updatedItems = updatedItems.map(applyPricing);
+
     const gradedGroups = new Map();
-    for (const item of state.items) {
+    for (const item of updatedItems) {
       if (!(item.cardState === "graded" || item.gradingCompany) || (selectedPositions && !selectedPositions.has(item.uid))) continue;
       const printing = selectedPrinting(item);
       if (printing.status !== "exact" || [printing.finish, printing.edition, printing.promoType].includes("unknown") || item.gradeQualifier == null) {
@@ -17244,25 +17279,31 @@ async function refreshLivePricing(positionIds = null) {
         continue;
       }
       const key = detailIdentityKey(item) + "|" + detailContextKey(valuationContextForItem(item));
-      if (!gradedGroups.has(key)) gradedGroups.set(key, item);
+      if (uniqueItems.includes(originalItems.find(copy => copy.uid === item.uid)) && !gradedGroups.has(key)) gradedGroups.set(key, item);
     }
     for (const [key, item] of gradedGroups) {
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       try {
-        const { response, payload } = await fetchSaleEvidence(saleLookupForItem(item));
+        if (signal.aborted) { partial = true; break; }
+        const { response, payload } = await fetchSaleEvidence(saleLookupForItem(item), signal);
         if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
         if (!response.ok) { partial = true; if (response.status === 429) break; continue; }
         const evidence = { ...payload, salesStatus: "live", selectionKey: detailIdentityKey(item), contextKey: detailContextKey(valuationContextForItem(item)) };
         const result = exactSoldValuation(evidence.sales || [], exactSaleContext(item, valuationContextForItem(item)), { validatedContext: evidence.validatedContext, retrievedAt: evidence.retrievedAt, hasMore: evidence.hasMore });
-        state.items = state.items.map(copy => detailIdentityKey(copy) + "|" + detailContextKey(valuationContextForItem(copy)) === key ? { ...copy, exactSaleEvidence: evidence, price: result.status === "ready" ? result.estimate : null, referencePrice: result.estimate, pricingStatus: result.status === "ready" ? "live" : result.status === "stale" ? "stale" : "missing", pricingUpdatedAt: result.newestSoldAt } : copy);
-        renderCollection();
+        updatedItems = updatedItems.map(copy => detailIdentityKey(copy) + "|" + detailContextKey(valuationContextForItem(copy)) === key ? { ...copy, exactSaleEvidence: evidence, historyLoadedAt: Date.now(), historyStatus: "live", price: result.status === "ready" ? result.estimate : null, referencePrice: result.estimate, pricingStatus: result.status === "ready" ? "live" : result.status === "stale" ? "stale" : "missing", pricingUpdatedAt: result.newestSoldAt } : copy);
       } catch { partial = true; }
     }
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    state.items = state.items.map(item => {
+      const original = originalItems.find(copy => copy.uid === item.uid);
+      return original === item ? updatedItems.find(copy => copy.uid === item.uid) || item : item;
+    });
     const coverage = portfolioPriceCoverage(state.items);
     state.pricingStatus =
       partial || coverage.liveAutomaticUnits < coverage.totalUnits
         ? "partial"
         : "live";
+    catalog = catalog.map(item => cards.has(item.id) ? applyPricing(item) : item);
     state.pricingRetrievedAt = retrievedAt;
     renderCollection();
     if (!state.largeInventory.active) await capturePortfolioValuation();
@@ -21390,6 +21431,9 @@ window.addEventListener("appinstalled", () => {
 });
 window.addEventListener("online", () => {
   if (state.session && state.accountLoadError) void retryAccountLoad();
+});
+document.addEventListener("visibilitychange", () => {
+  if (!nativeBuild && document.visibilityState === "visible" && state.session && !state.accountLoading && !state.accountLoadError && state.items.some(item => Date.now() - Number(item.historyLoadedAt || 0) >= 15 * 60_000)) void refreshLivePricing();
 });
 window
   .matchMedia("(display-mode: standalone)")

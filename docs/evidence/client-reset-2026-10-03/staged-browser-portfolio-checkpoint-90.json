@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-10-09T04:31:15.161Z",
+  "deployment": "dpl_GEyTv64piFssSPg2iaqkUDCXGE1n",
+  "compiledShippingAssets": true,
+  "shippingCsp": true,
+  "realDemoAuthentication": true,
+  "syntheticTwoCopyInventory": true,
+  "realStagedProviderPricing": true,
+  "previousCompleteTotalVisibleUntilBatch": true,
+  "totalValueVisible": true,
+  "historyChartVisible": true,
+  "stableCanvasAndValueAfterRefresh": true,
+  "freshForegroundNoRefetch": true,
+  "largeGreenHeroAboveChart": true,
+  "pricing": [
+    {
+      "elapsedMs": 9081,
+      "historyRows": 865,
+      "quotes": 9
+    }
+  ],
+  "uncaughtErrors": [],
+  "blockedWrites": 3,
+  "customerWrites": 0,
+  "sqlExecuted": false
+}

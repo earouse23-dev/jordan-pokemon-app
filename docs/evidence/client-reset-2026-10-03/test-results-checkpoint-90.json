@@ -1,0 +1,25 @@
+{
+  "unit": {
+    "passed": 547,
+    "skipped": 3,
+    "failed": 0
+  },
+  "portfolioBrowser": {
+    "passed": 9,
+    "failed": 0,
+    "engines": [
+      "desktop-chromium",
+      "mobile-chromium",
+      "mobile-webkit"
+    ]
+  },
+  "previousAffectedCardProfileChecks": 93,
+  "lintSources": 98,
+  "syntax": true,
+  "initialColorCheckFailure": "test server was still serving old built CSS; rebuilt before rerunning unchanged color assertion",
+  "integrationLimit": "Some account bootstrap attempts returned HTTP401 on a secondary collection_goals read before pricing; a later instrumented attempt and final staged pricing workflow passed. No cause established or authorization relaxed.",
+  "intentionalChanges": [
+    "Carry only earlier historical observations within existing 96-hour raw / 90-day validated graded freshness policy; incomplete totals now gap instead of drawing partial amounts as full portfolio.",
+    "Only complete native-currency aggregate checkpoints persist, including validated exact-sold graded amounts; aggregate snapshots never authorize individual graded values."
+  ]
+}

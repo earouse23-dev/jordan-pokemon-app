@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-10-09T04:27:22.422Z",
+  "stage": "/tmp/mica-client-reset-corrected",
+  "functions": 9,
+  "deployEntries": 65,
+  "sourceEntries": 96,
+  "deploymentZipSha256": "7be9a32e1b390b5e1b06c067bd88c1b24491c65382ddde689173f7cc222a452a",
+  "sourceZipSha256": "9d59b3574a05af8b65ae8d48a2ef7b016f3c8e1d5cf2f56df19829be67cdd2a7",
+  "manifestSha256": "a857d1a34abe18a4250f7525dc348e58733e63da44f1480185b5ab5ae9a42984",
+  "repeatBuildIdentical": true,
+  "changedSource": [
+    "app.js",
+    "lib/portfolio.js",
+    "sw.js",
+    "themes.css"
+  ],
+  "entriesScanned": 161,
+  "privateFindings": 0
+}

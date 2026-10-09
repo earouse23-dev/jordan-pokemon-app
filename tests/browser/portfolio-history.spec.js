@@ -6,7 +6,7 @@ import { normalizeTcgdexCard } from "../../lib/providers/tcgdex.js";
 import { collectibleIdentitySnapshot } from "../../lib/identity.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=111";
+const appUrl = "/app.js?v=114";
 const evidenceDir = fileURLToPath(
   new URL("../../docs/evidence/sol-client-06/", import.meta.url),
 );
@@ -25,7 +25,7 @@ test.beforeAll(async () => {
   );
   const bundle = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderCollection, renderPortfolioHistory, routeTo, bindEvents, portfolioChartInstance, portfolioItems, capturePortfolioValuation, exactSaleContext, valuationContextForItem, portfolioProfitLoss };`,
+      contents: `${source}\nexport { state, renderCollection, renderPortfolioHistory, routeTo, bindEvents, portfolioChartInstance, portfolioItems, capturePortfolioValuation, exactSaleContext, valuationContextForItem, portfolioProfitLoss, refreshLivePricing };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -46,7 +46,7 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
   // Keep action/assertion limits; allow the complete workflow its own total budget.
   test.setTimeout(120_000);
   await page.clock.install({ time: new Date("2026-09-25T12:00:00Z") });
-  await page.route("**/app.js?v=111", (route) =>
+  await page.route("**/app.js?v=114", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -197,13 +197,11 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
       page.evaluate(async (url) => {
         const { portfolioChartInstance } = await import(url);
         return (
-          portfolioChartInstance?.data.datasets[1]?.data.filter(
-            (value) => value !== null,
-          ).length || 0
+          portfolioChartInstance?.data.datasets.length || 0
         );
       }, appUrl),
     )
-    .toBe(2);
+    .toBe(1);
   await page.evaluate(() =>
     document.querySelector("#toastRegion").replaceChildren(),
   );
@@ -423,13 +421,11 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
       page.evaluate(async (url) => {
         const { portfolioChartInstance } = await import(url);
         return (
-          portfolioChartInstance?.data.datasets[1]?.data.filter(
-            (value) => value !== null,
-          ).length || 0
+          portfolioChartInstance === null
         );
       }, appUrl),
     )
-    .toBe(1);
+    .toBe(true); // Unknown ownership means no misleading partial-value line.
   await page.evaluate(async (appUrl) => {
     const { state, renderPortfolioHistory, routeTo } = await import(appUrl);
     state.items = [];
@@ -452,7 +448,7 @@ test("graded reference index cannot enter portfolio totals or snapshots; exact s
   page,
 }) => {
   await page.clock.install({ time: new Date("2026-09-25T12:00:00Z") });
-  await page.route("**/app.js?v=111", (route) =>
+  await page.route("**/app.js?v=114", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -632,5 +628,65 @@ test("graded reference index cannot enter portfolio totals or snapshots; exact s
   expect(results.exactScreen).toContain("€120.00");
   expect(results.wrongGrade.pricedUnits).toBe(0);
   expect(results.stale.pricedUnits).toBe(0);
-  expect(snapshotWrites).toBe(0);
+  expect(snapshotWrites).toBe(1); // Only the validated exact-sold aggregate is saved; never the index, wrong grade or stale result.
+});
+
+
+test("portfolio refresh publishes once, shares requests and retains values on failed batches", async ({ page }) => {
+  await page.route("**/app.js?v=114", route => route.fulfill({ contentType: "application/javascript", body: instrumentedApp }));
+  await page.route("**/app-config.js*", route => route.fulfill({ contentType: "application/javascript", body: 'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};' }));
+  await page.route("https://mica-portfolio-test.supabase.co/**", route => route.fulfill({ contentType: "application/json", body: "[]" }));
+  await page.route("**/api/**", route => route.abort());
+  let requests = 0;
+  let releaseLast;
+  const last = new Promise(resolve => { releaseLast = resolve; });
+  await page.route("**/api/cards?**", async route => {
+    requests++;
+    const lookups = JSON.parse(new URL(route.request().url()).searchParams.get("lookups"));
+    expect(new URL(route.request().url()).searchParams.get("history")).toBe("full");
+    if (lookups.some(row => row.clientId === "C")) { await last; await route.fulfill({ status: 502, contentType: "application/json", body: "{}" }); return; }
+    const now = new Date().toISOString();
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify({ retrievedAt: now, cards: lookups.map(row => ({ providerCardId: row.clientId, externalIds: {}, quotes: [{ provider: "tcgplayer", market: "tcgplayer", currency: "USD", finish: "holofoil", condition: "Near Mint", amount: 200, priceType: "market", observedAt: now, retrievedAt: now }], historyStatus: "live", history: [{ provider: "tcgplayer", currency: "USD", finish: "holofoil", condition: "Near Mint", recordedAt: now, amount: 200 }] })) }) });
+  });
+  await page.goto("/");
+  await page.evaluate(async appUrl => {
+    const app = await import(appUrl);
+    const now = new Date().toISOString();
+    app.state.session = { user: { id: "11111111-1111-4111-8111-111111111111" } };
+    app.state.accountLoading = false; app.state.organization.status = "ready";
+    app.state.preferences.displayCurrency = "USD";
+    app.state.items = ["A", "B", "C"].map(id => ({ uid: id, id, name: "Synthetic " + id, set: "Synthetic", number: "1", variant: "Holofoil", language: "en", condition: "Near Mint", rawCondition: "near_mint", currency: "USD", cardState: "raw", quantity: 1, costBasis: 50, price: 100, pricingStatus: "live", tags: [], transactions: [], lots: [{ acquiredAt: now.slice(0, 10), quantityAcquired: 1, quantityRemaining: 1, totalCost: 50, currency: "USD" }], quotes: [{ provider: "tcgplayer", market: "tcgplayer", priceType: "market", finish: "holofoil", condition: "Near Mint", currency: "USD", amount: 100, observedAt: now, retrievedAt: now }], priceHistory: [{ provider: "tcgplayer", finish: "holofoil", condition: "Near Mint", currency: "USD", amount: 100, recordedAt: new Date(Date.now() - 86_400_000).toISOString() }, { provider: "tcgplayer", finish: "holofoil", condition: "Near Mint", currency: "USD", amount: 100, recordedAt: now }] }));
+    document.body.dataset.uiTheme = "mica"; document.body.dataset.workspace = "collector"; document.body.classList.add("authenticated"); document.querySelector("#authGate").hidden = true; document.querySelector("#appShell").removeAttribute("aria-hidden"); app.bindEvents();
+    const cachedItems = app.state.items;
+    app.state.items = cachedItems.map(item => ({ ...item, price: null, pricingStatus: "loading" }));
+    app.state.portfolioHistory = [{ date: now.slice(0, 10), currency: "USD", total: 300, pricedItems: 3, unpricedItems: 0 }];
+    app.state.pricingStatus = "idle"; app.renderCollection();
+    globalThis.__restoredPortfolioValue = document.querySelector("#portfolioValue").textContent;
+    app.state.items = cachedItems;
+    app.state.pricingStatus = "live"; app.routeTo("dashboard"); app.renderCollection();
+    globalThis.__portfolioRun = Promise.all([app.refreshLivePricing(), app.refreshLivePricing()]);
+  }, appUrl);
+  expect(await page.evaluate(() => globalThis.__restoredPortfolioValue)).toBe("$300.00");
+  await expect.poll(() => requests).toBe(2);
+  await expect(page.locator("#portfolioValue")).toHaveText("$300.00");
+  await expect(page.locator(".status-label")).toContainText("Updating prices");
+  const previousCanvas = await page.locator("#portfolioHistoryChart").elementHandle();
+  await page.waitForTimeout(500);
+  expect(await previousCanvas.evaluate(node => node.isConnected)).toBe(true);
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  expect(requests).toBe(2); // Returning while a batch is active shares that same refresh.
+  releaseLast();
+  await page.evaluate(() => globalThis.__portfolioRun);
+  await expect(page.locator("#portfolioValue")).toHaveText("$500.00");
+  await expect(page.locator("#portfolioToplineLabel")).toHaveText("Total portfolio value");
+  await expect(page.locator("#portfolioValue")).toHaveCSS("color", "rgb(79, 99, 72)");
+  expect(requests).toBe(2);
+  await page.evaluate(async appUrl => { const app = await import(appUrl); await app.refreshLivePricing(["A", "B"]); }, appUrl);
+  expect(requests).toBe(2); // Fresh owned detail/collection history does not refetch.
+  await expect.poll(() => page.evaluate(async url => Boolean((await import(url)).portfolioChartInstance), appUrl)).toBe(true);
+  const result = await page.evaluate(async appUrl => {
+    const app = await import(appUrl); const chart = app.portfolioChartInstance; app.renderCollection(); app.renderCollection();
+    return { sameChart: chart === app.portfolioChartInstance, prices: app.state.items.map(item => item.price), onlyCompleteDataset: chart.data.datasets.length === 1, heroBeforeChart: document.querySelector(".portfolio-hero").compareDocumentPosition(document.querySelector("#portfolioHistory")) & Node.DOCUMENT_POSITION_FOLLOWING };
+  }, appUrl);
+  expect(result).toEqual({ sameChart: true, prices: [200, 200, 100], onlyCompleteDataset: true, heroBeforeChart: 4 });
 });

@@ -6172,3 +6172,9 @@ body[data-appearance="dark"] .suffix-input { background: var(--paper-strong); co
 /* A detected document is a shape highlight, not an identity claim. */
 body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] #deviceCameraOutline polygon { fill: rgba(64,156,255,.22); stroke: #65b6ff; stroke-width: 3; }
 body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-scan-line { display: none; }
+
+/* Portfolio result leads; the existing chart keeps investment-style green ink. */
+body[data-ui-theme="mica"] #view-dashboard .portfolio-hero { padding: 0; margin: 0 0 12px; border: 0; background: transparent; box-shadow: none; }
+body[data-ui-theme="mica"] #view-dashboard .portfolio-hero .portfolio-value { display: block; color: var(--pine-2); font-size: clamp(38px, 6vw, 64px); line-height: 1.08; letter-spacing: -.04em; font-weight: 750; }
+body[data-ui-theme="mica"] #view-dashboard .portfolio-hero .portfolio-change { font-size: 12px; }
+body[data-ui-theme="mica"] #view-dashboard .portfolio-chart-shell { height: clamp(260px, 42vh, 480px); }
