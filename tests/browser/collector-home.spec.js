@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail }; export { hydratePosition } from "./lib/supabase-data.js";`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet }; export { hydratePosition } from "./lib/supabase-data.js";`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -162,7 +162,7 @@ test("client portfolio preserves unpriced inventory without rejected workspace c
   }, appUrl);
   await expect(page.locator("#dashboardHighestTitle")).toHaveText("Your cards");
   await expect(page.locator("#dashboardHighestCards button")).toHaveCount(2);
-  await expect(page.locator("#dashboardHighestCards")).toContainText("3 owned");
+  await expect(page.locator("#dashboardHighestCards")).toContainText("×3");
   await expect(page.locator("#softwareModeHome")).not.toBeVisible();
   await expect(page.locator("#collectionOrganization")).not.toBeVisible();
   await expect(page.locator("#softwareModeSettings")).not.toBeVisible();
@@ -172,7 +172,7 @@ test("client portfolio preserves unpriced inventory without rejected workspace c
   await expect(page.locator("#portfolioValue")).toBeVisible();
   await expect(page.locator("#portfolioValue")).toHaveText("—");
   const hierarchy = await page.locator("#portfolioHistory, #portfolioReturn, #portfolioValue").evaluateAll(nodes => nodes.map(node=>node.id));
-  expect(hierarchy).toEqual(["portfolioHistory", "portfolioReturn", "portfolioValue"]);
+  expect(hierarchy).toEqual(["portfolioValue", "portfolioHistory", "portfolioReturn"]);
   await expect(page.locator("#gradedOwnedCount")).not.toBeVisible();
   await expect(page.locator("#sealedOwnedCount")).not.toBeVisible();
   await expect(page.locator("#dashboardMoneyDetails")).not.toHaveAttribute("open", "");
@@ -746,4 +746,45 @@ test("recent owned history is reused only for its owner and matching context", a
   await expect.poll(()=>page.evaluate(()=>Date.now()-globalThis.fixtureApp.state.items[0].historyLoadedAt)).toBeLessThan(10000);
   await page.evaluate(async url=>{const {state}=await import(url);state.session={user:{id:"different-owner"}};},appUrl);
   await reopen(); await expect.poll(()=>calls).toBe(4);
+});
+
+test("additional purchase Free (trade) records known zero and can be unchecked", async ({ page }) => {
+  await openCollection(page);
+  await page.evaluate(async url => {
+    const { state, openPurchaseLotSheet } = await import(url);
+    openPurchaseLotSheet(state.items[0]);
+  }, appUrl);
+  await expect(page.getByLabel("Free (trade)")).toBeVisible();
+  await page.locator("#lotTotalCost").fill("12.50");
+  await page.getByLabel("Free (trade)").check();
+  await expect(page.locator("#lotTotalCost")).toHaveValue("0.00");
+  await expect(page.locator("#lotCostUnknown")).not.toBeChecked();
+  await expect(page.locator("#purchaseLotTotal")).toHaveText("$0.00");
+  await expect(page.locator("#lotTotalCost")).toHaveJSProperty("readOnly", true);
+  await page.getByLabel("Free (trade)").uncheck();
+  await expect(page.locator("#lotTotalCost")).toHaveValue("");
+  await expect(page.locator("#lotTotalCost")).toHaveJSProperty("readOnly", false);
+});
+
+test("known priced history remains visible with excluded slabs and dashboard position totals", async ({ page }, testInfo) => {
+  await openCollection(page);
+  await page.evaluate(() => {
+    const { state, renderCollection, routeTo } = globalThis.fixtureApp;
+    const base = state.items[0];
+    const today = new Date().toISOString().slice(0,10);
+    const lots = [{ acquiredAt: today, quantityAcquired: 2, quantityRemaining: 2, totalCost: 100, currency: "USD", costBasisKnown: true, acquisitionDateKnown: true }];
+    const priced = {...base, price:130, pricingStatus:"live", quantity:2, lots, transactions:[], priceHistory:[1,2,3].map(day=>({ recordedAt:new Date(Date.now()-day*86400000).toISOString(), amount:120, currency:"USD", finish:"holofoil", condition:"Near Mint", provider:"synthetic" }))};
+    lots[0].acquiredAt = new Date(Date.now()-4*86400000).toISOString().slice(0,10);
+    state.items=[priced, {...priced,uid:"excluded-slab",name:"Missing slab",cardState:"graded",gradingCompany:"PSA",grade:10,price:null,quantity:1,lots:[{...lots[0],quantityAcquired:1,quantityRemaining:1}],priceHistory:[]}];
+    state.portfolioHistoryMode="value";
+    renderCollection(); routeTo("dashboard",{focus:false});
+  });
+  await expect(page.locator("#dashboardHighestCards button").first()).toContainText("$260.00");
+  await expect(page.locator("#dashboardHighestCards button").first()).toContainText("×2");
+  await expect(page.locator("#dashboardHighestCards button").last()).not.toContainText("×1");
+  await expect(page.locator(".portfolio-chart-coverage")).toContainText("1 copies excluded");
+  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.data.datasets[1]?.data.filter(value=>value!==null).length || 0)).toBeGreaterThan(1);
+  expect(await page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance.data.datasets[0].data.every(value=>value===null))).toBe(true);
+  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.$traceProgress)).toBe(1);
+  await page.screenshot({path:testInfo.outputPath("known-history-and-position-values.png"),fullPage:true});
 });

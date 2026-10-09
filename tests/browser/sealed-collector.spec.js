@@ -85,9 +85,9 @@ test("sealed candidate rejects wrong language, preserves correction and retries 
     writes.push(route.request().postDataJSON());
     return route.fulfill({ status: writes.length === 1 ? 503 : 200, contentType: "application/json", body: writes.length === 1 ? '{"message":"temporary failure"}' : '"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"' });
   });
-  await page.locator("#sealedCostUnknown").check();
+  await page.locator("#sealedFree").check();
   await page.locator("#sealedCurrency").selectOption("EUR");
-  await expect(page.locator("#sealedPositionTotal")).toHaveText("Not recorded");
+  await expect(page.locator("#sealedPositionTotal")).toHaveText("€0.00");
   await page.locator(".intake-more > summary").click();
   await page.locator("#sealedDateUnknown").check();
   await page.locator('button[name="saveMode"][value="view"]').click();
@@ -96,7 +96,7 @@ test("sealed candidate rejects wrong language, preserves correction and retries 
   await expect.poll(() => writes.length).toBe(2);
   expect(writes[0].p_idempotency_key).toBe(writes[1].p_idempotency_key);
   expect(writes[1].p_identity).toMatchObject({ cardState: "sealed", productType: "elite_trainer_box", sealedRegion: "US", sealedVariant: "Pokemon Center", identityStatus: "needs_review", externalIds: {} });
-  expect(writes[1].p_identity.acquisitionCostKnown).toBe(false);
+  expect(writes[1].p_identity.acquisitionCostKnown).toBe(true);
   expect(writes[1].p_identity.acquisitionDateKnown).toBe(false);
   expect(writes[1].p_currency).toBe("EUR");
   await page.evaluate(async ({ url, identity }) => {
@@ -226,7 +226,7 @@ test("07E disposable sealed form survives lost response and fresh login with own
     const allSaved = await loadPortfolio(owner, createdIds[0]);
     const unknown = allSaved.filter((item) => item.name === "Synthetic Booster Box");
     expect(unknown, JSON.stringify({ rows: rawRows.data?.map((item) => ({ name: item.identity_snapshot?.name, id: item.id, currency: item.currency })), hydrated: allSaved.map((item) => ({ name: item.name, uid: item.uid, currency: item.currency })) })).toHaveLength(1);
-    expect(unknown[0]).toMatchObject({ currency: "USD", language: "ja", productType: "booster_box", quantity: 2, costBasis: null });
+    expect(unknown[0]).toMatchObject({ currency: "USD", language: "ja", productType: "booster_box", quantity: 2, costBasis: 0 });
     expect(unknown[0].transactions.filter((item) => item.type === "purchase")).toHaveLength(1);
     const sibling = client(anonKey);
     expect((await sibling.auth.signInWithPassword({ email: siblingEmail, password })).error).toBeNull();
