@@ -1,0 +1,94 @@
+{
+  "checkedAt": "2026-10-10T15:37:47.196Z",
+  "demoAuthentication": true,
+  "results": [
+    {
+      "name": "Blastoise",
+      "grader": "PSA",
+      "grade": "9",
+      "status": 200,
+      "received": 38,
+      "accepted": 26,
+      "estimate": 1168.2,
+      "valuationStatus": "stale",
+      "amountVerified": false,
+      "newestSoldAt": "2026-09-07",
+      "hasMore": false,
+      "oldestSoldAt": "2026-06-25",
+      "exclusions": [
+        {
+          "id": "pkmnprices:147351553",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:111289494",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27160034",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159869",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:2294915",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:2294811",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:2294602",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:2294808",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159639",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159952",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159733",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159543",
+          "reason": "canonical_identity_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "Espeon",
+      "grader": "CGC",
+      "grade": "8.5",
+      "status": 200,
+      "received": 6,
+      "accepted": 4,
+      "estimate": 291,
+      "valuationStatus": "stale",
+      "amountVerified": false,
+      "newestSoldAt": "2026-08-17",
+      "hasMore": false,
+      "oldestSoldAt": "2026-05-13",
+      "exclusions": [
+        {
+          "id": "pkmnprices:3070637",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:29163297",
+          "reason": "context_mismatch"
+        }
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import {
   canonicalCollectorNumber,
   canonicalEdition,
   canonicalFinish,
+  cardListingTitle,
   canonicalLanguage,
   canonicalPromoType,
   collectibleIdentitySnapshot,
@@ -226,4 +227,12 @@ test("identity snapshots retain an explicit release year without deriving purcha
   assert.equal(collectibleIdentitySnapshot({ releaseYear: 1999 }).release, 1999);
   assert.equal(collectibleIdentitySnapshot({ release: "2000-04-01", releaseYear: 1999 }).release, "2000-04-01");
   assert.equal(collectibleIdentitySnapshot({ purchaseDate: "2026-01-01" }).release, null);
+});
+
+test("listing titles distinguish finish, edition, language and exact slab grade without guessing", () => {
+ const item = { name: "Blastoise", set: "Base Set", number: "2/102", language: "en", release: "1999-01-09" };
+ const printing = { finish: "holofoil", edition: "unlimited", promoType: "none" };
+ assert.equal(cardListingTitle(item, printing, { cardState: "graded", gradingCompany: "PSA", grade: "9" }), "1999 · Blastoise · Base Set · #2/102 · Holofoil · Unlimited · English · PSA 9");
+ assert.match(cardListingTitle(item, { ...printing, finish: "non_holo", edition: "first_edition" }), /Non-Holo · 1st Edition/);
+ assert.match(cardListingTitle(item, {}), /Finish unconfirmed · Edition unconfirmed/);
 });

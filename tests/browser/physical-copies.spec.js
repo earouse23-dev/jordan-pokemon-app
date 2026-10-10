@@ -2115,21 +2115,32 @@ for (const [prices, estimate] of [[[100,110,120],110],[[225,215,230.2,219,220.46
 
 test('latest slab comp and full-width recorded history stay legible in light and dark mode',async({page},testInfo)=>{
  await setup(page);
+ let reads=0;
  const dates=['2026-08-01','2026-08-10','2026-08-31'];
  await page.route('**/api/sales?*',route=>{
+  reads++;
   const lookup=JSON.parse(new URL(route.request().url()).searchParams.get('lookup'));
   const rows=soldRows(lookup,[1000,1020,5000],dates[0]);
   rows.forEach((row,index)=>{row.soldAt=dates[index];row.saleType='fixed_price';});
-  return route.fulfill({contentType:'application/json',body:JSON.stringify(soldPayload(lookup,rows))});
+  return route.fulfill({contentType:'application/json',body:JSON.stringify({...soldPayload(lookup,rows),retrievedAt:new Date().toISOString()})});
  });
- await page.evaluate(async({appUrl,item})=>{const app=await import(appUrl);app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'fixture'};document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');app.openCardDetail(item,true);},{appUrl,item:gradedCopy('a')});
+ await page.evaluate(async({appUrl,item})=>{const app=await import(appUrl);app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'fixture'};app.state.items=[item];document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');app.openCardDetail(item,true);},{appUrl,item:gradedCopy('a')});
  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$5,000.00');
  await expect(page.locator('#positionChart')).toBeVisible();
+ await expect(page.locator('#detailTitle')).toContainText('PSA 10');
+ await expect(page.locator('#detailTitle')).toContainText('Holofoil');
+ await expect(page.getByText('Character, artist, moves, and set details', {exact:true})).toHaveCount(0);
+ await page.evaluate(async url=>{const app=await import(url);app.state.detailSales.salesStatus='loading';app.renderDetail();},appUrl);
+ await expect(page.locator('#positionChart')).toBeVisible();
+ await page.evaluate(async url=>{const app=await import(url);app.state.detailSales.salesStatus='live';app.renderDetail();},appUrl);
  await expect(page.locator('.exact-sold-value .inline-source-link')).toContainText('2026-08-31');
  const bounds=await page.evaluate(async url=>{const {chartInstance:chart}=await import(url);return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
  expect(bounds).toEqual({min:Date.parse(dates[0]),max:Date.parse(dates[2]),radius:0});
  expect(await page.locator('.exact-sold-value .inline-source-link').evaluate(el=>parseFloat(getComputedStyle(el).borderRadius))).toBeGreaterThanOrEqual(12);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.evaluate(async url=>{const app=await import(url);const item=app.state.items[0];app.state.detailSales=null;app.openCardDetail(item,true);},appUrl);
+ await expect(page.locator('.exact-sold-value > strong')).toHaveText('$5,000.00');
+ expect(reads).toBe(1);
  await page.screenshot({path:testInfo.outputPath('slab-history-light.png'),fullPage:true});
  await page.evaluate(()=>document.body.dataset.appearance='dark');
  await page.screenshot({path:testInfo.outputPath('slab-history-dark.png'),fullPage:true});

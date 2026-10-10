@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-10-10T15:38:31.400Z",
+  "provider": "pkmnprices",
+  "day": "2026-10-10",
+  "before": 803,
+  "after": 803,
+  "repeatAuthenticatedSlabReads": 4,
+  "cards": [
+    "Blastoise Unlimited PSA 9",
+    "Espeon Unlimited CGC 8.5"
+  ],
+  "providerUpdatedAtBefore": "2026-10-10T15:04:04.073115Z",
+  "providerUpdatedAtAfter": "2026-10-10T15:04:04.073115Z",
+  "additionalCredits": 0,
+  "source": "read-only provider_sync_status before/after staged authenticated reads"
+}

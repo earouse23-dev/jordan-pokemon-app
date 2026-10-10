@@ -190,7 +190,12 @@ test("parses mixed collector searches without treating the full query as a name"
     providerId: null,
     hints: [],
   });
-  assert.equal(parseCatalogQuery("MCharizard EX 101/108").name, "M Charizard EX");
+  for (const query of ["Blastoise base", "Blastoise Base Set"]) {
+ assert.equal(parseCatalogQuery(query).name, "Blastoise");
+ assert.equal(parseCatalogQuery(query).setName, "Base Set");
+ }
+ assert.equal(parseCatalogQuery("Blastoise Base Set 2").setName, "Base Set 2");
+ assert.equal(parseCatalogQuery("MCharizard EX 101/108").name, "M Charizard EX");
   assert.equal(parseCatalogQuery("Mew EX 46/124").name, "Mew EX");
   assert.equal(parseCatalogQuery("Mewtwo EX 54/99").name, "Mewtwo EX");
   assert.equal(parseCatalogQuery("Pikachu 151").name, "Pikachu");
@@ -206,6 +211,8 @@ test("parses mixed collector searches without treating the full query as a name"
 for (const [query, expectedId] of [
   ["Mew ex 151/165", "sv03.5-151"],
   ["Charizard 4/102", "base1-4"],
+  ["Charizard base", "base1-4"],
+  ["Charizard Base Set", "base1-4"],
   ["Greninja ex 214/167", "sv06-214"],
   ["Pikachu 151", "sv03.5-025"],
 ]) {

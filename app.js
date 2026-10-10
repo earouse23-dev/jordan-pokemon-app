@@ -125,6 +125,7 @@ import {
 import {
   collectibleIdentitySnapshot,
   sealedProductMatches,
+  cardListingTitle,
   normalizeVariantOption,
   selectVariantOption,
   variantOptionSummary,
@@ -2359,25 +2360,6 @@ function bindPsaGradeEvidence(item) {
   );
 }
 
-function renderCardMetadata(item) {
-  const data = item.metadata || {};
-  const facts = [
-    ["Hit points (HP)", data.hp],
-    ["Evolution stage", data.stage],
-    ["Card type", data.cardType],
-    ["Weakness", data.weakness],
-    ["Resistance", data.resistance],
-    ["Retreat cost", data.retreatCost],
-    ["Energy", (data.energyTypes || []).join(", ")],
-    ["Ability", data.ability],
-  ].filter(
-    ([, value]) => value !== null && value !== undefined && value !== "",
-  );
-  if (!facts.length && !(data.attacks || []).length && !data.flavorText)
-    return "";
-  return `<section class="detail-section"><div class="detail-section-head"><h2>Card details</h2><span>PkmnPrices card record</span></div><div class="card-facts">${facts.map(([label, value]) => `<div><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`).join("")}</div>${(data.attacks || []).length ? `<p class="card-fact-copy"><strong>Attacks</strong> · ${esc(data.attacks.join(" · "))}</p>` : ""}${data.flavorText ? `<p class="card-flavor">${esc(data.flavorText)}</p>` : ""}</section>`;
-}
-
 function renderMarketplaceOffers(item) {
   if (item.cardState === "sealed") return "";
   const offers = item.offers || [];
@@ -3059,7 +3041,7 @@ function savedSaleEvidenceForContext(item, context) {
 }
 
 function completedSaleHistory(item, context, sales) {
-  if (sales?.salesStatus !== "live") return [];
+  if (!sales?.validatedContext) return [];
   const result = latestEbaySoldValuation(sales.sales || [], exactSaleContext(item, context), { validatedContext: sales.validatedContext, retrievedAt: sales.retrievedAt, hasMore: sales.hasMore });
   return result.evidence.filter(sale => (result.eligibleEvidenceIds || result.contributingEvidenceIds).includes(sale.transactionKey)).map(sale => ({ amount: sale.amount, currency: sale.currency, recordedAt: sale.soldAt, provider: sale.saleType || sale.evidenceKind === "completed_sale" ? "eBay completed sale" : "eBay reported comp", providerVariantId: sale.transactionKey, gradingCompany: context.gradingCompany, grade: context.grade, sourceUrl: sale.sourceUrl, granularity: "transaction" }));
 }
@@ -3860,6 +3842,11 @@ async function loadSales(item, force = false) {
       ? savedSaleEvidenceForContext(savedCopy, context)
       : null;
   const previous = currentEvidence || savedEvidence || null;
+  if (!force && previous?.salesStatus === "live" && !previous.hasMore && previous.retrievedAt?.slice(0, 10) === new Date().toISOString().slice(0, 10)) {
+    state.detailSales = { ...previous, selectionKey, contextKey, requestId };
+    if (state.route === "detail") renderDetail();
+    return;
+  }
   state.detailSales = {
     selectionKey,
     contextKey,
@@ -8784,7 +8771,7 @@ function renderDetail() {
   const marketHero = `<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<small class="price-provenance">${esc(provenance)}</small>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button">View recent eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(item.name || "Printed name unknown")}</h1><p class="detail-set">${esc(item.set || "Set unknown")}${sealed ? "" : item.number ? ` · card ${esc(item.number)}` : " · collector number unknown"}</p>${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
+    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(sealed ? item.name : cardListingTitle(item, printing, context))}</h1>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "transaction") ? "Matching completed-sale prices" : "Recorded sold-derived estimates") : "Provider-recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${item.currency !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
@@ -8795,7 +8782,6 @@ function renderDetail() {
     ${action}
     ${listingSection}
     ${gradingSubmissionSection}
-    ${renderCardMetadata(item) ? `<details class="detail-tool-group" data-detail-tool="card"><summary><span><strong>Card information</strong><small>Character, artist, moves, and set details</small></span><b>Open details</b></summary><div class="detail-tool-content">${renderCardMetadata(item)}</div></details>` : ""}
     ${owned && !sealed ? `<details class="detail-tool-group" data-detail-tool="grading"><summary><span><strong>Grading history</strong><small>Photo estimates, reports, and professional grades</small></span><b>Details</b></summary><div class="detail-tool-content">${gradingLifecycleMarkup(item)}${!item.gradingCompany ? gradingReportHistoryMarkup(item) : ""}</div></details>` : ""}
     ${owned ? `<details class="detail-tool-group" data-detail-tool="purchases"><summary><span><strong>Purchases, sales &amp; notes</strong><small>What you paid, activity, and copies</small></span><b>Open</b></summary><div class="detail-tool-content">${positionSection}${ownedSection}</div></details>` : ""}
     <button class="secondary" id="detailMoreToolsButton" type="button" aria-controls="detailMoreTools" aria-expanded="false">More options</button>
