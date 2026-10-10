@@ -28,3 +28,9 @@ PkmnPrices support confirmed printing-label differences and ingestion cursors. T
 ## Publication boundaries
 
 Final candidate dpl_8NcsYcYWQgNV2Bk2emJeWLDbd9yQ; publication state recorded separately after promotion. Nine functions, existing two crons and Git build suppression retained. No SQL migrations, new dependencies, services, provider budget changes or customer inventory writes. Unrelated dirty documentation excluded.
+
+## Production acceptance
+
+Promoted dpl_8NcsYcYWQgNV2Bk2emJeWLDbd9yQ after staged checks and source commit fc13c8a. Canonical assets match the frozen manifest; both existing cron definitions point to this deployment. Production auth/CORS/health checks passed. In the real signed-in browser, the prior saved total $9,104.27 appeared first, then one complete background update produced $9,322.47. Blastoise changed from $950 to the correct newest matching $1,168.20 comp, and its all-time chart visibly spans June 25–September 7. EUR equivalent visibly returned €1,042.48 at ECB rate dated 2026-10-09. Screenshot checkpoint-99-live-blastoise.jpg captures this production page.
+
+The real customer's Espeon remains excluded because its stored edition is unknown. The detail correctly requests confirmation of printing/grade/label; the isolated explicit Unlimited CGC 8.5 lookup returns $291, but that does not authorize rewriting the customer's physical card as Unlimited. This is an unresolved inventory fact, not a claim that all five customer positions were priced. All four customer PSA positions visibly have prices. No customer edition/purchase/copy data was changed.
