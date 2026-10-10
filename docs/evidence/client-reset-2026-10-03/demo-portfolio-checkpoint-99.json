@@ -1,0 +1,16 @@
+{
+  "realGradedPricePersisted": true,
+  "rawHistoryRetained": true,
+  "chartPersisted": true,
+  "checkedAt": "2026-10-10T04:26:09.087Z",
+  "isolatedDemoOnly": true,
+  "getStatus": 200,
+  "refreshStatus": 200,
+  "postRefreshGetStatus": 200,
+  "persistedWholeView": true,
+  "previousViewPreservedOnFailure": false,
+  "complete": false,
+  "refreshIncomplete": false,
+  "positions": 5,
+  "customerRecordsWritten": false
+}

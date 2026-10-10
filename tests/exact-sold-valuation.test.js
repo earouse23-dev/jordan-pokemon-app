@@ -454,3 +454,10 @@ test("last eBay sale retains an older exact comp as stale evidence while the med
   assert.equal(result.status, "stale");
   assert.equal(result.newestSoldAt, "2025-12-01");
 });
+
+test('latest exact comp keeps a market move instead of reverting to an older median, and rejects another edition', async () => {
+ const {latestEbaySoldValuation}=await import('../lib/pricing.js');
+ const rows=[sale(9001,1000,'2026-09-01'),sale(9002,1020,'2026-09-02'),sale(9003,990,'2026-09-03'),sale(9004,5000,'2026-09-22',{printing:'Unlimited Holofoil'}),sale(9005,9000,'2026-09-23',{printing:'1st Edition Holofoil',title:'1st Edition Pikachu Synthetic Violet 025/100 PSA 10'})];
+ const result=latestEbaySoldValuation(rows,context,options);
+ assert.equal(result.estimate,5000);assert.equal(result.newestSoldAt,'2026-09-22');
+});

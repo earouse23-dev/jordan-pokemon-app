@@ -1,6 +1,6 @@
 import { pkmnPricesRequests } from "../lib/pkmnprices-requests.js";
 import { withNativeCors } from "../lib/native-cors.js";
-import { fetchPkmnPricesSales } from "../lib/providers/pkmnprices.js";
+import { fetchPkmnPricesSales, fetchPkmnPricesSalesHistory } from "../lib/providers/pkmnprices.js";
 import { serverEnvironment } from "../lib/env.js";
 
 const SAFE_TEXT = /^[\p{L}\p{N} .:'&+\-/()#]{1,120}$/u;
@@ -100,7 +100,7 @@ async function handler(request, response) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
-    const result = await fetchPkmnPricesSales(
+    const result = await (lookup.grader ? fetchPkmnPricesSalesHistory : fetchPkmnPricesSales)(
       apiKey,
       lookup,
       controller.signal,

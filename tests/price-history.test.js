@@ -71,3 +71,11 @@ test("chart display conversion preserves native observations, dates and transact
  const unavailable=displayHistoryCurrency(model,"EUR",null,now); assert.equal(unavailable.conversionUnavailable,true); assert.equal(unavailable.currency,"USD"); assert.deepEqual(unavailable.points.map(p=>p.amount),[150,100]); assert.equal(unavailable.basis,model.basis); assert.deepEqual(unavailable.summary,model.summary); assert.deepEqual(unavailable.purchases,model.purchases);
  assert.deepEqual(displayHistoryCurrency(model,"USD",null,now).points.map(p=>p.amount),[150,100]);
 });
+
+test('all-time card chart fits recorded sales instead of an earlier purchase or today', () => {
+ const result = cardPriceHistoryWindow({currency:'USD',transactions:[{type:'purchase',date:'2025-03-12',currency:'USD',totalCost:250,quantity:1}]},[{recordedAt:'2026-08-01',amount:1000,currency:'USD'},{recordedAt:'2026-08-31',amount:950,currency:'USD'}],'all',Date.parse('2026-10-10'));
+ assert.equal(result.start,Date.parse('2026-08-01'));assert.equal(result.end,Date.parse('2026-08-31'));
+ assert.equal(result.purchases.length,1,'ownership evidence remains available');
+ const single=cardPriceHistoryWindow({currency:'USD'},[{recordedAt:'2026-08-31',amount:950,currency:'USD'}],'all',Date.parse('2026-10-10'));
+ assert.equal(single.end-single.start,86400000);
+});

@@ -2847,6 +2847,8 @@ async function mountPriceChart(item, history = historyForItem(item)) {
     data: model.points.map(point => ({ x: point.x, y: point.amount, point })),
     borderColor: accent,
     borderWidth: 2.25,
+    backgroundColor: "rgba(47,99,70,.08)",
+    fill: "origin",
     pointRadius: 0,
     pointHoverRadius: 0,
     tension: 0.28,
@@ -2874,7 +2876,9 @@ async function mountPriceChart(item, history = historyForItem(item)) {
         ? { year: "numeric", hour: "numeric", minute: "2-digit" }
         : model.range === "1d"
           ? { hour: "numeric" }
-          : {}),
+          : new Date(model.start).getUTCFullYear() !== new Date(model.end).getUTCFullYear()
+            ? { year: "2-digit" }
+            : {}),
     });
   chartInstance = new Chart(canvas, {
     type: "line",
@@ -3061,6 +3065,7 @@ function completedSaleHistory(item, context, sales) {
 }
 
 function renderExactSoldValue(item, context, sales) {
+  const edition = selectedPrinting(item).edition;
   sales = sales || savedSaleEvidenceForContext(item, context);
   const result = latestEbaySoldValuation(
     sales?.sales || [],
@@ -3106,10 +3111,10 @@ function renderExactSoldValue(item, context, sales) {
       .map((row) => row.currency),
   );
   const latestEbay = [...result.evidence]
-    .filter((row) => row.sourceMarket === "ebay" && safeMarketSourceUrl(row.sourceUrl, "ebay"))
+    .filter((row) => row.sourceMarket === "ebay" && result.contributingEvidenceIds.includes(row.transactionKey) && safeMarketSourceUrl(row.sourceUrl, "ebay"))
     .sort((left, right) => String(right.soldAt).localeCompare(String(left.soldAt)))[0];
   const lastSoldLink = latestEbay
-    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer">View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · excluded from estimate" : " · comparable"}</a>`
+    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer">View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · differs from older comps" : " · comparable"}</a>`
     : "";
   const upstream = Array.isArray(sales?.upstreamExclusions)
     ? sales.upstreamExclusions
@@ -3125,7 +3130,7 @@ function renderExactSoldValue(item, context, sales) {
     : "";
   const details =
     result.evidence.length || result.excluded.length || upstreamSummary
-      ? `<details id="exactSaleEvidence"><summary>Sale evidence and exclusions</summary>${upstreamSummary}${upstreamDetails}<p>${result.distinctSaleCount} contributing sales · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}${result.newestSoldAt ? ` · newest sold ${esc(result.newestSoldAt.slice(0, 10))}` : ""}${result.newestRetrievedAt ? ` · retrieved ${esc(result.newestRetrievedAt.slice(0, 10))}` : ""}.</p>${result.estimate === null ? "" : `<p>Comparable sale range ${money(result.rangeLow, result.currency)}–${money(result.rangeHigh, result.currency)}. Median before outlier review ${money(result.medianBeforeOutliers, result.currency)}; after ${money(result.medianAfterOutliers, result.currency)}. This range is not a confidence interval.</p>`}${result.hasMore ? "<p>Limited recent sample; more provider pages were not fetched.</p>" : ""}${otherCurrencies.size ? `<p>${esc([...otherCurrencies].sort().join(", "))} sales are separate and did not enter this ${esc(result.currency)} estimate.</p>` : ""}<ul>${result.evidence.map((row) => `<li><a href="${esc(row.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(row.transactionKey)} · ${esc(row.soldAt.slice(0, 10))} · ${money(row.amount, row.currency)}</a>${row.outlierReview.flagged ? " · unusual price, excluded from estimate" : ""}</li>`).join("")}</ul>${result.excluded.length ? `<p>Valuation exclusions: ${result.excluded.map((row) => `${esc(row.id)} (${esc(row.reason.replaceAll("_", " "))})`).join("; ")}</p>` : ""}</details>`
+      ? `<details id="exactSaleEvidence"><summary>Sale evidence and exclusions</summary>${upstreamSummary}${upstreamDetails}<p>${result.distinctSaleCount} contributing sales · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}${result.newestSoldAt ? ` · newest sold ${esc(result.newestSoldAt.slice(0, 10))}` : ""}${result.newestRetrievedAt ? ` · retrieved ${esc(result.newestRetrievedAt.slice(0, 10))}` : ""}.</p>${result.estimate === null ? "" : `<p>Comparable sale range ${money(result.rangeLow, result.currency)}–${money(result.rangeHigh, result.currency)}. Median before outlier review ${money(result.medianBeforeOutliers, result.currency)}; after ${money(result.medianAfterOutliers, result.currency)}. This range is not a confidence interval.</p>`}${result.hasMore ? "<p>Limited recent sample; more provider pages were not fetched.</p>" : ""}${otherCurrencies.size ? `<p>${esc([...otherCurrencies].sort().join(", "))} sales are separate and did not enter this ${esc(result.currency)} estimate.</p>` : ""}<ul>${result.evidence.map((row) => `<li><a href="${esc(row.sourceUrl)}" target="_blank" rel="noopener noreferrer">${esc(row.transactionKey)} · ${esc(row.soldAt.slice(0, 10))} · ${money(row.amount, row.currency)}</a>${row.outlierReview.flagged ? " · differs from older comps" : ""}</li>`).join("")}</ul>${result.excluded.length ? `<p>Valuation exclusions: ${result.excluded.map((row) => `${esc(row.id)} (${esc(row.reason.replaceAll("_", " "))})`).join("; ")}</p>` : ""}</details>`
       : "";
   const strength =
     { limited: 1, stale: 1, moderate: 2, strong: 3 }[result.confidence.level] ||
@@ -3145,11 +3150,28 @@ function renderExactSoldValue(item, context, sales) {
   const history = recorded.length
     ? `<details id="recordedSoldValuations"><summary>Recorded estimates</summary><ul>${recorded.map((point) => `<li>${esc(point.recordedAt.slice(0, 10))} · ${money(point.amount, point.currency)} · ${point.contributingEvidenceIds.length} completed sales via PkmnPrices</li>`).join("")}</ul><p>Recorded estimates retain their original evaluation date. They do not fill earlier gaps or establish a current price after becoming stale.</p></details>`
     : "";
-  return `<section class="exact-sold-value" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(displayCurrency())}</span><strong>${value}</strong>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${result.estimate === null ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${lastSoldLink}${fxLine}${button}${details}${history}</section>`;
+  return `<section class="exact-sold-value" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(context.gradingCompany || context.grader || item.gradingCompany)} ${esc(context.grade || item.grade)}${edition ? ` · ${esc(edition === "first_edition" ? "1st Edition" : edition)}` : ""} · ${esc(displayCurrency())}</span><strong>${value}</strong>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${result.estimate === null ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${lastSoldLink}${fxLine}${button}${details}${history}</section>`;
 }
 
 let fxMidnightTimer = null;
 let lastValidatedFxRate = null;
+let pendingFxRate = null;
+async function requestFxRate() {
+  if (usableFxRate(lastValidatedFxRate)) return lastValidatedFxRate;
+  if (pendingFxRate) return pendingFxRate;
+  pendingFxRate = (async () => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await fetch("/api/fx", { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8_000) });
+        const rate = await response.json();
+        if (!response.ok || !usableFxRate(rate)) throw new Error("Rate unavailable");
+        lastValidatedFxRate = rate;
+        return rate;
+      } catch (error) { if (attempt === 1) throw error; }
+    }
+  })();
+  try { return await pendingFxRate; } finally { pendingFxRate = null; }
+}
 let displayFxMidnightTimer = null;
 
 function displayCurrency() {
@@ -3171,9 +3193,7 @@ async function loadDisplayFx() {
   if (state.displayFxStatus === "loading") return;
   state.displayFxStatus = "loading";
   try {
-    const response = await fetch("/api/fx", { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8_000) });
-    const rate = await response.json();
-    if (!response.ok || !usableFxRate(rate)) throw new Error("Rate unavailable");
+    const rate = await requestFxRate();
     lastValidatedFxRate = rate;
     state.displayFxStatus = "ready";
 
@@ -3272,11 +3292,7 @@ async function loadDetailFx() {
   fx.status = "loading";
   renderDetail();
   try {
-    const response = await fetch("/api/fx", {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(8_000),
-    });
-    const payload = await response.json();
+    const payload = await requestFxRate();
     if (
       state.detailFx !== fx ||
       !fx.enabled ||
@@ -3289,7 +3305,7 @@ async function loadDetailFx() {
       detailContextKey(state.detailValuationContext) !== fx.contextKey
     )
       return;
-    if (!response.ok || !usableFxRate(payload)) {
+    if (!usableFxRate(payload)) {
       fx.status =
         payload?.code === "rate_stale" || fxAgeDays(payload?.effectiveDate) > 4
           ? "stale"

@@ -159,7 +159,7 @@ test("first-edition aliases survive API and adapter without pricing unlimited", 
       calls
         .find((url) => url.pathname.endsWith("/listings/ebay"))
         .searchParams.get("variant"),
-      "1st Edition Holofoil",
+      null, // Grade pages include edition labels; exact filtering happens locally.
     );
 
     const unlimited = { ...first, variant: "Holofoil", edition: "unlimited" };

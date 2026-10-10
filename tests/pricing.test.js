@@ -2960,3 +2960,28 @@ const lookup={name:"Lugia V",set:"Silver Tempest",number:"186/195",language:"en"
 for(const title of ["2022 Pokémon Lugia V #186/195 SWSH Silver Tempest FA PSA 10 GEM MINT","Lugia V (Alternate Full Art) 186/195 Swsh12: Sword & Shield-Silver Tempest PSA10","Pokémon TCG Lugia v Alternate Art 186/195 Gem Mint PSA 10 English"]) assert.equal(saleMatchesCanonicalIdentity({title},card,lookup),true,title);
 for(const title of ["Charizard V 186/195 Silver Tempest PSA 10","Lugia V 186/196 Silver Tempest PSA 10","Lugia V 186/195 Silver Tempest 1st edition PSA 10","Lugia V 186/195 Silver Tempest Japanese PSA 10"]) assert.equal(saleMatchesCanonicalIdentity({title},card,lookup),false,title);
 });
+
+test('exact Espeon comps accept seller inventory tags and NM annotations without accepting another card or edition', async () => {
+ const {saleMatchesCanonicalIdentity,saleMatchesPrinting}=await import('../lib/providers/pkmnprices.js');
+ const card={name:'Espeon',number:'1',total_set_number:'75',set:{name:'Neo Discovery'}};
+ const lookup={name:'Espeon',set:'Neo Discovery',number:'1/75',language:'en',variant:'Holofoil',edition:'unlimited'};
+ for(const title of ['Pokemon Espeon Neo Discovery Unlimited 1/75 Holo CGC 8.5 #Jan-75 [eBay]','CGC 8.5 Espeon 2001 Neo Discovery 1/75 Holo Pokemon Card NM+ 1/75 [eBay]']){
+  const sale={title,printing:'Unlimited Holofoil',language:'English'};
+  assert.equal(saleMatchesCanonicalIdentity(sale,card,lookup),true);
+  assert.equal(saleMatchesPrinting(sale,lookup),true);
+  assert.equal(saleMatchesCanonicalIdentity({...sale,title:title.replaceAll('1/75','2/75')},card,lookup),false);
+  assert.equal(saleMatchesPrinting({...sale,printing:'1st Edition Holofoil'},lookup),false);
+ }
+});
+
+test('Blastoise title annotations retain the newest exact comp while shadowless and XY stay separate',async()=>{
+ const {saleMatchesCanonicalIdentity,saleMatchesPrinting}=await import('../lib/providers/pkmnprices.js');
+ const card={name:'Blastoise',number:'2',total_set_number:'102',set:{name:'Base Set'}};
+ const lookup={name:'Blastoise',set:'Base Set',number:'2/102',language:'en',variant:'Holofoil',edition:'unlimited'};
+ for(const title of ['1999 Pokemon Base Set #2 Blastoise Holo PSA 9 Mint Clean Card OG Set 💎 #2 [eBay]','Wizards of the Coast Pokémon Blastoise Base Set Holo PSA 9 2/102 100 HP EN 002/102 [eBay]']) assert.equal(saleMatchesCanonicalIdentity({title},card,lookup),true);
+ assert.equal(saleMatchesCanonicalIdentity({title:'Blastoise EX #142/146 - 2014 Pokemon XY Base Set - PSA 9 - Low Pop 318!! #142 [eBay]'},card,lookup),false);
+ const shadow={title:'1999 Pokemon Base Set Shadowless Blastoise Holo 2/102 PSA 9',printing:'Holofoil'};
+ assert.equal(saleMatchesPrinting(shadow,lookup),false);
+ assert.equal(saleMatchesPrinting(shadow,{...lookup,edition:'shadowless'}),true);
+ assert.equal(saleMatchesCanonicalIdentity(shadow,card,{...lookup,edition:'shadowless'}),true);
+});

@@ -313,7 +313,7 @@ test("sealed optional history quota failure retains current prices and stops fur
   assert.equal(product.quotes[0].amount,120);assert.equal(product.quotes[0].currency,"USD");assert.equal(product.historyStatus,"rate_limited");assert.deepEqual(product.history,[]);assert.equal(calls,2);
 });
 
-test('durable history survives cold reads and refreshes only the new overlapping days',async t=>{
+test('durable history survives cold reads and refreshes only the new day once',async t=>{
  pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
  const saved=new Map();let calls=0;const periods=[];
  t.mock.method(pkmnPricesRequests,'claim',async()=>{});
@@ -333,7 +333,8 @@ test('durable history survives cold reads and refreshes only the new overlapping
  pkmnPricesRequests.cache.clear();await get();assert.equal(calls,2,'cold instance reads the durable response without spending');
  for(const entry of saved.values())if(entry.body.pagination){entry.expires=Date.now()-1;entry.fetchedAt=Date.now()-86_400_000;}
  pkmnPricesRequests.cache.clear();const next=await get();
- assert.equal(periods[0],'365d');assert.ok(['2d','3d'].includes(periods[1]));assert.equal(next.history.length,2);assert.equal(calls,3);
+ assert.equal(periods[0],'365d');assert.equal(periods[1],'1d');assert.equal(next.history.length,2);assert.equal(calls,3);
+ pkmnPricesRequests.cache.clear();await get();assert.equal(calls,3,'same-day reload reuses both saved days');
 });
 
 test('completed requests settle their bounded reservation against the original UTC day', async t => {
@@ -348,4 +349,33 @@ test('completed requests settle their bounded reservation against the original U
  await pkmnPricesRequests.recordUsage(url,503,null,'transport_error','2026-10-09');
  assert.equal(rows[0].p_reserved,20);assert.equal(rows[0].p_returned,2);assert.equal(rows[0].p_credit_day,'2026-10-09');
  assert.equal(rows[1].p_returned,null);assert.equal(rows[1].p_status,503);assert.notEqual(rows[0].p_request_key,rows[1].p_request_key);
+});
+
+test('shared slab archive follows short cursor pages once, then polls only new ingestions on the next day', async t => {
+ const {fetchPkmnPricesSalesHistory}=await import('../lib/providers/pkmnprices.js');
+ pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
+ const saved=new Map(),urls=[];
+ t.mock.method(pkmnPricesRequests,'claim',async()=>{});
+ t.mock.method(pkmnPricesRequests,'claimCache',async key=>{if(key.includes('ebay-archive')&&!saved.has(key))saved.set(key,{body:{},expires:0});return true;});
+ t.mock.method(pkmnPricesRequests,'readCache',async key=>saved.get(key)||null);
+ t.mock.method(pkmnPricesRequests,'saveCache',async(key,body,token,{pending=false}={})=>saved.set(key,{body:structuredClone(body),fetchedAt:Date.now(),expires:pending?Date.now()-1:Date.now()+86400000}));
+ t.mock.method(globalThis,'fetch',async input=>{
+  const url=new URL(input);urls.push(url);
+  if(!url.pathname.endsWith('/listings/ebay'))return Response.json({id:22719,name:'Espeon',number:'1',total_set_number:'75',set:{name:'Neo Discovery'},language:'en'});
+  assert.equal(url.searchParams.get('variant'),null,'edition labels must not hide exact sales');
+  const cursor=url.searchParams.get('cursor'),since=url.searchParams.get('since');
+  const id=since?'3003':cursor?'3001':'3002';
+  const row={ebay_listing_id:id,title:'Espeon Neo Discovery 1/75 CGC 8.5 Unlimited Holo',price:since?632:260,currency:'USD',grader:'CGC',grade:'8.5',variant:'Unlimited Holofoil',language:'English',attribution:'exact',sold_at:since?'2026-10-10':'2026-08-01',ingested_at:since?'2026-10-10T00:00:00Z':'2026-10-09T00:00:00Z',listing_url:'https://www.ebay.com/itm/'+id};
+  return Response.json({data:[row,{...row,ebay_listing_id:id+'9',variant:'1st Edition Holofoil',title:'1st Edition '+row.title.replace('Unlimited','')}],pagination:{has_more:!since&&!cursor,next_cursor:!since&&!cursor?'older':null}});
+ });
+ const lookup={pkmnpricesId:'22719',name:'Espeon',set:'Neo Discovery',number:'1/75',language:'en',variant:'Holofoil',finish:'holofoil',edition:'unlimited',grader:'CGC',grade:'8.5',currency:'USD'};
+ const first=await fetchPkmnPricesSalesHistory('archive-fixture',lookup);
+ assert.equal(first.sales.length,2);assert.equal(first.hasMore,false);assert.equal(urls.filter(u=>u.pathname.endsWith('/ebay')).length,2);
+ pkmnPricesRequests.cache.clear();await fetchPkmnPricesSalesHistory('archive-fixture',{...lookup,clientId:'another-user'});
+ assert.equal(urls.filter(u=>u.pathname.endsWith('/ebay')).length,2,'another visit/account reuses the shared archive');
+ for(const [key,entry]of saved)if(key.includes('ebay-archive')){entry.expires=Date.now()-1;entry.body.checkedDay='2026-10-08';}
+ pkmnPricesRequests.cache.clear();const next=await fetchPkmnPricesSalesHistory('archive-fixture',lookup);
+ const queries=urls.filter(u=>u.pathname.endsWith('/ebay'));
+ assert.equal(queries.length,3);assert.equal(queries[2].searchParams.get('since'),'2026-10-09T00:00:00Z');assert.equal(queries[2].searchParams.get('cursor'),null);assert.equal(next.sales.length,3);
+ pkmnPricesRequests.cache.clear();await fetchPkmnPricesSalesHistory('archive-fixture',lookup);assert.equal(urls.filter(u=>u.pathname.endsWith('/ebay')).length,3);
 });

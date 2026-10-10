@@ -998,10 +998,6 @@ test("saved display currency converts the portfolio and survives profile reload 
     ];
     renderCollection(); routeTo("dashboard");
   }, appUrl);
-  await expect(page.locator("#retryDisplayFx")).toBeVisible();
-  await expect(page.locator("#portfolioValue")).toHaveText("$100.00");
-  await expect(page.locator("#portfolioChange")).toContainText("1 awaiting conversion");
-  await page.locator("#retryDisplayFx").click();
   await expect(page.locator("#portfolioValue")).toHaveText("$225.00");
   await expect(page.locator("#retryDisplayFx")).toBeHidden();
   expect(rateCalls).toBe(2);
@@ -1960,6 +1956,26 @@ test("public display rate completes across session changes instead of stranding 
     return app.state.displayFxStatus;
   }, { appUrl, otherOwnerId });
   expect(status).toBe("ready");
+});
+
+test("currency conversion recovers a transient failure once and reuses its validated rate", async ({ page }) => {
+  await setup(page);
+  let calls = 0;
+  const day = new Date().toISOString().slice(0, 10), hash = "a".repeat(64);
+  await page.route("**/api/fx", route => {
+    calls++;
+    return route.fulfill(calls === 1 ? { status: 502, body: "{}" } : { contentType: "application/json", body: JSON.stringify({ sourceId: "ecb-eurofxref-daily", sourceUrl: "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml", base: "EUR", quote: "USD", units: "USD per EUR", rate: 1.2, effectiveDate: day, fetchedAt: new Date(Date.now() - 1000).toISOString(), contentSha256: hash, rateRef: `ecb-eurofxref-daily:${day}:${hash}` }) });
+  });
+  await openCard(page);
+  const statuses = await page.evaluate(async url => {
+    const app = await import(url);
+    await app.loadDisplayFx();
+    const first = app.state.displayFxStatus;
+    await app.loadDisplayFx();
+    return [first, app.state.displayFxStatus];
+  }, appUrl);
+  expect(statuses).toEqual(["ready", "ready"]);
+  expect(calls).toBe(2);
 });
 
 for (const phase of ["while loading", "after loading"]) test(`same-account Safari auth announcement preserves card prices and history ${phase}`, async ({page}) => {

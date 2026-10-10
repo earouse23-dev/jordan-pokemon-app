@@ -1,0 +1,246 @@
+{
+  "checkedAt": "2026-10-10T04:21:38.880Z",
+  "demoAuthentication": true,
+  "results": [
+    {
+      "name": "Charizard V",
+      "grader": "PSA",
+      "grade": "10",
+      "status": 200,
+      "received": 80,
+      "accepted": 74,
+      "estimate": 720,
+      "valuationStatus": "ready",
+      "amountVerified": false,
+      "newestSoldAt": "2026-09-28",
+      "hasMore": true,
+      "oldestSoldAt": "2026-07-27",
+      "exclusions": [
+        {
+          "id": "pkmnprices:176583956",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:167216176",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:160077262",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:69867052",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:48690996",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:92495242",
+          "reason": "canonical_identity_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "Umbreon VMAX",
+      "grader": "PSA",
+      "grade": "10",
+      "status": 200,
+      "received": 80,
+      "accepted": 65,
+      "estimate": 3750,
+      "valuationStatus": "ready",
+      "amountVerified": false,
+      "newestSoldAt": "2026-09-27",
+      "hasMore": true,
+      "oldestSoldAt": "2026-08-16",
+      "exclusions": [
+        {
+          "id": "pkmnprices:176906385",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:176780714",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:176321284",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:170190175",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:147921147",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:145549697",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:134650901",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:123910865",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:120330058",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:113192311",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:113192484",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:109951407",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:106433726",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:102868801",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:92187305",
+          "reason": "canonical_identity_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "Blastoise",
+      "grader": "PSA",
+      "grade": "9",
+      "status": 200,
+      "received": 38,
+      "accepted": 26,
+      "estimate": 1168.2,
+      "valuationStatus": "stale",
+      "amountVerified": false,
+      "newestSoldAt": "2026-09-07",
+      "hasMore": false,
+      "oldestSoldAt": "2026-06-25",
+      "exclusions": [
+        {
+          "id": "pkmnprices:147351553",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:111289494",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27160034",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159869",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:2294915",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:2294811",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:2294602",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:2294808",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159639",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159952",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159733",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:27159543",
+          "reason": "canonical_identity_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "Espeon",
+      "grader": "CGC",
+      "grade": "8.5",
+      "status": 200,
+      "received": 6,
+      "accepted": 4,
+      "estimate": 291,
+      "valuationStatus": "stale",
+      "amountVerified": false,
+      "newestSoldAt": "2026-08-17",
+      "hasMore": false,
+      "oldestSoldAt": "2026-05-13",
+      "exclusions": [
+        {
+          "id": "pkmnprices:3070637",
+          "reason": "context_mismatch"
+        },
+        {
+          "id": "pkmnprices:29163297",
+          "reason": "context_mismatch"
+        }
+      ]
+    },
+    {
+      "name": "Lugia V",
+      "grader": "PSA",
+      "grade": "10",
+      "status": 200,
+      "received": 80,
+      "accepted": 75,
+      "estimate": 1250,
+      "valuationStatus": "ready",
+      "amountVerified": false,
+      "newestSoldAt": "2026-09-29",
+      "hasMore": true,
+      "oldestSoldAt": "2026-08-15",
+      "exclusions": [
+        {
+          "id": "pkmnprices:156204867",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:148499316",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:136723415",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:97806420",
+          "reason": "canonical_identity_mismatch"
+        },
+        {
+          "id": "pkmnprices:83575644",
+          "reason": "canonical_identity_mismatch"
+        }
+      ]
+    }
+  ]
+}
