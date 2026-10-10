@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-10-10T15:40:03.039Z",
+  "checks": [
+    {
+      "query": "Blastoise base",
+      "status": 200,
+      "cards": [
+        {
+          "name": "Blastoise",
+          "set": "Base Set",
+          "number": "2/102"
+        }
+      ]
+    },
+    {
+      "query": "Blastoise Base Set",
+      "status": 200,
+      "cards": [
+        {
+          "name": "Blastoise",
+          "set": "Base Set",
+          "number": "2/102"
+        }
+      ]
+    }
+  ]
+}
