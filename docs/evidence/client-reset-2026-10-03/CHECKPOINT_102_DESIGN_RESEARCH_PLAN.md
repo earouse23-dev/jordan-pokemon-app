@@ -52,3 +52,5 @@ Physical iPhone camera/device acceptance remains Elliott's responsibility. This 
 ### Release
 
 Verified staged deployment: dpl_4sSMpHt5wCQo7k3RGegkh5oX7Hri, https://jordan-pokemon-bcwpktiwy-earouse23-devs-projects.vercel.app. Frozen source/deployment manifests and archives are checkpoint-102-*; final canonical alias, cron and live-asset verification is recorded separately after promotion. Routine publication follows the owner's standing authorization. Unrelated dirty documents and private helper/account files are excluded.
+
+Published and verified on the canonical site: all five shell asset hashes match the frozen manifest (index is served at /; direct /index.html is intentionally not routed). Both daily cron schedules point to checkpoint 102. Production demo reload completed in 194ms with inventory reads held; no uncaught browser errors. Production runtime/auth/CORS checks passed with zero paid calls. Evidence: checkpoint-102-final-production.json, checkpoint-102-runtime-production.json, production-browser-portfolio-checkpoint-102.json. Source commit 4fc7511 was pushed to the existing repository branch.

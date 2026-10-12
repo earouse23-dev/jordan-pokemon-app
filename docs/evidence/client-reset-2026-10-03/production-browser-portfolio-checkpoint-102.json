@@ -1,47 +1,16 @@
 {
-  "checkedAt": "2026-10-12T17:17:11.093Z",
-  "target": "https://jordan-pokemon-bcwpktiwy-earouse23-devs-projects.vercel.app",
+  "checkedAt": "2026-10-12T17:18:57.681Z",
+  "target": "https://jordan-pokemon-app.vercel.app",
   "shippingAssetsAndCsp": true,
   "directPublicSite": true,
   "realDemoAuthentication": true,
   "realDemoInventory": true,
   "savedChartBeforeInventoryReads": true,
-  "reloadChartElapsedMs": 48,
+  "reloadChartElapsedMs": 194,
   "heldInventoryReads": 25,
   "heroAboveChart": true,
   "uncaughtErrors": [],
   "customerWrites": 0,
   "blockedWrites": 4,
-  "apis": [
-    {
-      "path": "/api/capabilities?surface=portfolio&display=summary",
-      "method": "GET",
-      "status": 200
-    },
-    {
-      "path": "/api/capabilities?surface=portfolio",
-      "method": "POST",
-      "status": 200
-    },
-    {
-      "path": "/api/fx",
-      "method": "GET",
-      "status": 200
-    },
-    {
-      "path": "/api/fx",
-      "method": "GET",
-      "status": 200
-    },
-    {
-      "path": "/api/capabilities?surface=portfolio&display=summary",
-      "method": "GET",
-      "status": 200
-    },
-    {
-      "path": "/api/capabilities?surface=portfolio",
-      "method": "POST",
-      "status": 200
-    }
-  ]
+  "apis": []
 }
