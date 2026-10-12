@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-10-12T06:15:18.443Z",
+  "target": "https://jordan-pokemon-app.vercel.app",
+  "shippingAssetsAndCsp": true,
+  "directPublicSite": true,
+  "realDemoAuthentication": true,
+  "realDemoInventory": true,
+  "savedChartBeforeInventoryReads": true,
+  "reloadChartElapsedMs": 211,
+  "heldInventoryReads": 25,
+  "heroAboveChart": true,
+  "uncaughtErrors": [],
+  "customerWrites": 0,
+  "blockedWrites": 4,
+  "apis": []
+}

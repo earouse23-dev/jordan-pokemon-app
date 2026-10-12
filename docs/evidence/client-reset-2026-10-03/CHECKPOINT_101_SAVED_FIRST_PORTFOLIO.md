@@ -25,3 +25,11 @@ Applied migration `20261012055807_saved_first_portfolio_daily_revision.sql` adds
 Final candidate: `dpl_AP7tuFHxU9qs7AYh2nLr63juYSUg`, https://jordan-pokemon-7cy2ul6iu-earouse23-devs-projects.vercel.app . Frozen deployment/source/configuration manifest retained alongside this report. Git-triggered builds remain disabled; two existing cron definitions retained. Publication and final live browser evidence recorded below.
 
 This acceptance covers the saved portfolio workflow; it does not establish whole-product commercial readiness. Elliott retains physical iPhone Safari camera/device acceptance.
+
+## Production acceptance
+
+Source `92bc1a6` pushed and candidate `dpl_AP7tuFHxU9qs7AYh2nLr63juYSUg` promoted to https://jordan-pokemon-app.vercel.app . Canonical JavaScript/configuration hashes match the frozen manifest; both existing cron definitions point to the promoted deployment, and the Git build guard remains `exit 0`.
+
+Direct public-site browser sign-in uses the isolated demo account and its real inventory. With 25 inventory reads deliberately held, the saved euro total and chart appear in 211 ms after reload, retain the preferred currency, and show the hero above the chart. No uncaught browser errors or customer writes. Mobile WebKit simulated-account checks additionally cover euro cache restoration and account switching. One initial staged browser assertion assumed the demo currency was USD; correcting that assumption exposed the real preference flicker, which was fixed and reverified before promotion. The latest staged reload measured 76 ms; these are observed test results, not latency guarantees.
+
+The final live browser and repeated demo POST checks still leave provider usage at 43 reserved credits/five requests, unchanged last-request timestamp. No historical redownload or same-day paid refresh occurred during these revisits. Runtime checks passed; the initial final-candidate evidence writer hit an existing output-file name after all assertions passed, so its complete successful JSON output was preserved separately. Production runtime and hash/cron checks finish normally.
