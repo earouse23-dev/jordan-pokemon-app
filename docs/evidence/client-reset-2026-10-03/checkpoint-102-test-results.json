@@ -1,0 +1,56 @@
+{
+  "browser": {
+    "uiAndPortfolio": 93,
+    "viewports": [
+      320,
+      390,
+      768,
+      1024,
+      1440
+    ],
+    "engines": [
+      "desktop Chromium",
+      "mobile Chromium",
+      "mobile WebKit"
+    ],
+    "uiLog": "/tmp/mica102-browser-verified.log",
+    "designLog": "/tmp/mica102-design-currency-verified.log",
+    "betaDesignAndCurrency": 6
+  },
+  "targetedUnit": {
+    "passed": 81,
+    "failed": 0
+  },
+  "fullUnit": {
+    "tests": 573,
+    "passed": 559,
+    "failed": 11,
+    "skipped": 3,
+    "failures": [
+      "actual API and adapter use only two allowlisted offline transports",
+      "missing provider language is disclosed but does not invent a contradiction",
+      "source-scoped harness keeps catalog unresolved and independently agrees on synthetic sales",
+      "source facts and candidate-scoped direct gate preserve exact printing",
+      "positive synthetic sample independently agrees, including zero-MAD outlier",
+      "sparse and invalid synthetic rows stay unavailable",
+      "duplicates and stale/future dates are independently excluded",
+      "bare Clefable title with padded number agrees through API and estimator",
+      "oversized synthetic page stops at the guard, without a third request",
+      "one-shot private ledger prevents a restarted runner from spending again",
+      "current API/adapter uses the bounded fake transport; closed historical runner refuses reuse"
+    ]
+  },
+  "unchangedBaseline": {
+    "samePricingHarnessFailures": true,
+    "baselineSecurityHarnessMissingFixture": ".github/workflows/ci.yml",
+    "note": "UI/source baseline reproduced all 11 pricing harness failures. The separate baseline security run failed to initialize due to the missing CI fixture; the current security suite passed."
+  },
+  "lint": true,
+  "syntax": true,
+  "customerWriteTests": 0,
+  "backendArtifactComparison": {
+    "checkpoint": 101,
+    "entries": 18,
+    "unchanged": true
+  }
+}

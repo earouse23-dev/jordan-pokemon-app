@@ -269,7 +269,6 @@ let chartMountVersion = 0;
 let portfolioChartInstance = null;
 let portfolioChartMountVersion = 0;
 let portfolioRenderKey = "";
-let portfolioTraceOwner = null;
 let portfolioPricingRequest = null;
 let purchaseMarketBackfillInFlight = false;
 const purchaseMarketReferenceAttempts = new Set();
@@ -1933,8 +1932,8 @@ function applyUiTheme(_theme, { announce = false } = {}) {
   const picker = $("#appearanceSelect");
   if (picker) picker.value = appearance;
   const meta = $('meta[name="theme-color"]');
-  if (meta) meta.content = appearance === "dark" ? "#111814" : "#F5F0E4";
-  if (state.portfolioHistory.length) renderPortfolioHistory();
+  if (meta) meta.content = appearance === "dark" ? "#111814" : "#f6f7f4";
+  if (state.portfolioView || state.portfolioHistory.length) renderPortfolioHistory();
   if (state.detailCard) void mountPriceChart(state.detailCard);
   if (announce) toast(`${appearance === "dark" ? "Dark" : "Light"} mode`);
 }
@@ -2881,7 +2880,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           backgroundColor: paper,
           borderColor: line,
           borderWidth: 1,
-          titleColor: "#276443",
+          titleColor: accent,
           titleFont: { size: 24, weight: "700" },
           bodyColor: muted,
           bodyFont: { size: 12 },
@@ -5273,34 +5272,9 @@ async function mountPortfolioHistoryChart({
       ctx.restore();
     },
   };
-  const animateTrace = portfolioTraceOwner !== state.session?.user?.id;
-  portfolioTraceOwner = state.session?.user?.id;
-  const traceStart = performance.now();
-  const trace = {
-    id: "portfolioTrace",
-    beforeDatasetsDraw(chart) {
-      const progress = !animateTrace || motionPreference === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches ? 1 : Math.min(1, (performance.now() - traceStart) / 1200);
-      chart.$traceProgress = progress;
-      chart.ctx.save();
-      chart.ctx.beginPath();
-      chart.ctx.rect(chart.chartArea.left, chart.chartArea.top, chart.chartArea.width * progress, chart.chartArea.height);
-      chart.ctx.clip();
-    },
-    afterDatasetsDraw(chart) {
-      chart.ctx.restore();
-      if (chart.$traceProgress >= 1) return;
-      const x = chart.chartArea.left + chart.chartArea.width * chart.$traceProgress;
-      const point = chart.data.datasets.map((_, index) => chart.getDatasetMeta(index).dataset.interpolate({ x }, "x")).flat().find(point => Number.isFinite(point?.y));
-      if (point) {
-        chart.ctx.save(); chart.ctx.fillStyle = accent; chart.ctx.beginPath();
-        chart.ctx.arc(x, point.y, 4, 0, Math.PI * 2); chart.ctx.fill(); chart.ctx.restore();
-      }
-      requestAnimationFrame(() => { if (version === portfolioChartMountVersion && canvas.isConnected) chart.draw(); });
-    },
-  };
   portfolioChartInstance = new Chart(canvas, {
     type: "line",
-    plugins: [trace, crosshair],
+    plugins: [crosshair],
     data: {
       labels: points.map((point) => Date.parse(`${point.date}T00:00:00Z`)),
       datasets: [
@@ -5316,7 +5290,7 @@ async function mountPortfolioHistoryChart({
           backgroundColor(context) {
             const { chart } = context;
             const { ctx, chartArea } = chart;
-            if (!chartArea) return "rgba(139, 92, 246, 0.16)";
+            if (!chartArea) return `${accent}18`;
             const gradient = ctx.createLinearGradient(
               0,
               chartArea.top,
@@ -5372,7 +5346,7 @@ async function mountPortfolioHistoryChart({
           backgroundColor: paper,
           borderColor: line,
           borderWidth: 1,
-          titleColor: "#276443",
+          titleColor: accent,
           titleFont: { size: 24, weight: "700" },
           bodyColor: muted,
           bodyFont: { size: 12 },
@@ -5397,7 +5371,7 @@ async function mountPortfolioHistoryChart({
             maxTicksLimit: 6,
             maxRotation: 0,
             padding: 8,
-            font: { size: 9, weight: 600 },
+            font: { size: 11, weight: 500 },
             callback(value) {
               return shortPortfolioDate(new Date(value).toISOString().slice(0, 10));
             },
@@ -5412,7 +5386,7 @@ async function mountPortfolioHistoryChart({
             color: muted,
             maxTicksLimit: 5,
             padding: 8,
-            font: { size: 9, weight: 600 },
+            font: { size: 11, weight: 500 },
             callback(value) {
               return compactCurrency.format(value);
             },
@@ -5432,7 +5406,7 @@ function renderPortfolioHistory() {
   const saved = displayPortfolioView(state.portfolioView, displayCurrency(), lastValidatedFxRate);
   if (saved && state.portfolioHistoryMode === "value") {
     const points = portfolioHistoryRangePoints(saved.history || [], state.portfolioHistoryRange);
-    const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, saved, state.portfolioHistoryRange]);
+    const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, saved, state.portfolioHistoryRange, appearance]);
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
@@ -5990,9 +5964,9 @@ function renderDashboardHighlights() {
           const performance = itemPurchasePerformance(item);
           const change = performance?.change;
           return `<button class="dashboard-card-row" type="button" data-detail="${esc(item.uid)}">
-            <img src="${esc(item.thumb || item.image)}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="" />
+            <img loading="lazy" decoding="async" width="40" height="56" src="${esc(item.thumb || item.image)}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="" />
             <span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number || "Number unavailable")}</small></span>
-            <span>${collector ? `<strong>${itemValue(item) === null ? "—" : money(itemValue(item), item.currency)}${Number(item.quantity) > 1 ? ` <small style="display:inline;color:var(--muted);font-weight:400">×${Number(item.quantity).toLocaleString()}</small>` : ""}</strong>` : `<strong>${money(itemValue(item), item.currency)}</strong><small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${change == null ? "Performance unavailable" : `${change >= 0 ? "+" : ""}${money(change, item.currency)}`}</small><small class="price-provenance">${esc(priceProvenanceText(item))}</small>`}</span>
+            <span>${collector ? `<strong>${itemValue(item) === null ? "—" : displayCurrencyMoney(itemValue(item), item.currency)}${Number(item.quantity) > 1 ? ` <small style="display:inline;color:var(--muted);font-weight:400">×${Number(item.quantity).toLocaleString()}</small>` : ""}</strong>` : `<strong>${displayCurrencyMoney(itemValue(item), item.currency)}</strong><small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${change == null ? "Performance unavailable" : `${change >= 0 ? "+" : ""}${money(change, item.currency)}`}</small><small class="price-provenance">${esc(priceProvenanceText(item))}</small>`}</span>
           </button>`;
         })
         .join("")

@@ -765,7 +765,10 @@ test('saved chart and total restore together and publish only after a completed 
  await page.reload();await restore();await expect(page.locator('#portfolioValue')).toHaveText('$450.00');await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
  expect(paid).toBe(0);
  await expect.poll(()=>page.evaluate(async url=>(await import(url)).portfolioChartInstance?.data.datasets[0].data,appUrl)).toEqual([400,450]);
- await expect.poll(()=>page.evaluate(async url=>(await import(url)).portfolioChartInstance?.$traceProgress||0,appUrl)).toBe(1);
+ expect(await page.evaluate(async url => (await import(url)).portfolioChartInstance?.options.animation, appUrl)).toBe(false);
+ await page.evaluate(()=>{document.body.dataset.uiTheme='mica';const select=document.querySelector('#appearanceSelect');select.value='dark';select.dispatchEvent(new Event('change',{bubbles:true}));});
+ await expect.poll(()=>page.evaluate(async url=>(await import(url)).portfolioChartInstance?.options.scales.y.ticks.color,appUrl)).toBe('#b4bcb2');
+ expect(paid).toBe(0);
  await page.screenshot({path:`/tmp/mica95-saved-${testInfo.project.name}.png`,fullPage:true,animations:"disabled"});
 });
 

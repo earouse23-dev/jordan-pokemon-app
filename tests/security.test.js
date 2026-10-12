@@ -583,21 +583,21 @@ test("working interfaces keep readable text at a twelve-pixel minimum", () => {
   assert.doesNotMatch(combinedCss, /font:\s*[^;]*\b(?:7|8|9|10|11)px\b/);
 });
 
-test("Mica uses one approved cream and sage interface across focused modes", () => {
+test("Mica uses one green interface with synchronized light/dark shell assets", () => {
   assert.doesNotMatch(appShell, /data-ui-theme-option=/);
   assert.doesNotMatch(appShell, /data-workspace-mode=/);
   assert.match(appShell, /data-software-mode="collector"/);
   assert.match(appShell, /data-software-mode="investor"/);
   assert.match(appShell, /data-software-mode="seller"/);
-  assert.match(appShell, /themes\.css\?v=85/);
+  assert.match(appShell, /themes\.css\?v=102/);
   assert.match(appSource, /let uiTheme = "mica"/);
   assert.match(appSource, /let workspaceMode = "collector"/);
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
-  assert.match(themes, /--canvas:\s*#f5f0e4/i);
+  assert.match(themes, /--canvas:\s*#f6f7f4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-exact-profile-100/);
-  assert.match(serviceWorker, /themes\.css\?v=85/);
+  assert.match(serviceWorker, /mica-shell-design-102/);
+  assert.match(serviceWorker, /themes\.css\?v=102/);
 });
 
 test("signup distinguishes repeated accounts and supports confirmation resend", () => {

@@ -281,7 +281,7 @@ async function openCard(page, card = exactCard(), preferOwned = false) {
     },
     { appUrl, card, preferOwned },
   );
-  await expect(page.locator("#detailTitle")).toHaveText(card.name);
+  await expect(page.locator("#detailTitle")).toContainText(card.name);
 }
 
 async function chooseGraded(page, grader, grade) {
@@ -1017,6 +1017,7 @@ test("saved display currency converts the portfolio and survives profile reload 
   await page.screenshot({path:testInfo.outputPath("everyday-currency-fixture.png"),animations:"disabled"});
   await page.evaluate(async url => (await import(url)).routeTo("dashboard"), appUrl);
   await expect(page.locator("#portfolioValue")).toHaveText("€180.00");
+  await expect(page.locator(".dashboard-card-row").filter({hasText:"USD sealed"})).toContainText("€80.00");
   await expect(page.locator("#portfolioToplineLabel")).toHaveText("Total portfolio value");
   await expect(page.locator("#costBasis")).toHaveText("€138.00");
   await expect(page.locator("#gradedOwnedCount")).toHaveText("€138.00");
@@ -2038,4 +2039,59 @@ test("All time with one observation explains missing history without an empty ch
   await expect(page.locator('[data-detail-tool="grading-comparison"]')).toHaveCount(0);
   await expect(page.getByText("Compare grading outcomes",{exact:true})).toHaveCount(0);
   await page.screenshot({path:`docs/evidence/client-reset-2026-10-03/checkpoint-94-${testInfo.project.name}.png`,fullPage:true});
+});
+
+test("beta design keeps exact results readable in light and dark with one clear mobile action", async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await setup(page);
+  const card = exactCard({ identityStatus: "exact", edition: "unlimited", promoType: "none", price: 10, condition: "Near Mint", currency: "USD", priceHistory: [
+    {date:"2026-01-01",amount:8,currency:"USD",condition:"Near Mint",finish:"reverseHolofoil",provider:"tcgplayer"},
+    {date:"2026-09-16",amount:10,currency:"USD",condition:"Near Mint",finish:"reverseHolofoil",provider:"tcgplayer"},
+  ] });
+  await page.evaluate(async ({ appUrl, card }) => {
+    document.body.dataset.uiTheme = "mica";
+    document.body.dataset.workspace = "collector";
+    document.body.dataset.softwareMode = "collector";
+    const a = await import(appUrl);
+    a.openCardDetail(card, false);
+    a.state.detailScanDraft = {condition:"Near Mint"};
+    a.renderDetail();
+  }, {appUrl,card});
+  await expect(page.locator("#detailTitle")).toContainText("Pikachu");
+  await expect(page.locator(".market-hero")).toContainText("$10.00");
+  for (const appearance of ["light", "dark"]) for (const width of [320,390,768,1440]) {
+    await page.setViewportSize({width,height:width<760?844:1000});
+    await page.evaluate(mode=>{document.body.dataset.appearance=mode;window.scrollTo(0,0);},appearance);
+    const metrics = await page.evaluate(() => {
+      const rgb = s => s.match(/[\d.]+/g).slice(0,3).map(Number);
+      const lum = s => {const c=rgb(s).map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;});return c[0]*.2126+c[1]*.7152+c[2]*.0722;};
+      const ratio=(a,b)=>(Math.max(lum(a),lum(b))+.05)/(Math.min(lum(a),lum(b))+.05);
+      const button=getComputedStyle(document.querySelector("#addLibraryButton"));
+      const title=getComputedStyle(document.querySelector("#detailTitle"));
+      const view=getComputedStyle(document.querySelector("#view-detail"));
+      const price=document.querySelector(".market-hero>strong");
+      const action=document.querySelector(".detail-sticky-action").getBoundingClientRect();
+      return {overflow:document.documentElement.scrollWidth-innerWidth,titleContrast:ratio(title.color,view.backgroundColor),buttonContrast:ratio(button.color,button.backgroundColor),priceBottom:price.getBoundingClientRect().bottom,actionTop:action.top,actionBottom:action.bottom,actionWidth:action.width};
+    });
+    expect(metrics.overflow).toBeLessThanOrEqual(0);
+    expect(metrics.titleContrast).toBeGreaterThanOrEqual(4.5);
+    expect(metrics.buttonContrast).toBeGreaterThanOrEqual(4.5);
+    if(width<760){
+      await expect(page.locator(".bottom-nav")).toBeHidden();
+      expect(metrics.actionBottom).toBeLessThanOrEqual(844);
+      expect(metrics.actionWidth).toBeGreaterThanOrEqual(width-34);
+      expect(metrics.priceBottom).toBeLessThan(metrics.actionTop);
+    }
+    await expect(page.locator(".scan-add-action button")).toHaveCount(1);
+    await page.screenshot({path:`/tmp/mica102-detail-${appearance}-${width}-${testInfo.project.name}.png`,animations:"disabled"});
+  }
+  await page.locator("#detailBack").focus();
+  expect(await page.locator("#detailBack").evaluate(n=>getComputedStyle(n).outlineStyle)).toBe("solid");
+  await page.locator("#addLibraryButton").click();
+  await expect(page.locator("#bottomSheet")).toBeVisible();
+  await page.locator("#positionPurchaseDetails > summary").click();
+  await expect(page.locator("#positionFree")).toBeVisible();
+  expect(await page.locator("#positionPurchaseDetails").evaluate(n => getComputedStyle(n).backgroundColor)).toBe(await page.evaluate(() => getComputedStyle(document.querySelector("#view-detail")).backgroundColor));
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:`/tmp/mica102-add-dark-${testInfo.project.name}.png`,fullPage:true,animations:"disabled"});
 });

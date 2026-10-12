@@ -1,11 +1,11 @@
-const SHELL_CACHE = "mica-shell-saved-portfolio-101";
+const SHELL_CACHE = "mica-shell-design-102";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [
   "./",
   "./index.html",
   "./styles.css?v=91",
-  "./themes.css?v=85",
+  "./themes.css?v=102",
   "./app-config.js?v=69",
   "./app.js?v=114",
   "./manifest.webmanifest",
@@ -14,8 +14,6 @@ const CORE_SHELL = [
   "./icons/icon-512.png",
 ];
 const OPTIONAL_SHELL = [
-  "./assets/mica-mineral-paper.jpg",
-  "./assets/mica-collection-ornament.jpg",
   "./assets/coach-parallel-pass.jpg",
   "./assets/coach-parallel-retake.jpg",
   "./assets/coach-frame-pass.jpg",
