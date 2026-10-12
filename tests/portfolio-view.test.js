@@ -121,3 +121,23 @@ test("display totals include every native currency and never assume a missing ex
   assert.equal(display.history.at(-1).total, 325);
   assert.equal(displayPortfolioView(view, "USD", null, now).total, null);
 });
+
+test('saved daily values remain unchanged; missed days append from stored evidence and dated corrections recalculate only affected days', () => {
+  const a = item('daily', '2026-01-01', 200);
+  const saved = buildPortfolioView([a], '2026-01-03T12:00:00Z');
+  // A later provider correction cannot silently rewrite already saved days.
+  a.priceHistory[0].amount = 220;
+  a.price = 250;
+  const next = buildPortfolioView([a], '2026-01-06T12:00:00Z', {previousView:saved});
+  assert.deepEqual(next.summaries[0].history.slice(0,3), saved.summaries[0].history);
+  assert.equal(next.summaries[0].history.find(p=>p.date==='2026-01-04').total,220);
+  assert.equal(next.summaries[0].history.at(-1).total,250);
+  const corrected = buildPortfolioView([a], '2026-01-06T12:00:00Z', {previousView:next,recalculateFrom:'2026-01-02'});
+  assert.equal(corrected.summaries[0].history[0].total,200);
+  assert.equal(corrected.summaries[0].history[1].total,220);
+  assert.equal(new Set(corrected.summaries[0].history.map(p=>p.date)).size,6);
+  // A backdated additional holding rebuilds historical ownership, using local data.
+  const b = item('backdated', '2026-01-02', 100);
+  const withPurchase=buildPortfolioView([a,b],'2026-01-06T12:00:00Z',{previousView:next,recalculateFrom:'2026-01-02'});
+  assert.equal(withPurchase.summaries[0].history.find(p=>p.date==='2026-01-02').total,320);
+});

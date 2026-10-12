@@ -1,4 +1,4 @@
-import { portfolioPricingKey, displayPortfolioView, hasPortfolioValue } from "./lib/portfolio-view.js";
+import { portfolioPricingKey, displayPortfolioView, hasPortfolioValue, compactPortfolioView } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -3157,7 +3157,7 @@ async function requestFxRate() {
 let displayFxMidnightTimer = null;
 
 function displayCurrency() {
-  return state.profile?.displayCurrency === "EUR" ? "EUR" : "USD";
+  return (state.profile?.displayCurrency || state.portfolioView?.cachedDisplayCurrency) === "EUR" ? "EUR" : "USD";
 }
 
 function displayCurrencyMoney(amount, sourceCurrency = "USD") {
@@ -3178,6 +3178,7 @@ async function loadDisplayFx() {
     const rate = await requestFxRate();
     lastValidatedFxRate = rate;
     state.displayFxStatus = "ready";
+    if (state.session?.user?.id && state.portfolioView) cachePortfolioView(state.session.user.id, state.portfolioView);
 
   } catch {
     state.displayFxStatus = "error";
@@ -6625,6 +6626,13 @@ function renderCollection() {
     if (button) button.disabled = accountUnavailable;
   });
   if (accountUnavailable) {
+    if (!renderSavedPortfolio()) {
+      $("#portfolioValue").textContent = "—";
+      $("#portfolioChange").textContent = state.accountLoading ? "Loading saved portfolio…" : "Saved portfolio unavailable";
+      destroyPortfolioHistoryChart();
+      portfolioRenderKey = null;
+      $("#portfolioHistory").replaceChildren();
+    }
     state.bulkMode = false;
     state.bulkSelected.clear();
     syncBulkControls();
@@ -17097,14 +17105,43 @@ function restorePortfolioPricing(view) {
   });
 }
 
-async function loadSavedPortfolio(owner) {
+function cachePortfolioView(owner, view) {
+  // Keep the first-paint cache small; full sale evidence remains in the database.
+  try { localStorage.setItem(`mica:portfolio-view:${owner}`, JSON.stringify({ ...compactPortfolioView(view), cachedDisplayCurrency: displayCurrency(), cachedDisplayFx: usableFxRate(lastValidatedFxRate) ? lastValidatedFxRate : null })); } catch {}
+}
+
+function renderSavedPortfolio() {
+  const saved = displayPortfolioView(state.portfolioView, displayCurrency(), lastValidatedFxRate);
+  if (!state.session || !saved || (saved.total === null && saved.knownTotal === null)) return false;
+  renderSoftwareModeHome();
+  $("#portfolioToplineLabel").textContent = saved.total === null ? "Known portfolio value" : "Total portfolio value";
+  $("#portfolioValue").textContent = money(saved.total ?? saved.knownTotal, saved.currency);
+  $("#portfolioValue").dataset.savedSnapshot = "true";
+  $("#portfolioChange").textContent = saved.missingUnits ? `Portfolio value · ${saved.missingUnits} unpriced copies excluded.` : "Portfolio value";
+  $(".status-label").innerHTML = `<i></i> Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}`;
+  renderPortfolioHistory();
+  return true;
+}
+
+async function loadSavedPortfolio(owner, version = sessionLoadVersion) {
+  if (!accountRequestIsCurrent(owner, version)) return null;
   try { state.portfolioView = JSON.parse(localStorage.getItem(`mica:portfolio-view:${owner}`) || "null"); } catch { state.portfolioView = null; }
   if (!hasPortfolioValue(state.portfolioView)) state.portfolioView = null;
+  if (usableFxRate(state.portfolioView?.cachedDisplayFx)) lastValidatedFxRate = state.portfolioView.cachedDisplayFx;
+  renderSavedPortfolio();
   try {
-    const response = await fetch("/api/capabilities?surface=portfolio", { headers: providerRequestHeaders(), signal: AbortSignal.timeout(5000) });
+    const response = await fetch("/api/capabilities?surface=portfolio&display=summary", { headers: providerRequestHeaders(), signal: AbortSignal.timeout(5000) });
     if (!response.ok) return null;
     const view = (await response.json()).view;
-    return hasPortfolioValue(view) ? view : null;
+    if (!accountRequestIsCurrent(owner, version) || !hasPortfolioValue(view)) return null;
+    // A delayed read must not roll back a newer published background refresh.
+    if (Date.parse(view.updatedAt) < Date.parse(state.portfolioView?.updatedAt)) return state.portfolioView;
+    cachePortfolioView(owner, view);
+    view.cachedDisplayCurrency = displayCurrency();
+    state.portfolioView = view;
+    restorePortfolioPricing(view);
+    renderSavedPortfolio();
+    return view;
   } catch { return null; }
 }
 
@@ -17124,7 +17161,7 @@ async function refreshSavedPortfolio(owner, version) {
     restorePortfolioPricing(view);
     state.pricingStatus = view.complete ? "live" : "partial";
     state.pricingRetrievedAt = view.updatedAt;
-    try { localStorage.setItem(`mica:portfolio-view:${owner}`, JSON.stringify(view)); } catch {}
+    cachePortfolioView(owner, view);
     renderCollection(); renderInsights();
     if (state.route === "detail") renderDetail();
     return true;
@@ -20749,7 +20786,8 @@ async function retryAccountLoad() {
   state.accountLoading = true;
   renderCollection();
   try {
-    const [organization, watchlist, history, profile, actionCenter, portfolioView] =
+    void loadSavedPortfolio(ownerId, loadVersion);
+    const [organization, watchlist, history, profile, actionCenter] =
       await Promise.all([
         loadCollectionOrganization(supabase, ownerId),
         loadWatchlist(supabase, ownerId),
@@ -20760,12 +20798,10 @@ async function retryAccountLoad() {
         loadActionCenter(supabase, ownerId)
           .then((data) => ({ data, error: null }))
           .catch((error) => ({ data: null, error })),
-        loadSavedPortfolio(ownerId),
       ]);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
-    state.portfolioView = portfolioView || state.portfolioView;
     state.profile = profile;
     state.preferences = profile.preferences;
     state.actionCenter = actionCenter.error
@@ -21065,7 +21101,8 @@ async function applySession(session) {
     { instant: true, history: "replace" },
   );
   try {
-    const [organization, watchlist, history, profile, actionCenter, portfolioView] =
+    void loadSavedPortfolio(ownerId, loadVersion);
+    const [organization, watchlist, history, profile, actionCenter] =
       await Promise.all([
         loadCollectionOrganization(supabase, ownerId),
         loadWatchlist(supabase, ownerId),
@@ -21076,12 +21113,10 @@ async function applySession(session) {
         loadActionCenter(supabase, ownerId)
           .then((data) => ({ data, error: null }))
           .catch((error) => ({ data: null, error })),
-        loadSavedPortfolio(ownerId),
       ]);
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.watchlist = watchlist;
     state.portfolioHistory = history.data;
-    state.portfolioView = portfolioView || state.portfolioView;
     state.profile = profile;
     state.preferences = profile.preferences;
     state.actionCenter = actionCenter.error
@@ -21365,7 +21400,7 @@ window.addEventListener("online", () => {
   if (state.session && state.accountLoadError) void retryAccountLoad();
 });
 document.addEventListener("visibilitychange", () => {
-  if (!nativeBuild && document.visibilityState === "visible" && state.session && !state.accountLoading && !state.accountLoadError && state.items.some(item => Date.now() - Number(item.historyLoadedAt || 0) >= 15 * 60_000)) void refreshLivePricing();
+  if (!nativeBuild && document.visibilityState === "visible" && state.session && !state.accountLoading && !state.accountLoadError && state.portfolioView?.checkedDay !== new Date().toISOString().slice(0, 10)) void refreshLivePricing();
 });
 window
   .matchMedia("(display-mode: standalone)")

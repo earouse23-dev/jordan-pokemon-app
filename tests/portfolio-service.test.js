@@ -51,6 +51,10 @@ test("saved views are owner scoped, refresh failures preserve the published view
     }
     if (url.pathname.endsWith("/auth/v1/user"))
       return Response.json({ id: owner });
+    if (url.pathname.endsWith("/rpc/publish_saved_portfolio")) {
+      stored = JSON.parse(init.body).p_view;
+      return Response.json(true);
+    }
     if (url.pathname.endsWith("/rpc/claim_portfolio_refresh"))
       return Response.json(true);
     if (url.pathname.endsWith("/portfolio_views")) {
@@ -60,7 +64,7 @@ test("saved views are owner scoped, refresh failures preserve the published view
         if (patch.view) stored = patch.view;
         return new Response(null, { status: 204 });
       }
-      return Response.json({ view: stored });
+      return Response.json({ view: stored, inventory_revision: 0 });
     }
     if (url.pathname.endsWith("/collection_items") && !readFailure) return Response.json([]);
     if (url.pathname.endsWith("/collection_items"))
@@ -129,11 +133,12 @@ test('service history uses an explicit owner and exhausted first refresh recover
   assert.equal(u.hostname,'portfolio-recovery-fixture.supabase.co','No external provider network request');
   const table=u.pathname.split('/').at(-1);
   if(table==='claim_portfolio_refresh')return Response.json(true);
+  if(table==='publish_saved_portfolio'){stored=JSON.parse(init.body).p_view;return Response.json(true);}
   if(table==='get_portfolio_price_history')throw Error('Service clients cannot use auth.uid() history RPC');
   if(table==='portfolio_views'){
    assert.equal(u.searchParams.get('user_id'),'eq.'+owner);
    if(init.method==='PATCH'){const p=JSON.parse(init.body);if(p.view)stored=p.view;return new Response(null,{status:204});}
-   return Response.json({view:stored});
+   return Response.json({view:stored,inventory_revision:0});
   }
   if(table==='valuation_snapshots'){assert.equal(u.searchParams.get('user_id'),'eq.'+owner);return Response.json(legacy?[{total:400,currency:'USD',priced_items:2,unpriced_items:1,snapshot_date:'2026-01-01',observed_at:'2026-01-01T12:00:00Z'}]:[]);}
   if(table==='collection_items'){assert.equal(u.searchParams.get('user_id'),'eq.'+owner);return Response.json([{id:uid,user_id:owner,quantity:1,currency:'USD',card_state:'raw',status:'owned',raw_condition:'near_mint',identity_snapshot:{id:'fixture',name:'Fixture',set:'Fixture',number:'1',variant:'Holofoil',externalIds:{pkmnprices:'123'}}}]);}
@@ -143,7 +148,59 @@ test('service history uses an explicit owner and exhausted first refresh recover
  const db=createClient('https://portfolio-recovery-fixture.supabase.co','fixture-service',{auth:{persistSession:false}});
  const items=await loadPortfolio(db,owner,{serverOwnerRead:true});assert.equal(items[0].priceHistory[0].amount,100);
  const view=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'fixture'}, {now:'2026-01-02T12:00:00Z'});
- assert.equal(view.summaries[0].knownTotal,400);assert.equal(view.summaries[0].missingUnits,1);assert.equal(view.updatedAt,'2026-01-01T12:00:00Z');assert.equal(view.refreshReason,'provider_daily_budget_reached');assert.equal(view.pendingPricing[0].priceHistory[0].amount,100);assert.ok(ownerHistoryReads>=3);
+ assert.equal(view.summaries[0].knownTotal,400);assert.equal(view.summaries[0].missingUnits,1);assert.equal(view.updatedAt,'2026-01-01T12:00:00Z');assert.equal(view.refreshReason,'provider_daily_budget_reached');assert.equal(view.pendingPricing[0].priceHistory[0].amount,100);assert.equal(ownerHistoryReads,2,"Only one inventory hydration per refresh");
  legacy=false;stored=null;
  const first=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'fixture'},{now:'2026-01-02T12:00:00Z'});assert.equal(hasPortfolioValue(first),false);assert.equal(first.updatedAt,undefined,'failed first refresh is not a newly updated empty valuation');
+});
+
+test('daily cache skips inventory and providers; revisions reuse today’s prices and publish atomically', async t => {
+  const {createClient}=await import('@supabase/supabase-js');
+  const {refreshPortfolioView}=await import('../lib/portfolio-service.js');
+  const {loadPortfolio}=await import('../lib/supabase-data.js');
+  const {buildPortfolioView,portfolioPricingKey}=await import('../lib/portfolio-view.js');
+  const uid='22222222-2222-4222-8222-222222222222',day='2026-01-03',now=day+'T12:00:00Z';
+  let stored=null,revision=0,dirty=null,quantity=1,inventoryReads=0,paid=0,claims=0,race=false,attempted=null;
+  t.mock.method(globalThis,'fetch',async(input,init={})=>{
+    const u=new URL(typeof input==='string'?input:input.url||input),table=u.pathname.split('/').at(-1);
+    if(u.hostname!=='portfolio-daily-fixture.supabase.co'){paid++;throw Error('No provider work allowed for a saved day');}
+    if(table==='claim_portfolio_refresh'){claims++;return Response.json(true);}
+    if(table==='publish_saved_portfolio'){
+      const body=JSON.parse(init.body);
+      assert.equal(body.p_user_id,owner);assert.equal(body.p_revision,revision);
+      if(race){revision++;return Response.json(false);}
+      stored=body.p_view;dirty=null;attempted=now;return Response.json(true);
+    }
+    if(table==='portfolio_views'){
+      assert.equal(u.searchParams.get('user_id'),'eq.'+owner);
+      if(init.method==='PATCH')return new Response(null,{status:204});
+      return Response.json({view:stored,inventory_revision:revision,dirty_from:dirty,attempted_at:attempted});
+    }
+    if(table==='collection_items'){
+      inventoryReads++;
+      return Response.json([{id:uid,user_id:owner,quantity,currency:'USD',card_state:'raw',status:'owned',raw_condition:'near_mint',identity_snapshot:{id:'fixture',name:'Fixture',set:'Fixture',number:'1',variant:'Holofoil',externalIds:{pkmnprices:'123'}}}]);
+    }
+    if(table==='purchase_lots')return Response.json([{id:uid,user_id:owner,collection_item_id:uid,acquired_at:'2026-01-01',quantity_acquired:quantity,quantity_remaining:quantity,currency:'USD'}]);
+    return Response.json([]);
+  });
+  const db=createClient('https://portfolio-daily-fixture.supabase.co','fixture-service',{auth:{persistSession:false}});
+  const [base]=await loadPortfolio(db,owner,{serverOwnerRead:true});
+  const price={uid,key:portfolioPricingKey(base),checkedDay:day,price:200,pricingStatus:'live',historyStatus:'live',priceHistory:[{provider:'tcgplayer',currency:'USD',finish:'holofoil',condition:'Near Mint',recordedAt:'2026-01-01T12:00:00Z',amount:200}]};
+  stored={...buildPortfolioView([{...base,...price}],now),dailyVersion:1,checkedDay:day,inventoryRevision:0,pricing:[price]};
+  inventoryReads=0;
+  assert.deepEqual(await refreshPortfolioView(db,owner,{}, {now}),stored);
+  assert.equal(inventoryReads,0);assert.equal(claims,0);assert.equal(paid,0);
+  revision++;dirty='2026-01-01';quantity=2;
+  const added=await refreshPortfolioView(db,owner,{}, {now});
+  assert.equal(inventoryReads,1,'No second inventory hydration');
+  assert.equal(added.summaries[0].total,400);assert.equal(added.inventoryRevision,1);
+  assert.equal(added.pricing[0].checkedDay,day);assert.equal(paid,0);
+  await refreshPortfolioView(db,owner,{}, {now});assert.equal(inventoryReads,1);
+  const published=structuredClone(stored);revision++;race=true;
+  await assert.rejects(refreshPortfolioView(db,owner,{}, {now}),/inventory_changed_during_refresh/);
+  assert.deepEqual(stored,published,'A racing inventory edit cannot publish stale totals');
+  race=false;
+  stored={...published,refreshIncomplete:true,attemptDay:day,attemptRevision:revision,attemptCount:3};
+  const reads=inventoryReads;
+  await refreshPortfolioView(db,owner,{}, {now});assert.equal(inventoryReads,reads,'Bounded failed refresh retries');
+  assert.equal(paid,0);
 });

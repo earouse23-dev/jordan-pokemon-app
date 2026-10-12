@@ -1,4 +1,4 @@
-const SHELL_CACHE = "mica-shell-exact-profile-100";
+const SHELL_CACHE = "mica-shell-saved-portfolio-101";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [

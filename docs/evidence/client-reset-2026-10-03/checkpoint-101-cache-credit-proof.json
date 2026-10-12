@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-10-12T06:14:11.839Z",
+  "initial": {
+    "reservedCredits": 43,
+    "requests": 5,
+    "latest": "2026-10-12T06:02:45.13606Z"
+  },
+  "afterRepeatedDemoVisits": {
+    "reservedCredits": 43,
+    "requests": 5,
+    "latest": "2026-10-12T06:02:45.13606Z"
+  },
+  "additionalReservedCredits": 0,
+  "customerWrites": 0
+}

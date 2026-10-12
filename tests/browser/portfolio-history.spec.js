@@ -768,3 +768,44 @@ test('saved chart and total restore together and publish only after a completed 
  await expect.poll(()=>page.evaluate(async url=>(await import(url)).portfolioChartInstance?.$traceProgress||0,appUrl)).toBe(1);
  await page.screenshot({path:`/tmp/mica95-saved-${testInfo.project.name}.png`,fullPage:true,animations:"disabled"});
 });
+
+test('saved chart paints while account and server reads are pending, survives reload, and cannot cross owners', async ({page},testInfo)=>{
+  const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
+  const view=amount=>({version:1,dailyVersion:1,checkedDay:'2026-01-03',updatedAt:'2026-01-03T12:00:00Z',summaries:[{currency:'USD',total:amount,knownTotal:amount,missingUnits:0,history:[{date:'2026-01-02',total:400},{date:'2026-01-03',total:amount}],historyStartsAt:'2026-01-02'}],pricing:[{uid:'fixture',priceHistory:Array(1000).fill({amount:100})}]});
+  let release,fail=false;
+  await page.route('**/app.js?v=114',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
+  await page.route('https://mica-portfolio-test.supabase.co/**',route=>route.abort());
+  await page.route('**/api/**',async route=>{
+    if(!route.request().url().includes('surface=portfolio'))return route.abort();
+    if(fail)return route.fulfill({status:503,body:'{}'});
+    await new Promise(resolve=>release=resolve);
+    return route.fulfill({contentType:'application/json',body:JSON.stringify({view:view(450)})});
+  });
+  await page.goto('/');
+  const start=seed=>page.evaluate(async({appUrl,owner,seed,value})=>{
+    const a=await import(appUrl);a.state.session={user:{id:owner}};a.state.accountLoading=true;a.state.accountLoadError='';a.state.items=[];
+    a.state.portfolioHistoryMode='value';a.state.portfolioHistoryRange='all';
+    document.body.dataset.uiTheme='mica';document.body.dataset.workspace='collector';document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');
+    if(seed)localStorage.setItem('mica:portfolio-view:'+owner,JSON.stringify(value));
+    a.routeTo('dashboard');window.savedRead=a.loadSavedPortfolio(owner);a.renderCollection();
+  },{appUrl,owner,seed,value:view(400)});
+  await start(true);
+  await expect(page.locator('#portfolioValue')).toHaveText('$400.00');
+  await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
+  expect(await page.locator('.portfolio-hero').evaluate(n=>Boolean(n.compareDocumentPosition(document.querySelector('#portfolioHistory')) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+  await expect.poll(()=>Boolean(release)).toBe(true);release();await page.evaluate(()=>window.savedRead);
+  await expect(page.locator('#portfolioValue')).toHaveText('$450.00');
+  expect(await page.evaluate(owner=>JSON.parse(localStorage.getItem('mica:portfolio-view:'+owner)).pricing,owner)).toBeUndefined();
+  await page.evaluate(owner=>{
+    const key='mica:portfolio-view:'+owner,value=JSON.parse(localStorage.getItem(key)),day=new Date().toISOString().slice(0,10),hash='a'.repeat(64);
+    value.cachedDisplayCurrency='EUR';value.cachedDisplayFx={sourceId:'ecb-eurofxref-daily',sourceUrl:'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml',base:'EUR',quote:'USD',units:'USD per EUR',rate:2,contentSha256:hash,rateRef:`ecb-eurofxref-daily:${day}:${hash}`,effectiveDate:day,fetchedAt:new Date().toISOString()};localStorage.setItem(key,JSON.stringify(value));
+  },owner);
+  fail=true;await page.reload();await start(false);
+  await expect(page.locator('#portfolioValue')).toHaveText('€225.00');await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
+  await page.screenshot({path:`/tmp/mica101-saved-first-${testInfo.project.name}.png`,fullPage:true,animations:'disabled'});
+  fail=false;release=null;await start(false);await expect.poll(()=>Boolean(release)).toBe(true);
+  await page.evaluate(async({appUrl,other})=>{const a=await import(appUrl);a.state.session={user:{id:other}};a.state.portfolioView=null;a.renderCollection();},{appUrl,other});
+  release();await page.evaluate(()=>window.savedRead);
+  await expect(page.locator('#portfolioValue')).toHaveText('—');await expect(page.locator('#portfolioHistoryChart')).toHaveCount(0);
+});
