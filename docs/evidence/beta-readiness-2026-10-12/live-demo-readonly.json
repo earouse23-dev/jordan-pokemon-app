@@ -1,0 +1,26 @@
+{
+  "checkedAt": "2026-10-12T21:47:34.710Z",
+  "screens": [
+    {
+      "route": "/",
+      "overflow": false,
+      "brokenImages": 0
+    },
+    {
+      "route": "#collection",
+      "overflow": false,
+      "brokenImages": 0
+    },
+    {
+      "route": "#scan",
+      "overflow": false,
+      "brokenImages": 0
+    }
+  ],
+  "blastoiseBaseSearch": {
+    "noMatches": false,
+    "containsBlastoise": true
+  },
+  "uncaughtErrors": [],
+  "blockedWrites": 3
+}

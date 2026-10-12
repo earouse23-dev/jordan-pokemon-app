@@ -1,0 +1,49 @@
+{
+  "checkedAt": "2026-10-12T21:42:04.212Z",
+  "method": "Read-only production metadata/advisors and local offline tests. No customer record writes.",
+  "unit": {
+    "tests": 573,
+    "passed": 559,
+    "failed": 11,
+    "skipped": 3
+  },
+  "productionLogSample": {
+    "window": "24h",
+    "returned": 6,
+    "allStatus200": true,
+    "limitation": "Small log sample; not an availability measurement."
+  },
+  "security": {
+    "publicTablesRlsEnabled": true,
+    "authenticatedDefinerWarnings": 14,
+    "allFourteenHaveEmptySearchPathAndAuthUidReference": true,
+    "limitation": "These controls do not replace cross-owner authorization tests.",
+    "leakedPasswordProtectionEnabled": false
+  },
+  "capacity": {
+    "portfolioViewsObserved": 2,
+    "cronMaxOwnersPerInvocation": 100,
+    "invocationBudgetSeconds": 48
+  },
+  "implementationChanges": false,
+  "mobileWebKit": {
+    "tests": 118,
+    "passed": 78,
+    "failed": 38,
+    "skipped": 2,
+    "durationMinutes": 11.2,
+    "interpretation": "Mixed stale title assertions, obsolete feature assertions, duplicate-bootstrap fixture risk and unresolved failures; not 38 confirmed product bugs."
+  },
+  "liveDemo": {
+    "initialReadinessTimeoutSeconds": 60,
+    "secondAttemptCompleted": true,
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "horizontalOverflow": false,
+    "uncaughtErrors": 0,
+    "searchBlastoiseBaseReturnedResults": true,
+    "customerWrites": 0
+  }
+}
