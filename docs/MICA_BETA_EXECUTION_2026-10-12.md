@@ -2,7 +2,7 @@
 
 Scope: existing plans/included credits only; no purchases or overages. Qualification target: 100 accounts, 20 simultaneous users, 1,000 physical copies per account. Production acceptance is bounded to 500 returned PkmnPrices items in total. Customer writes are excluded; only isolated demo/test accounts may be exercised. Physical iPhone acceptance and missing business/legal facts remain owner tasks.
 
-## 1. Reproducible release gate — source checks passed; frozen build/publication in verification
+## 1. Reproducible release gate — passed and published
 
 - Repaired stale browser entry points that bootstrapped a second application. A source check now rejects numeric entry-point drift.
 - Kept historical live-probe spending guards closed. Historical probe tests now assert that today's archive path cannot expand their two-request allowance. Positive adapter/estimator arithmetic and current archive API tests remain separate.
@@ -27,3 +27,5 @@ Evidence so far: 571 active unit checks pass (three separately owned database su
 No commercial-beta-ready claim is made by completing source checks alone.
 
 Candidate gate: 571 unit checks and 343 browser checks pass, zero failures; eight explicit browser skips as described above. No provider acceptance call has been made.
+
+Published source `cbcb18e` as `dpl_4iUiEW7yJCnss5Rw4XKCU1ZiEedu` after identical frozen-output verification, staged health/auth checks and isolated demo acceptance. Staged saved-chart reload: 67 ms; public canonical reload: 197 ms, both before 25 held inventory reads, zero uncaught errors/customer writes/provider calls. Free ECB conversion was allowed. These are lab observations, not field percentile guarantees.
