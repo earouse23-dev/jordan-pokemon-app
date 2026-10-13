@@ -28,6 +28,7 @@ jobs:
           name: beta-candidate-evidence
           path: |
             test-results/
+            test-results-large-inventory/
             playwright-report/
             docs/evidence/client-reset-2026-10-03/corrected-manifest.json
           retention-days: 7

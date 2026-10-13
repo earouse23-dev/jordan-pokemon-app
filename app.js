@@ -11457,9 +11457,11 @@ function openSheet(content, trigger = document.activeElement) {
   $("#appShell").inert = true;
   $("#appShell").setAttribute("aria-hidden", "true");
   document.body.style.overflow = "hidden";
-  requestAnimationFrame(() =>
-    $(".sheet-close, input, button", $("#sheetContent"))?.focus(),
-  );
+  const initialFocus = $(".sheet-close, input, button", $("#sheetContent"));
+  requestAnimationFrame(() => {
+    if (initialFocus?.isConnected && !$("#bottomSheet").hidden &&
+      !$("#sheetContent").contains(document.activeElement)) initialFocus.focus();
+  });
   $$(".sheet-close").forEach((button) =>
     button.addEventListener("click", closeSheet),
   );

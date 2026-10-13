@@ -514,9 +514,9 @@ async function setup(page, { soldB = false, onSale } = {}) {
   await page.goto("/");
   await page.evaluate(
     async ({ appUrl, ownerId, copies }) => {
-      const { state, renderCollection, routeTo, bindEvents } = await import(
-        appUrl
-      );
+      const module = await import(appUrl);
+      globalThis.fixtureCopyApp = module;
+      const { state, renderCollection, routeTo, bindEvents } = module;
       state.session = { user: { id: ownerId } };
       state.accountLoading = false;
       state.items = copies;
@@ -2051,21 +2051,21 @@ test('latest slab comp and full-width recorded history stay legible in light and
   rows.forEach((row,index)=>{row.soldAt=dates[index];row.saleType='fixed_price';});
   return route.fulfill({contentType:'application/json',body:JSON.stringify({...soldPayload(lookup,rows),retrievedAt:new Date().toISOString()})});
  });
- await page.evaluate(async({appUrl,item})=>{const app=await import(appUrl);app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'fixture'};app.state.items=[item];document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');app.openCardDetail(item,true);},{appUrl,item:gradedCopy('a')});
+ await page.evaluate(({item})=>{const app=globalThis.fixtureCopyApp;app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'fixture'};app.state.items=[item];document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');app.openCardDetail(item,true);},{appUrl,item:gradedCopy('a')});
  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$5,000.00');
  await expect(page.locator('#positionChart')).toBeVisible();
  await expect(page.locator('#detailTitle')).toContainText('PSA 10');
  await expect(page.locator('#detailTitle')).toContainText('Holofoil');
  await expect(page.getByText('Character, artist, moves, and set details', {exact:true})).toHaveCount(0);
- await page.evaluate(async url=>{const app=await import(url);app.state.detailSales.salesStatus='loading';app.renderDetail();},appUrl);
+ await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.state.detailSales.salesStatus='loading';app.renderDetail();},appUrl);
  await expect(page.locator('#positionChart')).toBeVisible();
- await page.evaluate(async url=>{const app=await import(url);app.state.detailSales.salesStatus='live';app.renderDetail();},appUrl);
+ await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.state.detailSales.salesStatus='live';app.renderDetail();},appUrl);
  await expect(page.locator('.exact-sold-value .inline-source-link')).toContainText('2026-08-31');
- const bounds=await page.evaluate(async url=>{const {chartInstance:chart}=await import(url);return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
+ const bounds=await page.evaluate(()=>{const {chartInstance:chart}=globalThis.fixtureCopyApp;return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
  expect(bounds).toEqual({min:Date.parse(dates[0]),max:Date.parse(dates[2]),radius:0});
  expect(await page.locator('.exact-sold-value .inline-source-link').evaluate(el=>parseFloat(getComputedStyle(el).borderRadius))).toBeGreaterThanOrEqual(12);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await page.evaluate(async url=>{const app=await import(url);const item=app.state.items[0];app.state.detailSales=null;app.openCardDetail(item,true);},appUrl);
+ await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;const item=app.state.items[0];app.state.detailSales=null;app.openCardDetail(item,true);},appUrl);
  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$5,000.00');
  expect(reads).toBe(1);
  await page.screenshot({path:testInfo.outputPath('slab-history-light.png'),fullPage:true});

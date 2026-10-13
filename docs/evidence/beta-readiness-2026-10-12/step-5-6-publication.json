@@ -60,5 +60,22 @@
     "apis": []
   },
   "commercialLaunchApproved": false,
-  "recurringDispatcherActive": false
+  "recurringDispatcherActive": false,
+  "remoteCi": {
+    "runId": 38337478217,
+    "commit": "de9245a216c3e1dc11238dd6fb199532ef801d4c",
+    "conclusion": "success",
+    "url": "https://github.com/earouse23/jordan-pokemon-app/actions/runs/38337478217",
+    "directBrowserPasses": 341,
+    "retryBrowserPasses": 2,
+    "explicitBrowserSkips": 8,
+    "followupRequired": "Shared-sheet delayed autofocus and Chromium fixture import; qualification pending"
+  },
+  "localFullBetaGate": {
+    "unitPassed": 581,
+    "unitSkipped": 3,
+    "coreBrowserPassed": 343,
+    "coreBrowserSkipped": 8,
+    "largeInventoryBrowserPassed": 3
+  }
 }

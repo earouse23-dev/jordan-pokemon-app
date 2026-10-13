@@ -836,3 +836,18 @@ test('detail reflows at narrow widths, landscape and enlarged text in both appea
     await page.evaluate(()=>document.documentElement.style.fontSize='');
   }
 });
+
+test('delayed sheet autofocus preserves a control the user already focused', async ({page}) => {
+  await openCollection(page);
+  const focused = await page.evaluate(() => {
+    const original=window.requestAnimationFrame;let pending;
+    window.requestAnimationFrame=callback=>{pending=callback;return 1;};
+    try {
+      globalThis.fixtureApp.openSheet('<button class="sheet-close">Close</button><input id="fixtureEarlyFocus">');
+      document.querySelector('#fixtureEarlyFocus').focus();
+    } finally { window.requestAnimationFrame=original; }
+    pending(performance.now());
+    return document.activeElement.id;
+  });
+  expect(focused).toBe('fixtureEarlyFocus');
+});
