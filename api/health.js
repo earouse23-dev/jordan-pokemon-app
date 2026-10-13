@@ -61,7 +61,7 @@ export default async function handler(request, response) {
   return response.status(status === "healthy" ? 200 : 503).json({
     status,
     checkedAt: new Date().toISOString(),
-    release: String(process.env.VERCEL_GIT_COMMIT_SHA || "local").slice(0, 12),
+    release: String(process.env.VERCEL_GIT_COMMIT_SHA || process.env.MICA_RELEASE_COMMIT || "local").slice(0, 12),
     services: {
       database,
       auth,

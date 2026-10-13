@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-10-13T02:21:54.802Z",
+  "scope": "Owned local Auth/Postgres plus real portfolioService HTTP GET; synthetic saved summaries only",
+  "accounts": 100,
+  "simultaneousReaders": 20,
+  "requests": 60,
+  "historyDays": 365,
+  "representedCopiesPerSummary": 1000,
+  "physicalInventoryCapacityQualified": false,
+  "p50Ms": 240,
+  "p95Ms": 264,
+  "maxMs": 266,
+  "responseBytes": 13746,
+  "externalRequests": 0,
+  "providerRequests": 0,
+  "customerWrites": 0
+}

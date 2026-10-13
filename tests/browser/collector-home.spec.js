@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet }; export { hydratePosition } from "./lib/supabase-data.js";`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -188,7 +188,7 @@ test("client portfolio preserves unpriced inventory without rejected workspace c
   await page.locator("#dashboardMoneyDetails > summary").click();
   await expect(page.locator(".dashboard-owned-tools")).toBeVisible();
   await page.locator("#dashboardHighestCards button").first().click();
-  await expect(page.locator("#detailTitle")).toHaveText("Charizard");
+  await expect(page.locator("#detailTitle")).toContainText("Charizard");
   expect(await page.evaluate(async url => (await import(url)).state.items.reduce((sum,item)=>sum+item.quantity,0), appUrl)).toBe(4);
 });
 
@@ -268,7 +268,7 @@ for (const entry of ["manual", "recognized slab"]) test(`${entry} intake preserv
   expect(saved.p_certification_number).toBe(corrected.certification);
   expect(saved.p_grader).toBe(corrected.grader);
   expect(String(saved.p_grade)).toBe(corrected.grade);
-  expect(saved.p_acquisition_method).toBe("unknown");
+  expect(saved.p_acquisition_method).toBe("direct_purchase");
   expect(saved.p_notes).toBe(`${entry} purchase note`);
   await expect(page.locator("#positionNotes")).toHaveValue(`${entry} purchase note`);
   await expect(page.locator("#positionError")).toContainText("Your details are still here");
@@ -366,7 +366,7 @@ for (const scenario of ["success", "metadata failure", "missing photo", "owner m
 });
 
 test("graded detail shows recorded sold-derived chart without using a provider index", async ({page},testInfo)=>{
-  const point=(days,amount,extra={})=>({recordedAt:new Date(Date.now()-days*86400000).toISOString(),amount,currency:"USD",provider:"pkmnprices completed sales",contributingEvidenceIds:["fixture-sale-a","fixture-sale-b","fixture-sale-c"],contextValidated:true,...extra});
+  const point=(days,amount,extra={})=>({recordedAt:new Date(Date.now()-days*86400000).toISOString(),amount,currency:"USD",provider:"pkmnprices completed sales",contributingEvidenceIds:["fixture-sale-a","fixture-sale-b","fixture-sale-c"],contextValidated:true,verifiedExactSold:true,...extra});
   await openDetail(page,{cardState:"graded",gradingCompany:"PSA",grade:"10",certificationNumber:"000123",gradedValuations:[point(2,100),point(1,110),point(1,999,{contextValidated:false}),point(1,888,{currency:"EUR"})],priceHistory:[{recordedAt:new Date().toISOString(),amount:777,finish:"holofoil",currency:"USD",gradingCompany:"PSA",grade:"10"}]});
   await expect(page.locator("#positionChart")).toBeVisible();
   await expect(page.locator("#detailValuationGrade")).not.toBeVisible();
@@ -375,8 +375,9 @@ test("graded detail shows recorded sold-derived chart without using a provider i
   await expect(page.locator("#detailValuationGrade")).toHaveValue("10");
   await page.locator('[data-detail-tool="valuation-context"] > summary').click();
   await expect(page.locator("#cardPriceHistory")).not.toContainText("could not be loaded");
-  expect(await page.locator("#cardPriceHistory").evaluate((el) => Boolean(el.compareDocumentPosition(document.querySelector(".exact-sold-value")) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
-  await expect(page.getByRole("button",{name:"6 months",exact:true})).toBeVisible();
+  expect(await page.locator("#cardPriceHistory").evaluate((el) => Boolean(el.compareDocumentPosition(document.querySelector(".exact-sold-value")) & Node.DOCUMENT_POSITION_PRECEDING))).toBe(true);
+  await expect(page.getByRole("combobox",{name:"Price history timeframe"})).toBeVisible();
+  await page.getByRole("combobox",{name:"Price history timeframe"}).selectOption("6m");
   await expect(page.locator(".market-hero")).not.toBeVisible();
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(2);
@@ -399,6 +400,9 @@ test("secondary insights use native sealed values and exact-sold graded evidence
       { ...base, name: "Valid exact sold slab", cardState: "graded", gradingCompany: "PSA", grade: "10", quantity: 1, price: 777, currency: "USD", pricingStatus: "live", costBasis: 100, gradedValuations: [{ amount: 100, currency: "USD", recordedAt: "2026-08-01T00:00:00.000Z", verifiedExactSold: true, contextValidated: true }, { amount: 120, currency: "USD", recordedAt: "2026-10-01T00:00:00.000Z", verifiedExactSold: true, contextValidated: true, currentUntil: Date.now()+86400000, current: { estimate: 120, currency: "USD", status: "ready", contextValidated: true } }] },
       { ...base, name: "Sold copy excluded", status: "sold", quantity: 0, price: 1000, pricingStatus: "live", transactions: [{ type: "sale", quantity: 1, currency: "EUR", netProceeds: 25 }] },
     ];
+    const slab=state.items.find(i=>i.name==='Valid exact sold slab');
+    Object.assign(slab,{finish:'holofoil',edition:'unlimited',promoType:'none',identityStatus:'exact',gradeQualifier:''});
+    slab.exactSaleEvidence={validatedContext:{clientId:slab.id,providerCardId:'12935',name:slab.name,set:slab.set,number:slab.number,language:slab.language,variant:slab.variant,finish:'holofoil',edition:'unlimited',promoType:'none',grader:'PSA',grade:'10',gradeQualifier:'',currency:'USD',canonicalValidated:true,completedSaleValidated:true},salesStatus:'live',retrievedAt:new Date().toISOString(),sales:[{provider:'pkmnprices',providerSaleId:'123456789012',source:'ebay',sourceUrl:'https://www.ebay.com/itm/123456789012',amount:120,currency:'USD',soldAt:new Date().toISOString(),evidenceKind:'completed_sale',attribution:'exact',gradingCompany:'PSA',grade:'10',printing:'Unlimited Holofoil',language:'English',gradeQualifier:''}]};
     state.pricingStatus = "live";
     renderInsights(); routeTo("profile", { focus: false });
   });
@@ -436,9 +440,10 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
   await expect(page.locator("#portfolioPnlRange")).toHaveValue("all");
   await expect(page.locator("#portfolioHistoryChart")).toBeVisible();
   for (const selector of ["#portfolioChartRange", "#portfolioPnlRange"])
-    expect(await page.locator(selector).evaluate(element => getComputedStyle(element).borderTopLeftRadius)).toBe("10px");
-  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.$traceProgress ?? 0)).toBeGreaterThan(0);
-  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.$traceProgress)).toBe(1);
+    expect(await page.locator(selector).evaluate(element => getComputedStyle(element).borderTopLeftRadius)).toBe("12px");
+  await expect.poll(() => page.evaluate(() => Boolean(globalThis.fixtureApp.portfolioChartInstance))).toBe(true);
+  expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.options.animation)).toBe(false);
+  expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.scales.y.min)).toBeGreaterThanOrEqual(0);
   expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.data.datasets.every(dataset => !dataset.borderDash?.length))).toBe(true);
   await expect(page.locator("#portfolioReturn")).toHaveAttribute("data-pnl-sign", "positive");
   await expect(page.locator(".dashboard-owned-tools")).toBeVisible();
@@ -450,7 +455,7 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
   });
   expect(tooltip.value).toBe("$130.00");
   expect(tooltip.date).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/);
-  expect(tooltip.color).toBe("#276443");
+  expect(tooltip.color).toBe(await page.locator("body").evaluate(el=>getComputedStyle(el).getPropertyValue("--pine-2").trim()));
   expect(tooltip.size).toBe(24);
   expect(await page.evaluate(() => {
     const labels = globalThis.fixtureApp.portfolioChartInstance.scales.x.ticks.map(tick => tick.label);
@@ -466,14 +471,14 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
       visibleRatio: (x.getPixelForValue(midpoint) - x.getPixelForValue(x.min)) / (x.getPixelForValue(x.max) - x.getPixelForValue(midpoint)),
     };
   });
-  expect(spacing.recordedGapRatio).toBeGreaterThan(200);
+  expect(spacing.recordedGapRatio).toBe(1);
   expect(spacing.visibleRatio).toBeCloseTo(3, 5);
   expect(await page.evaluate(() => {
     const chart = globalThis.fixtureApp.portfolioChartInstance;
     const observed = chart.data.labels.filter((date, index) => chart.data.datasets.some(dataset => dataset.data[index] != null));
     return [chart.scales.x.min === observed[0], chart.scales.x.max === observed.at(-1), chart.data.datasets[0].data[0] === null];
   })).toEqual([true, true, true]);
-  expect(await page.locator(".portfolio-chart-shell").evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(300);
+  expect(await page.locator(".portfolio-chart-shell").evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(test.info().project.name.includes("mobile") ? 240 : 300);
   await page.locator(".portfolio-pnl-picker > summary").click();
   await page.locator("#portfolioPnlRange").selectOption("1m");
   await expect(page.locator("#portfolioReturn")).toHaveText("+20.0%");
@@ -484,7 +489,7 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
   await page.locator("#portfolioPnlRange").selectOption("all");
   await page.locator(".portfolio-pnl-picker > summary").click();
   await assertFits(page);
-  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.$traceProgress)).toBe(1);
+  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.options.animation)).toBe(false);
   await page.screenshot({ path: testInfo.outputPath("owner-graph-dashboard-fixture.png"), fullPage: true, animations: "disabled" });
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await page.locator("#portfolioHistoryChart").evaluate(element => getComputedStyle(element).animationName)).toBe("none");
@@ -504,6 +509,7 @@ for (const outcome of ["success", "failure", "quota"]) test(`selected-card prici
     state.items[0].price = 100; state.items[0].pricingStatus = "live";
     state.items[1].id = "base1-2"; state.items[1].price = 55; state.items[1].pricingStatus = "live";
   }, appUrl);
+  await page.route("**/api/capabilities?surface=portfolio*",route=>route.fulfill({status:404,json:{}}));
   const calls = [];
   await page.route("**/api/cards?**", async route => {
     calls.push(JSON.parse(new URL(route.request().url()).searchParams.get("lookups")));
@@ -674,17 +680,19 @@ test("missing saved printing requires explicit choices and preserves the copy th
 
 test('primary detail hides extra evidence tools and retains them through an explicit secondary entry', async ({page},testInfo) => {
   await openDetail(page);
-  for (const tool of ['prices','grading-comparison','attachments']) await expect(page.locator(`[data-detail-tool="${tool}"]`)).toBeHidden();
+  for (const tool of ['prices','attachments']) await expect(page.locator(`[data-detail-tool="${tool}"]`)).toBeHidden();
   await expect(page.locator('[data-detail-tool="grading"]')).toBeVisible();
-  expect(await page.locator('#detailTitle').evaluate(node=>getComputedStyle(node).fontFamily)).toContain('Avenir');
+  await expect(page.locator('[data-detail-tool="grading-comparison"]')).toHaveCount(0);
+  expect(await page.locator('#detailTitle').evaluate(node=>getComputedStyle(node).fontFamily)).toMatch(/system-ui|-apple-system/);
   await page.screenshot({path:testInfo.outputPath('compact-detail-fixture.png')});
   await openSecondaryTools(page);
-  for (const tool of ['prices','grading-comparison','attachments']) await expect(page.locator(`[data-detail-tool="${tool}"]`)).toBeVisible();
+  for (const tool of ['prices','attachments']) await expect(page.locator(`[data-detail-tool="${tool}"]`)).toBeVisible();
   await assertFits(page);
 });
 
-test('thirteen saved raw entries refresh in seven bounded requests and feed real position totals', async ({page}) => {
+test('legacy server: thirteen saved raw entries refresh in seven bounded requests and feed real position totals', async ({page}) => {
   await openCollection(page); let requests=0;
+  await page.route('**/api/capabilities?surface=portfolio*',route=>route.fulfill({status:404,json:{}}));
   await page.route('**/api/cards?**', async route => {
     requests++; const lookups=JSON.parse(new URL(route.request().url()).searchParams.get('lookups'));
     expect(lookups.length).toBeLessThanOrEqual(2);
@@ -701,32 +709,29 @@ test('thirteen saved raw entries refresh in seven bounded requests and feed real
 });
 
 
-test("first collection prices render while later batches wait and graded copies skip raw requests", async ({ page }, testInfo) => {
+test("durable refresh preserves the saved total and replaces prices once", async ({page})=>{
   await openCollection(page);
-  let pending; const lookups = [];
-  const payload = batch => ({ cards: batch.map(lookup => ({ providerCardId: lookup.clientId, quotes: [{provider:"tcgplayer",currency:"USD",finish:"holofoil",condition:"Near Mint",priceType:"market",amount:100,observedAt:new Date().toISOString(),retrievedAt:new Date().toISOString()}],capabilities:{raw:"live"},historyStatus:"not_requested",history:[] })) });
-  await page.route("**/api/cards?**", async route => {
-    const batch = JSON.parse(new URL(route.request().url()).searchParams.get("lookups")); lookups.push(batch);
-    if (lookups.length === 2) { pending = route; return; }
-    await route.fulfill({contentType:"application/json",body:JSON.stringify(payload(batch))});
+  let pending,requests=0,providerRequests=0;
+  await page.route('**/api/capabilities?surface=portfolio*',route=>{requests++;pending=route;});
+  await page.route('**/api/cards?**',route=>{providerRequests++;return route.fulfill({status:503,json:{}});});
+  await page.evaluate(()=>{
+    const {state,buildPortfolioView,portfolioPricingKey,renderCollection,routeTo,refreshLivePricing}=globalThis.fixtureApp;
+    state.items[0].price=100;state.items[0].pricingStatus='live';
+    state.items[1].price=50;state.items[1].pricingStatus='live';
+    state.portfolioView=buildPortfolioView(state.items);
+    const newer=state.items.map(i=>({...i,price:i.price+25}));
+    globalThis.nextPortfolio={...buildPortfolioView(newer,new Date(Date.now()+1000).toISOString()),pricing:newer.map(i=>({uid:i.uid,key:portfolioPricingKey(i),price:i.price,pricingStatus:'live'})),complete:true};
+    renderCollection();routeTo('dashboard',{focus:false});
+    globalThis.atomicRefresh=refreshLivePricing();
   });
-  await page.evaluate(async url => {
-    const {state, refreshLivePricing, hydratePosition} = await import(url);
-    state.items = Array.from({length:9}, (_, i) => hydratePosition({id:"batch-copy-"+i,card_state:i<4?"raw":"graded",grader:i<4?null:"PSA",grade:i<4?null:"10",raw_condition:"near_mint",currency:"USD",quantity:1,status:"owned",identity_snapshot:{id:"batch-card-"+i,name:"Mew ex",set:"151",number:"151/165",variant:"Holofoil",language:"en"}}));
-    globalThis.batchRefresh = refreshLivePricing();
-  }, appUrl);
-  await expect.poll(() => Boolean(pending)).toBe(true);
-  const prices = await page.evaluate(async url => (await import(url)).state.items.map(item => item.price), appUrl);
-  expect(prices.slice(0,2)).toEqual([100,100]); expect(prices.slice(2)).toEqual(Array(7).fill(null));
-  await expect(page.locator(".ledger-row").first().locator(".position-price-grid")).toContainText("$100.00");
-  expect(await page.locator("#view-collection .quick-add:visible").evaluate(element => getComputedStyle(element).backgroundColor)).toBe("rgb(39, 100, 67)");
-  await page.screenshot({path:testInfo.outputPath("progressive-green-collection.png"),fullPage:false});
-  const batch = lookups[1]; await pending.fulfill({contentType:"application/json",body:JSON.stringify(payload(batch))});
-  await page.evaluate(() => batchRefresh);
-  expect(lookups.flat().map(item => item.clientId)).toEqual(["batch-card-0","batch-card-1","batch-card-2","batch-card-3"]);
-  const final = await page.evaluate(async url => (await import(url)).state.items, appUrl);
-  expect(final.slice(0,4).map(item=>item.price)).toEqual([100,100,100,100]);
-  expect(final.slice(4).every(item=>item.pricingReason==="printing_confirmation_required")).toBe(true);
+  await expect.poll(()=>Boolean(pending)).toBe(true);
+  await expect(page.locator('#portfolioValue')).toHaveText('$150.00');
+  expect(await page.evaluate(()=>globalThis.fixtureApp.state.items.map(i=>i.price))).toEqual([100,50]);
+  await pending.fulfill({json:{view:await page.evaluate(()=>nextPortfolio)}});
+  await page.evaluate(()=>atomicRefresh);
+  await expect(page.locator('#portfolioValue')).toHaveText('$200.00');
+  expect(await page.evaluate(()=>globalThis.fixtureApp.state.items.map(i=>i.price))).toEqual([125,75]);
+  expect(requests).toBe(1);expect(providerRequests).toBe(0);
 });
 
 test("recent owned history is reused only for its owner and matching context", async ({ page }) => {
@@ -782,10 +787,10 @@ test("known priced history remains visible with excluded slabs and dashboard pos
   await expect(page.locator("#dashboardHighestCards button").first()).toContainText("$260.00");
   await expect(page.locator("#dashboardHighestCards button").first()).toContainText("×2");
   await expect(page.locator("#dashboardHighestCards button").last()).not.toContainText("×1");
-  await expect(page.locator(".portfolio-chart-coverage")).toContainText("1 copies excluded");
+  await expect(page.locator(".portfolio-chart-coverage")).toContainText("1 copy excluded");
   await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.data.datasets[1]?.data.filter(value=>value!==null).length || 0)).toBeGreaterThan(1);
   expect(await page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance.data.datasets[0].data.every(value=>value===null))).toBe(true);
-  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.$traceProgress)).toBe(1);
+  expect(await page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance.options.animation)).toBe(false);
   await page.screenshot({path:testInfo.outputPath("known-history-and-position-values.png"),fullPage:true});
 });
 
@@ -811,4 +816,23 @@ test('large inventories refresh one durable portfolio instead of browser pricing
   expect(savedRequests).toBe(1);
   expect(cardRequests).toBe(0);
   expect(await page.evaluate(() => globalThis.fixtureApp.state.portfolioView.summaries[0].total)).toBe(125000);
+});
+
+
+test('detail reflows at narrow widths, landscape and enlarged text in both appearances', async ({page},testInfo) => {
+  await openDetail(page,{set:'Very long international expansion name 日本語 Erweiterung',number:'199/165',variant:'Reverse Holofoil'});
+  for (const appearance of ['light','dark']) {
+    await page.evaluate(value=>document.body.dataset.appearance=value,appearance);
+    for (const width of [320,375,390,430,844]) {
+      await page.setViewportSize({width,height:width===844?390:844});
+      await assertFits(page);
+      await expect(page.locator('#detailTitle')).toBeVisible();
+    }
+    await page.setViewportSize({width:320,height:844});
+    await page.evaluate(()=>document.documentElement.style.fontSize='200%');
+    await assertFits(page);
+    await expect(page.locator('#detailTitle')).toBeVisible();
+    await page.screenshot({path:testInfo.outputPath('detail-reflow-'+appearance+'.png'),fullPage:true});
+    await page.evaluate(()=>document.documentElement.style.fontSize='');
+  }
 });

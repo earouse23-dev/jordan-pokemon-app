@@ -5379,6 +5379,7 @@ async function mountPortfolioHistoryChart({
         },
         y: {
           position: "right",
+          min: !pnlMode && !marketMode ? 0 : undefined,
           grace: "10%",
           grid: { color: line, drawTicks: false },
           border: { display: false },
@@ -5521,7 +5522,7 @@ function renderPortfolioHistory() {
       const note = $(".portfolio-history-note", root);
       if (note) details.insertBefore(note, $(".history-table-scroll", details));
       details.open = detailsOpen;
-      graph.insertAdjacentHTML("afterend", `<p class="portfolio-chart-coverage">${complete(latest) ? "" : `Known priced cards · ${latest.missingUnits} copies excluded${latest.unknownMembershipUnits ? ` · ${latest.unknownMembershipUnits} need purchase dates` : ""}`}${needsConversion ? " · conversion unavailable" : latest.rateRef ? ` · ECB display rate ${esc(lastValidatedFxRate.effectiveDate)}` : ""}</p>`);
+      graph.insertAdjacentHTML("afterend", `<p class="portfolio-chart-coverage">${complete(latest) ? "" : `Known priced cards · ${latest.missingUnits} ${latest.missingUnits === 1 ? "copy" : "copies"} excluded${latest.unknownMembershipUnits ? ` · ${latest.unknownMembershipUnits} need purchase dates` : ""}`}${needsConversion ? " · conversion unavailable" : latest.rateRef ? ` · ECB display rate ${esc(lastValidatedFxRate.effectiveDate)}` : ""}</p>`);
     }
     bindControls();
     $("[data-portfolio-fx-retry]", root)?.addEventListener("click", () => void loadDisplayFx());
@@ -16460,9 +16461,9 @@ function downloadAccountBackup() {
   downloadTextFile(
     content,
     "application/json;charset=utf-8",
-    `mica-account-backup-${date}.json`,
+    `mica-collection-backup-${date}.json`,
   );
-  toast("Complete account backup downloaded");
+  toast("Collection backup downloaded");
   return true;
 }
 
@@ -17091,7 +17092,7 @@ function renderSavedPortfolio() {
   $("#portfolioToplineLabel").textContent = saved.total === null ? "Known portfolio value" : "Total portfolio value";
   $("#portfolioValue").textContent = money(saved.total ?? saved.knownTotal, saved.currency);
   $("#portfolioValue").dataset.savedSnapshot = "true";
-  $("#portfolioChange").textContent = saved.missingUnits ? `Portfolio value · ${saved.missingUnits} unpriced copies excluded.` : "Portfolio value";
+  $("#portfolioChange").textContent = saved.missingUnits ? `Portfolio value · ${saved.missingUnits} unpriced ${saved.missingUnits === 1 ? "copy" : "copies"} excluded.` : "Portfolio value";
   $(".status-label").innerHTML = `<i></i> Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}`;
   renderPortfolioHistory();
   return true;
@@ -19789,7 +19790,7 @@ function bindEvents() {
   $("#moreButton").addEventListener("click", () => {
     if (!requireAccountData()) return;
     openSheet(
-      `<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Complete account backup<small>Cards, purchases, sales, and watched cards</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection spreadsheet<small>A copy you can import again later</small></span><b>›</b></button></div>`,
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Collection backup<small>Cards, purchases, sales, and watched cards</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection spreadsheet<small>A copy you can import again later</small></span><b>›</b></button></div>`,
     );
   });
   document.addEventListener("click", (event) => {

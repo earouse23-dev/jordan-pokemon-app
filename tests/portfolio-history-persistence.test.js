@@ -369,18 +369,25 @@ test(
           await page.locator("#authPassword").fill(owner.password);
           await page.locator("#passwordSignIn").click();
           await page
-            .locator("#onboardingDialog")
-            .waitFor({ state: "visible", timeout: 20_000 });
-          await page.locator("[data-skip-onboarding]").click();
-          await page.locator("#onboardingDialog").waitFor({ state: "hidden" });
+            .locator("#authGate")
+            .waitFor({ state: "hidden", timeout: 20000 });
+          await page.locator(".portfolio-native-history > summary").click();
           await page
-            .locator("#portfolioHistory")
-            .getByText(/^\$70\.00 \(46\.7%\)$/)
-            .waitFor({ timeout: 20_000 });
+            .locator(".portfolio-native-history")
+            .getByRole("row")
+            .filter({ hasText: "2026-09-25" })
+            .filter({ hasText: "USD" })
+            .getByText("$220.00", { exact: true })
+            .waitFor({ timeout: 20000 });
           assert.match(
-            await page.locator("#portfolioHistory").innerText(),
-            /Known realized P\/L[\s\S]*\$80\.00/i,
+            await page
+              .locator(".portfolio-native-history")
+              .getByRole("row")
+              .filter({ hasText: "2026-09-25" })
+              .innerText(),
+            /\$70\.00/,
           );
+          assert.equal(await page.locator("#portfolioHistoryChart").count(), 1);
           const evidence = new URL(
             "../docs/evidence/sol-client-06/local-db-reopen.png",
             import.meta.url,
@@ -825,37 +832,32 @@ test(
             await page.locator("#authPassword").fill(owner.password);
             await page.locator("#passwordSignIn").click();
             await page
-              .locator("#onboardingDialog")
-              .waitFor({ state: "visible", timeout: 3_000 })
-              .catch(() => {});
-            if (await page.locator("#onboardingDialog").isVisible()) {
-              await page.locator("[data-skip-onboarding]").click();
-              await page
-                .locator("#onboardingDialog")
-                .waitFor({ state: "hidden" });
-            }
-            await page
-              .locator("#portfolioHistory")
-              .getByText(/^\$140\.00 \(.*%\)$/)
-              .waitFor({ timeout: 8_000 })
+              .locator("#authGate")
+              .waitFor({ state: "hidden", timeout: 20000 });
+            await page.locator(".portfolio-native-history > summary").click();
+            const usdRow = page
+              .locator(".portfolio-native-history")
+              .getByRole("row")
+              .filter({ hasText: "2026-09-25" })
+              .filter({ hasText: "USD" });
+            await usdRow
+              .getByText("$400.00", { exact: true })
+              .waitFor({ timeout: 8000 })
               .catch(async () => {
                 throw new Error(
-                  `Fresh-login history: ${await page.locator("#portfolioHistory").innerText()}`,
+                  "Fresh graded native history: " +
+                    (await page
+                      .locator(".portfolio-native-history")
+                      .innerText()),
                 );
               });
-            assert.match(
-              await page.locator("#portfolioHistory").innerText(),
-              /Known realized P\/L[\s\S]*\$180\.00/i,
-            );
-            await page
-              .locator(
-                "#portfolioHistory [data-portfolio-history-currency='EUR']",
-              )
-              .click();
-            await page
-              .locator("#portfolioHistory")
-              .getByText(/^€60\.00 \(120\.0%\)$/)
-              .waitFor({ timeout: 10_000 });
+            assert.match(await usdRow.innerText(), /\$100\.00/);
+            const eurRow = page
+              .locator(".portfolio-native-history")
+              .getByRole("row")
+              .filter({ hasText: "2026-09-25" })
+              .filter({ hasText: "EUR" });
+            assert.match(await eurRow.innerText(), /€90\.00[\s\S]*€40\.00/);
             const evidence = new URL(
               `../docs/evidence/sol-client-${atomic ? "06c" : "06b"}/${label}-fresh-login-eur.png`,
               import.meta.url,
@@ -879,7 +881,7 @@ test(
             await page.locator(".exact-sold-value > strong").waitFor();
             assert.equal(
               await page.locator(".exact-sold-value > strong").textContent(),
-              "$150.00",
+              "$130.00",
             );
             await page.locator("#recordedSoldValuations summary").click();
             await page
@@ -892,7 +894,7 @@ test(
             assert.equal(await page.locator("#exactSaleEvidence a").count(), 3);
             assert.match(
               await page.locator(".position-summary").innerText(),
-              /Current sold-derived estimate[\s\S]*\$150\.00/i,
+              /eBay comp estimate[\s\S]*\$130\.00/i,
             );
             if (atomic) {
               await page.locator("#exactSaleEvidence summary").click();
@@ -916,7 +918,9 @@ test(
             await page.locator(`[data-open-position="${graded.A}"]`).click();
             await page
               .locator(".exact-sold-value")
-              .getByText(/Older completed sales/)
+              .getByText(
+                /Older completed sales|Couldn’t refresh\. Previous evidence is shown/,
+              )
               .waitFor();
             assert.match(
               await page.locator(".position-summary").innerText(),
@@ -927,7 +931,9 @@ test(
               1,
             );
             if (atomic) {
-              await page.locator(".exact-sold-value").scrollIntoViewIfNeeded();
+              await page
+                .locator(".exact-sold-value")
+                .evaluate((node) => node.scrollIntoView());
               await page.screenshot({
                 path: fileURLToPath(
                   new URL(

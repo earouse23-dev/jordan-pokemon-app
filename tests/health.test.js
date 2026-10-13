@@ -76,3 +76,28 @@ test("health endpoint fails closed when the core database is unavailable", async
   assert.equal(response.result.statusCode, 503);
   assert.equal(response.result.body.status, "degraded");
 });
+
+test("prebuilt release reports its supplied source commit", async () => {
+  const previous = {
+    fetch: globalThis.fetch,
+    commit: process.env.MICA_RELEASE_COMMIT,
+    vercel: process.env.VERCEL_GIT_COMMIT_SHA,
+  };
+  globalThis.fetch = async () => ({ ok: true });
+  process.env.MICA_RELEASE_COMMIT = "a".repeat(40);
+  delete process.env.VERCEL_GIT_COMMIT_SHA;
+  try {
+    const response = responseRecorder();
+    await healthHandler({ method: "GET" }, response);
+    assert.equal(response.result.body.release, "a".repeat(12));
+  } finally {
+    globalThis.fetch = previous.fetch;
+    for (const [key, value] of [
+      ["MICA_RELEASE_COMMIT", previous.commit],
+      ["VERCEL_GIT_COMMIT_SHA", previous.vercel],
+    ]) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});

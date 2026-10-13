@@ -1,0 +1,51 @@
+{
+  "checkedAt": "2026-10-13T02:24:16.649Z",
+  "unit": {
+    "passed": 580,
+    "skipped": 3,
+    "failed": 0
+  },
+  "focusedHealthAndPricing": {
+    "passed": 14,
+    "failed": 0
+  },
+  "accountSecurityExport": {
+    "passed": 105,
+    "failed": 0
+  },
+  "ownedLocalHistoryAndFreshLogin": {
+    "passed": 1,
+    "skipped": 0,
+    "projects": 3,
+    "syntheticProviderRequests": 53,
+    "externalProviderRequests": 0
+  },
+  "ownedLocalDetailedPrinting": {
+    "passed": 2,
+    "skipped": 0
+  },
+  "collectorHome": {
+    "passed": 111,
+    "failed": 0,
+    "projects": 3
+  },
+  "reflow": {
+    "widths": [
+      320,
+      375,
+      390,
+      430,
+      844
+    ],
+    "appearances": [
+      "light",
+      "dark"
+    ],
+    "rootTextScale": 2
+  },
+  "lintFiles": 101,
+  "schemaPublicRlsTables": 83,
+  "customerWrites": 0,
+  "physicalIphoneAcceptance": false,
+  "commercialRolloutApproved": false
+}

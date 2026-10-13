@@ -1,0 +1,41 @@
+{
+  "checkedAt": "2026-10-13T01:54:17.076Z",
+  "source": "owned synthetic local database",
+  "restoredDatabase": "mica_beta_restore",
+  "reconciled": {
+    "cost": 75,
+    "view": {
+      "total": 750,
+      "history": [
+        {
+          "date": "2026-01-01",
+          "value": 600
+        },
+        {
+          "date": "2026-01-02",
+          "value": 750
+        }
+      ],
+      "checkedDay": "2026-01-02"
+    },
+    "copies": 1,
+    "history": [
+      [
+        200,
+        "2026-01-01T00:00:00+00:00"
+      ],
+      [
+        250,
+        "2026-01-02T00:00:00+00:00"
+      ]
+    ],
+    "quantity": 3,
+    "transactions": 1
+  },
+  "databaseBytes": 1418683,
+  "storageSha256": "09412ccf9f5e393596c3ec8934ae571ee3eaeb3b3f490a7b034a8ccc9d64a327",
+  "storageRestored": true,
+  "restoredOtherAccountReadsDenied": true,
+  "productionData": false,
+  "productionBackupNotEstablished": true
+}

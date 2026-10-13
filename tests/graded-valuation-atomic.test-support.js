@@ -59,7 +59,8 @@ export function installSyntheticTransport(localOrigin) {
 }
 export async function syntheticAdapter(key, lookup, signal, options, sales) {
   const result = await contexts.run({ lookup, sales }, () =>
-    fetchPkmnPricesSales(key, lookup, signal, options),
+    // Each scenario deliberately supplies a different synthetic market dataset.
+    fetchPkmnPricesSales(`${key}-${randomUUID()}`, lookup, signal, options),
   );
   if (providerControl.pause) await providerControl.pause();
   return result;

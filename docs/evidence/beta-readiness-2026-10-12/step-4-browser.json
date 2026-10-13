@@ -1,20 +1,25 @@
 {
-  "checkedAt": "2026-10-13T01:32:32.177Z",
-  "target": "https://jordan-pokemon-23ohf9uli-earouse23-devs-projects.vercel.app",
+  "checkedAt": "2026-10-13T01:54:54.633Z",
+  "target": "https://jordan-pokemon-69piriqyi-earouse23-devs-projects.vercel.app",
   "shippingAssetsAndCsp": true,
   "directPublicSite": true,
   "realDemoAuthentication": true,
   "realDemoInventory": true,
   "savedChartBeforeInventoryReads": true,
-  "reloadChartElapsedMs": 51,
+  "reloadChartElapsedMs": 57,
   "heldInventoryReads": 25,
   "heroAboveChart": true,
   "uncaughtErrors": [],
   "customerWrites": 0,
-  "blockedWrites": 4,
+  "blockedWrites": 6,
   "apis": [
     {
       "path": "/api/capabilities?surface=portfolio&display=summary",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/fx",
       "method": "GET",
       "status": 200
     },

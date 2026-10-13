@@ -67,8 +67,8 @@ if (enabled) {
       url.hostname === "127.0.0.1" &&
       Number(url.port) > 1024 &&
       url.port !== "54321" &&
-      /^mica-client-05i-[a-z0-9]{6,}$/.test(projectId) &&
-      realpathSync(workdir).startsWith("/private/tmp/mica-client-05i-") &&
+      /^mica-client-(05i|06c)-[a-z0-9]{6,}$/.test(projectId) &&
+      /^\/private\/tmp\/mica-client-(05i|06c)-/.test(realpathSync(workdir)) &&
       Boolean(dockerContext),
     "CLIENT-05I requires its own disposable project and loopback endpoint",
   );

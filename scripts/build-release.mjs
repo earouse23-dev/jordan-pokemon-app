@@ -132,6 +132,8 @@ await write(path.join(shared, ".vc-config.json"), {
 });
 // Public configuration remains separate from the server-only Pro request gate.
 const publicConfig = await json(path.join(source, "docs/evidence/sol-release-activation-04/public-config.json"));
+const releaseCommit = process.env.MICA_RELEASE_COMMIT;
+if (releaseCommit) assert.match(releaseCommit, /^[a-f0-9]{40}$/);
 for (const name of [
   "account",
   "capabilities",
@@ -151,7 +153,7 @@ for (const name of [
     await write(path.join(functions, `api/${name}.func/.vc-config.json`), {
       runtime: "nodejs24.x", handler: "index.mjs", launcherType: "Nodejs", shouldAddHelpers: true,
       maxDuration: ["cards", "capabilities"].includes(name) ? 60 : 10,
-      environment: {NEXT_PUBLIC_SUPABASE_URL: publicConfig.supabaseUrl, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicConfig.supabasePublishableKey},
+      environment: {NEXT_PUBLIC_SUPABASE_URL: publicConfig.supabaseUrl, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicConfig.supabasePublishableKey, ...(releaseCommit ? {MICA_RELEASE_COMMIT: releaseCommit} : {})},
     });
   }
 const sourceConfig = await json(path.join(source, "vercel.json"));
