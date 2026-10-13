@@ -1,0 +1,64 @@
+{
+  "sourceCommit": "a2562cea9edb1030ee80551cde2c9ad049a3bdb5",
+  "deploymentId": "dpl_EuqzBt6JRYNa6Yidh7LKrZvGUDmF",
+  "health": {
+    "status": "healthy",
+    "checkedAt": "2026-10-13T02:26:22.932Z",
+    "release": "a2562cea9edb",
+    "services": {
+      "database": "healthy",
+      "auth": "healthy",
+      "appSchema": "access_restricted",
+      "schemaVerification": "requires_authenticated_acceptance",
+      "catalog": "configured",
+      "pricingProvider": "healthy",
+      "paidPricing": "configured_unverified",
+      "vision": "release_hold"
+    }
+  },
+  "staged": {
+    "checkedAt": "2026-10-13T02:26:11.602Z",
+    "target": "https://jordan-pokemon-4uv8z4otu-earouse23-devs-projects.vercel.app",
+    "shippingAssetsAndCsp": true,
+    "directPublicSite": true,
+    "realDemoAuthentication": true,
+    "realDemoInventory": true,
+    "savedChartBeforeInventoryReads": true,
+    "reloadChartElapsedMs": 72,
+    "heldInventoryReads": 25,
+    "heroAboveChart": true,
+    "uncaughtErrors": [],
+    "customerWrites": 0,
+    "blockedWrites": 4,
+    "apis": [
+      {
+        "path": "/api/capabilities?surface=portfolio&display=summary",
+        "method": "GET",
+        "status": 200
+      },
+      {
+        "path": "/api/capabilities?surface=portfolio&display=summary",
+        "method": "GET",
+        "status": 200
+      }
+    ]
+  },
+  "canonical": {
+    "checkedAt": "2026-10-13T02:27:02.983Z",
+    "target": "https://jordan-pokemon-app.vercel.app",
+    "shippingAssetsAndCsp": true,
+    "directPublicSite": true,
+    "realDemoAuthentication": true,
+    "realDemoInventory": true,
+    "savedChartBeforeInventoryReads": true,
+    "reloadChartElapsedMs": 209,
+    "heldInventoryReads": 25,
+    "heroAboveChart": true,
+    "uncaughtErrors": [],
+    "customerWrites": 0,
+    "blockedWrites": 6,
+    "apis": []
+  },
+  "commercialLaunchApproved": false,
+  "recurringDispatcherActive": false
+}

@@ -1,7 +1,7 @@
 {
   "checkedAt": "2026-10-13T02:24:16.649Z",
   "unit": {
-    "passed": 580,
+    "passed": 581,
     "skipped": 3,
     "failed": 0
   },
@@ -47,5 +47,12 @@
   "schemaPublicRlsTables": 83,
   "customerWrites": 0,
   "physicalIphoneAcceptance": false,
-  "commercialRolloutApproved": false
+  "commercialRolloutApproved": false,
+  "additionalUiRegression": {
+    "passed": 95,
+    "failed": 0,
+    "skipped": 1,
+    "projects": 3,
+    "scope": "93 broader UI/history checks plus two mobile workspace checks after updating the exact expected copyable title; desktop mobile-workspace check intentionally skipped"
+  }
 }
