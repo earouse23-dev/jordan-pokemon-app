@@ -216,3 +216,45 @@ test('daily cache skips inventory and providers; revisions reuse today’s price
   await refreshPortfolioView(db,owner,{}, {now});assert.equal(inventoryReads,reads,'Bounded failed refresh retries');
   assert.equal(paid,0);
 });
+
+test('a partial refresh keeps useful progress and does not exhaust continuation retries', async t => {
+  const {createClient}=await import('@supabase/supabase-js');
+  const {refreshPortfolioView}=await import('../lib/portfolio-service.js');
+  const {loadPortfolio}=await import('../lib/supabase-data.js');
+  const {buildPortfolioView,portfolioPricingKey}=await import('../lib/portfolio-view.js');
+  const {pkmnPricesRequests}=await import('../lib/pkmnprices-requests.js');
+  pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
+  t.mock.method(pkmnPricesRequests,'claim',async()=>{});
+  t.mock.method(pkmnPricesRequests,'claimCache',async()=>true);
+  t.mock.method(pkmnPricesRequests,'readCache',async()=>null);
+  t.mock.method(pkmnPricesRequests,'saveCache',async()=>{});
+  t.mock.method(pkmnPricesRequests,'releaseCache',async()=>{});
+  const day=new Date().toISOString().slice(0,10),now=day+'T12:00:00Z';
+  let stored=null;
+  const ids=['33333333-3333-4333-8333-333333333333','44444444-4444-4444-8444-444444444444'];
+  t.mock.method(globalThis,'fetch',async(input,init={})=>{
+    const url=new URL(typeof input==='string'?input:input.url||input),table=url.pathname.split('/').at(-1);
+    if(url.hostname==='api.pkmnprices.com'){
+      if(url.pathname.includes('/124'))return Response.json({error:{code:'quota_exceeded'}},{status:429});
+      if(table==='history')return Response.json({data:[{date:day,source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',avg:100}],pagination:{page:1,total_pages:1}});
+      return Response.json({id:123,name:'Fixture A',number:'1',set:{name:'Fixture'},language:'en',prices:[{source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',market_price:100}]});
+    }
+    assert.equal(url.hostname,'portfolio-progress-fixture.supabase.co');
+    if(table==='portfolio_views')return Response.json({view:stored,inventory_revision:0});
+    if(table==='claim_portfolio_refresh')return Response.json(true);
+    if(table==='publish_saved_portfolio'){stored=JSON.parse(init.body).p_view;return Response.json(true);}
+    if(table==='collection_items')return Response.json(ids.map((id,i)=>({id,user_id:owner,quantity:1,currency:'USD',card_state:'raw',status:'owned',raw_condition:'near_mint',identity_snapshot:{id:'fixture-'+i,name:'Fixture '+(i?'B':'A'),set:'Fixture',number:String(i+1),variant:'Holofoil',externalIds:{pkmnprices:String(123+i)}}})));
+    if(table==='purchase_lots')return Response.json(ids.map(id=>({id,user_id:owner,collection_item_id:id,acquired_at:day,quantity_acquired:1,quantity_remaining:1,currency:'USD'})));
+    return Response.json([]);
+  });
+  const db=createClient('https://portfolio-progress-fixture.supabase.co','fixture-service',{auth:{persistSession:false}});
+  const items=await loadPortfolio(db,owner,{serverOwnerRead:true});
+  const pricing=items.map(i=>({uid:i.uid,key:portfolioPricingKey(i),price:50,pricingStatus:'live',historyStatus:'live',priceHistory:[{recordedAt:day+'T00:00:00Z',amount:50,currency:'USD',finish:'holofoil',condition:'Near Mint',provider:'tcgplayer'}]}));
+  stored={...buildPortfolioView(items.map((i,n)=>({...i,...pricing[n]})),now),pricing,dailyVersion:1,inventoryRevision:0,refreshIncomplete:true,attemptDay:day,attemptRevision:0,attemptCount:2};
+  const old=structuredClone(stored.summaries);
+  const result=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'progress-fixture'},{now});
+  assert.deepEqual(result.summaries,old,'Partial provider results cannot replace the published total/chart');
+  assert.equal(result.refreshIncomplete,true);
+  assert.equal(result.pendingPricing.find(p=>p.uid===ids[0]).checkedDay,day);
+  assert.equal(result.attemptCount,0,'Useful saved progress permits another bounded continuation');
+});
