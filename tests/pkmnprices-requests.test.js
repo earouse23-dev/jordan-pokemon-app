@@ -265,24 +265,48 @@ test("history quota exhaustion retains the validated card and stops without anot
     t.mock.method(globalThis, "fetch", async () => {
       outbound++;
       return outbound === 1
-        ? Response.json({ id: 20618, prices: [{source:"tcgplayer",currency:"USD",condition:"Near Mint",variant:"Holofoil",market_price:125.23}] })
+        ? Response.json({
+            id: 20618,
+            prices: [
+              {
+                source: "tcgplayer",
+                currency: "USD",
+                condition: "Near Mint",
+                variant: "Holofoil",
+                market_price: 125.23,
+              },
+            ],
+          })
         : Response.json({ error: { code: "quota_exceeded" } }, { status: 429 });
     });
-    const result = await fetchPkmnPricesLookup("fixture", { pkmnpricesId: "20618" }, undefined, { includeEur, includeEurHistory: true });
+    const result = await fetchPkmnPricesLookup(
+      "fixture",
+      { pkmnpricesId: "20618" },
+      undefined,
+      { includeEur, includeEurHistory: true },
+    );
     assert.equal(result.card.id, 20618);
     assert.equal(result.card.prices[0].market_price, 125.23);
     assert.equal(result.historyStatus, "rate_limited");
     assert.deepEqual(result.history, []);
-    assert.equal(outbound, 2, "no retry, next currency or history page after exhaustion");
+    assert.equal(
+      outbound,
+      2,
+      "no retry, next currency or history page after exhaustion",
+    );
   }
 });
 
 test("sealed USD and EUR history use their bounded endpoints and keeps source aggregates separate from sold evidence", async (t) => {
   pkmnPricesRequests.cache.clear();
-  const bounds = [], urls = [];
-  t.mock.method(pkmnPricesRequests, "claim", async url => bounds.push(requestCreditBound(url)));
-  t.mock.method(globalThis, "fetch", async input => {
-    const url = new URL(input); urls.push(url);
+  const bounds = [],
+    urls = [];
+  t.mock.method(pkmnPricesRequests, "claim", async (url) =>
+    bounds.push(requestCreditBound(url)),
+  );
+  t.mock.method(globalThis, "fetch", async (input) => {
+    const url = new URL(input);
+    urls.push(url);
     if (url.pathname.endsWith("/prices/history")) {
       const currency = url.searchParams.get("currency");
       assert.ok(["usd", "eur"].includes(currency));
@@ -290,92 +314,445 @@ test("sealed USD and EUR history use their bounded endpoints and keeps source ag
       assert.equal(url.searchParams.get("period"), "365d");
       assert.equal(url.searchParams.get("limit"), "365");
       const page = Number(url.searchParams.get("page"));
-      return Response.json({ data: [{ date: page === 1 ? "2026-10-01" : "2026-10-02", avg: page * 100, source: currency === "eur" ? "cardmarket" : "tcgplayer", currency: currency.toUpperCase(), condition: "Near Mint" }], pagination: { page, total_pages: 2 } });
+      return Response.json({
+        data: [
+          {
+            date: page === 1 ? "2026-10-01" : "2026-10-02",
+            avg: page * 100,
+            source: currency === "eur" ? "cardmarket" : "tcgplayer",
+            currency: currency.toUpperCase(),
+            condition: "Near Mint",
+          },
+        ],
+        pagination: { page, total_pages: 2 },
+      });
     }
     return Response.json({ id: 5678, name: "Fixture ETB", prices: [] });
   });
-  const product = await fetchPkmnPricesSealedProduct("fixture", "5678", undefined, { includeHistory: true });
+  const product = await fetchPkmnPricesSealedProduct(
+    "fixture",
+    "5678",
+    undefined,
+    { includeHistory: true },
+  );
   assert.deepEqual(bounds, [1, 365, 365, 365, 365]);
   assert.equal(urls.length, 5);
   assert.equal(product.historyStatus, "live");
-  assert.deepEqual(product.history.map(point => [point.amount, point.currency, point.finish, point.gradingCompany]), [[100, "USD", "sealed", null], [200, "USD", "sealed", null], [100, "EUR", "sealed", null], [200, "EUR", "sealed", null]]);
+  assert.deepEqual(
+    product.history.map((point) => [
+      point.amount,
+      point.currency,
+      point.finish,
+      point.gradingCompany,
+    ]),
+    [
+      [100, "USD", "sealed", null],
+      [200, "USD", "sealed", null],
+      [100, "EUR", "sealed", null],
+      [200, "EUR", "sealed", null],
+    ],
+  );
   assert.equal(product.history[0].quality.sourceCondition, "Near Mint");
   assert.equal(product.capabilities.completedSales, "not_requested");
-  assert.equal(product.quotes.length, 0, "history does not invent a current quote");
+  assert.equal(
+    product.quotes.length,
+    0,
+    "history does not invent a current quote",
+  );
 });
 
-
-test("sealed optional history quota failure retains current prices and stops further paid reads", async t => {
-  pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
-  t.mock.method(pkmnPricesRequests,"claim",async()=>{});let calls=0;
-  t.mock.method(globalThis,"fetch",async()=>{calls++;return calls===1?Response.json({id:88,name:"Fixture box",prices:[{source:"tcgplayer",currency:"USD",market_price:120,created_at:new Date().toISOString()}]}):Response.json({error:{code:"quota_exceeded"}},{status:429});});
-  const product=await fetchPkmnPricesSealedProduct("fixture",88,undefined,{includeHistory:true});
-  assert.equal(product.quotes[0].amount,120);assert.equal(product.quotes[0].currency,"USD");assert.equal(product.historyStatus,"rate_limited");assert.deepEqual(product.history,[]);assert.equal(calls,2);
+test("sealed optional history quota failure retains current prices and stops further paid reads", async (t) => {
+  pkmnPricesRequests.cache.clear();
+  pkmnPricesRequests.pending.clear();
+  t.mock.method(pkmnPricesRequests, "claim", async () => {});
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    calls++;
+    return calls === 1
+      ? Response.json({
+          id: 88,
+          name: "Fixture box",
+          prices: [
+            {
+              source: "tcgplayer",
+              currency: "USD",
+              market_price: 120,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        })
+      : Response.json({ error: { code: "quota_exceeded" } }, { status: 429 });
+  });
+  const product = await fetchPkmnPricesSealedProduct("fixture", 88, undefined, {
+    includeHistory: true,
+  });
+  assert.equal(product.quotes[0].amount, 120);
+  assert.equal(product.quotes[0].currency, "USD");
+  assert.equal(product.historyStatus, "rate_limited");
+  assert.deepEqual(product.history, []);
+  assert.equal(calls, 2);
 });
 
-test('durable history survives cold reads and refreshes only the new day once',async t=>{
- pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
- const saved=new Map();let calls=0;const periods=[];
- t.mock.method(pkmnPricesRequests,'claim',async()=>{});
- t.mock.method(pkmnPricesRequests,'claimCache',async()=>true);
- t.mock.method(pkmnPricesRequests,'readCache',async key=>saved.get(key) || null);
- t.mock.method(pkmnPricesRequests,'saveCache',async(key,body)=>saved.set(key,{body:structuredClone(body),fetchedAt:Date.now(),expires:Date.now()+86_400_000}));
- t.mock.method(globalThis,'fetch',async input=>{
-  calls++;const url=new URL(input);
-  if(url.pathname.endsWith('/prices/history')){
-   periods.push(url.searchParams.get('period'));
-   return Response.json({data:[{date:periods.length===1?'2026-01-01':'2026-01-03',source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',avg:100+periods.length}],pagination:{page:1,total_pages:1}});
+test("durable history survives cold reads and refreshes only the new day once", async (t) => {
+  pkmnPricesRequests.cache.clear();
+  pkmnPricesRequests.pending.clear();
+  const saved = new Map();
+  let calls = 0;
+  const periods = [];
+  t.mock.method(pkmnPricesRequests, "claim", async () => {});
+  t.mock.method(pkmnPricesRequests, "claimCache", async () => true);
+  t.mock.method(
+    pkmnPricesRequests,
+    "readCache",
+    async (key) => saved.get(key) || null,
+  );
+  t.mock.method(pkmnPricesRequests, "saveCache", async (key, body) =>
+    saved.set(key, {
+      body: structuredClone(body),
+      fetchedAt: Date.now(),
+      expires: Date.now() + 86_400_000,
+    }),
+  );
+  t.mock.method(globalThis, "fetch", async (input) => {
+    calls++;
+    const url = new URL(input);
+    if (url.pathname.endsWith("/prices/history")) {
+      periods.push(url.searchParams.get("period"));
+      return Response.json({
+        data: [
+          {
+            date: periods.length === 1 ? "2026-01-01" : "2026-01-03",
+            source: "tcgplayer",
+            currency: "USD",
+            condition: "Near Mint",
+            variant: "Holofoil",
+            avg: 100 + periods.length,
+          },
+        ],
+        pagination: { page: 1, total_pages: 1 },
+      });
+    }
+    return Response.json({ id: 5678, name: "Fixture ETB", prices: [] });
+  });
+  const get = () =>
+    fetchPkmnPricesSealedProduct("fixture", 5678, undefined, {
+      includeHistory: true,
+      currencies: ["usd"],
+    });
+  const first = await get();
+  assert.equal(first.history.length, 1);
+  assert.equal(calls, 2);
+  pkmnPricesRequests.cache.clear();
+  await get();
+  assert.equal(
+    calls,
+    2,
+    "cold instance reads the durable response without spending",
+  );
+  for (const [key, entry] of saved)
+    if (key.includes("history-series-v1:")) {
+      entry.expires = Date.now() - 1;
+      entry.body.checkedDay = new Date(Date.now() - 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+    }
+  pkmnPricesRequests.cache.clear();
+  const next = await get();
+  assert.equal(periods[0], "365d");
+  assert.equal(periods[1], "1d");
+  assert.equal(next.history.length, 2);
+  assert.equal(calls, 3);
+  pkmnPricesRequests.cache.clear();
+  await get();
+  assert.equal(calls, 3, "same-day reload reuses both saved days");
+});
+
+test("completed requests settle their bounded reservation against the original UTC day", async (t) => {
+  for (const [key, value] of Object.entries({
+    NEXT_PUBLIC_SUPABASE_URL: "https://usage-fixture.supabase.co",
+    SUPABASE_SECRET_KEY: "fixture",
+  })) {
+    const old = process.env[key];
+    process.env[key] = value;
+    t.after(() => {
+      if (old === undefined) delete process.env[key];
+      else process.env[key] = old;
+    });
   }
-  return Response.json({id:5678,name:'Fixture ETB',prices:[]});
- });
- const get=()=>fetchPkmnPricesSealedProduct('fixture',5678,undefined,{includeHistory:true,currencies:['usd']});
- const first=await get();assert.equal(first.history.length,1);assert.equal(calls,2);
- pkmnPricesRequests.cache.clear();await get();assert.equal(calls,2,'cold instance reads the durable response without spending');
- for(const entry of saved.values())if(entry.body.pagination){entry.expires=Date.now()-1;entry.fetchedAt=Date.now()-86_400_000;}
- pkmnPricesRequests.cache.clear();const next=await get();
- assert.equal(periods[0],'365d');assert.equal(periods[1],'1d');assert.equal(next.history.length,2);assert.equal(calls,3);
- pkmnPricesRequests.cache.clear();await get();assert.equal(calls,3,'same-day reload reuses both saved days');
+  const rows = [];
+  t.mock.method(globalThis, "fetch", async (input, init) => {
+    assert.equal(
+      new URL(input).pathname,
+      "/rest/v1/rpc/record_provider_request_usage",
+    );
+    rows.push(JSON.parse(init.body));
+    return new Response(null, { status: 204 });
+  });
+  const url =
+    "https://api.pkmnprices.com/v1/cards/17262/listings/ebay?limit=20";
+  await pkmnPricesRequests.recordUsage(
+    url,
+    200,
+    { data: [{}, {}] },
+    null,
+    "2026-10-09",
+  );
+  await pkmnPricesRequests.recordUsage(
+    url,
+    503,
+    null,
+    "transport_error",
+    "2026-10-09",
+  );
+  assert.equal(rows[0].p_reserved, 20);
+  assert.equal(rows[0].p_returned, 2);
+  assert.equal(rows[0].p_credit_day, "2026-10-09");
+  assert.equal(rows[1].p_returned, null);
+  assert.equal(rows[1].p_status, 503);
+  assert.notEqual(rows[0].p_request_key, rows[1].p_request_key);
 });
 
-test('completed requests settle their bounded reservation against the original UTC day', async t => {
- for (const [key,value] of Object.entries({NEXT_PUBLIC_SUPABASE_URL:'https://usage-fixture.supabase.co',SUPABASE_SECRET_KEY:'fixture'})) {
-  const old=process.env[key];process.env[key]=value;t.after(()=>{if(old===undefined)delete process.env[key];else process.env[key]=old;});
- }
- const rows=[];t.mock.method(globalThis,'fetch',async(input,init)=>{
-  assert.equal(new URL(input).pathname,'/rest/v1/rpc/record_provider_request_usage');rows.push(JSON.parse(init.body));return new Response(null,{status:204});
- });
- const url='https://api.pkmnprices.com/v1/cards/17262/listings/ebay?limit=20';
- await pkmnPricesRequests.recordUsage(url,200,{data:[{},{}]},null,'2026-10-09');
- await pkmnPricesRequests.recordUsage(url,503,null,'transport_error','2026-10-09');
- assert.equal(rows[0].p_reserved,20);assert.equal(rows[0].p_returned,2);assert.equal(rows[0].p_credit_day,'2026-10-09');
- assert.equal(rows[1].p_returned,null);assert.equal(rows[1].p_status,503);assert.notEqual(rows[0].p_request_key,rows[1].p_request_key);
+test("shared slab archive follows short cursor pages once, then polls only new ingestions on the next day", async (t) => {
+  const { fetchPkmnPricesSalesHistory } =
+    await import("../lib/providers/pkmnprices.js");
+  pkmnPricesRequests.cache.clear();
+  pkmnPricesRequests.pending.clear();
+  const saved = new Map(),
+    urls = [];
+  t.mock.method(pkmnPricesRequests, "claim", async () => {});
+  t.mock.method(pkmnPricesRequests, "claimCache", async (key) => {
+    if (key.includes("ebay-archive") && !saved.has(key))
+      saved.set(key, { body: {}, expires: 0 });
+    return true;
+  });
+  t.mock.method(
+    pkmnPricesRequests,
+    "readCache",
+    async (key) => saved.get(key) || null,
+  );
+  t.mock.method(
+    pkmnPricesRequests,
+    "saveCache",
+    async (key, body, token, { pending = false } = {}) =>
+      saved.set(key, {
+        body: structuredClone(body),
+        fetchedAt: Date.now(),
+        expires: pending ? Date.now() - 1 : Date.now() + 86400000,
+      }),
+  );
+  t.mock.method(globalThis, "fetch", async (input) => {
+    const url = new URL(input);
+    urls.push(url);
+    if (!url.pathname.endsWith("/listings/ebay"))
+      return Response.json({
+        id: 22719,
+        name: "Espeon",
+        number: "1",
+        total_set_number: "75",
+        set: { name: "Neo Discovery" },
+        language: "en",
+      });
+    assert.equal(
+      url.searchParams.get("variant"),
+      null,
+      "edition labels must not hide exact sales",
+    );
+    const cursor = url.searchParams.get("cursor"),
+      since = url.searchParams.get("since");
+    const id = since ? "3003" : cursor ? "3001" : "3002";
+    const row = {
+      ebay_listing_id: id,
+      title: "Espeon Neo Discovery 1/75 CGC 8.5 Unlimited Holo",
+      price: since ? 632 : 260,
+      currency: "USD",
+      grader: "CGC",
+      grade: "8.5",
+      variant: "Unlimited Holofoil",
+      language: "English",
+      attribution: "exact",
+      sold_at: since ? "2026-10-10" : "2026-08-01",
+      ingested_at: since ? "2026-10-10T00:00:00Z" : "2026-10-09T00:00:00Z",
+      listing_url: "https://www.ebay.com/itm/" + id,
+    };
+    return Response.json({
+      data: [
+        row,
+        {
+          ...row,
+          ebay_listing_id: id + "9",
+          variant: "1st Edition Holofoil",
+          title: "1st Edition " + row.title.replace("Unlimited", ""),
+        },
+      ],
+      pagination: {
+        has_more: !since && !cursor,
+        next_cursor: !since && !cursor ? "older" : null,
+      },
+    });
+  });
+  const lookup = {
+    pkmnpricesId: "22719",
+    name: "Espeon",
+    set: "Neo Discovery",
+    number: "1/75",
+    language: "en",
+    variant: "Holofoil",
+    finish: "holofoil",
+    edition: "unlimited",
+    grader: "CGC",
+    grade: "8.5",
+    currency: "USD",
+  };
+  const first = await fetchPkmnPricesSalesHistory("archive-fixture", lookup);
+  assert.equal(first.sales.length, 2);
+  assert.equal(first.hasMore, false);
+  assert.equal(urls.filter((u) => u.pathname.endsWith("/ebay")).length, 2);
+  pkmnPricesRequests.cache.clear();
+  await fetchPkmnPricesSalesHistory("archive-fixture", {
+    ...lookup,
+    clientId: "another-user",
+  });
+  assert.equal(
+    urls.filter((u) => u.pathname.endsWith("/ebay")).length,
+    2,
+    "another visit/account reuses the shared archive",
+  );
+  for (const [key, entry] of saved)
+    if (key.includes("ebay-archive")) {
+      entry.expires = Date.now() - 1;
+      entry.body.checkedDay = "2026-10-08";
+    }
+  pkmnPricesRequests.cache.clear();
+  const next = await fetchPkmnPricesSalesHistory("archive-fixture", lookup);
+  const queries = urls.filter((u) => u.pathname.endsWith("/ebay"));
+  assert.equal(queries.length, 3);
+  assert.equal(queries[2].searchParams.get("since"), "2026-10-09T00:00:00Z");
+  assert.equal(queries[2].searchParams.get("cursor"), null);
+  assert.equal(next.sales.length, 3);
+  pkmnPricesRequests.cache.clear();
+  await fetchPkmnPricesSalesHistory("archive-fixture", lookup);
+  assert.equal(urls.filter((u) => u.pathname.endsWith("/ebay")).length, 3);
 });
 
-test('shared slab archive follows short cursor pages once, then polls only new ingestions on the next day', async t => {
- const {fetchPkmnPricesSalesHistory}=await import('../lib/providers/pkmnprices.js');
- pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
- const saved=new Map(),urls=[];
- t.mock.method(pkmnPricesRequests,'claim',async()=>{});
- t.mock.method(pkmnPricesRequests,'claimCache',async key=>{if(key.includes('ebay-archive')&&!saved.has(key))saved.set(key,{body:{},expires:0});return true;});
- t.mock.method(pkmnPricesRequests,'readCache',async key=>saved.get(key)||null);
- t.mock.method(pkmnPricesRequests,'saveCache',async(key,body,token,{pending=false}={})=>saved.set(key,{body:structuredClone(body),fetchedAt:Date.now(),expires:pending?Date.now()-1:Date.now()+86400000}));
- t.mock.method(globalThis,'fetch',async input=>{
-  const url=new URL(input);urls.push(url);
-  if(!url.pathname.endsWith('/listings/ebay'))return Response.json({id:22719,name:'Espeon',number:'1',total_set_number:'75',set:{name:'Neo Discovery'},language:'en'});
-  assert.equal(url.searchParams.get('variant'),null,'edition labels must not hide exact sales');
-  const cursor=url.searchParams.get('cursor'),since=url.searchParams.get('since');
-  const id=since?'3003':cursor?'3001':'3002';
-  const row={ebay_listing_id:id,title:'Espeon Neo Discovery 1/75 CGC 8.5 Unlimited Holo',price:since?632:260,currency:'USD',grader:'CGC',grade:'8.5',variant:'Unlimited Holofoil',language:'English',attribution:'exact',sold_at:since?'2026-10-10':'2026-08-01',ingested_at:since?'2026-10-10T00:00:00Z':'2026-10-09T00:00:00Z',listing_url:'https://www.ebay.com/itm/'+id};
-  return Response.json({data:[row,{...row,ebay_listing_id:id+'9',variant:'1st Edition Holofoil',title:'1st Edition '+row.title.replace('Unlimited','')}],pagination:{has_more:!since&&!cursor,next_cursor:!since&&!cursor?'older':null}});
- });
- const lookup={pkmnpricesId:'22719',name:'Espeon',set:'Neo Discovery',number:'1/75',language:'en',variant:'Holofoil',finish:'holofoil',edition:'unlimited',grader:'CGC',grade:'8.5',currency:'USD'};
- const first=await fetchPkmnPricesSalesHistory('archive-fixture',lookup);
- assert.equal(first.sales.length,2);assert.equal(first.hasMore,false);assert.equal(urls.filter(u=>u.pathname.endsWith('/ebay')).length,2);
- pkmnPricesRequests.cache.clear();await fetchPkmnPricesSalesHistory('archive-fixture',{...lookup,clientId:'another-user'});
- assert.equal(urls.filter(u=>u.pathname.endsWith('/ebay')).length,2,'another visit/account reuses the shared archive');
- for(const [key,entry]of saved)if(key.includes('ebay-archive')){entry.expires=Date.now()-1;entry.body.checkedDay='2026-10-08';}
- pkmnPricesRequests.cache.clear();const next=await fetchPkmnPricesSalesHistory('archive-fixture',lookup);
- const queries=urls.filter(u=>u.pathname.endsWith('/ebay'));
- assert.equal(queries.length,3);assert.equal(queries[2].searchParams.get('since'),'2026-10-09T00:00:00Z');assert.equal(queries[2].searchParams.get('cursor'),null);assert.equal(next.sales.length,3);
- pkmnPricesRequests.cache.clear();await fetchPkmnPricesSalesHistory('archive-fixture',lookup);assert.equal(urls.filter(u=>u.pathname.endsWith('/ebay')).length,3);
+test("retained aggregate pages resume after quota failure without repurchasing old pages", async (t) => {
+  pkmnPricesRequests.cache.clear();
+  pkmnPricesRequests.pending.clear();
+  const saved = new Map(),
+    requested = [];
+  let fail = true;
+  t.mock.method(pkmnPricesRequests, "claim", async () => {});
+  t.mock.method(pkmnPricesRequests, "claimCache", async () => true);
+  t.mock.method(
+    pkmnPricesRequests,
+    "readCache",
+    async (key) => saved.get(key) || null,
+  );
+  t.mock.method(
+    pkmnPricesRequests,
+    "saveCache",
+    async (key, body, token, { pending = false } = {}) =>
+      saved.set(key, {
+        body: structuredClone(body),
+        fetchedAt: Date.now(),
+        expires: pending ? 0 : Date.now() + 86400000,
+      }),
+  );
+  t.mock.method(globalThis, "fetch", async (input) => {
+    const url = new URL(input);
+    if (!url.pathname.endsWith("/prices/history"))
+      return Response.json({ id: 77, name: "Fixture box", prices: [] });
+    const page = Number(url.searchParams.get("page"));
+    requested.push(page);
+    if (page === 2 && fail) {
+      fail = false;
+      return Response.json(
+        { error: { code: "quota_exceeded" } },
+        { status: 429 },
+      );
+    }
+    return Response.json({
+      data: [
+        {
+          date: `2026-01-0${page}`,
+          avg: page * 100,
+          source: "tcgplayer",
+          currency: "USD",
+        },
+      ],
+      pagination: { page, total_pages: 3 },
+    });
+  });
+  const get = () =>
+    fetchPkmnPricesSealedProduct("resume-fixture", 77, undefined, {
+      includeHistory: true,
+      currencies: ["usd"],
+    });
+  const first = await get();
+  assert.equal(first.history.length, 1);
+  assert.equal(first.historyStatus, "rate_limited");
+  pkmnPricesRequests.cache.clear();
+  const next = await get();
+  assert.equal(next.history.length, 3);
+  assert.equal(next.historyStatus, "live");
+  assert.deepEqual(requested, [1, 2, 2, 3]);
+  pkmnPricesRequests.cache.clear();
+  await get();
+  assert.deepEqual(requested, [1, 2, 2, 3]);
+  const series = [...saved.entries()].find(([key]) =>
+    key.includes("history-series-v1:"),
+  )[1];
+  series.expires = 0;
+  series.body.checkedDay = new Date(Date.now() - 3 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  pkmnPricesRequests.cache.clear();
+  // Missed days use a bounded delta, not another full-year download.
+  t.mock.method(globalThis, "fetch", async (input) => {
+    const url = new URL(input);
+    assert.equal(url.searchParams.get("period"), "3d");
+    return Response.json({ data: [], pagination: { page: 1, total_pages: 1 } });
+  });
+  assert.equal((await get()).history.length, 3);
+});
+
+test('durable cache fails closed on read failure and lost write lease', async t => {
+  for (const [key, value] of Object.entries({NEXT_PUBLIC_SUPABASE_URL: 'https://cache-fixture.supabase.co', SUPABASE_SECRET_KEY: 'fixture'})) {
+    const old = process.env[key]; process.env[key] = value;
+    t.after(() => { if (old === undefined) delete process.env[key]; else process.env[key] = old; });
+  }
+  t.mock.method(globalThis, 'fetch', async () => Response.json({message: 'unavailable'}, {status: 503}));
+  await assert.rejects(pkmnPricesRequests.readCache('fixture'), {code: 'provider_cache_unavailable'});
+  t.mock.method(globalThis, 'fetch', async (input, init) => {
+    assert.equal(init.method, 'PATCH');
+    assert.equal(JSON.parse(init.body).refresh_token, 'lease-fixture');
+    return Response.json([]); // A concurrent worker has replaced the lease.
+  });
+  await assert.rejects(pkmnPricesRequests.saveCache('fixture', {rows: []}, 'lease-fixture', {hold: true}), {code: 'provider_cache_write_failed'});
+});
+
+test('slab archive checkpoints each cursor and preserves conflicting transaction evidence', async t => {
+  const {fetchPkmnPricesSalesHistory} = await import('../lib/providers/pkmnprices.js');
+  pkmnPricesRequests.cache.clear(); pkmnPricesRequests.pending.clear();
+  const saved = new Map(), cursors = []; let interrupt = true;
+  t.mock.method(pkmnPricesRequests, 'claim', async () => {});
+  t.mock.method(pkmnPricesRequests, 'claimCache', async () => true);
+  t.mock.method(pkmnPricesRequests, 'readCache', async key => saved.get(key) || null);
+  t.mock.method(pkmnPricesRequests, 'saveCache', async (key, body, token, {pending = false} = {}) => saved.set(key, {body: structuredClone(body), fetchedAt: Date.now(), expires: pending ? 0 : Date.now() + 86400000}));
+  t.mock.method(globalThis, 'fetch', async input => {
+    const url = new URL(input);
+    if (!url.pathname.endsWith('/listings/ebay')) return Response.json({id: 22719, name: 'Espeon', number: '1', total_set_number: '75', set: {name: 'Neo Discovery'}, language: 'en'});
+    const cursor = url.searchParams.get('cursor'); cursors.push(cursor);
+    if (cursor && interrupt) {interrupt = false; return Response.json({error: {code: 'quota_exceeded'}}, {status: 429});}
+    const row = {ebay_listing_id: 'same-transaction', title: 'Espeon Neo Discovery 1/75 CGC 8.5 Unlimited Holo', price: cursor ? 632 : 260, currency: 'USD', grader: 'CGC', grade: '8.5', variant: 'Unlimited Holofoil', language: 'English', attribution: 'exact', sold_at: '2026-08-01', ingested_at: '2026-10-09T00:00:00Z', listing_url: 'https://www.ebay.com/itm/123456789012'};
+    return Response.json({data: [row], pagination: {has_more: !cursor, next_cursor: cursor ? null : 'older'}});
+  });
+  const lookup = {pkmnpricesId: '22719', name: 'Espeon', set: 'Neo Discovery', number: '1/75', language: 'en', variant: 'Holofoil', finish: 'holofoil', edition: 'unlimited', grader: 'CGC', grade: '8.5', currency: 'USD'};
+  await assert.rejects(fetchPkmnPricesSalesHistory('checkpoint-fixture', lookup), error => error.status === 429);
+  const retained = [...saved.entries()].find(([key]) => key.includes('ebay-archive'))[1].body;
+  assert.equal(retained.sales.length, 1); assert.equal(retained.backfillCursor, 'older');
+  pkmnPricesRequests.cache.clear();
+  const next = await fetchPkmnPricesSalesHistory('checkpoint-fixture', lookup);
+  assert.deepEqual(cursors, [null, 'older', 'older']);
+  assert.equal(next.sales.length, 2, 'conflicting prices survive ingestion so the valuation layer can exclude both');
+  assert.equal(next.hasMore, false);
 });

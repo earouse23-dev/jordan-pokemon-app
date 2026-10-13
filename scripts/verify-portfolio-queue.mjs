@@ -5,7 +5,19 @@ import assert from 'node:assert/strict';
 assert.equal(process.env.DOCKER_CONTEXT, 'colima-mica-dev');
 const migration = readFileSync(new URL('../supabase/migrations/20261013003706_fair_portfolio_refresh_queue.sql', import.meta.url), 'utf8');
 const dispatcher = readFileSync(new URL('../supabase/migrations/20261013004113_portfolio_refresh_dispatcher.sql', import.meta.url), 'utf8');
+const cacheMigration = readFileSync(new URL('../supabase/migrations/20261009163000_durable_portfolio_views.sql', import.meta.url), 'utf8');
+const cacheSql = cacheMigration.slice(cacheMigration.indexOf('create table public.provider_response_cache'), cacheMigration.indexOf('create table public.provider_request_usage')) + cacheMigration.slice(cacheMigration.indexOf('create function public.claim_provider_cache'));
 const sql = `begin;
+${cacheSql}
+do $$ declare first_token uuid:=gen_random_uuid(); other_token uuid:=gen_random_uuid(); affected integer; begin
+assert public.claim_provider_cache('beta-cache-fixture',first_token), 'Initial cache lease not claimed';
+update public.provider_response_cache set body='{"rows":[{"date":"2026-01-01","avg":200}],"pendingPage":2}',expires_at=now(),refresh_until=now()+interval '20 seconds' where cache_key='beta-cache-fixture' and refresh_token=first_token;
+assert not public.claim_provider_cache('beta-cache-fixture',other_token), 'Checkpoint released active lease';
+update public.provider_response_cache set body='{}' where cache_key='beta-cache-fixture' and refresh_token=other_token;
+get diagnostics affected=row_count; assert affected=0, 'Lost lease overwrote retained history';
+assert (select body->>'pendingPage' from public.provider_response_cache where cache_key='beta-cache-fixture')='2', 'Cursor lost';
+assert not has_table_privilege('authenticated','public.provider_response_cache','select'), 'Provider archive exposed';
+end $$;
 create table public.portfolio_views(user_id uuid primary key, inventory_revision bigint not null default 0, view jsonb, attempted_at timestamptz,refresh_until timestamptz);
 ${migration}
 ${dispatcher}
@@ -35,4 +47,4 @@ rollback;
 `;
 const result = spawnSync('docker', ['exec','-i','supabase_db_jordan-pokemon-app','psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1'], {input:sql,encoding:'utf8'});
 assert.equal(result.status,0,result.stderr);
-console.log('300-owner queue: fairness, failure backoff, UTC rollover, and role boundaries passed; rolled back.');
+console.log('300-owner queue and cache: fairness, backoff, UTC rollover, checkpoint lease retention, lost-lease isolation and role boundaries passed; rolled back.');

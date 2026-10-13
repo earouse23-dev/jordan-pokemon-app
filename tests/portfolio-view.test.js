@@ -122,22 +122,102 @@ test("display totals include every native currency and never assume a missing ex
   assert.equal(displayPortfolioView(view, "USD", null, now).total, null);
 });
 
-test('saved daily values remain unchanged; missed days append from stored evidence and dated corrections recalculate only affected days', () => {
-  const a = item('daily', '2026-01-01', 200);
-  const saved = buildPortfolioView([a], '2026-01-03T12:00:00Z');
+test("saved daily values remain unchanged; missed days append from stored evidence and dated corrections recalculate only affected days", () => {
+  const a = item("daily", "2026-01-01", 200);
+  const saved = buildPortfolioView([a], "2026-01-03T12:00:00Z");
   // A later provider correction cannot silently rewrite already saved days.
   a.priceHistory[0].amount = 220;
   a.price = 250;
-  const next = buildPortfolioView([a], '2026-01-06T12:00:00Z', {previousView:saved});
-  assert.deepEqual(next.summaries[0].history.slice(0,3), saved.summaries[0].history);
-  assert.equal(next.summaries[0].history.find(p=>p.date==='2026-01-04').total,220);
-  assert.equal(next.summaries[0].history.at(-1).total,250);
-  const corrected = buildPortfolioView([a], '2026-01-06T12:00:00Z', {previousView:next,recalculateFrom:'2026-01-02'});
-  assert.equal(corrected.summaries[0].history[0].total,200);
-  assert.equal(corrected.summaries[0].history[1].total,220);
-  assert.equal(new Set(corrected.summaries[0].history.map(p=>p.date)).size,6);
+  const next = buildPortfolioView([a], "2026-01-06T12:00:00Z", {
+    previousView: saved,
+  });
+  assert.deepEqual(
+    next.summaries[0].history.slice(0, 3),
+    saved.summaries[0].history,
+  );
+  assert.equal(
+    next.summaries[0].history.find((p) => p.date === "2026-01-04").total,
+    220,
+  );
+  assert.equal(next.summaries[0].history.at(-1).total, 250);
+  const corrected = buildPortfolioView([a], "2026-01-06T12:00:00Z", {
+    previousView: next,
+    recalculateFrom: "2026-01-02",
+  });
+  assert.equal(corrected.summaries[0].history[0].total, 200);
+  assert.equal(corrected.summaries[0].history[1].total, 220);
+  assert.equal(
+    new Set(corrected.summaries[0].history.map((p) => p.date)).size,
+    6,
+  );
   // A backdated additional holding rebuilds historical ownership, using local data.
-  const b = item('backdated', '2026-01-02', 100);
-  const withPurchase=buildPortfolioView([a,b],'2026-01-06T12:00:00Z',{previousView:next,recalculateFrom:'2026-01-02'});
-  assert.equal(withPurchase.summaries[0].history.find(p=>p.date==='2026-01-02').total,320);
+  const b = item("backdated", "2026-01-02", 100);
+  const withPurchase = buildPortfolioView([a, b], "2026-01-06T12:00:00Z", {
+    previousView: next,
+    recalculateFrom: "2026-01-02",
+  });
+  assert.equal(
+    withPurchase.summaries[0].history.find((p) => p.date === "2026-01-02")
+      .total,
+    320,
+  );
+});
+
+test("daily portfolio matches an independent acquisition/sale ledger across sparse prices and backdated holdings", () => {
+  const events = [
+    { day: 1, card: "a", quantity: 2 },
+    { day: 5, card: "b", quantity: 3 },
+    { day: 7, card: "a", quantity: -1 },
+    { day: 11, card: "b", quantity: -2 },
+  ];
+  const prices = {
+    a: [
+      [1, 200],
+      [4, 240],
+      [10, 220],
+    ],
+    b: [
+      [3, 90],
+      [9, 110],
+    ],
+  };
+  const date = (day) => `2026-01-${String(day).padStart(2, "0")}`;
+  const a = item("a", date(1), 220, 1),
+    b = item("b", date(5), 110, 1);
+  for (const card of [a, b]) {
+    const buy = events.find((e) => e.card === card.uid && e.quantity > 0);
+    card.lots[0].quantityAcquired = buy.quantity;
+    card.transactions = events
+      .filter((e) => e.card === card.uid && e.quantity < 0)
+      .map((e) => ({ type: "sale", date: date(e.day), quantity: -e.quantity }));
+    card.priceHistory = prices[card.uid].map(([day, amount]) => ({
+      ...card.priceHistory[0],
+      recordedAt: date(day) + "T12:00:00Z",
+      amount,
+    }));
+  }
+  const view = buildPortfolioView([a, b], date(15) + "T12:00:00Z").summaries[0];
+  for (let day = 1; day <= 15; day++) {
+    let expected = 0;
+    for (const card of ["a", "b"]) {
+      const held = events
+        .filter((e) => e.card === card && e.day <= day)
+        .reduce((sum, e) => sum + e.quantity, 0);
+      const price = prices[card].filter(([d]) => d <= day).at(-1)?.[1];
+      expected += held * (price || 0);
+    }
+    assert.equal(
+      view.history.find((p) => p.date === date(day)).total,
+      expected,
+      `ownership and prior observation on ${date(day)}`,
+    );
+  }
+  assert.equal(view.total, 330);
+  // Changing purchase cost cannot change market value.
+  a.costBasis = 9999;
+  a.lots[0].totalCost = 9999;
+  assert.deepEqual(
+    buildPortfolioView([a, b], date(15) + "T12:00:00Z").summaries[0].history,
+    view.history,
+  );
 });
