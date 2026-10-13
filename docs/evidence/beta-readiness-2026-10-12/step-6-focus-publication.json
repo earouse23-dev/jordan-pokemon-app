@@ -1,0 +1,111 @@
+{
+  "sourceCommit": "9be74d311e5d36948be826260a944ea688d5e52e",
+  "deploymentId": "dpl_xwMqEux5EE28ruDqi7chMWjnfzut",
+  "health": {
+    "status": "healthy",
+    "checkedAt": "2026-10-13T03:01:58.857Z",
+    "release": "9be74d311e5d",
+    "services": {
+      "database": "healthy",
+      "auth": "healthy",
+      "appSchema": "access_restricted",
+      "schemaVerification": "requires_authenticated_acceptance",
+      "catalog": "configured",
+      "pricingProvider": "healthy",
+      "paidPricing": "configured_unverified",
+      "vision": "release_hold"
+    }
+  },
+  "staged": {
+    "checkedAt": "2026-10-13T03:02:11.696Z",
+    "target": "https://jordan-pokemon-91vauu8vv-earouse23-devs-projects.vercel.app",
+    "shippingAssetsAndCsp": true,
+    "directPublicSite": true,
+    "realDemoAuthentication": true,
+    "realDemoInventory": true,
+    "savedChartBeforeInventoryReads": true,
+    "reloadChartElapsedMs": 47,
+    "heldInventoryReads": 25,
+    "heroAboveChart": true,
+    "uncaughtErrors": [],
+    "customerWrites": 0,
+    "blockedWrites": 6,
+    "apis": [
+      {
+        "path": "/api/capabilities?surface=portfolio&display=summary",
+        "method": "GET",
+        "status": 200
+      },
+      {
+        "path": "/api/fx",
+        "method": "GET",
+        "status": 200
+      },
+      {
+        "path": "/api/fx",
+        "method": "GET",
+        "status": 200
+      },
+      {
+        "path": "/api/capabilities?surface=portfolio&display=summary",
+        "method": "GET",
+        "status": 200
+      }
+    ]
+  },
+  "canonical": {
+    "checkedAt": "2026-10-13T03:03:40.020Z",
+    "target": "https://jordan-pokemon-app.vercel.app",
+    "shippingAssetsAndCsp": true,
+    "directPublicSite": true,
+    "realDemoAuthentication": true,
+    "realDemoInventory": true,
+    "savedChartBeforeInventoryReads": true,
+    "reloadChartElapsedMs": 206,
+    "heldInventoryReads": 25,
+    "heroAboveChart": true,
+    "uncaughtErrors": [],
+    "customerWrites": 0,
+    "blockedWrites": 4,
+    "apis": []
+  },
+  "localFullBetaGate": {
+    "unitPassed": 581,
+    "unitSkipped": 3,
+    "coreBrowserPassed": 343,
+    "coreBrowserSkipped": 8,
+    "largeInventoryBrowserPassed": 3,
+    "browserRetries": 0
+  },
+  "focusedFollowup": {
+    "collectorBrowserPassed": 114,
+    "repeatedRaceExecutionsPassed": 60,
+    "retries": 0
+  },
+  "remoteCi": {
+    "runId": 38339044755,
+    "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/38339044755",
+    "status": "completed",
+    "conclusion": "success",
+    "unitPassed": 581,
+    "unitSkipped": 3,
+    "coreBrowserPassed": 343,
+    "coreBrowserSkipped": 8,
+    "largeInventoryBrowserPassed": 3,
+    "browserRetries": 0
+  },
+  "commercialLaunchApproved": false,
+  "recurringDispatcherActive": false,
+  "pricingAcceptance": {
+    "returnedItems": 59,
+    "requests": 9,
+    "reservedItems": 142,
+    "pendingItems": 0,
+    "cap": 500
+  },
+  "qualificationLimits": [
+    "Saved read-load only; full physical-inventory capacity not qualified",
+    "Production recovery, SMTP, commercial hosting and actual operator/support facts remain held",
+    "Physical iPhone Safari acceptance remains owner task"
+  ]
+}
