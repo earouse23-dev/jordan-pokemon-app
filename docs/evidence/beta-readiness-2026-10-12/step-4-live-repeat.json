@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-10-13T01:32:58.828Z",
+  "target": "https://jordan-pokemon-23ohf9uli-earouse23-devs-projects.vercel.app",
+  "maximumReturnedItems": 162,
+  "customerWrites": 0,
+  "checks": [
+    {
+      "context": "beta-espeon-first_edition",
+      "grader": "CGC",
+      "grade": "8.5",
+      "edition": "first_edition",
+      "httpStatus": 200,
+      "elapsedMs": 2262,
+      "received": 7,
+      "accepted": 1,
+      "retainedSales": 1,
+      "hasMore": false,
+      "estimate": 900,
+      "valuationStatus": "stale",
+      "amountVerified": false,
+      "latestSoldAt": "2026-02-24",
+      "exclusions": []
+    },
+    {
+      "context": "beta-espeon-first_edition",
+      "grader": "CGC",
+      "grade": "8.5",
+      "edition": "first_edition",
+      "httpStatus": 200,
+      "elapsedMs": 2080,
+      "received": 7,
+      "accepted": 1,
+      "retainedSales": 1,
+      "hasMore": false,
+      "estimate": 900,
+      "valuationStatus": "stale",
+      "amountVerified": false,
+      "latestSoldAt": "2026-02-24",
+      "exclusions": []
+    }
+  ]
+}

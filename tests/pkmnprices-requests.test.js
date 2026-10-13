@@ -783,6 +783,7 @@ test("normalization upgrades reuse expired raw sale pages and poll only new inge
   const url = new URL(
     "https://api.pkmnprices.com/v1/cards/22719/listings/ebay?limit=20&sort=date_desc&graded=true&grader=CGC&grade=8.5",
   );
+  url.searchParams.sort();
   saved.set("upgrade-fixture\0" + url.href, {
     body: { data: [row], pagination: { has_more: false, next_cursor: null } },
     fetchedAt: Date.parse(oldDay),
