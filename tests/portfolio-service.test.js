@@ -237,7 +237,7 @@ test('a partial refresh keeps useful progress and does not exhaust continuation 
     if(url.hostname==='api.pkmnprices.com'){
       if(url.pathname.includes('/124'))return Response.json({error:{code:'quota_exceeded'}},{status:429});
       if(table==='history')return Response.json({data:[{date:day,source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',avg:100}],pagination:{page:1,total_pages:1}});
-      return Response.json({id:123,name:'Fixture A',number:'1',set:{name:'Fixture'},language:'en',prices:[{source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',market_price:100}]});
+      return Response.json({id:123,image_url:'https://images.pkmnprices.com/fixture-a.jpg',name:'Fixture A',number:'1',set:{name:'Fixture'},language:'en',prices:[{source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',market_price:100}]});
     }
     assert.equal(url.hostname,'portfolio-progress-fixture.supabase.co');
     if(table==='portfolio_views')return Response.json({view:stored,inventory_revision:0});
@@ -256,5 +256,7 @@ test('a partial refresh keeps useful progress and does not exhaust continuation 
   assert.deepEqual(result.summaries,old,'Partial provider results cannot replace the published total/chart');
   assert.equal(result.refreshIncomplete,true);
   assert.equal(result.pendingPricing.find(p=>p.uid===ids[0]).checkedDay,day);
+  assert.equal(result.pendingPricing.find(p=>p.uid===ids[0]).image,'https://images.pkmnprices.com/fixture-a.jpg');
+  assert.equal(result.pendingPricing.find(p=>p.uid===ids[0]).thumb,'https://images.pkmnprices.com/fixture-a.jpg');
   assert.equal(result.attemptCount,0,'Useful saved progress permits another bounded continuation');
 });

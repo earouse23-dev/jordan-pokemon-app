@@ -756,3 +756,91 @@ test('slab archive checkpoints each cursor and preserves conflicting transaction
   assert.equal(next.sales.length, 2, 'conflicting prices survive ingestion so the valuation layer can exclude both');
   assert.equal(next.hasMore, false);
 });
+
+test("normalization upgrades reuse expired raw sale pages and poll only new ingestions", async (t) => {
+  const { fetchPkmnPricesSalesHistory } =
+    await import("../lib/providers/pkmnprices.js");
+  pkmnPricesRequests.cache.clear();
+  pkmnPricesRequests.pending.clear();
+  const saved = new Map(),
+    queries = [];
+  const oldDay = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const row = {
+    ebay_listing_id: "old-swirl",
+    title:
+      "CGC 8.5 Espeon 1st Edition Neo Discovery Holo SWIRL 1/75 Pokemon 2001",
+    price: 900,
+    currency: "USD",
+    grader: "CGC",
+    grade: "8.5",
+    variant: "1st Edition Holofoil",
+    language: "English",
+    attribution: "exact",
+    sold_at: "2026-02-24",
+    ingested_at: "2026-10-09T00:00:00Z",
+    listing_url: "https://www.ebay.com/itm/123456789012",
+  };
+  const url = new URL(
+    "https://api.pkmnprices.com/v1/cards/22719/listings/ebay?limit=20&sort=date_desc&graded=true&grader=CGC&grade=8.5",
+  );
+  saved.set("upgrade-fixture\0" + url.href, {
+    body: { data: [row], pagination: { has_more: false, next_cursor: null } },
+    fetchedAt: Date.parse(oldDay),
+    expires: 0,
+  });
+  t.mock.method(pkmnPricesRequests, "claim", async () => {});
+  t.mock.method(pkmnPricesRequests, "claimCache", async () => true);
+  t.mock.method(
+    pkmnPricesRequests,
+    "readCache",
+    async (key) => saved.get(key) || null,
+  );
+  t.mock.method(
+    pkmnPricesRequests,
+    "saveCache",
+    async (key, body, token, { pending = false } = {}) =>
+      saved.set(key, {
+        body: structuredClone(body),
+        fetchedAt: Date.now(),
+        expires: pending ? 0 : Date.now() + 86400000,
+      }),
+  );
+  t.mock.method(globalThis, "fetch", async (input) => {
+    const u = new URL(input);
+    if (!u.pathname.endsWith("/listings/ebay"))
+      return Response.json({
+        id: 22719,
+        name: "Espeon",
+        number: "1",
+        total_set_number: "75",
+        set: { name: "Neo Discovery" },
+        language: "en",
+      });
+    queries.push(u);
+    assert.equal(u.searchParams.get("since"), "2026-10-09T00:00:00Z");
+    return Response.json({
+      data: [],
+      pagination: { has_more: false, next_cursor: null },
+    });
+  });
+  const lookup = {
+    pkmnpricesId: "22719",
+    name: "Espeon",
+    set: "Neo Discovery",
+    number: "1/75",
+    language: "en",
+    variant: "Holofoil",
+    finish: "holofoil",
+    edition: "first_edition",
+    grader: "CGC",
+    grade: "8.5",
+    currency: "USD",
+  };
+  const result = await fetchPkmnPricesSalesHistory("upgrade-fixture", lookup);
+  assert.equal(result.sales.length, 1);
+  assert.equal(result.sales[0].amount, 900);
+  assert.equal(queries.length, 1);
+  pkmnPricesRequests.cache.clear();
+  await fetchPkmnPricesSalesHistory("upgrade-fixture", lookup);
+  assert.equal(queries.length, 1);
+});

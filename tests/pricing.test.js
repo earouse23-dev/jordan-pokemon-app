@@ -2985,3 +2985,40 @@ test('Blastoise title annotations retain the newest exact comp while shadowless 
  assert.equal(saleMatchesPrinting(shadow,{...lookup,edition:'shadowless'}),true);
  assert.equal(saleMatchesCanonicalIdentity(shadow,card,{...lookup,edition:'shadowless'}),true);
 });
+
+test("exact first-edition Espeon accepts a cosmetic swirl annotation while rejecting different printings and numbers", async () => {
+  const { saleMatchesPrinting } =
+    await import("../lib/providers/pkmnprices.js");
+  const card = {
+    name: "Espeon",
+    number: "1",
+    total_set_number: "75",
+    set: { name: "Neo Discovery" },
+  };
+  const lookup = {
+    name: "Espeon",
+    set: "Neo Discovery",
+    number: "1/75",
+    language: "en",
+    variant: "Holofoil",
+    edition: "first_edition",
+  };
+  const sale = {
+    title:
+      "CGC 8.5 Espeon 1st Edition Neo Discovery Holo 🌀 SWIRL 1/75 Pokemon 2001 1/75 [eBay]",
+    printing: "1st Edition Holofoil",
+  };
+  assert.equal(saleMatchesCanonicalIdentity(sale, card, lookup), true);
+  assert.equal(
+    saleMatchesCanonicalIdentity(
+      { ...sale, title: sale.title.replaceAll("1/75", "2/75") },
+      card,
+      lookup,
+    ),
+    false,
+  );
+  assert.equal(
+    saleMatchesPrinting(sale, { ...lookup, edition: "unlimited" }),
+    false,
+  );
+});
