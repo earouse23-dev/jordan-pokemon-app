@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-12",
+  "command": "npm run beta:check",
+  "unit": {
+    "pass": 571,
+    "fail": 0,
+    "skip": 3
+  },
+  "browser": {
+    "pass": 343,
+    "fail": 0,
+    "skip": 8,
+    "projects": [
+      "desktop-chromium",
+      "mobile-chromium",
+      "mobile-webkit"
+    ]
+  },
+  "skippedReasons": [
+    "Three unit suites require separately configured local/disposable databases; graded-copy suite additionally passed against existing local stack.",
+    "Six browser persistence cases require owned disposable databases.",
+    "WebKit diagnostic is omitted from two Chromium projects."
+  ],
+  "schemaTables": 83,
+  "productionMigrations": 61,
+  "localMigrations": 79,
+  "pendingHistoricalNames": 19,
+  "migrationsApplied": 0,
+  "providerCalls": 0,
+  "addedSpend": 0
+}

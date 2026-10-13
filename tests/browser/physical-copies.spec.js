@@ -10,7 +10,7 @@ import { normalizeTcgdexCard } from "../../lib/providers/tcgdex.js";
 import { collectibleIdentitySnapshot } from "../../lib/identity.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=111";
+const appUrl = "/app.js?v=114";
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const copyIds = {
   a: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -169,7 +169,7 @@ test("CLIENT-05I form saves to disposable database and fresh browser login reope
     noncriticalErrors: 0,
   };
   const routePage = async (target) => {
-    await target.route("**/app.js?v=111", (route) =>
+    await target.route("**/app.js?v=114", (route) =>
       route.fulfill({
         contentType: "application/javascript",
         body: instrumentedApp,
@@ -483,7 +483,7 @@ function gradedCopy(key, { sold = false } = {}) {
 }
 
 async function setup(page, { soldB = false, onSale } = {}) {
-  await page.route("**/app.js?v=111", (route) =>
+  await page.route("**/app.js?v=114", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -616,6 +616,7 @@ function soldRows(lookup, amounts, soldAt = "2026-09-20") {
     lookup.currency === "EUR" ? 22000 : lookup.grade === "8" ? 33000 : 11000;
   return amounts.map((amount, index) => ({
     provider: "fixture",
+    saleType: "fixed_price",
     providerSaleId: String(base + index),
     source: "ebay",
     sourceUrl: `https://www.ebay.com/itm/${base + index}`,
@@ -628,7 +629,7 @@ function soldRows(lookup, amounts, soldAt = "2026-09-20") {
     language: "English",
     currency: lookup.currency,
     amount,
-    soldAt,
+    soldAt: index === 1 ? soldAt : new Date(Date.parse(soldAt) - (index + 1) * 86400000).toISOString(),
     ingestedAt: "2026-09-23T00:00:00Z",
   }));
 }
@@ -1094,7 +1095,7 @@ test("CLIENT-05F displays dated ECB equivalent without changing native sale evid
   await page.locator("#toggleExactFxButton").click();
   await expect(page.locator(".exact-fx")).toContainText("About $125.00");
   expect(saleCalls).toBe(2);
-  expect(fxCalls).toBe(2);
+  expect(fxCalls).toBe(1);
   expect(writes).toHaveLength(0);
 });
 
@@ -1197,7 +1198,7 @@ test("CLIENT-05F FX failure, retry and native refresh keep provenance paired", a
   await page.route("**/api/fx", (route) => {
     fxCalls += 1;
     return route.fulfill(
-      fxCalls === 1
+      fxCalls <= 2
         ? {
             status: 502,
             contentType: "application/json",
@@ -1237,7 +1238,7 @@ test("CLIENT-05F FX failure, retry and native refresh keep provenance paired", a
   ).toBe(150);
   await expect(page.locator(".exact-fx")).not.toContainText("€96.00");
   expect(salesCalls).toBe(2);
-  expect(fxCalls).toBe(2);
+  expect(fxCalls).toBe(3);
   await page.locator("#detailBack").click();
   await expect(page.locator(".exact-sold-value")).toBeHidden();
 });
@@ -1292,6 +1293,8 @@ test("CLIENT-05F account and route changes reject delayed FX display", async ({
     state.session = { user: { id: "11111111-1111-4111-8111-111111111111" } };
   }, appUrl);
   release = null;
+  // Expire the public cached ECB rate so this case exercises another pending request.
+  await page.clock.setFixedTime(new Date("2026-09-29T17:00:00Z"));
   await page.locator("#toggleExactFxButton").click();
   await expect.poll(() => calls).toBe(2);
   await page.evaluate(async (url) => {
@@ -1462,10 +1465,10 @@ test("exact sold value follows selected copy, currency and grade without invento
   await page.locator("#detailValuationGrade").press("Tab");
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText(
-    "2 eligible sales",
+    "€120.00",
   );
   await expect(page.locator(".exact-sold-value")).toContainText(
-    "Estimate unavailable",
+    "Last matching eBay sale",
   );
   await openValueContext(page);
   await page.locator("#detailValuationCurrency").selectOption("USD");
@@ -1495,7 +1498,7 @@ test("exact sold value follows selected copy, currency and grade without invento
   await page.locator("#detailValuationGrade").press("Tab");
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText(
-    "0 eligible sales",
+    "No eligible recent eBay sale",
   );
   await openValueContext(page);
   await page.locator("#detailValuationGrade").fill("10");
@@ -1511,7 +1514,7 @@ test("exact sold value follows selected copy, currency and grade without invento
   );
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText(
-    "0 eligible sales",
+    "No eligible recent eBay sale",
   );
   await page.locator(`[data-copy-id="${copyIds.b}"]`).click();
   await expect(page.locator("#copyNavigationTitle")).toHaveText("Copy 2 of 3");
@@ -1837,95 +1840,29 @@ test("CLIENT-05L replays the private direct-identity stop without sales or exter
   expect(writes).toEqual([]);
 });
 
-test("CLIENT-05M replays retained insufficient sales privately with no external traffic or writes", async ({
-  page,
-}) => {
-  const { privateDir } = await import("../../scripts/client-05m-proof.mjs");
-  const { source, lookup } = await import("../../scripts/client-05l-proof.mjs");
-  const ledger = JSON.parse(
-    await readFile(`${privateDir}/attempt.json`, "utf8"),
-  );
-  expect(ledger.membershipGate).toBe("pass");
-  expect(ledger.apiStatus).toBe(200);
-  expect(ledger.production.status).toBe("insufficient");
-  expect(ledger.production.estimate).toBeNull();
-  const card = normalizeTcgdexCard(source, "en");
-  const variantId = "tcgdex:en:base2-1:variant:3a83wf50ts0izj268xwv3crwi";
-  const snapshot = collectibleIdentitySnapshot(card, variantId);
-  const item = {
-    ...gradedCopy("a"),
-    ...card,
-    ...snapshot,
-    uid: copyIds.a,
-    name: lookup.name, // Private candidate-scoped browser replay; no saved alias.
-    number: lookup.number,
-    externalIds: { tcgdex: source.id, pkmnprices: lookup.pkmnpricesId },
-    variantId,
-    variant: lookup.variant,
-    finish: lookup.finish,
-    edition: lookup.edition,
-    promoType: lookup.promoType,
-    identityStatus: "exact",
-    cardState: "graded",
-    status: "owned",
-    gradingCompany: "PSA",
-    grade: "10",
-    gradeQualifier: "",
-    certificationNumber: null,
-    currency: "USD",
-    price: null,
-    referencePrice: null,
-    quotes: [],
-    priceHistory: [],
-  };
-  const unexpected = [];
-  const writes = [];
-  await page.route("**/*", (route) => {
-    const host = new URL(route.request().url()).hostname;
-    if (route.request().method() !== "GET") writes.push(route.request().url());
-    if (["127.0.0.1", "mica-copy-test.supabase.co"].includes(host))
-      return route.fallback();
-    unexpected.push(route.request().url());
-    return route.abort();
-  });
+test("retained older reported comps stay labelled and traceable without external traffic or writes", async ({ page }) => {
   await setup(page);
-  await page.clock.install({ time: new Date(ledger.evaluatedAt) });
-  let salesRequests = 0;
-  await page.route("**/api/sales?*", (route) => {
-    salesRequests++;
-    const requested = JSON.parse(
-      new URL(route.request().url()).searchParams.get("lookup"),
-    );
-    expect(requested).toMatchObject(lookup);
-    return route.fulfill({
-      contentType: "application/json",
-      body: JSON.stringify({ ...ledger.api, hasMore: ledger.hasMore }),
-    });
+  await page.clock.install({ time: new Date("2026-09-25T12:00:00Z") });
+  const writes = [], unexpected = [];
+  page.on("request", request => { if (request.method() !== "GET") writes.push(request.url()); });
+  await page.route("https://api.pkmnprices.com/**", route => { unexpected.push(route.request().url()); return route.abort(); });
+  await page.route("https://www.ecb.europa.eu/**", route => { unexpected.push(route.request().url()); return route.abort(); });
+  let reads = 0;
+  await page.route("**/api/sales?*", route => {
+    reads++;
+    const lookup = JSON.parse(new URL(route.request().url()).searchParams.get("lookup"));
+    const sales = soldRows(lookup, [2325, 7300, 2650], "2026-01-25").map(sale => ({...sale, provider:"pkmnprices", saleType:null}));
+    return route.fulfill({contentType:"application/json", body:JSON.stringify({...soldPayload(lookup,sales,true),receivedCount:4,acceptedCount:3,excludedCount:1,upstreamExclusions:[{id:"fixture-excluded",reason:"canonical_identity_mismatch"}]})});
   });
-  await page.evaluate(
-    async ({ appUrl, item }) => {
-      const { state, openCardDetail } = await import(appUrl);
-      state.items = [item];
-      openCardDetail(item, true);
-    },
-    { appUrl, item },
-  );
+  await page.locator("[data-open-position]").first().click();
   await page.locator("#checkExactSalesButton").click();
-  await expect(page.locator(".exact-sold-value")).toContainText(
-    "Estimate unavailable",
-  );
-  await expect(page.locator(".exact-sold-value")).toContainText(
-    "0 eligible sales · at least 3 needed",
-  );
+  await expect(page.locator(".exact-sold-value > strong")).toHaveText("$7,300.00");
+  await expect(page.locator(".exact-sold-value")).toContainText("Older completed sales");
   await page.locator("#exactSaleEvidence > summary").click();
-  await expect(page.locator("#exactSaleEvidence")).toContainText(
-    "10 received · 6 accepted · 4 excluded before valuation",
-  );
-  await expect(page.locator("#exactSaleEvidence")).toContainText(
-    "Limited recent sample; more provider pages were not fetched",
-  );
-  await expect(page.locator("#toggleExactFxButton")).toHaveCount(0);
-  expect(salesRequests).toBe(1);
+  await expect(page.locator("#exactSaleEvidence")).toContainText("4 received · 3 accepted · 1 excluded before valuation");
+  await expect(page.locator("#exactSaleEvidence")).toContainText("fixture-excluded");
+  await expect(page.locator("#exactSaleEvidence")).toContainText("Limited recent sample");
+  expect(reads).toBe(1);
   expect(unexpected).toEqual([]);
   expect(writes).toEqual([]);
 });
@@ -2086,18 +2023,20 @@ for (const cardState of ["raw", "sealed"]) {
   });
 }
 
-for (const [prices, estimate] of [[[100,110,120],110],[[225,215,230.2,219,220.46,220,222.5,260,209.99,190],220.23]]) test(`portfolio reads one graded context and detail charts actual matching sales without valuation writes (${estimate})`, async ({page}) => {
+for (const [prices, estimate] of [[[100,110,120],100],[[225,215,230.2,219,220.46,220,222.5,260,209.99,190],225]]) test(`legacy collection pricing reads one graded context and detail charts actual matching sales without valuation writes (${estimate})`, async ({page}) => {
   await setup(page);
+  // Exercise the compatibility path only when saved-portfolio service is unavailable.
+  await page.route("**/api/capabilities?surface=portfolio", route => route.fulfill({status:404,body:"{}"}));
   let reads=0, valuationWrites=0;
   page.on("request",request=>{if(request.url().includes("/api/graded-valuation"))valuationWrites++;});
-  await page.route("**/api/cards?*",async route=>{await new Promise(resolve=>setTimeout(resolve,300));const lookup=JSON.parse(new URL(route.request().url()).searchParams.get("lookups"))[0];if(lookup.clientId==="unavailable")return route.fulfill({status:502,contentType:"application/json",body:JSON.stringify({error:"Synthetic unavailable card"})});return route.fulfill({contentType:"application/json",body:JSON.stringify({cards:[{providerCardId:lookup.clientId,quotes:[],history:[],capabilities:{graded:"missing"}}]})});});
+  await page.route("**/api/cards?*",async route=>{await new Promise(resolve=>setTimeout(resolve,300));const lookup=JSON.parse(new URL(route.request().url()).searchParams.get("lookups"))[0];if(lookup.clientId==="tcgdex:en:unavailable")return route.fulfill({status:502,contentType:"application/json",body:JSON.stringify({error:"Synthetic unavailable card"})});return route.fulfill({contentType:"application/json",body:JSON.stringify({cards:[{providerCardId:lookup.clientId,quotes:[],history:[],capabilities:{graded:"missing"}}]})});});
   await page.route("**/api/sales?*",route=>{
     reads++; const lookup=JSON.parse(new URL(route.request().url()).searchParams.get("lookup"));
     const sales=soldRows(lookup,prices,new Date(Date.now()-86400000).toISOString().slice(0,10));
     sales.forEach((sale,index)=>sale.soldAt=new Date(Date.now()-(index+1)*86400000).toISOString().slice(0,10));
     return route.fulfill({contentType:"application/json",body:JSON.stringify(soldPayload(lookup,sales))});
   });
-  await page.evaluate(async ({appUrl,copies})=>{const {state,refreshLivePricing,openCardDetail}=await import(appUrl);state.session={...state.session,access_token:"fixture-read-token"};state.items=[{...copies[0],id:"unavailable",uid:"unavailable-copy",cardState:"raw",gradingCompany:"",grade:"",price:null,notes:"Unpriced entry preserved"},...copies];await refreshLivePricing();state.items.forEach(item=>delete item.exactSaleEvidence);openCardDetail(state.items.find(item=>item.cardState==="graded"),true);},{appUrl,copies:[gradedCopy("a"),gradedCopy("b")]});
+  await page.evaluate(async ({appUrl,copies})=>{const {state,refreshLivePricing,openCardDetail}=await import(appUrl);state.session={...state.session,access_token:"fixture-read-token"};state.items=[{...copies[0],id:"tcgdex:en:unavailable",uid:"unavailable-copy",cardState:"raw",gradingCompany:"",grade:"",price:null,notes:"Unpriced entry preserved"},...copies];await refreshLivePricing();state.items.forEach(item=>delete item.exactSaleEvidence);openCardDetail(state.items.find(item=>item.cardState==="graded"),true);},{appUrl,copies:[gradedCopy("a"),gradedCopy("b")]});
   await expect(page.locator(".exact-sold-value")).toContainText("$"+estimate.toFixed(2));
   await expect(page.locator("#positionChart")).toBeVisible();
   await page.waitForTimeout(500);
@@ -2105,8 +2044,8 @@ for (const [prices, estimate] of [[[100,110,120],110],[[225,215,230.2,219,220.46
   await expect(page.locator("#detailContent")).toContainText("Matching completed-sale prices");
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(prices.length);
-  expect(await page.evaluate(async url=>(await import(url)).state.items.find(item=>item.id==="unavailable").notes,appUrl)).toBe("Unpriced entry preserved");
-  expect(await page.evaluate(async url=>(await import(url)).state.items.find(item=>item.id==="unavailable").pricingStatus,appUrl)).toBe("error");
+  expect(await page.evaluate(async url=>(await import(url)).state.items.find(item=>item.id==="tcgdex:en:unavailable").notes,appUrl)).toBe("Unpriced entry preserved");
+  expect(await page.evaluate(async url=>(await import(url)).state.items.find(item=>item.id==="tcgdex:en:unavailable").pricingStatus,appUrl)).toBe("error");
   expect(valuationWrites).toBe(0);
   // One collection read plus one independent detail read; copies never fan out.
   expect(reads).toBe(2);

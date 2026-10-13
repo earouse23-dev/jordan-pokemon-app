@@ -173,11 +173,12 @@ test("one-shot private ledger prevents a restarted runner from spending again", 
     directory,
     now: Date.parse("2026-09-25T12:00:00Z"),
   });
-  assert.equal(result.ledger.requests.length, 2);
-  assert.equal(result.ledger.reservedCredits, 11);
+  assert.equal(result.ledger.requests.length, 1);
+  assert.equal(result.ledger.reservedCredits, 1);
   assert.equal(result.ledger.directGate, "pass");
-  assert.equal(result.ledger.rows.length, 1);
-  assert.equal(result.ledger.production.status, "insufficient");
+  assert.equal(result.ledger.rows, null);
+  assert.equal(result.ledger.production, undefined);
+  assert.equal(result.ledger.apiCode, "provider_unavailable");
   assert.equal(
     readFileSync(result.path, "utf8").includes("synthetic-only"),
     false,

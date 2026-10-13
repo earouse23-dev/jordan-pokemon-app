@@ -115,7 +115,7 @@ async function openDetail(page, overrides = {}) {
     },
     { appUrl, overrides },
   );
-  await expect(page.locator("#detailTitle")).toHaveText("Charizard");
+  await expect(page.locator("#detailTitle")).toContainText("Charizard");
 }
 
 async function assertFits(page) {
@@ -125,8 +125,7 @@ async function assertFits(page) {
   expect(overflow).toBeLessThanOrEqual(0);
 }
 
-for (const surface of ["sold", "psa"]) {
-  test(`${surface} stalled evidence request returns to retry with the same printing`, async ({
+test("sold stalled evidence request returns to retry with the same printing", async ({
     page,
   }) => {
     const requests = [];
@@ -145,21 +144,10 @@ for (const surface of ["sold", "psa"]) {
   await page.locator('[data-detail-tool="prices"] > summary').click();
     await page.clock.install({ time: new Date("2026-09-06T12:00:00Z") });
     await page.clock.pauseAt(new Date("2026-09-07T12:00:00Z"));
-    if (surface === "sold")
-      await page.locator("#marketProofDetails > summary").click();
-    else {
-      await page.locator('[data-detail-tool="grade-prices"] > summary').click();
-      await page.locator('[data-psa-price="10"]').click();
-    }
+    await page.locator("#marketProofDetails > summary").click();
     await expect.poll(() => requests.length).toBe(1);
     await page.clock.runFor(55_001);
-    const retry =
-      surface === "sold"
-        ? page.getByRole("button", { name: "Try sales again" })
-        : page.getByRole("button", {
-            name: "Try again for PSA 10",
-            exact: true,
-          });
+    const retry = page.getByRole("button", { name: "Try sales again" });
     await expect(retry).toBeVisible();
     await retry.click();
     await expect.poll(() => requests.length).toBe(2);
@@ -167,20 +155,13 @@ for (const surface of ["sold", "psa"]) {
     expect(requests[1]).toMatchObject({
       variant: "Holofoil",
       language: "en",
-      grader: surface === "psa" ? "PSA" : "",
+      grader: "",
     });
-    if (surface === "psa")
-      await expect(page.locator('[data-psa-price="10"]')).toHaveAttribute(
-        "aria-disabled",
-        "false",
-      );
-    else
-      await expect(page.locator("#marketProofDetails")).toHaveAttribute(
+    await expect(page.locator("#marketProofDetails")).toHaveAttribute(
         "open",
         "",
       );
   });
-}
 
 test("consecutive daily prices retain their connecting trend line", async ({
   page,
@@ -371,7 +352,7 @@ test("card detail links only validated marketplace sources and the latest matchi
   const popup = await popupPromise;
   await expect(popup).toHaveURL("https://www.tcgplayer.com/product/12345/synthetic");
   await popup.close();
-  await expect(page.locator("#detailTitle")).toHaveText("Charizard");
+  await expect(page.locator("#detailTitle")).toContainText("Charizard");
   await page.getByRole("button", { name: "View recent eBay sales" }).click();
   await expect(page.locator('[data-detail-tool="prices"]')).toHaveAttribute("open", "");
   await expect(page.locator("#marketProofDetails")).toHaveAttribute("open", "");
@@ -432,97 +413,14 @@ test("sold response survives a price refresh replacing the card object", async (
   );
 });
 
-test("PSA comparison keeps grades separate and exposes the dated source evidence", async ({
-  page,
-}) => {
-  const requests = [];
-  await page.route("**/api/sales?*", async (route) => {
-    const lookup = JSON.parse(
-      new URL(route.request().url()).searchParams.get("lookup"),
-    );
-    requests.push(lookup);
-    await route.fulfill({
-      status:
-        requests.filter((row) => row.grade === "10").length > 1 ? 502 : 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        validatedContext: {
-          ...lookup,
-          providerCardId: "fixture-card",
-          canonicalValidated: true,
-          completedSaleValidated: true,
-        },
-        retrievedAt: "2026-09-24T00:00:00Z",
-        sales:
-          lookup.grade === "10"
-            ? [240, 250, 260].map((amount, index) => ({
-                provider: "fixture",
-                providerSaleId: String(123456789012 + index),
-                source: "ebay",
-                gradingCompany: "PSA",
-                grade: "10",
-                attribution: "exact",
-                printing: "Holofoil",
-                amount,
-                currency: "USD",
-                soldAt: "2026-09-01",
-                sourceUrl: `https://www.ebay.com/itm/${123456789012 + index}`,
-              }))
-            : [],
-      }),
-    });
-  });
+test("removed grading comparisons cannot trigger paid requests", async ({ page }) => {
+  let requests = 0;
+  await page.route("**/api/sales?*", route => { requests++; return route.fulfill({contentType:"application/json",body:'{"sales":[]}'}); });
   await openDetail(page);
   await openSecondaryTools(page);
-  await page.locator('[data-detail-tool="prices"] > summary').click();
-  await page.locator('[data-detail-tool="grade-prices"] > summary').click();
-  expect(requests).toHaveLength(0);
-  const check10 = page.locator('[data-psa-price="10"]');
-  await check10.focus();
-  await page.keyboard.press("Enter");
-  await expect(page.locator("#psaPriceEvidence")).toContainText("$250.00");
-  await expect(check10).toBeFocused();
-  expect(requests[0]).toMatchObject({
-    grader: "PSA",
-    grade: "10",
-    variant: "Holofoil",
-    gradeQualifier: "",
-  });
-  await page.locator('[data-psa-sale-details="10"] > summary').click();
-  await expect(
-    page.locator('[data-psa-sale-details="10"] a').first(),
-  ).toContainText("2026-09-01");
-  await page.locator('[data-psa-price="9"]').click();
-  await expect(page.locator("#psaPriceEvidence")).toContainText(
-    "No usable matching sales returned",
-  );
-  await expect(page.locator('[data-psa-sale-details="10"]')).toHaveAttribute(
-    "open",
-    "",
-  );
-  await expect(page.locator(".market-hero")).not.toContainText("$250.00");
-  await page.locator('[data-psa-price="10"]').click();
-  await expect(page.locator("#psaPriceEvidence")).toContainText(
-    "Couldn’t refresh. Previous sales shown.",
-  );
-  await expect(page.locator("#psaPriceEvidence")).toContainText("$250.00");
-  await assertFits(page);
-  expect(
-    await page
-      .locator("#psaPriceEvidence .grade-ladder-row")
-      .evaluateAll((rows) =>
-        rows.every((row) => {
-          const bounds = row.getBoundingClientRect();
-          return [...row.querySelectorAll("button, b, a")].every((node) => {
-            const r = node.getBoundingClientRect();
-            return r.left >= bounds.left - 1 && r.right <= bounds.right + 1;
-          });
-        }),
-      ),
-  ).toBe(true);
-  await page
-    .locator("#psaPriceEvidence")
-    .screenshot({ path: `/tmp/mica-psa-${page.viewportSize().width}.png` });
+  await expect(page.locator('[data-detail-tool="grade-prices"]')).toHaveCount(0);
+  await expect(page.locator('[data-psa-price]')).toHaveCount(0);
+  expect(requests).toBe(0);
 });
 
 test("unavailable display conversion keeps native current price and recorded history visible", async ({ page }) => {

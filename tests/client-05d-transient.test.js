@@ -50,7 +50,7 @@ const sale = (
   listing_url: `https://www.ebay.com/itm/${id}`,
 });
 
-test("source-scoped harness keeps catalog unresolved and independently agrees on synthetic sales", async () => {
+test("closed historical harness keeps catalog unresolved and refuses current archive transport", async () => {
   const calls = [];
   const rows = [
     sale(9001, 100),
@@ -73,26 +73,14 @@ test("source-scoped harness keeps catalog unresolved and independently agrees on
         : Response.json({ data: rows, pagination: { has_more: false } });
     },
   });
-  assert.deepEqual(calls, ["error", "error"]);
-  assert.equal(result.outbound, 2);
-  assert.equal(result.reserved, 11);
-  assert.equal(result.received, 4);
-  assert.equal(result.accepted, 3);
-  assert.equal(result.excluded, 1);
+  // This historical runner is intentionally still capped at its old URL/credits.
+  // Current archive pagination must fail closed rather than widen that allowance.
+  assert.deepEqual(calls, ["error"]);
+  assert.equal(result.outbound, 1);
+  assert.equal(result.reserved, 1);
+  assert.equal(result.stop, "provider_unavailable");
   assert.equal(result.catalogIdentityStatus, "needs_review");
-  assert.equal(result.unresolvedStatus, "unresolved_context");
-  assert.equal(result.unresolvedEstimateAbsent, true);
-  assert.equal(result.applicationStatus, "ready");
-  assert.equal(result.applicationCount, 3);
-  assert.ok(Object.values(result.agreement).every(Boolean));
-  assert.equal(
-    result.independentReasons.title_identity_or_printing_uncertain,
-    1,
-  );
-  assert.doesNotMatch(
-    JSON.stringify(result),
-    /900[1-4]|1000|\$120|ebay\.com|listing_url/,
-  );
+
 });
 
 test("material source drift and card identity conflict prevent sale transport", async () => {

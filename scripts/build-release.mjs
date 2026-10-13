@@ -1,4 +1,4 @@
-// Rebuild curated client-reset source over the accepted snapshot; never package the dirty worktree.
+// Build only the explicit release source list. No private ZIP or workstation snapshot is required.
 import fs from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
@@ -34,37 +34,9 @@ async function files(root, relative = "") {
   }
   return result;
 }
-assert.equal(
-  await hash(path.join(old, "configured-deployment.zip")),
-  "d9a1ac3e908b4f01106841ff70eadd96ae219d74e64b849bbaec0cfcc5f26b09",
-);
-assert.equal(
-  await hash(path.join(old, "configured-source.zip")),
-  "44a1c4793a3820f5ee7337dc2eccd178dc98af92d967e0c8be10ecdaa212d7fb",
-);
-assert.equal(
-  await hash(path.join(old, "configured-manifest.json")),
-  "8966004f6297f2bad4089edd3644da271bf6b622d09ad68c61a5927263a8758c",
-);
+const baseline = await json(path.join(old, "configured-manifest.json"));
 await fs.rm(stage, { recursive: true, force: true });
 await fs.mkdir(source, { recursive: true });
-execFileSync("unzip", [
-  "-q",
-  path.join(old, "configured-deployment.zip"),
-  "-d",
-  stage,
-]);
-execFileSync("unzip", [
-  "-q",
-  path.join(old, "configured-source.zip"),
-  "-d",
-  source,
-]);
-const baseline = await json(path.join(old, "configured-manifest.json"));
-for (const f of baseline.deployment)
-  assert.equal(await hash(path.join(stage, f.path)), f.sha256, f.path);
-for (const f of baseline.source)
-  assert.equal(await hash(path.join(source, f.path)), f.sha256, f.path);
 const changes = [
   "app.js",
   "sw.js",
@@ -109,8 +81,10 @@ const changes = [
   "scripts/build.mjs",
   "vercel.json",
   "docs/evidence/sol-release-activation-04/public-config.json",
+  "docs/evidence/sol-release-activation-04/configured-manifest.json",
 ];
-for (const f of changes) {
+const sourcePaths = [...new Set([...baseline.source.map(f => f.path), ...changes])].sort();
+for (const f of sourcePaths) {
   await fs.mkdir(path.dirname(path.join(source, f)), { recursive: true });
   await fs.copyFile(path.join(repo, f), path.join(source, f));
 }
@@ -125,14 +99,12 @@ execFileSync(process.execPath, ["scripts/build.mjs", "--release-config"], {
 });
 const output = path.join(stage, ".vercel/output"),
   functions = path.join(output, "functions");
-await fs.rm(path.join(output, "static"), { recursive: true });
+await fs.mkdir(functions, { recursive: true });
 await fs.cp(path.join(source, "dist"), path.join(output, "static"), {
   recursive: true,
 });
-for (const n of Object.keys(routedRoutes))
-  await fs.rm(path.join(functions, "api", n + ".func"), { recursive: true });
 const shared = path.join(functions, "_release-hold.func");
-await fs.mkdir(shared);
+await fs.mkdir(shared, { recursive: true });
 const bundle = async (input, out) =>
   build({
     entryPoints: [input],
@@ -159,6 +131,7 @@ await write(path.join(shared, ".vc-config.json"), {
   maxDuration: 60,
 });
 // Public configuration remains separate from the server-only Pro request gate.
+const publicConfig = await json(path.join(source, "docs/evidence/sol-release-activation-04/public-config.json"));
 for (const name of [
   "account",
   "capabilities",
@@ -170,26 +143,27 @@ for (const name of [
   "set",
 ])
   {
+    await fs.mkdir(path.join(functions, `api/${name}.func`), { recursive: true });
     await bundle(
       path.join(source, `api/${name}.js`),
       path.join(functions, `api/${name}.func/index.mjs`),
     );
-    if (["cards", "capabilities"].includes(name)) {
-      const runtimePath = path.join(functions, `api/${name}.func/.vc-config.json`);
-      const runtime = await json(runtimePath);
-      runtime.maxDuration = 60;
-      await write(runtimePath, runtime);
-    }
+    await write(path.join(functions, `api/${name}.func/.vc-config.json`), {
+      runtime: "nodejs24.x", handler: "index.mjs", launcherType: "Nodejs", shouldAddHelpers: true,
+      maxDuration: ["cards", "capabilities"].includes(name) ? 60 : 10,
+      environment: {NEXT_PUBLIC_SUPABASE_URL: publicConfig.supabaseUrl, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicConfig.supabasePublishableKey},
+    });
   }
-const config = await json(path.join(output, "config.json"));
-// Prebuilt headers must follow the reviewed source, not the historical snapshot.
 const sourceConfig = await json(path.join(source, "vercel.json"));
-const securityRoute = config.routes.find((r) => r.headers?.["Content-Security-Policy"]);
-assert(securityRoute, "Missing shipping security headers");
-securityRoute.headers["Content-Security-Policy"] = sourceConfig.headers
-  .flatMap((r) => r.headers)
-  .find((h) => h.key === "Content-Security-Policy").value;
-config.crons = sourceConfig.crons;
+const config = {
+  version: 3,
+  routes: [
+    ...sourceConfig.headers.map(rule => ({src: rule.source, headers: Object.fromEntries(rule.headers.map(h => [h.key,h.value])), continue: true})),
+    {src:"^/profile/?$",dest:"/index.html"},
+    {handle:"filesystem"},
+  ],
+  crons: sourceConfig.crons,
+};
 const start = config.routes.findIndex((r) => r.src === "^/profile/?$");
 assert(start >= 0);
 config.routes.splice(
@@ -216,7 +190,6 @@ assert(deployedFunctions.length <= 12);
 const deployment = await Promise.all(
   [
     ...(await files(output)).map((f) => ".vercel/output/" + f),
-    ".vercel/project.json",
     "vercel.json",
   ]
     .sort()
@@ -226,9 +199,7 @@ const deployment = await Promise.all(
       bytes: (await fs.stat(path.join(stage, p))).size,
     })),
 );
-const sourcePaths = [
-  ...new Set([...baseline.source.map((f) => f.path), ...changes]),
-].sort();
+
 const sources = await Promise.all(
   sourcePaths.map(async (p) => ({
     path: p,

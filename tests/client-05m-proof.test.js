@@ -208,15 +208,13 @@ test("current API/adapter uses the bounded fake transport; closed historical run
   });
   const output = { setHeader() {}, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
   await salesHandler({ method: "GET", query: { lookup: JSON.stringify(lookup) }, headers: { authorization: "Bearer synthetic-only" } }, output);
-  const production = valuationFromApi(output.body, "2026-09-25T12:00:00Z", false);
   assert.equal(state.membershipGate, "pass");
-  assert.equal(state.requests.length, 2);
+  assert.equal(state.requests.length, 1);
   assert.equal(state.cachedDirectUses, 1);
-  assert.equal(output.statusCode, 200);
-  assert.equal(output.body.receivedCount, 1);
-  assert.equal(production.status, "insufficient");
-  assert.equal(production.distinctSaleCount, 1);
+  assert.equal(output.statusCode, 502);
+  assert.equal(output.body.code, "provider_unavailable");
   assert.equal(JSON.stringify(state).includes("synthetic-only"), false);
-  for (const url of [listUrl, directUrl, soldUrl])
-    await assert.rejects(() => guard.fetch(url), /CLIENT-05M guard/);
+  // The old approved listing URL is never automatically retried by the new API.
+  await assert.rejects(() => guard.fetch(listUrl), /CLIENT-05M guard/);
+
 });

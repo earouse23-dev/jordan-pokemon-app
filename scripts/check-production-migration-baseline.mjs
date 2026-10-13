@@ -8,11 +8,11 @@ const evidenceDirectory = path.join(root, "docs", "evidence");
 
 const [production, expected, filenames] = await Promise.all([
   readFile(
-    path.join(evidenceDirectory, "MICA_PRODUCTION_MIGRATIONS.json"),
+    path.join(evidenceDirectory, "beta-readiness-2026-10-12/production-migrations.json"),
     "utf8",
   ).then(JSON.parse),
   readFile(
-    path.join(evidenceDirectory, "MICA_MIGRATION_RECONCILIATION.json"),
+    path.join(evidenceDirectory, "beta-readiness-2026-10-12/migration-reconciliation.json"),
     "utf8",
   ).then(JSON.parse),
   readdir(migrationsDirectory),

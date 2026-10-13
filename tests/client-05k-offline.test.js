@@ -1,7 +1,7 @@
 import "./pkmnprices-fixture.mjs";
 import assert from "node:assert/strict";
 import test from "node:test";
-import salesHandler from "../api/sales.js";
+import { fetchPkmnPricesSales } from "../lib/providers/pkmnprices.js";
 import { pkmnPricesRequests } from "../lib/pkmnprices-requests.js";
 import { collectibleIdentitySnapshot } from "../lib/identity.js";
 import { exactSoldValuation } from "../lib/pricing.js";
@@ -37,7 +37,7 @@ const providerCard = {
 const lookup = Object.freeze({
   clientId: "tcgdex:en:base2-1",
   pkmnpricesId: "20618",
-  name: "Clefable (1)", // 05J/05K candidate-scoped, synthetic API hypothesis.
+  name: "Clefable (1)", // 05J/05K candidate-scoped, synthetic adapter hypothesis.
   set: "Jungle",
   number: "01/64",
   language: "en",
@@ -52,7 +52,7 @@ const lookup = Object.freeze({
 });
 const cardUrl = "https://api.pkmnprices.com/v1/cards/20618?currency=usd";
 const soldUrl =
-  "https://api.pkmnprices.com/v1/cards/20618/listings/ebay?limit=10&sort=date_desc&graded=true&variant=1st+Edition+Holofoil&grader=PSA&grade=10";
+  "https://api.pkmnprices.com/v1/cards/20618/listings/ebay?limit=10&sort=date_desc&graded=true&grader=PSA&grade=10";
 const now = Date.parse("2026-09-25T12:00:00Z");
 
 function stopped() {
@@ -199,10 +199,10 @@ async function rehearse(rows, { card = providerCard, catalog = source } = {}) {
   process.env.PKMNPRICES_API_KEY = "offline-fixture-only";
   const output = response();
   try {
-    await salesHandler(
-      { method: "GET", query: { lookup: JSON.stringify(lookup) } },
-      output,
-    );
+    try {
+      const result = await fetchPkmnPricesSales("offline-fixture-only", lookup);
+      output.status(200).json({ ...result, validatedContext: { ...lookup, providerCardId: result.cardId, canonicalValidated: true, completedSaleValidated: true }, retrievedAt: new Date(now).toISOString() });
+    } catch { output.status(502).json({code:"provider_unavailable"}); }
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey === undefined) delete process.env.PKMNPRICES_API_KEY;
@@ -613,7 +613,7 @@ test("duplicates and stale/future dates are independently excluded", async () =>
   );
 });
 
-test("bare Clefable title with padded number agrees through API and estimator", async () => {
+test("bare Clefable title with padded number agrees through adapter and estimator", async () => {
   const rows = [
     sale(9401, 100, { title: title.replace("Clefable (1)", "Clefable") }),
     sale(9402, 120, { title: title.replace("Clefable (1)", "Clefable") }),

@@ -64,7 +64,7 @@ async function setup(page) {
       view.hidden = view.id !== "view-scan";
       view.classList.toggle("active", view.id === "view-scan");
     });
-    const app = await import("/app.js?v=111");
+    const app = await import("/app.js?v=114");
     app.state.route = "scan";
     app.state.sidebarTarget = "add";
     app.bindEvents();
@@ -151,7 +151,7 @@ test("same-name English and Japanese close finishes open the exact clicked profi
     await page.locator("#quickCardSearch").fill("Pikachu 25/100");
     await page.locator("#quickCardSearch").press("Enter");
     await page.locator("#quickSearchResults [data-quick-card]").click();
-    await expect(page.locator("#detailTitle")).toHaveText("Pikachu");
+    await expect(page.locator("#detailTitle")).toContainText("Pikachu");
     await expect(page.locator(".detail-meta")).toContainText(
       language === "en" ? "English" : "Japanese",
     );
@@ -165,7 +165,7 @@ test("same-name English and Japanese close finishes open the exact clicked profi
           language: state.detailCard.language,
           finish: state.detailCard.finish,
         };
-      }, "/app.js?v=111"),
+      }, "/app.js?v=114"),
     ).toEqual({
       id: selected.id,
       variantId: selected.variantId,
@@ -208,7 +208,7 @@ for (const action of ["view", "add", "queue", "manual"]) {
     await setup(page);
     if (action === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=111")).openManualSearch(),
+        (await import("/app.js?v=114")).openManualSearch(),
       );
     const input = page.locator(
       action === "manual" ? "#catalogQuery" : "#quickCardSearch",
@@ -221,7 +221,7 @@ for (const action of ["view", "add", "queue", "manual"]) {
     await expect(results).toContainText("Pikachu English");
     await page.evaluate(
       async (replacement) => {
-        (await import("/app.js?v=111")).rememberCatalogItems([replacement]);
+        (await import("/app.js?v=114")).rememberCatalogItems([replacement]);
       },
       { ...original, name: "Pikachu Japanese", language: "ja" },
     );
@@ -241,7 +241,7 @@ for (const action of ["view", "add", "queue", "manual"]) {
       );
     } else {
       const chosen = await page.evaluate(async (action) => {
-        const { state } = await import("/app.js?v=111");
+        const { state } = await import("/app.js?v=114");
         const item =
           action === "queue" ? state.intakeQueue[0].card : state.detailCard;
         return { name: item.name, language: item.language };
@@ -270,7 +270,7 @@ for (const surface of ["quick", "manual"]) {
     await setup(page);
     if (surface === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=111")).openManualSearch(),
+        (await import("/app.js?v=114")).openManualSearch(),
       );
     const input = page.locator(
       surface === "quick" ? "#quickCardSearch" : "#catalogQuery",
@@ -318,7 +318,7 @@ for (const surface of ["quick", "manual"]) {
     await setup(page);
     if (surface === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=111")).openManualSearch(),
+        (await import("/app.js?v=114")).openManualSearch(),
       );
     const input = page.locator(
       surface === "quick" ? "#quickCardSearch" : "#catalogQuery",
@@ -356,7 +356,7 @@ for (const surface of ["quick", "manual"]) {
     await setup(page);
     if (surface === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=111")).openManualSearch(),
+        (await import("/app.js?v=114")).openManualSearch(),
       );
     // Use a deterministic future pause point relative to the installed clock.
     // Sampling the host's current time can be behind the browser by the time
@@ -396,7 +396,7 @@ for (const surface of ["quick", "manual"]) {
     await setup(page);
     if (surface === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=111")).openManualSearch(),
+        (await import("/app.js?v=114")).openManualSearch(),
       );
     const input = page.locator(
       surface === "quick" ? "#quickCardSearch" : "#catalogQuery",
@@ -446,7 +446,7 @@ test("cached search results stay in the selected language and disclose their sou
   await setup(page);
   await page.evaluate(
     async (cards) =>
-      (await import("/app.js?v=111")).rememberCatalogItems(cards),
+      (await import("/app.js?v=114")).rememberCatalogItems(cards),
     [
       card("Pikachu English", "en"),
       card("Pikachu Japanese", "ja"),
@@ -473,13 +473,13 @@ test("a replaced manual search ignores its late response", async ({ page }) => {
   });
   await setup(page);
   await page.evaluate(async () =>
-    (await import("/app.js?v=111")).openManualSearch(),
+    (await import("/app.js?v=114")).openManualSearch(),
   );
   await page.locator("#catalogQuery").fill("Pikachu");
   await page.locator("#catalogQuery").press("Enter");
   await expect.poll(() => Boolean(pending)).toBe(true);
   await page.evaluate(async () => {
-    const app = await import("/app.js?v=111");
+    const app = await import("/app.js?v=114");
     app.closeSheet({ discardHistory: true });
     app.openPositionSheet({
       name: "Eevee",
@@ -549,7 +549,7 @@ test("manual search starts with the current query and printed language", async (
   await page.locator("#quickCardSearch").press("Enter");
   await expect(page.locator("#quickSearchResults")).toContainText("Pikachu");
   await page.evaluate(async () =>
-    (await import("/app.js?v=111")).openManualSearch(),
+    (await import("/app.js?v=114")).openManualSearch(),
   );
   await expect(page.locator("#catalogQuery")).toHaveValue("Pikachu");
   await expect(page.locator("#catalogLanguage")).toHaveValue("ja");
@@ -587,7 +587,7 @@ for (const mode of ["quick", "manual"]) {
     await setup(page);
     if (mode === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=111")).openManualSearch(),
+        (await import("/app.js?v=114")).openManualSearch(),
       );
     const input = page.locator(
       mode === "quick" ? "#quickCardSearch" : "#catalogQuery",

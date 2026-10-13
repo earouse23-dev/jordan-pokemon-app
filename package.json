@@ -40,7 +40,8 @@
     "verify:native": "node scripts/verify-native-artifact.mjs",
     "test:native": "node --test tests/native-runtime.test.js",
     "build:release": "node scripts/build-release.mjs",
-    "verify:release-routing": "node scripts/verify-release-routing.mjs"
+    "verify:release-routing": "node scripts/verify-release-routing.mjs",
+    "beta:check": "npm run lint && npm run typecheck && npm test && npm run test:schema && npm run check:migrations && npm run build:release && npm run verify:release-routing && playwright test tests/browser/password-reset.spec.js tests/browser/search-recovery.spec.js tests/browser/add-save-recovery.spec.js tests/browser/document-capture.spec.js tests/browser/price-evidence.spec.js tests/browser/physical-copies.spec.js tests/browser/sealed-collector.spec.js --workers=2"
   },
   "engines": {
     "node": "24.x"

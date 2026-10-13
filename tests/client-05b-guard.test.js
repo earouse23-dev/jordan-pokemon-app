@@ -62,31 +62,12 @@ async function exercise(first, second) {
   }
 }
 
-test("actual API and adapter use only two allowlisted offline transports", async () => {
-  const result = await exercise(
-    Response.json(card),
-    Response.json({ data: [], pagination: { has_more: false } }),
-  );
-  assert.equal(result.response.statusCode, 200);
-  assert.equal(result.response.body.providerCardId, "10195");
-  assert.equal(result.response.body.receivedCount, 0);
-  assert.equal(result.response.body.acceptedCount, 0);
-  assert.equal(result.response.body.hasMore, false);
-  assert.equal(result.ledger.outbound, 2);
-  assert.equal(result.ledger.reserved, 11);
-  assert.deepEqual(
-    result.calls.map((call) => call.redirect),
-    ["error", "error"],
-  );
-  assert.match(result.calls[0].url, /\/cards\/10195\?currency=usd$/);
-  assert.match(
-    result.calls[1].url,
-    /\/cards\/10195\/listings\/ebay\?limit=10&sort=date_desc&graded=true&variant=Holofoil&grader=PSA&grade=10$/,
-  );
-  await assert.rejects(
-    () => result.guard.fetch(result.calls[1].url),
-    /request guard stopped/,
-  );
+test("current archive API cannot expand the historical two-request allowance", async () => {
+  const result = await exercise(Response.json(card), Response.json({data:[],pagination:{has_more:false}}));
+  assert.equal(result.response.statusCode,502);
+  assert.equal(result.calls.length,1);
+  assert.equal(result.ledger.reserved,1);
+  assert.match(result.calls[0].url,/\/cards\/10195\?currency=usd$/);
 });
 
 test("retry after server error is blocked before second transport", async () => {
@@ -147,11 +128,12 @@ test("first card identity conflicts stop sales before second transport", async (
   }
 });
 
-test("missing provider language is disclosed but does not invent a contradiction", async () => {
+test("missing provider language cannot unlock the closed historical archive probe", async () => {
   const result = await exercise(
     Response.json({ ...card, language: null }),
     Response.json({ data: [], pagination: { has_more: false } }),
   );
-  assert.equal(result.calls.length, 2);
-  assert.equal(result.response.statusCode, 200);
+  assert.equal(result.calls.length, 1);
+  assert.equal(result.response.statusCode, 502);
+  assert.equal(result.ledger.reserved, 1);
 });

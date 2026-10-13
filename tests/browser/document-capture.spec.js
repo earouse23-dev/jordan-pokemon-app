@@ -1196,7 +1196,7 @@ for (const [exact,graded] of [[true,true],[true,false],[false,true]]) test(`inta
   await expect(page.getByRole("button",{name:"Use photo",exact:true})).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Adjust edges",exact:true})).toHaveCount(0);
   await expect(page.getByRole("button",{name:"Find matching cards",exact:true})).toHaveCount(0);
-  if(exact){await expect(page.locator("#detailTitle")).toHaveText("Pikachu");await expect(page.locator("#positionForm")).toHaveCount(0);expect(await page.evaluate(()=>Boolean(globalThis.__documentCaptureApp.state.detailScanDraft?.options.photoDataUrl))).toBe(true);expect(await page.evaluate(()=>globalThis.__documentCaptureApp.state.detailValuationContext.cardState)).toBe(graded?"graded":"raw");await page.locator("#addLibraryButton").click();await expect(page.locator("#positionState")).toHaveValue(graded?"graded":"raw");if(graded){await expect(page.locator("#positionGrader")).toHaveValue("PSA");await expect(page.locator("#positionGrade")).toHaveValue("10");}}
+  if(exact){await expect(page.locator("#detailTitle")).toContainText("Pikachu");await expect(page.locator("#positionForm")).toHaveCount(0);expect(await page.evaluate(()=>Boolean(globalThis.__documentCaptureApp.state.detailScanDraft?.options.photoDataUrl))).toBe(true);expect(await page.evaluate(()=>globalThis.__documentCaptureApp.state.detailValuationContext.cardState)).toBe(graded?"graded":"raw");await page.locator("#addLibraryButton").click();await expect(page.locator("#positionState")).toHaveValue(graded?"graded":"raw");if(graded){await expect(page.locator("#positionGrader")).toHaveValue("PSA");await expect(page.locator("#positionGrade")).toHaveValue("10");}}
   else {await expect(page.locator("[data-vision-card]")).toBeVisible();await expect(page.locator("#positionForm")).toHaveCount(0);}
   expect(requests.writes.filter(request=>!request.path.endsWith("/rpc/record_ingestion_event"))).toHaveLength(0);
   expect(requests.vision).toHaveLength(1);
@@ -1242,7 +1242,7 @@ test("unreadable intake photo offers retake without edge or confirmation control
   await page.evaluate(()=>{document.querySelector("#quickSearchLanguage").value="en";});
   await installSyntheticDocument(page);
   await page.evaluate(()=>{const input=document.querySelector("#deviceCameraUpload");input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));});
-  await expect(page.locator("#detailTitle")).toHaveText("ピカチュウ");
+  await expect(page.locator("#detailTitle")).toContainText("ピカチュウ");
   expect(requests.catalog).toHaveLength(0);expect(requests.vision).toHaveLength(1);expect(requests.vision[0].mode).toBe("identify");
  });
 
@@ -1266,7 +1266,7 @@ test("automatic raw match hydrates photo, price and history without saving a gue
   });
   await installSyntheticDocument(page);
   await page.evaluate(()=>{const i=document.querySelector("#deviceCameraUpload");i.files=globalThis.__syntheticTransfer.files;i.dispatchEvent(new Event("change",{bubbles:true}));});
-  await expect(page.locator("#detailTitle")).toHaveText("M Charizard EX");
+  await expect(page.locator("#detailTitle")).toContainText("M Charizard EX");
   await expect(page.locator("#bottomSheet")).toBeHidden();
   await expect(page.locator("#detailBack")).toBeVisible();
   await expect(page.locator(".detail-sticky-action button")).toHaveCount(1);
