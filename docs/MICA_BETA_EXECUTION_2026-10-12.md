@@ -29,3 +29,11 @@ No commercial-beta-ready claim is made by completing source checks alone.
 Candidate gate: 571 unit checks and 343 browser checks pass, zero failures; eight explicit browser skips as described above. No provider acceptance call has been made.
 
 Published source `cbcb18e` as `dpl_4iUiEW7yJCnss5Rw4XKCU1ZiEedu` after identical frozen-output verification, staged health/auth checks and isolated demo acceptance. Staged saved-chart reload: 67 ms; public canonical reload: 197 ms, both before 25 held inventory reads, zero uncaught errors/customer writes/provider calls. Free ECB conversion was allowed. These are lab observations, not field percentile guarantees.
+
+## 2. Durable portfolio work — source/queue verified; recurring activation held for credit acceptance
+
+The queue filters eligible owners in PostgreSQL before limiting, so the first 100 completed accounts cannot starve later owners. Existing leases still coordinate browser and background refreshes. Successful continuation progress resets failure backoff; hard failures retain their attempt count while preserving the published total/chart. Worker outcomes report failed/pending/deferred work. Large inventories now use the same durable portfolio service instead of client pricing fanout.
+
+A 300-owner PostgreSQL transaction passed fairness, failure limits, next-day reset and role-boundary checks and rolled back. A 1,000-copy browser fixture passed across all three projects with one saved-view request and no pricing fanout. Core gate: 571 unit and 343 browser passes, plus three large-inventory browser passes. Linux CI exposed two more private fixture dependencies and a platform crop difference; those fixtures are now synthetic, with bounded two-pixel geometry tolerance and unchanged content assertions. Remote CI verification remains pending for this revised candidate.
+
+Applied only the two new queue/dispatcher migrations; historical pending SQL remains untouched. The installed Cron/pg_net/Vault dispatcher is configured every five minutes but paused. Its dedicated Vercel Secret/Vault token is configured without exporting the existing cron credential. Activation is a rollout gate after retained-history cost acceptance; no provider request has been made. See `step-2-checks.json` and `scripts/verify-portfolio-queue.mjs`.

@@ -21,6 +21,7 @@ test("saved views are owner scoped, refresh failures preserve the published view
     NEXT_PUBLIC_SUPABASE_URL: "https://portfolio-fixture.supabase.co",
     SUPABASE_SECRET_KEY: "fixture-service",
     CRON_SECRET: "fixture-cron",
+    PORTFOLIO_DISPATCH_TOKEN: "fixture-worker",
   })) {
     const old = process.env[key];
     process.env[key] = value;
@@ -51,6 +52,10 @@ test("saved views are owner scoped, refresh failures preserve the published view
     }
     if (url.pathname.endsWith("/auth/v1/user"))
       return Response.json({ id: owner });
+    if (url.pathname.endsWith("/rpc/due_portfolio_refreshes")) {
+      assert.equal(JSON.parse(init.body).p_limit,100);
+      return Response.json([]);
+    }
     if (url.pathname.endsWith("/rpc/publish_saved_portfolio")) {
       stored = JSON.parse(init.body).p_view;
       return Response.json(true);
@@ -95,7 +100,9 @@ test("saved views are owner scoped, refresh failures preserve the published view
     res,
   );
   assert.equal(res.statusCode, 503);
-  assert.deepEqual(stored, saved);
+  assert.deepEqual(stored.summaries, saved.summaries);
+  assert.equal(stored.updatedAt, saved.updatedAt);
+  assert.equal(stored.attemptCount, 1);
   assert.equal(paid, 0);
   readFailure = false;
   res = response();
@@ -117,6 +124,11 @@ test("saved views are owner scoped, refresh failures preserve the published view
     await portfolioService(request, res);
     assert.equal(res.statusCode, 401);
   }
+  res=response();
+  await portfolioService({method:"GET",headers:{authorization:"Bearer fixture-worker"},query:{surface:"portfolio-sync"}},res);
+  assert.equal(res.statusCode,200);
+  assert.deepEqual(res.body,{updated:0,failed:0,pending:0,deferred:0,interrupted:false});
+  assert.equal(paid,0);
 });
 
 test('service history uses an explicit owner and exhausted first refresh recovers the legacy snapshot', async t => {

@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-10-12",
+  "captured_at": "2026-10-13",
   "project_ref": "kdkzdflrxajfdcithrfj",
   "source": "Supabase migration history (read-only)",
   "migrations": [
@@ -246,6 +246,14 @@
     {
       "version": "20261012055807",
       "name": "saved_first_portfolio_daily_revision"
+    },
+    {
+      "version": "20261013003941",
+      "name": "fair_portfolio_refresh_queue"
+    },
+    {
+      "version": "20261013004309",
+      "name": "portfolio_refresh_dispatcher"
     }
   ]
 }

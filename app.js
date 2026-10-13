@@ -17120,7 +17120,7 @@ async function loadSavedPortfolio(owner, version = sessionLoadVersion) {
 }
 
 async function refreshSavedPortfolio(owner, version) {
-  if (!owner || state.largeInventory.active) return false;
+  if (!owner) return false;
   const inventoryAtStart = JSON.stringify(state.items.map(item => [item.uid, portfolioPricingKey(item), item.quantity, item.lots, item.transactions]));
   try {
     for (let attempt = 0; attempt < 2; attempt++) {

@@ -859,17 +859,11 @@ test("CLIENT-05H keeps detailed source selection, unresolved references and late
   expect(writes).toHaveLength(0);
 });
 
-test("CLIENT-05G replays a captured ECB rate with synthetic sales and no external traffic", async ({
+test("dated ECB fixture converts synthetic sales without external traffic", async ({
   page,
 }, testInfo) => {
-  const proof = JSON.parse(
-    await readFile(
-      new URL(
-        "../../docs/evidence/sol-client-05g/route-proof.json",
-        import.meta.url,
-      ),
-    ),
-  );
+  const record = fxRecord();
+  const proof = {first:{status:200,record},independent:{routeAgreement:true,effectiveDate:record.effectiveDate,usdPerEur:record.rate},completedAt:record.fetchedAt};
   const accepted =
     proof.first.status === 200 && proof.independent?.routeAgreement;
   await page.route("**/*", (route) => {
@@ -1761,17 +1755,11 @@ test("record sale posts one stable selected-copy id and leaves siblings untouche
   releaseSale();
 });
 
-test("CLIENT-05L replays the private direct-identity stop without sales or external traffic", async ({
+test("direct-identity failure stays unavailable without writes or external traffic", async ({
   page,
 }) => {
-  const { privateDir, source } =
-    await import("../../scripts/client-05l-proof.mjs");
-  const ledger = JSON.parse(
-    await readFile(`${privateDir}/attempt.json`, "utf8"),
-  );
-  expect(ledger.directGate).toBe("fail");
-  expect(ledger.requests).toHaveLength(1);
-  expect(ledger.rows).toBeNull();
+  const { source } = await import("../../scripts/client-05l-proof.mjs");
+  // Synthetic direct-identity failure; private historical ledgers are not CI inputs.
   const normalized = normalizeTcgdexCard(source, "en");
   const variantId = "tcgdex:en:base2-1:variant:3a83wf50ts0izj268xwv3crwi";
   const snapshot = collectibleIdentitySnapshot(normalized, variantId);

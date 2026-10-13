@@ -1,0 +1,41 @@
+{
+  "checkedAt": "2026-10-13T00:49:41.966Z",
+  "unit": {
+    "pass": 571,
+    "fail": 0,
+    "skip": 3
+  },
+  "coreBrowser": {
+    "pass": 343,
+    "fail": 0,
+    "skip": 8
+  },
+  "largeInventoryBrowser": {
+    "copies": 1000,
+    "projects": 3,
+    "pass": 3,
+    "pricingFanout": 0
+  },
+  "postgresQueue": {
+    "owners": 300,
+    "completedBeforeDue": 150,
+    "fairness": true,
+    "failureBackoff": true,
+    "utcRollover": true,
+    "anonymousDenied": true,
+    "customerDenied": true,
+    "rolledBack": true
+  },
+  "hosted": {
+    "dueOwners": 2,
+    "workerAccess": true,
+    "anonymousAccess": false,
+    "customerAccess": false,
+    "queueMigration": "20261013003941",
+    "dispatcherMigration": "20261013004309",
+    "dispatcherActive": false,
+    "dispatchTokenConfigured": true
+  },
+  "providerAcceptanceItems": 0,
+  "activationGate": "Retained-history cost acceptance before recurring activation"
+}

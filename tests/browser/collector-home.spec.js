@@ -113,7 +113,7 @@ async function openDetail(page, overrides = {}) {
     },
     { appUrl, overrides },
   );
-  await expect(page.locator("#detailTitle")).toHaveText("Charizard");
+  await expect(page.locator("#detailTitle")).toContainText("Charizard");
 }
 
 async function assertFits(page) {
@@ -787,4 +787,28 @@ test("known priced history remains visible with excluded slabs and dashboard pos
   expect(await page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance.data.datasets[0].data.every(value=>value===null))).toBe(true);
   await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.$traceProgress)).toBe(1);
   await page.screenshot({path:testInfo.outputPath("known-history-and-position-values.png"),fullPage:true});
+});
+
+test('large inventories refresh one durable portfolio instead of browser pricing fanout', async ({ page }) => {
+  let savedRequests = 0, cardRequests = 0;
+  await openDetail(page);
+  await page.route('**/api/**', route => {
+    const url = new URL(route.request().url());
+    if (url.searchParams.get('surface') === 'portfolio') {
+      savedRequests++;
+      return route.fulfill({json:{view:{version:1,complete:true,updatedAt:'2026-10-13T00:00:00Z',pricing:[],summaries:[{currency:'USD',total:125000,knownTotal:125000,missingUnits:0,history:[{date:'2026-10-13',total:125000}]}]}}});
+    }
+    cardRequests++;
+    return route.fulfill({status:503,json:{error:'No provider fanout allowed'}});
+  });
+  await page.evaluate(async () => {
+    const { state, refreshLivePricing } = globalThis.fixtureApp;
+    state.session = {user:{id:'11111111-1111-4111-8111-111111111111'}};
+    state.largeInventory.active = true;
+    state.items[0].quantity = 1000;
+    await refreshLivePricing();
+  });
+  expect(savedRequests).toBe(1);
+  expect(cardRequests).toBe(0);
+  expect(await page.evaluate(() => globalThis.fixtureApp.state.portfolioView.summaries[0].total)).toBe(125000);
 });

@@ -1,9 +1,9 @@
 {
-  "captured_at": "2026-10-12",
+  "captured_at": "2026-10-13",
   "previous_capture_at": "2026-09-29",
-  "local_migration_count": 79,
-  "production_history_count": 61,
-  "production_unique_name_count": 60,
+  "local_migration_count": 81,
+  "production_history_count": 63,
+  "production_unique_name_count": 62,
   "missing_local_names": [],
   "approved_pending_local_names": [
     "activate_psa_calibration_artifacts",
@@ -403,6 +403,20 @@
       "local_version": "20261009185636",
       "production_versions": [
         "20261009185723"
+      ]
+    },
+    {
+      "name": "fair_portfolio_refresh_queue",
+      "local_version": "20261013003706",
+      "production_versions": [
+        "20261013003941"
+      ]
+    },
+    {
+      "name": "portfolio_refresh_dispatcher",
+      "local_version": "20261013004113",
+      "production_versions": [
+        "20261013004309"
       ]
     }
   ],
