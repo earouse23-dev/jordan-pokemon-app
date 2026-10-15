@@ -1,0 +1,35 @@
+{
+  "sourceCommit": "1902cc48c0f5b263dd2fcfa9d11758e7b4443b12",
+  "date": "2026-10-15",
+  "xcode": "26.4.1 (17E202)",
+  "device": "Mica iPhone SE (3rd gen)",
+  "udid": "E9377444-423C-4733-B0F2-F2F7C67BEF7D",
+  "runtimeLabel": "iOS 26.4",
+  "bundleId": "dev.mica.client07.local",
+  "signed": "Xcode-managed ad hoc simulator build",
+  "executableSha256": "48d273cf83d6d6fbcb36f88442de00603bd81e9757711294335c6f6d2eebceba",
+  "copiedPublicFilesMatched": 46,
+  "nativeRuntimeTestsPassed": 7,
+  "artifactVerifierAssets": 44,
+  "buildSucceeded": true,
+  "installed": true,
+  "checks": [
+    "Existing isolated demo account sign-in",
+    "Portfolio value and chart",
+    "Collection loaded after retry; card images visible",
+    "PSA 10 Mew ex 193/165 EUR conversion and sold evidence",
+    "Slab history chart rendered",
+    "Add-copy form opened without save",
+    "Full process restart retained authentication",
+    "Camera opened with simulator synthetic feed and cancelled",
+    "Blastoise Base Set search found Base Set 2/102 Holofoil"
+  ],
+  "unresolved": [
+    "First collection load failed; retry recovered, root cause not diagnosed.",
+    "Touch drag automation did not scroll; keyboard Page Down did. Real touch acceptance remains unproved.",
+    "Native keyboard focus briefly lets content extend under status bar; needs focused layout review.",
+    "Physical camera, auto-capture, real photo recognition and complete native flow regression remain unqualified."
+  ],
+  "buildFallback": "Original SwiftPM binary download stalled. In isolated /tmp project only, use original 8.5.2 archives as local binary targets after SHA-256 matched upstream manifest. No source repo dependency or production change.",
+  "appBundle": "/tmp/mica-ios-local-derived/Build/Products/Debug-iphonesimulator/App.app"
+}
