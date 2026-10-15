@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, chartInstance, supabase as testSupabase };`,
+      contents: `${source}\nexport { state, renderDetail, chartInstance, detailIdentityKey, openCardDetail, saveCardAddDraft, reloadPortfolio, supabase as testSupabase };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -219,7 +219,7 @@ test("dated chart uses elapsed time and range-consistent values, including empty
     )
     .toBe(true);
   await expect(page.locator("#cardPriceHistory")).toContainText(
-    "Some historical prices could not be loaded",
+    "History incomplete",
   );
   const plot = await page.evaluate(async (url) => {
     const { chartInstance: c } = await import(url);
@@ -431,4 +431,68 @@ test("unavailable display conversion keeps native current price and recorded his
   await expect(page.locator("#positionChart")).toBeVisible();
   await expect(page.locator("#cardPriceHistory")).toContainText("Showing original USD records");
   await expect(page.locator(".detail-currency-note")).toContainText("values retain their original currencies");
+});
+
+test('preview price appears before history and reopens without a duplicate price request', async ({page}) => {
+  let releaseHistory;
+  const held=new Promise(resolve=>releaseHistory=resolve), calls=[];
+  const quote={provider:'tcgplayer',currency:'USD',finish:'holofoil',condition:'Near Mint',priceType:'market',amount:3.64,observedAt:new Date().toISOString(),retrievedAt:new Date().toISOString()};
+  await page.route('**/api/cards?*',async route=>{
+    const full=new URL(route.request().url()).searchParams.get('history')==='full';calls.push(full?'history':'current');
+    if(full)await held;
+    await route.fulfill({contentType:'application/json',body:JSON.stringify({cards:[{quotes:[quote],historyStatus:full?'live':'not_requested',history:full?[1,2].map(days=>({provider:'tcgplayer',currency:'USD',finish:'holofoil',condition:'Near Mint',amount:3.5,recordedAt:new Date(Date.now()-days*86400000).toISOString()})):[]}]})});
+  });
+  try {
+    await openDetail(page);
+    await page.evaluate(()=>{const app=globalThis.fixtureApp;const card={...app.state.items[0]};delete card.uid;app.state.items=[];app.state.session={user:{id:'preview-owner'},access_token:'fixture'};app.openCardDetail(card);});
+    await expect(page.locator('.market-hero > strong')).toHaveText('$3.64');
+    await expect.poll(()=>calls).toEqual(['current','history']);
+    releaseHistory();
+    await expect(page.locator('#positionChart')).toBeVisible();
+    await page.evaluate(()=>{const app=globalThis.fixtureApp;app.openCardDetail(app.state.detailCard);});
+    await expect(page.locator('.market-hero > strong')).toHaveText('$3.64');
+    expect(calls).toEqual(['current','history']);
+    await page.evaluate(()=>{const app=globalThis.fixtureApp;app.state.session={user:{id:'other-owner'},access_token:'other-fixture'};app.openCardDetail(app.state.detailCard);});
+    await expect.poll(()=>calls.length).toBe(4);
+  } finally { releaseHistory(); }
+});
+
+test('iPhone SE keeps the price beside the image and gives the chart usable width', async ({page}) => {
+  await page.setViewportSize({width:375,height:667});
+  await openDetail(page,{price:125,pricingStatus:'live',historyStatus:'live',priceHistory:[1,2].map(days=>({provider:'tcgplayer',currency:'USD',finish:'holofoil',condition:'Near Mint',amount:125,recordedAt:new Date(Date.now()-days*86400000).toISOString()}))});
+  const image=await page.locator('.detail-image').boundingBox(),price=await page.locator('.market-hero > strong').boundingBox(),chart=await page.locator('.chart-wrap').boundingBox();
+  expect(image.x+image.width).toBeLessThan(price.x);
+  expect(price.y).toBeLessThan(360);
+  expect(chart.width).toBeGreaterThan(330);
+  expect(chart.height).toBeGreaterThanOrEqual(290);
+  await expect(page.locator('.history-values')).not.toHaveAttribute('open','');
+  await assertFits(page);
+  await page.screenshot({path:'/tmp/mica-se-detail-'+test.info().project.name+'.png',fullPage:true});
+});
+
+test('saving a preview carries its validated price into the new owned copy before portfolio refresh', async ({page}) => {
+  const owner='11111111-1111-4111-8111-111111111111',id='44444444-4444-4444-8444-444444444444';let cardRequests=0,releaseRefresh;
+  const held=new Promise(resolve=>releaseRefresh=resolve);
+  await openDetail(page);
+  await page.route('https://mica-detail-test.supabase.co/**',route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/rpc/create_collection_position'))return route.fulfill({contentType:'application/json',body:JSON.stringify(id)});
+    if(url.pathname.endsWith('/rest/v1/collection_items'))return route.fulfill({contentType:'application/json',headers:{'content-range':'0-0/1'},body:JSON.stringify([{id,user_id:owner,identity_snapshot:{id:'base1-4',name:'Charizard',set:'Base Set',number:'4/102',language:'en',variant:'Holofoil',finish:'holofoil',edition:'unlimited',promoType:'none'},card_state:'raw',raw_condition:'near_mint',status:'owned',quantity:1,currency:'USD',tags:[],custom_fields:{}}])});
+    return route.fulfill({contentType:'application/json',body:'[]'});
+  });
+  await page.route('**/api/cards?*',route=>{cardRequests++;return route.fulfill({contentType:'application/json',body:'{"cards":[]}'});});
+  await page.route('**/api/capabilities?surface=portfolio',async route=>{await held;await route.fulfill({status:503,contentType:'application/json',body:'{}'});});
+  try {
+    await page.evaluate(async ({owner})=>{
+      const app=globalThis.fixtureApp,card={...app.state.items[0]};delete card.uid;app.state.session={user:{id:owner},access_token:'fixture'};
+      const quote={provider:'tcgplayer',currency:'USD',finish:'holofoil',condition:'Near Mint',priceType:'market',amount:3.64,observedAt:new Date().toISOString()};
+      app.state.detailPricing={selectionKey:app.state.detailSelectionKey||'',quotes:[quote],price:3.64,pricingStatus:'live',pricingUpdatedAt:quote.observedAt,historyStatus:'live',priceHistory:[]};
+      app.state.detailPricing.selectionKey=app.detailIdentityKey(card);
+      await app.saveCardAddDraft({card,input:{cardState:'raw',rawCondition:'near_mint',quantity:1,transactionDate:new Date().toISOString().slice(0,10),unitPrice:3,currency:'USD',variant:'Holofoil'},acquisitionCostKnown:true,acquisitionDateKnown:true,idempotencyKey:crypto.randomUUID()},null,{refreshAfterSave:false,closeAfterSave:false});
+      await app.reloadPortfolio('44444444-4444-4444-8444-444444444444',{backgroundPricing:true});
+      app.openCardDetail(app.state.items[0],true);
+    },{owner});
+    await expect(page.locator('.market-hero > strong')).toHaveText('$3.64');
+    expect(cardRequests).toBe(0);
+  } finally {releaseRefresh();}
 });

@@ -6370,3 +6370,40 @@ body[data-ui-theme="mica"][data-appearance="dark"] #appShell .row-move.down { co
 body[data-ui-theme="mica"] #appShell .ledger-favorite { background: var(--paper); color: var(--muted); border-color: var(--line); box-shadow: none; }
 body[data-ui-theme="mica"] #appShell .ledger-favorite.selected { color: var(--danger); }
 body[data-ui-theme="mica"] #appShell .find-search input:focus-visible { outline: none; }
+
+/* iPhone: keep identity and price together; give charts the available width. */
+@media (max-width: 680px) {
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .view { padding-inline: 12px; padding-top: 16px; }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity { grid-template-columns: minmax(88px, 29%) minmax(0, 1fr); gap: 14px; align-items: start; }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity .detail-image { width: 100%; max-width: none; margin: 0; }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity img { max-height: 180px; border-radius: 8px; }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity h1 { font-size: 13px; line-height: 1.4; margin: 0; }
+  .detail-title-name { display: block; font-size: 23px; line-height: 1.12; font-weight: 700; margin-bottom: 6px; }
+  .detail-title-context { color: var(--muted); font-weight: 450; }
+  body[data-ui-theme="mica"] #appShell #detailContent .eyebrow { display: none; }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-section { margin-block: 16px; padding-block: 8px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-section-head > span { display: none; }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .chart-wrap,
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #portfolioHistory .portfolio-chart-shell { height: 300px; margin-inline: -4px; width: calc(100% + 8px); }
+  body[data-ui-theme="mica"] #appShell #detailContent .chart-wrap canvas { height: 300px !important; }
+  body[data-ui-theme="mica"] #appShell .history-range-select { margin: 4px 0 8px; }
+  body[data-ui-theme="mica"] #appShell .history-coverage { display: block; color: var(--muted); font-size: 12px; }
+  body[data-ui-theme="mica"] #appShell .price-source-details { font-size: 12px; margin-top: 8px; }
+  body[data-ui-theme="mica"] #appShell .price-source-details > summary { min-height: 44px; display: flex; align-items: center; color: var(--muted); }
+  body[data-ui-theme="mica"] #appShell #detailContent .market-hero > small { font-size: 12px; }
+  body[data-ui-theme="mica"] #appShell .history-values { margin-block: 4px; }
+  body[data-ui-theme="mica"] #appShell .detail-secondary { margin-top: 8px; }
+  body[data-ui-theme="mica"] #appShell .collection-heading { margin-bottom: 14px; }
+}
+@media (max-width: 680px) {
+  body[data-ui-theme="mica"] #appShell #detailContent .market-hero .price-source-details { display: inline-block; vertical-align: middle; margin: 4px 8px 0 0; }
+  body[data-ui-theme="mica"] #appShell #detailContent .market-hero #openRecentSalesButton { display: inline-block; min-height: 44px; padding: 8px 10px; font-size: 12px; margin-top: 4px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .market-hero .price-source-details[open] { display: block; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-tool-group summary small { display: none; }
+}
+@media (max-width: 680px) {
+  body[data-ui-theme="mica"] #appShell #detailContent { padding-bottom: 0; }
+  body[data-ui-theme="mica"] #appShell #detailContent :is(.market-hero,.exact-sold-value) > strong { overflow-wrap: anywhere; }
+  body[data-ui-theme="mica"] #appShell .price-source-details > summary::after { content: "⌄"; margin-left: 6px; }
+  body[data-ui-theme="mica"] #appShell .identity-secondary > .detail-meta { grid-column: 1 / -1; margin: 0; }
+}

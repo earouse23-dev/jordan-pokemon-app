@@ -2784,8 +2784,16 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   const purchases = model.purchases.length
     ? `<p class="chart-purchases-note">${model.purchases.length} purchase${model.purchases.length === 1 ? "" : "s"} with a known date and amount in this range.</p>`
     : "";
-  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${item.cardState !== "graded" && ["partial", "unavailable", "error"].includes(item.historyStatus) && points.length ? '<p class="chart-context">Some historical prices could not be loaded. This chart shows the available records.</p>' : ""}
-    ${points.length ? `<div class="history-summary" role="status"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div><p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${insufficientHistory ? '<p class="unavailable-panel" role="status">Only one recorded price is available. Historical prices have not loaded, so there is no trend to show yet.</p>' : `<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>`}${purchases}<details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary><div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}</div>`;
+  const chart = insufficientHistory
+    ? '<p class="unavailable-panel" role="status">Only one recorded price is available. More history is needed to show a trend.</p>'
+    : `<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>`;
+  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}
+    ${points.length ? `<small class="history-coverage">Available from ${esc(new Date(points[0].x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }))}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
+    <details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary>
+    <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
+    <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
+    <div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : ""}</div>`;
+
 }
 
 async function mountPriceChart(item, history = historyForItem(item)) {
@@ -7872,12 +7880,25 @@ async function loadSealedDetailPricing(item, guard = beginDetailRequest(item)) {
   } catch {}
 }
 
+const previewPricingCache = new Map();
+const savedCopyPricing = new Map();
+const previewPricingKey = (card, context) => JSON.stringify([state.session?.user?.id, detailIdentityKey(card), detailContextKey(context)]);
+
 async function loadCardPreviewPricing(
   card,
   context = state.detailValuationContext,
   guard = beginDetailRequest(card, context),
+  includeHistory = false,
 ) {
   if (!detailContextReady(context)) return;
+  const cacheKey = previewPricingKey(card, context);
+  const cached = previewPricingCache.get(cacheKey);
+  if (!includeHistory && cached?.expires > Date.now() && Date.now() - Date.parse(cached.pricing.pricingUpdatedAt) < 86_400_000) {
+    state.detailPricing = { ...cached.pricing, selectionKey: guard.selectionKey, contextKey: guard.contextKey };
+    renderDetailPreservingValuationFocus();
+    if (cached.pricing.historyStatus === "live" || context.cardState === "graded") return;
+    includeHistory = true;
+  }
   const printing = selectedPrinting(card);
   const lookup = [
     {
@@ -7899,12 +7920,17 @@ async function loadCardPreviewPricing(
   ];
   try {
     const response = await fetch(
-      `/api/cards?${context.cardState === "graded" ? "" : "history=full&"}lookups=${encodeURIComponent(JSON.stringify(lookup))}`,
+      `/api/cards?${includeHistory && context.cardState !== "graded" ? "history=full&" : ""}lookups=${encodeURIComponent(JSON.stringify(lookup))}`,
       { headers: providerRequestHeaders() },
     );
     if (!response.ok) {
       const failure = await response.json().catch(() => ({}));
       if (!detailRequestIsCurrent(guard)) return;
+      if (includeHistory && state.detailPricing?.selectionKey === guard.selectionKey && state.detailPricing?.contextKey === guard.contextKey && state.detailPricing.price != null) {
+        state.detailPricing.historyStatus = "error";
+        renderDetailPreservingValuationFocus();
+        return;
+      }
       state.detailPricing = {
         pricingReason: failure.code || "provider_refresh_failed",
         selectionKey: guard.selectionKey,
@@ -7959,7 +7985,7 @@ async function loadCardPreviewPricing(
       priceCapabilities: priced.capabilities || null,
       ...pricing,
       quotes: priced.quotes || [],
-      priceHistory: recordPriceObservation(card, quote, mergePriceHistory(card.priceHistory || [], priced.history || [])),
+      priceHistory: recordPriceObservation(card, quote, mergePriceHistory(card.priceHistory || [], state.detailPricing?.priceHistory || [], priced.history || [])),
       historyStatus: priced.historyStatus || null,
     };
     const identityUpdate = {
@@ -7983,9 +8009,17 @@ async function loadCardPreviewPricing(
         : item);
     }
     state.detailCard = { ...state.detailCard, ...identityUpdate };
+    previewPricingCache.set(cacheKey, { pricing: state.detailPricing, expires: Date.now() + 86_400_000 });
+    if (previewPricingCache.size > 50) previewPricingCache.delete(previewPricingCache.keys().next().value);
     renderDetailPreservingValuationFocus();
+    if (!includeHistory && context.cardState !== "graded") void loadCardPreviewPricing(state.detailCard, context, guard, true);
   } catch {
     if (!detailRequestIsCurrent(guard)) return;
+    if (includeHistory && state.detailPricing?.selectionKey === guard.selectionKey && state.detailPricing?.contextKey === guard.contextKey && state.detailPricing.price != null) {
+      state.detailPricing.historyStatus = "error";
+      renderDetailPreservingValuationFocus();
+      return;
+    }
     state.detailPricing = {
       selectionKey: guard.selectionKey,
       contextKey: guard.contextKey,
@@ -8002,14 +8036,15 @@ async function loadOwnedDetailPricing(
 ) {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
+  const reusable = copy => copy.historyStatus === "live" && Date.now() - Date.parse(copy.pricingUpdatedAt) >= 0 && Date.now() - Date.parse(copy.pricingUpdatedAt) < 86_400_000 && quoteStatus(selectPositionQuote(copy.quotes || [], copy)) === "live";
+  if (reusable(item)) return;
   if (portfolioPricingRequest?.owner === ownerId && portfolioPricingRequest.version === loadVersion) {
     await portfolioPricingRequest.promise;
     if (!accountRequestIsCurrent(ownerId, loadVersion) || !detailRequestIsCurrent(guard)) return;
     item = state.items.find(copy => copy.uid === item.uid) || item;
   }
   const historyKey = JSON.stringify([ownerId, loadVersion, guard.selectionKey, guard.contextKey]);
-  const historyAge = Date.now() - Number(item.historyLoadedAt);
-  if (item.historyLoadedKey === historyKey && item.historyStatus === "live" && historyAge >= 0 && historyAge < 15 * 60_000 && quoteStatus(selectPositionQuote(item.quotes || [], item)) === "live") return;
+  if (reusable(item)) return;
   const lookup = [
     {
       clientId: item.id,
@@ -8749,18 +8784,21 @@ function renderDetail() {
     : `<div><span>Language</span><strong>${esc(item.language ? languageName(item.language) : "Unknown")}</strong></div><div><span>Variant</span><strong>${esc(identityFieldLabel(item.variant))}</strong></div>`;
   const releaseYear = /^(\d{4})(?:$|-\d{2}-\d{2}(?:T|$))/.exec(String(item.release || item.releaseYear || ""))?.[1] || "Unknown";
   const identityDetails = sealed
-    ? ""
-    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
-  const marketHero = `<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<small class="price-provenance">${esc(provenance)}</small>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button">View recent eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
+    ? `<details class="identity-details"><summary>Product details</summary><div class="detail-meta">${detailMeta}</div></details>`
+    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
+  const listingTitle = sealed ? item.name : cardListingTitle(item, printing, context);
+  const nameAt = listingTitle.indexOf(item.name);
+  const titleMarkup = nameAt < 0 ? esc(listingTitle) : `<span class="detail-title-context">${esc(listingTitle.slice(0, nameAt))}</span><span class="detail-title-name">${esc(item.name)}</span><span class="detail-title-context">${esc(listingTitle.slice(nameAt + item.name.length))}</span>`;
+  const marketHero = `<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<details class="price-source-details"><summary>Source</summary><small class="price-provenance">${esc(provenance)}</small></details>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button" aria-label="View recent eBay sales">eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${esc(sealed ? item.name : cardListingTitle(item, printing, context))}</h1>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
+    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${titleMarkup}</h1>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "transaction") ? "Matching completed-sale prices" : "Recorded sold-derived estimates") : "Provider-recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
-    ${item.currency !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
+    ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
     ${context.cardState === "graded" ? `<details class="provider-index-details" data-detail-tool="provider-index"><summary>Provider reference index</summary>${marketHero}</details>` : ""}
     ${detailValuationMarkup(item, owned, watched, context)}
-    <section class="detail-secondary"><div class="detail-meta">${detailMeta}</div>${identityDetails}</section>
+    <section class="detail-secondary">${identityDetails}</section>
     ${watchedSection}
     ${action}
     ${listingSection}
@@ -8773,6 +8811,9 @@ function renderDetail() {
 
     ${owned ? collectionAttachmentMarkup(item) : ""}</div>
     <p class="legal-copy">Prices are estimates, not guaranteed sale amounts. ${sealed ? "The box and seal" : "Wear on the card"} can change what someone will pay.</p>`;
+  const conditionTool = detailRoot.querySelector(".detail-digital-grade");
+  const gradingTools = detailRoot.querySelector('[data-detail-tool="grading"] .detail-tool-content');
+  if (conditionTool && gradingTools) gradingTools.prepend(conditionTool);
   $("#detailMoreToolsButton")?.addEventListener("click", () => {
     const tools = $("#detailMoreTools"); tools.hidden = !tools.hidden;
     $("#detailMoreToolsButton").setAttribute("aria-expanded", String(!tools.hidden));
@@ -9920,6 +9961,7 @@ async function saveCardAddDraft(
     visionAnalysis = entry.pending.visionAnalysis;
   }
   const { card, input, acquisitionCostKnown, acquisitionDateKnown } = draft;
+  const preview = state.detailPricing?.selectionKey === detailIdentityKey(card) ? state.detailPricing : null;
   let itemId;
   try {
     itemId = await createPosition(supabase, {
@@ -9996,6 +10038,10 @@ async function saveCardAddDraft(
     sessionLoadVersion !== loadVersion
   )
     return { itemId, staleSession: true };
+  if (preview?.quotes?.length) {
+    savedCopyPricing.set(JSON.stringify([ownerId, itemId]), preview);
+    if (savedCopyPricing.size > 50) savedCopyPricing.delete(savedCopyPricing.keys().next().value);
+  }
   let digitalGradeWarning = false;
   let digitalGradeSaved = false;
   let photoPending = Boolean(draft.photoRequired && !draft.photoDataUrl);
@@ -11146,7 +11192,11 @@ async function reloadPortfolio(
   if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
   state.items = inventory.items.map(item => {
     const previous = state.items.find(copy => copy.uid === item.uid && detailIdentityKey(copy) === detailIdentityKey(item) && detailContextKey(valuationContextForItem(copy)) === detailContextKey(valuationContextForItem(item)));
-    if (!previous) return item;
+    if (!previous) {
+      const preview = savedCopyPricing.get(JSON.stringify([ownerId, item.uid]));
+      const quote = preview && selectPositionQuote(preview.quotes, item);
+      return quote && quoteStatus(quote) === "live" ? { ...item, ...quotePricingFields(quote, preview, item), quotes: preview.quotes, priceHistory: mergePriceHistory(item.priceHistory || [], preview.priceHistory || []), historyStatus: preview.historyStatus } : item;
+    }
     const fields = ["price", "referencePrice", "quotes", "priceCapabilities", "historyStatus", "priceHistory", "pricingStatus", "pricingReason", "pricingUpdatedAt", "historyLoadedAt", "historyLoadedKey", "exactSaleEvidence", "gradedValuations"];
     return { ...item, ...Object.fromEntries(fields.filter(key => previous[key] !== undefined).map(key => [key, previous[key]])) };
   });

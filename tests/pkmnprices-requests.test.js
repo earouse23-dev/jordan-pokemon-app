@@ -845,3 +845,20 @@ test("normalization upgrades reuse expired raw sale pages and poll only new inge
   await fetchPkmnPricesSalesHistory("upgrade-fixture", lookup);
   assert.equal(queries.length, 1);
 });
+
+test('current response freshness lasts 24 hours across midnight without deleting retained data', async t => {
+  for (const [key,value] of Object.entries({NEXT_PUBLIC_SUPABASE_URL:'https://cache-fixture.supabase.co',SUPABASE_SECRET_KEY:'fixture'})) {
+    const old=process.env[key];process.env[key]=value;
+    t.after(()=>{if(old===undefined)delete process.env[key];else process.env[key]=old;});
+  }
+  const now=Date.parse('2026-10-14T23:59:00.000Z'),writes=[];
+  t.mock.method(Date,'now',()=>now);
+  t.mock.method(globalThis,'fetch',async (input,init)=>{writes.push(JSON.parse(init.body));return Response.json([{cache_key:'fixture'}]);});
+  const body={rows:[{date:'2025-01-01',avg:10}]};
+  await pkmnPricesRequests.saveCache('fixture',body,'lease');
+  assert.equal(Date.parse(writes[0].expires_at),now+86400000);
+  assert.deepEqual(writes[0].body,body);
+  await pkmnPricesRequests.saveCache('fixture',body,'lease',{pending:true});
+  assert.equal(Date.parse(writes[1].expires_at),now);
+  assert.deepEqual(writes[1].body,body);
+});
