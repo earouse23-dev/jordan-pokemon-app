@@ -1,0 +1,22 @@
+{
+  "sourceCommit": "04070d2f43f7d4ac9bd3f3e3d4e9e8b303aebadc",
+  "buildSucceeded": true,
+  "device": "iPhone SE (3rd generation)",
+  "runtimeLabel": "iOS 26.4",
+  "sourceFilesMatched": 3,
+  "publicFilesMatched": 46,
+  "executableSha256": "3e3282315a26427a7b64d09ed8b3cc429e143139879f805223d378387ee0968d",
+  "screensReviewed": [
+    "Portfolio",
+    "Collection",
+    "Slab detail and price history",
+    "Add-copy form",
+    "Scan/search"
+  ],
+  "notes": [
+    "Existing isolated demo only; no customer record writes.",
+    "Same verified local-binary SwiftPM simulator fallback recorded in native setup.",
+    "Mouse/touch automation remains inconsistent; details expanded with keyboard.",
+    "Physical device acceptance remains outstanding."
+  ]
+}

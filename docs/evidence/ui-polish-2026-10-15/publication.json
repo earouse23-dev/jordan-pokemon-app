@@ -1,0 +1,27 @@
+{
+  "sourceCommit": "04070d2f43f7d4ac9bd3f3e3d4e9e8b303aebadc",
+  "deploymentId": "dpl_F8uE7TxLC4aNA8vqENyvZpBp17Cz",
+  "url": "https://jordan-pokemon-app.vercel.app",
+  "ciRun": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/38771969837",
+  "remoteFinalGate": {
+    "unitPassed": 583,
+    "unitSkipped": 3,
+    "coreBrowserPassed": 355,
+    "coreBrowserSkipped": 8,
+    "largeInventoryPassed": 3,
+    "browserRetries": 0
+  },
+  "local": {
+    "baseGatePassed": true,
+    "baseSource": "8ea2b9aee1f525708f5080c80affc87421e39c71",
+    "finalFrozenLayoutChecks": 18,
+    "finalImpactedSuitePassed": 299,
+    "finalImpactedSuiteSkipped": 3,
+    "finalImpactedSuiteFailures": 1,
+    "isolatedDelayedFxRerunPassed": 3,
+    "localFailure": "Known Chromium fixture dynamic-import execution context destruction; isolated account/route test then passed in all three projects."
+  },
+  "customerWrites": 0,
+  "productionDependenciesAdded": 0,
+  "nativePlatformChanges": 0
+}

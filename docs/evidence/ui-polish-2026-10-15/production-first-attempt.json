@@ -1,0 +1,11 @@
+{
+  "result": "timeout",
+  "visibleValue": "—",
+  "visibleChart": "Historical prices are not available for every holding yet.",
+  "uncaughtErrors": [],
+  "savedDatabaseViewVerifiedIntact": true,
+  "databaseViewUpdatedAt": "2026-10-15T07:01:32.889Z",
+  "databaseKnownUsdTotal": 231.78,
+  "databaseHistoryDates": 11,
+  "cause": "Unproven; visible state is consistent with unavailable EUR conversion. A subsequent canonical check passed without source changes."
+}

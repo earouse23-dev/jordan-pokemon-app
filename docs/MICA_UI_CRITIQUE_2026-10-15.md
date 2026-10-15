@@ -21,3 +21,11 @@ Installed SE visual review showed the slab graph on the initial screen, where th
 ## Final visual refinement
 
 The SE review still showed library values too far down even after image reduction. Mobile tiles now put identity and position value before artwork. A dedicated 375×667 check confirms that ordering, visible value placement and no horizontal overflow across all three normal browser projects (three passes). An alternate temporary test-port run failed to initialize WebKit; the normal repository test configuration passed, so no product workaround was added. Installed app screenshots are retained in `docs/evidence/ui-polish-2026-10-15/`. Sale details were expanded with keyboard access in the installed app; source and conversion controls remained present.
+
+## Publication and final verification
+
+Runtime source 04070d2f43f7d4ac9bd3f3e3d4e9e8b303aebadc was pushed, built from a frozen checkout, installed in the dedicated SE simulator and published to the existing production URL. Linux CI passed 583 unit checks, 355 core browser checks and three large-inventory checks with zero browser retries; explicit environment skips are recorded in publication.json. The final local impacted suite had one dynamic-import fixture failure; the isolated case then passed in all three browser projects.
+
+Staged controlled-demo acceptance loaded the saved chart before held inventory reads in 71 ms. The first canonical-site check timed out with an unavailable EUR value and empty chart. A subsequent instrumented check passed without source changes and loaded the saved chart in 218 ms on reload. Read-only database verification confirmed the saved USD portfolio and 11 history dates remained intact with their original update timestamp. The first failure's cause is unproven; its visible state is consistent with unavailable display-currency conversion. This intermittent initial-load issue remains open and is not claimed fixed by the UI pass. Checks blocked paid-provider calls and customer writes. Production health passed.
+
+One further controlled canonical check also passed without source changes: saved chart rendered before held inventory reads in 214 ms. This confirms repeat success, but does not establish the cause of the first timeout.
