@@ -1,0 +1,38 @@
+[
+  {
+    "width": 375,
+    "appearance": "light",
+    "chartWidth": 359,
+    "chartHeight": 300
+  },
+  {
+    "width": 375,
+    "appearance": "dark",
+    "chartWidth": 359,
+    "chartHeight": 300
+  },
+  {
+    "width": 320,
+    "appearance": "light",
+    "chartWidth": 304,
+    "chartHeight": 300
+  },
+  {
+    "width": 320,
+    "appearance": "dark",
+    "chartWidth": 304,
+    "chartHeight": 300
+  },
+  {
+    "width": 430,
+    "appearance": "light",
+    "chartWidth": 414,
+    "chartHeight": 300
+  },
+  {
+    "width": 430,
+    "appearance": "dark",
+    "chartWidth": 414,
+    "chartHeight": 300
+  }
+]

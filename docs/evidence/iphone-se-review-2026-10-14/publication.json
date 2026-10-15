@@ -1,0 +1,23 @@
+{
+  "sourceCommit": "1902cc48c0f5b263dd2fcfa9d11758e7b4443b12",
+  "deploymentId": "dpl_91t2wBoUJXpSYf1o7r5weXkTdbKc",
+  "productionUrl": "https://jordan-pokemon-app.vercel.app",
+  "ciRun": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/38679538788",
+  "localAndRemote": {
+    "unitPassed": 583,
+    "unitSkipped": 3,
+    "coreBrowserPassed": 352,
+    "coreBrowserSkipped": 8,
+    "largeInventoryPassed": 3,
+    "browserRetries": 0
+  },
+  "newLivePaidProviderRequests": 0,
+  "customerWrites": 0,
+  "physicalAutoCaptureAccepted": false,
+  "manualCaptureAcceptedForMilestone": true,
+  "limits": [
+    "Pricing handoff tested with fixtures; no new paid provider backfill.",
+    "Saved-view lab timing is not a production percentile.",
+    "Native capture and App Store actions deferred."
+  ]
+}

@@ -23,3 +23,13 @@ Added checks cover current price appearing while history is held, no duplicate r
 Automatic capture did not pass the owner's physical-phone check. The owner accepts manual capture for this milestone. A native wrapper does not automatically provide Apple document scanning; native automatic capture needs a separately implemented and physically tested capture integration. No native platform change or App Store action occurred.
 
 UI references: [Apple adaptive layout guidance](https://developer.apple.com/design/human-interface-guidelines/layout). No dependency, paid service or provider-budget increase was introduced.
+
+## Published verification
+
+Source `1902cc48c0f5b263dd2fcfa9d11758e7b4443b12` is live at https://jordan-pokemon-app.vercel.app, deployment `dpl_91t2wBoUJXpSYf1o7r5weXkTdbKc`. Frozen local and [independent Linux CI](https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/38679538788) gates both passed: 583 unit checks, 352 core browser checks, three large-inventory checks, zero browser retries. Three unit environment skips and eight browser skips remain explicit. Lint, release build and routing checks passed.
+
+Light/dark synthetic layout checks passed at 320, 375 and 430 pixels with no horizontal overflow: portfolio chart widths 304, 359 and 414 pixels respectively, each 300 pixels high. The SE detail layout and current-price-before-history/save-reopen flow passed in all three browser projects. These fixture checks do not replace a physical-device retest.
+
+The authenticated isolated demo saved chart returned before 25 deliberately held inventory reads: 75 ms staged, 198 ms canonical. Both checks had zero uncaught errors and zero customer writes; paid provider/image requests and refresh writes were blocked. Canonical health reports the expected release and healthy database/Auth/provider probes. Staged free ECB conversion returned HTTP 200. No new paid PkmnPrices or AI requests were used in this follow-up. Evidence: `docs/evidence/iphone-se-review-2026-10-14/`.
+
+Next physical acceptance is the same Zoroark GX scan/add/reopen sequence on the owner's SE, confirming current-price timing, fresh-price reuse and the larger graphs. Earlier commercial-capacity and native-capture limitations remain; this is a core-app demo publication, not commercial launch qualification.
