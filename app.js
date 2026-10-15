@@ -3054,7 +3054,6 @@ function completedSaleHistory(item, context, sales) {
 }
 
 function renderExactSoldValue(item, context, sales) {
-  const edition = selectedPrinting(item).edition;
   sales = sales || savedSaleEvidenceForContext(item, context);
   const result = latestEbaySoldValuation(
     sales?.sales || [],
@@ -3103,7 +3102,7 @@ function renderExactSoldValue(item, context, sales) {
     .filter((row) => row.sourceMarket === "ebay" && result.contributingEvidenceIds.includes(row.transactionKey) && safeMarketSourceUrl(row.sourceUrl, "ebay"))
     .sort((left, right) => String(right.soldAt).localeCompare(String(left.soldAt)))[0];
   const lastSoldLink = latestEbay
-    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer">View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · differs from older comps" : " · comparable"}</a>`
+    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer" aria-label="View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · differs from older comps" : " · comparable"}">eBay sale</a>`
     : "";
   const upstream = Array.isArray(sales?.upstreamExclusions)
     ? sales.upstreamExclusions
@@ -3139,7 +3138,13 @@ function renderExactSoldValue(item, context, sales) {
   const history = recorded.length
     ? `<details id="recordedSoldValuations"><summary>Recorded estimates</summary><ul>${recorded.map((point) => `<li>${esc(point.recordedAt.slice(0, 10))} · ${money(point.amount, point.currency)} · ${point.contributingEvidenceIds.length} completed sales via PkmnPrices</li>`).join("")}</ul><p>Recorded estimates retain their original evaluation date. They do not fill earlier gaps or establish a current price after becoming stale.</p></details>`
     : "";
-  return `<section class="exact-sold-value" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(context.gradingCompany || context.grader || item.gradingCompany)} ${esc(context.grade || item.grade)}${edition ? ` · ${esc(edition === "first_edition" ? "1st Edition" : edition)}` : ""} · ${esc(displayCurrency())}</span><strong>${value}</strong>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${result.estimate === null ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${lastSoldLink}${fxLine}${button}${details}${history}</section>`;
+  const hasEstimate = result.estimate !== null;
+  const saleSummary = !hasEstimate ? status
+    : sales?.salesStatus === "loading" ? "Updating · saved estimate"
+    : sales?.salesStatus === "error" ? "Refresh failed · saved estimate"
+      : result.status === "stale" ? `Older sale · stale estimate${result.amountVerified ? "" : " · Unverified amount"}`
+        : `${result.newestSoldAt?.slice(0, 10) || "Date unknown"} · ${result.amountVerified ? "" : "Unverified amount · "}${result.confidence.level === "limited" ? "Limited sales" : `${result.confidence.level} evidence`}`;
+  return `<section class="exact-sold-value" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(displayCurrency())}</span><strong>${value}</strong><small class="sold-summary">${esc(saleSummary)}</small><div class="sold-actions">${lastSoldLink}${!hasEstimate ? button : ""}<details class="sold-price-details" data-detail-tool="sold-price"><summary>Price details</summary><div>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${!hasEstimate ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${fxLine}${hasEstimate ? button : ""}${details}${history}</div></details></div></section>`;
 }
 
 let fxMidnightTimer = null;
@@ -5419,7 +5424,7 @@ function renderPortfolioHistory() {
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : '<div class="portfolio-history-empty">Historical prices are not available for every holding yet.</div>'}<p class="portfolio-chart-coverage">${saved.historyStartsAt ? `History available from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p>`;
+    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : '<div class="portfolio-history-empty">Historical prices are not available for every holding yet.</div>'}<details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `History available from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
     $("#portfolioChartRange", root)?.addEventListener("change", event => { state.portfolioHistoryRange = event.target.value; renderPortfolioHistory(); });
     if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false }));
     return;
@@ -6744,7 +6749,7 @@ function renderCollection() {
     : "";
   $("#portfolioChange").textContent =
     workspaceMode === "collector"
-      ? `Portfolio value${partial}${valuedItems.some(item => item.retainedPrice) ? " · includes older prices" : ""}${profitLoss.rateRef ? ` · ECB rate ${lastValidatedFxRate.effectiveDate}` : ""}${profitLoss.unconvertedUnits ? ` · ${profitLoss.unconvertedUnits} awaiting conversion` : ""}.`
+      ? `${partial.replace(/^ · /, "")}${valuedItems.some(item => item.retainedPrice) ? " · includes older prices" : ""}${profitLoss.rateRef ? ` · ECB rate ${lastValidatedFxRate.effectiveDate}` : ""}${profitLoss.unconvertedUnits ? ` · ${profitLoss.unconvertedUnits} awaiting conversion` : ""}`
       : profitLoss.comparableUnits
         ? `${gain >= 0 ? "Up" : "Down"} ${money(Math.abs(gain))}${portfolioReturn === null ? "" : ` (${portfolioReturn >= 0 ? "+" : ""}${portfolioReturn.toFixed(1)}%)`} since purchase${partial}${costCoverage}`
         : hasProviderPricing
@@ -8036,14 +8041,14 @@ async function loadOwnedDetailPricing(
 ) {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
-  const reusable = copy => copy.historyStatus === "live" && Date.now() - Date.parse(copy.pricingUpdatedAt) >= 0 && Date.now() - Date.parse(copy.pricingUpdatedAt) < 86_400_000 && quoteStatus(selectPositionQuote(copy.quotes || [], copy)) === "live";
+  const historyKey = JSON.stringify([ownerId, loadVersion, guard.selectionKey, guard.contextKey]);
+  const reusable = copy => copy.historyLoadedKey === historyKey && copy.historyStatus === "live" && Date.now() - Date.parse(copy.pricingUpdatedAt) >= 0 && Date.now() - Date.parse(copy.pricingUpdatedAt) < 86_400_000 && quoteStatus(selectPositionQuote(copy.quotes || [], copy)) === "live";
   if (reusable(item)) return;
   if (portfolioPricingRequest?.owner === ownerId && portfolioPricingRequest.version === loadVersion) {
     await portfolioPricingRequest.promise;
     if (!accountRequestIsCurrent(ownerId, loadVersion) || !detailRequestIsCurrent(guard)) return;
     item = state.items.find(copy => copy.uid === item.uid) || item;
   }
-  const historyKey = JSON.stringify([ownerId, loadVersion, guard.selectionKey, guard.contextKey]);
   if (reusable(item)) return;
   const lookup = [
     {
@@ -8675,7 +8680,7 @@ function renderDetail() {
     item.cost = copyAcquisitionCost;
   }
   const copyNavigation = copyGroup
-    ? `<section class="copy-navigation" aria-labelledby="copyNavigationTitle"><div class="copy-navigation-head"><div><span>Physical copies</span><strong id="copyNavigationTitle">Copy ${copyGroup.selectedIndex + 1} of ${copyGroup.copies.length}</strong><small>${copyGroup.activeCount} active · ${copyGroup.copies.length - copyGroup.activeCount} sold · swipe to switch</small></div><div><button type="button" id="previousCopyButton" aria-label="Previous physical copy" ${copyGroup.copies.length < 2 ? "disabled" : ""}>←</button><button type="button" id="nextCopyButton" aria-label="Next physical copy" ${copyGroup.copies.length < 2 ? "disabled" : ""}>→</button></div></div><div class="copy-navigation-strip" role="list" aria-label="Copies in this graded context">${copyGroup.copies.map((copy, index) => `<button type="button" role="listitem" data-copy-id="${esc(copy.uid)}" aria-current="${copy.uid === item.uid ? "true" : "false"}"><strong>Copy ${index + 1}</strong><span>${Number(copy.quantity) === 1 ? "Active" : "Sold"}${copy.certificationNumber ? ` · cert ${esc(copy.certificationNumber)}` : " · no cert"}</span></button>`).join("")}</div><div class="copy-facts"><div><span>Status</span><strong>${copyStatus}</strong></div><div><span>Certificate</span><strong>${esc(item.certificationNumber || "Not recorded")}</strong></div><div><span>Grade</span><strong>${esc(`${item.gradingCompany} ${item.grade}${item.gradeQualifier ? ` · ${item.gradeQualifier}` : ""}`)}</strong></div><div><span>Record source</span><strong>${item.gradeClaimSource === "official" ? "Official provider" : "User entered · not provider verified"}</strong></div><div><span>Acquired</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div></div></section>`
+    ? `<section class="copy-navigation${copyGroup.copies.length === 1 ? " single-copy" : ""}" aria-labelledby="copyNavigationTitle"><div class="copy-navigation-head"><div><span>Physical copies</span><strong id="copyNavigationTitle">Copy ${copyGroup.selectedIndex + 1} of ${copyGroup.copies.length}</strong><small>${copyGroup.activeCount} active · ${copyGroup.copies.length - copyGroup.activeCount} sold${copyGroup.copies.length > 1 ? " · swipe to switch" : ""}</small></div><div><button type="button" id="previousCopyButton" aria-label="Previous physical copy" ${copyGroup.copies.length < 2 ? "disabled" : ""}>←</button><button type="button" id="nextCopyButton" aria-label="Next physical copy" ${copyGroup.copies.length < 2 ? "disabled" : ""}>→</button></div></div><div class="copy-navigation-strip" role="list" aria-label="Copies in this graded context">${copyGroup.copies.map((copy, index) => `<button type="button" role="listitem" data-copy-id="${esc(copy.uid)}" aria-current="${copy.uid === item.uid ? "true" : "false"}"><strong>Copy ${index + 1}</strong><span>${Number(copy.quantity) === 1 ? "Active" : "Sold"}${copy.certificationNumber ? ` · cert ${esc(copy.certificationNumber)}` : " · no cert"}</span></button>`).join("")}</div><div class="copy-facts"><div><span>Status</span><strong>${copyStatus}</strong></div><div><span>Certificate</span><strong>${esc(item.certificationNumber || "Not recorded")}</strong></div><div><span>Grade</span><strong>${esc(`${item.gradingCompany} ${item.grade}${item.gradeQualifier ? ` · ${item.gradeQualifier}` : ""}`)}</strong></div><div><span>Record source</span><strong>${item.gradeClaimSource === "official" ? "Official provider" : "User entered · not provider verified"}</strong></div><div><span>Acquired</span><strong>${esc(item.purchaseDate || "Not recorded")}</strong></div><div><span>Paid</span><strong>${item.costBasis == null ? "Not recorded" : money(item.costBasis, item.currency)}</strong></div></div></section>`
     : "";
   const backLabel =
     {
@@ -8788,7 +8793,7 @@ function renderDetail() {
     : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
   const listingTitle = sealed ? item.name : cardListingTitle(item, printing, context);
   const nameAt = listingTitle.indexOf(item.name);
-  const titleMarkup = nameAt < 0 ? esc(listingTitle) : `<span class="detail-title-context">${esc(listingTitle.slice(0, nameAt))}</span><span class="detail-title-name">${esc(item.name)}</span><span class="detail-title-context">${esc(listingTitle.slice(nameAt + item.name.length))}</span>`;
+  const titleMarkup = nameAt < 0 ? esc(listingTitle) : `<span class="detail-title-context">${esc(listingTitle.slice(0, nameAt))}</span><span class="detail-title-name">${esc(item.name)}</span> <span class="detail-title-context">${esc(listingTitle.slice(nameAt + item.name.length).replace(/^\s*·\s*/, ""))}</span>`;
   const marketHero = `<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<details class="price-source-details"><summary>Source</summary><small class="price-provenance">${esc(provenance)}</small></details>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button" aria-label="View recent eBay sales">eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
@@ -8814,6 +8819,9 @@ function renderDetail() {
   const conditionTool = detailRoot.querySelector(".detail-digital-grade");
   const gradingTools = detailRoot.querySelector('[data-detail-tool="grading"] .detail-tool-content');
   if (conditionTool && gradingTools) gradingTools.prepend(conditionTool);
+  const conversionNote = detailRoot.querySelector(".detail-currency-note");
+  const sourceDetails = detailRoot.querySelector(".sold-price-details > div, .price-source-details");
+  if (conversionNote && sourceDetails) sourceDetails.append(conversionNote);
   $("#detailMoreToolsButton")?.addEventListener("click", () => {
     const tools = $("#detailMoreTools"); tools.hidden = !tools.hidden;
     $("#detailMoreToolsButton").setAttribute("aria-expanded", String(!tools.hidden));
@@ -10218,7 +10226,7 @@ export function openPositionSheet(card, options = {}) {
           .join(
             "",
           )}</div><small>Confirm the printing shown on your card.</small></fieldset>`
-      : `<div class="simple-note full"><strong>${esc(variantOptionSummary(initialVariant))}</strong><br>Check this matches your card.</div>`;
+      : `<div class="simple-note full"><strong>${esc(variantOptionSummary(initialVariant))}</strong></div>`;
   const initialState = prefill.cardState === "graded" ? "graded" : prefill.cardState === "raw" || options.visionAnalysis?.mode === "grade" ? "raw" : "graded";
   const initialQuantity = Number(prefill.quantity) > 0 ? prefill.quantity : 1;
   const initialDate =
@@ -10229,8 +10237,8 @@ export function openPositionSheet(card, options = {}) {
     <form id="positionForm"><div class="form-grid">
       <input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant.label)}"><input id="positionVariantId" name="variantId" type="hidden" value="${esc(initialVariant.id || "")}">${variantControl}
       <div class="field"><label for="positionState">Card type</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>Raw</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Graded</option></select></div>
-      <div class="field"><label for="positionQuantity" id="positionQuantityLabel">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(initialQuantity)}" required><small id="positionQuantityHelp">Each graded slab is saved as its own copy.</small></div>
-      <div class="field raw-position"><label for="positionCondition">Condition</label><select id="positionCondition" name="rawCondition"><option value="unknown" ${!prefill.rawCondition || prefill.rawCondition === "unknown" ? "selected" : ""}>Not sure yet</option><option value="near_mint" ${prefill.rawCondition === "near_mint" ? "selected" : ""}>Like new (Near Mint)</option><option value="lightly_played" ${prefill.rawCondition === "lightly_played" ? "selected" : ""}>Light wear (Lightly Played)</option><option value="moderately_played" ${prefill.rawCondition === "moderately_played" ? "selected" : ""}>Noticeable wear (Moderately Played)</option><option value="heavily_played" ${prefill.rawCondition === "heavily_played" ? "selected" : ""}>Heavy wear (Heavily Played)</option><option value="damaged" ${prefill.rawCondition === "damaged" ? "selected" : ""}>Damaged</option></select><small>Unknown stays unknown; Mica will not value it as Near Mint.</small></div>
+      <div class="field"><label for="positionQuantity" id="positionQuantityLabel">How many cards?</label><input id="positionQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(initialQuantity)}" required><small id="positionQuantityHelp">One record per slab.</small></div>
+      <div class="field raw-position"><label for="positionCondition">Condition</label><select id="positionCondition" name="rawCondition"><option value="unknown" ${!prefill.rawCondition || prefill.rawCondition === "unknown" ? "selected" : ""}>Not sure yet</option><option value="near_mint" ${prefill.rawCondition === "near_mint" ? "selected" : ""}>Like new (Near Mint)</option><option value="lightly_played" ${prefill.rawCondition === "lightly_played" ? "selected" : ""}>Light wear (Lightly Played)</option><option value="moderately_played" ${prefill.rawCondition === "moderately_played" ? "selected" : ""}>Noticeable wear (Moderately Played)</option><option value="heavily_played" ${prefill.rawCondition === "heavily_played" ? "selected" : ""}>Heavy wear (Heavily Played)</option><option value="damaged" ${prefill.rawCondition === "damaged" ? "selected" : ""}>Damaged</option></select><small>Choose a condition for pricing.</small></div>
       ${options.visionAnalysis ? `<div class="simple-note raw-position"><strong>Mica pregrade: ${esc(options.visionAnalysis.gradeRange || "unavailable")}</strong><br>Photo estimate · not a professional grade.</div>` : ""}
       <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === prefill.grader ? "selected" : ""}>${value}</option>`).join("")}</select></div>
       <div class="field graded-position" hidden><label for="positionGrade">Grade</label><input id="positionGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(prefill.grade || "")}" placeholder="10"></div>
@@ -17144,7 +17152,7 @@ function renderSavedPortfolio() {
   $("#portfolioToplineLabel").textContent = saved.total === null ? "Known portfolio value" : "Total portfolio value";
   $("#portfolioValue").textContent = money(saved.total ?? saved.knownTotal, saved.currency);
   $("#portfolioValue").dataset.savedSnapshot = "true";
-  $("#portfolioChange").textContent = saved.missingUnits ? `Portfolio value · ${saved.missingUnits} unpriced ${saved.missingUnits === 1 ? "copy" : "copies"} excluded.` : "Portfolio value";
+  $("#portfolioChange").textContent = saved.missingUnits ? `${saved.missingUnits} unpriced ${saved.missingUnits === 1 ? "copy" : "copies"} excluded` : "";
   $(".status-label").innerHTML = `<i></i> Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}`;
   renderPortfolioHistory();
   return true;

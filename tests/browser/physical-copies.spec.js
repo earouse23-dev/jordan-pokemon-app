@@ -31,6 +31,11 @@ const fxSourceEvidenceDir = fileURLToPath(
 );
 let instrumentedApp;
 
+async function openSaleDetails(page) {
+  const details = page.locator(".sold-price-details");
+  if (await details.getAttribute("open") === null) await details.locator(":scope > summary").click();
+}
+
 test.use({ serviceWorkers: "block" });
 
 test("CLIENT-05I detail reopens saved printing without catalog options and detects explicit removal", async ({
@@ -922,12 +927,14 @@ test("dated ECB fixture converts synthetic sales without external traffic", asyn
   await expect(page.locator(".exact-sold-value > strong")).toHaveText(
     "$120.00",
   );
+  await openSaleDetails(page);
   await page.locator("#exactSaleEvidence > summary").click();
   const nativeBefore = {
     amount: await page.locator(".exact-sold-value > strong").textContent(),
     evidence: await page.locator("#exactSaleEvidence a").allTextContents(),
     currency: await page.locator("#detailValuationCurrency").inputValue(),
   };
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   if (accepted) {
     const eur = new Intl.NumberFormat("en-US", {
@@ -1023,6 +1030,7 @@ test("CLIENT-05F displays dated ECB equivalent without changing native sale evid
     "Show EUR equivalent",
   );
   await expect(page.locator(".exact-fx")).not.toContainText("About");
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect(page.locator(".exact-fx")).toContainText(
     "About €96.00 · ECB rate dated 2026-09-25",
@@ -1066,6 +1074,7 @@ test("CLIENT-05F displays dated ECB equivalent without changing native sale evid
     "href",
     /ecb.europa.eu/,
   );
+  await openSaleDetails(page);
   await page.locator("#exactSaleEvidence > summary").click();
   await expect(page.locator("#exactSaleEvidence")).toContainText(
     "EUR sales are separate",
@@ -1086,6 +1095,7 @@ test("CLIENT-05F displays dated ECB equivalent without changing native sale evid
   );
   await expect(page.locator(".exact-sold-value")).toContainText("Original €100.00");
   expect(await page.evaluate(async url => (await import(url)).state.detailValuationContext.currency, appUrl)).toBe("EUR");
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect(page.locator(".exact-fx")).toContainText("About $125.00");
   expect(saleCalls).toBe(2);
@@ -1130,6 +1140,7 @@ test("CLIENT-05F expires an open equivalent at UTC midnight and guards pending r
   await expect(page.locator(".exact-sold-value > strong")).toHaveText(
     "$120.00",
   );
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect(page.locator(".exact-fx")).toContainText("Checking ECB rate");
   await page.evaluate(async (url) => {
@@ -1152,9 +1163,11 @@ test("CLIENT-05F expires an open equivalent at UTC midnight and guards pending r
   delay = true;
   await page.locator("#retryExactFxButton").click();
   await expect.poll(() => fxCalls).toBe(2);
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   release();
   await expect(page.locator(".exact-fx")).not.toContainText("About");
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect.poll(() => fxCalls).toBe(3);
   await page.locator(`[data-copy-id="${copyIds.b}"]`).click();
@@ -1209,6 +1222,7 @@ test("CLIENT-05F FX failure, retry and native refresh keep provenance paired", a
   await expect(page.locator(".exact-sold-value > strong")).toHaveText(
     "$120.00",
   );
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect(page.locator(".exact-fx")).toContainText(
     "Equivalent unavailable",
@@ -1272,6 +1286,7 @@ test("CLIENT-05F account and route changes reject delayed FX display", async ({
   await expect(page.locator(".exact-sold-value > strong")).toHaveText(
     "$120.00",
   );
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect.poll(() => calls).toBe(1);
   await page.evaluate(async (url) => {
@@ -1281,6 +1296,7 @@ test("CLIENT-05F account and route changes reject delayed FX display", async ({
   }, appUrl);
   release();
   await expect(page.locator(".exact-fx")).not.toContainText("About");
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await page.evaluate(async (url) => {
     const { state } = await import(url);
@@ -1289,6 +1305,7 @@ test("CLIENT-05F account and route changes reject delayed FX display", async ({
   release = null;
   // Expire the public cached ECB rate so this case exercises another pending request.
   await page.clock.setFixedTime(new Date("2026-09-29T17:00:00Z"));
+  await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect.poll(() => calls).toBe(2);
   await page.evaluate(async (url) => {
@@ -1347,6 +1364,7 @@ test("CLIENT-05B offline UI replay keeps unresolved sample context unavailable",
   await expect(page.locator(".exact-sold-value")).toContainText(
     "Confirm the printing, grade and label",
   );
+  await openSaleDetails(page);
   await page.locator("#exactSaleEvidence > summary").click();
   await expect(page.locator("#exactSaleEvidence")).toContainText(
     "3 received · 3 accepted · 0 excluded before valuation",
@@ -1421,6 +1439,7 @@ test("exact sold value follows selected copy, currency and grade without invento
   );
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText("$120.00");
+  await openSaleDetails(page);
   await page.locator("#exactSaleEvidence > summary").click();
   await expect(page.locator("#exactSaleEvidence a")).toHaveCount(3);
   await expect(page.locator("#exactSaleEvidence")).toContainText(
@@ -1568,6 +1587,7 @@ test("provider exclusions remain traceable through retry and clear with context"
   await page.locator("[data-open-position]").click();
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText("$120.00");
+  await openSaleDetails(page);
   await page.locator("#exactSaleEvidence > summary").click();
   await expect(page.locator("#exactSaleEvidence")).toContainText(
     "5 received · 3 accepted · 2 excluded before valuation",
@@ -1846,6 +1866,7 @@ test("retained older reported comps stay labelled and traceable without external
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value > strong")).toHaveText("$7,300.00");
   await expect(page.locator(".exact-sold-value")).toContainText("Older completed sales");
+  await openSaleDetails(page);
   await page.locator("#exactSaleEvidence > summary").click();
   await expect(page.locator("#exactSaleEvidence")).toContainText("4 received · 3 accepted · 1 excluded before valuation");
   await expect(page.locator("#exactSaleEvidence")).toContainText("fixture-excluded");
@@ -2060,7 +2081,18 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.state.detailSales.salesStatus='loading';app.renderDetail();},appUrl);
  await expect(page.locator('#positionChart')).toBeVisible();
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.state.detailSales.salesStatus='live';app.renderDetail();},appUrl);
- await expect(page.locator('.exact-sold-value .inline-source-link')).toContainText('2026-08-31');
+ await expect(page.locator('.exact-sold-value .inline-source-link')).toHaveAttribute('aria-label',/2026-08-31/);
+ await expect(page.locator('.sold-price-details')).not.toHaveAttribute('open','');
+ await expect(page.locator('.sold-summary')).toContainText('stale estimate');
+ await expect(page.locator('.sold-price-details > summary')).toBeVisible();
+ await expect(page.locator('#toggleExactFxButton')).toBeHidden();
+ if(testInfo.project.name !== 'desktop-chromium') {
+  await page.setViewportSize({width:375,height:667});
+  const chartBox=await page.locator('#positionChart').boundingBox();
+  expect(chartBox.width).toBeGreaterThan(330);
+  expect(chartBox.y).toBeLessThan(520);
+ }
+ await expect(page.locator('.copy-navigation.single-copy #nextCopyButton')).toBeHidden();
  const bounds=await page.evaluate(()=>{const {chartInstance:chart}=globalThis.fixtureCopyApp;return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
  expect(bounds).toEqual({min:Date.parse(dates[0]),max:Date.parse(dates[2]),radius:0});
  expect(await page.locator('.exact-sold-value .inline-source-link').evaluate(el=>parseFloat(getComputedStyle(el).borderRadius))).toBeGreaterThanOrEqual(12);

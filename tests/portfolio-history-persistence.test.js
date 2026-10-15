@@ -883,6 +883,7 @@ test(
               await page.locator(".exact-sold-value > strong").textContent(),
               "$130.00",
             );
+            await page.locator(".sold-price-details > summary").click();
             await page.locator("#recordedSoldValuations summary").click();
             await page
               .locator('[data-detail-tool="purchases"] > summary')

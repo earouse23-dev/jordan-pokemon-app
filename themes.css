@@ -6407,3 +6407,45 @@ body[data-ui-theme="mica"] #appShell .find-search input:focus-visible { outline:
   body[data-ui-theme="mica"] #appShell .price-source-details > summary::after { content: "⌄"; margin-left: 6px; }
   body[data-ui-theme="mica"] #appShell .identity-secondary > .detail-meta { grid-column: 1 / -1; margin: 0; }
 }
+
+/* Results lead; source and conversion tools stay one disclosure away. */
+body[data-ui-theme="mica"] #appShell .sold-actions { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+body[data-ui-theme="mica"] #appShell .sold-actions > .inline-source-link { min-height: 44px; display: inline-flex; align-items: center; padding: 0 10px; border: 0; border-radius: 12px; background: var(--mint); box-shadow: none; font-size: 13px; }
+body[data-ui-theme="mica"] #appShell .sold-price-details { font-size: 13px; min-width: 0; }
+body[data-ui-theme="mica"] #appShell .sold-price-details > summary { min-height: 44px; display: flex; align-items: center; color: var(--muted); cursor: pointer; }
+body[data-ui-theme="mica"] #appShell .sold-price-details > summary::after { content: "⌄"; margin-left: 6px; }
+body[data-ui-theme="mica"] #appShell .sold-price-details[open] { flex: 1 0 100%; }
+body[data-ui-theme="mica"] #appShell .sold-price-details > div { display: grid; gap: 10px; padding: 8px 0; }
+body[data-ui-theme="mica"] #appShell .sold-price-details small { color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+@media (max-width: 680px) {
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .app-header { height: calc(56px + var(--safe-top)); padding-inline: 16px; }
+  body[data-ui-theme="mica"] #appShell .app-header .profile-button { width: 40px; height: 40px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .exact-sold-value { padding: 12px 0 0; margin: 0; gap: 4px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .exact-sold-value > span { font-size: 12px; letter-spacing: .06em; }
+  body[data-ui-theme="mica"] #appShell #detailContent .exact-sold-value > strong { font-size: clamp(30px,9vw,40px); line-height: 1.1; margin: 2px 0; }
+  body[data-ui-theme="mica"] #appShell #detailContent .sold-summary { font-size: 12px; line-height: 1.4; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-back { margin-bottom: 14px; min-height: 44px; }
+  body[data-ui-theme="mica"] #appShell #view-dashboard .portfolio-hero { margin-bottom: 12px; }
+  body[data-ui-theme="mica"] #appShell #view-dashboard .panel-heading span { display: none; }
+  body[data-ui-theme="mica"] #appShell #view-collection .view-tabs { gap: 4px; margin: 8px 0; }
+  body[data-ui-theme="mica"] #appShell #view-collection .view-tabs > .view-tab,
+  body[data-ui-theme="mica"] #appShell #view-collection .collection-more > summary { min-height: 44px; padding: 6px 10px; font-size: 12px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-tools { margin: 8px 0; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-meta { padding: 0 2px 8px; }
+  body[data-ui-theme="mica"] #appShell :is(.add-search-panel,.add-capture-panel) { padding: 16px; }
+  body[data-ui-theme="mica"] #appShell .add-cards-heading { margin-bottom: 16px; }
+  body[data-ui-theme="mica"] #appShell .simple-privacy { font-size: 12px; margin: 8px 0 0; }
+  body[data-ui-theme="mica"] #appShell .sealed-entry-button { margin-top: 12px; padding-block: 12px; }
+  body[data-ui-theme="mica"] #appShell .detail-currency-note { font-size: 12px; line-height: 1.5; }
+}
+@media (max-width: 680px) {
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .card-thumb { aspect-ratio: auto; height: 160px; margin-bottom: 10px; }
+  body[data-ui-theme="mica"] #bottomSheet #positionForm .form-grid { gap: 16px; }
+  body[data-ui-theme="mica"] #bottomSheet #positionForm .field > label { font-size: 14px; }
+}
+@media (max-width: 400px) {
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .card-thumb { height: 140px; }
+}
+
+body[data-ui-theme="mica"] #appShell .copy-navigation.single-copy :is(.copy-navigation-strip,.copy-navigation-head > div:last-child) { display: none; }

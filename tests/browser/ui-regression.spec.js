@@ -103,7 +103,7 @@ async function layoutAudit(page) {
 test("signed-out access is readable and contained", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "Sign in to your collection" }),
+    page.getByRole("heading", { name: "Welcome back" }),
   ).toBeVisible();
   const audit = await layoutAudit(page);
   expect(audit.overflow).toBeLessThanOrEqual(0);
