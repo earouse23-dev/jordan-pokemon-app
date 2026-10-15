@@ -2104,3 +2104,16 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await page.evaluate(()=>document.body.dataset.appearance='dark');
  await page.screenshot({path:testInfo.outputPath('slab-history-dark.png'),fullPage:true});
 });
+
+test('phone library tiles lead with identity and value before artwork', async ({ page }) => {
+  await setup(page);
+  await page.setViewportSize({ width: 375, height: 667 });
+  const tile = page.locator('.ledger-row[data-id]').first();
+  const identity = await tile.locator('.card-main').boundingBox();
+  const value = await tile.locator('.position-price-grid').boundingBox();
+  const artwork = await tile.locator('.card-thumb').boundingBox();
+  expect(identity.y).toBeLessThan(value.y);
+  expect(value.y + value.height).toBeLessThanOrEqual(artwork.y);
+  expect(value.y).toBeLessThan(570);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

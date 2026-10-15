@@ -6449,3 +6449,8 @@ body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage > summary { min-h
 }
 
 body[data-ui-theme="mica"] #appShell .copy-navigation.single-copy :is(.copy-navigation-strip,.copy-navigation-head > div:last-child) { display: none; }
+@media (max-width: 680px) {
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row > .card-main { grid-row: 1; padding-right: 28px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row > .position-price-grid { grid-row: 2; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row > .card-thumb { grid-row: 3; }
+}
