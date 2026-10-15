@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-10-15T00:53:08.607Z",
+  "scope": "Owned local Auth/Postgres; real physical-copy inventory reads and portfolioService saved-summary HTTP GET",
+  "accounts": 20,
+  "simultaneousReaders": 20,
+  "requests": 60,
+  "historyDays": 365,
+  "representedCopiesPerSummary": 1000,
+  "physicalInventoryCapacityQualified": false,
+  "physicalInventoryReadQualified": true,
+  "seededPhysicalCopies": 20000,
+  "inventoryReadRequests": 20,
+  "inventoryReadMaxMs": 1836,
+  "inventoryDatabaseGrowthBytes": 93265920,
+  "p50Ms": 133,
+  "p95Ms": 227,
+  "maxMs": 230,
+  "responseBytes": 13746,
+  "externalRequests": 0,
+  "providerRequests": 0,
+  "customerWrites": 0
+}

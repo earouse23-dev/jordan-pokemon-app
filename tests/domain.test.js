@@ -1425,14 +1425,17 @@ test("large owned-row lookups use bounded filters and preserve every result", as
         },
         in(key, ids) {
           assert.equal(key, "collection_item_id");
-          assert.ok(ids.length <= 200);
+          assert.ok(ids.length <= 100);
           calls.push([...ids]);
           this.rows = ids.map((id) => ({ collection_item_id: id }));
           return this;
         },
         order(column) {
-          assert.equal(column, "acquired_at");
-          return Promise.resolve({ data: this.rows, error: null });
+          assert.ok(["acquired_at", "id"].includes(column));
+          return this;
+        },
+        async range(from, to) {
+          return { data: this.rows.slice(from, to + 1), error: null };
         },
       };
       return builder;
@@ -1445,7 +1448,7 @@ test("large owned-row lookups use bounded filters and preserve every result", as
     ids,
     order: "acquired_at",
   });
-  assert.equal(calls.length, 3);
+  assert.equal(calls.length, 5);
   assert.equal(rows.length, 450);
   assert.equal(new Set(rows.map((row) => row.collection_item_id)).size, 450);
 });
@@ -1484,6 +1487,63 @@ test("large portfolios page past the API row limit with stable ordering", async 
     [1000, 1999],
     [2000, 2999],
   ]);
+});
+
+test("related history pages preserve more than 1,000 rows without oversized UUID filters", async () => {
+  const ids = Array.from(
+      { length: 101 },
+      (_, i) => `11111111-1111-4111-8111-${String(i).padStart(12, "0")}`,
+    ),
+    calls = [];
+  const all = ids.flatMap((owner, i) =>
+    Array.from({ length: 11 }, (_, j) => ({
+      id: i * 11 + j,
+      collection_item_id: owner,
+    })),
+  );
+  const client = {
+    from() {
+      let selected;
+      return {
+        select() {
+          return this;
+        },
+        order() {
+          return this;
+        },
+        contains(column, value) {
+          assert.equal(column, "quality");
+          assert.deepEqual(value, { producer: "exact" });
+          return this;
+        },
+        in(_column, values) {
+          assert(values.length <= 100);
+          selected = new Set(values);
+          return this;
+        },
+        async range(from, to) {
+          calls.push([selected.size, from, to]);
+          return {
+            data: all
+              .filter((row) => selected.has(row.collection_item_id))
+              .slice(from, to + 1),
+            error: null,
+          };
+        },
+      };
+    },
+  };
+  const rows = await loadRowsInChunks(client, {
+    table: "position_price_observations",
+    key: "collection_item_id",
+    ids,
+    chunkSize: 500,
+    order: "observed_at",
+    contains: { column: "quality", value: { producer: "exact" } },
+  });
+  assert.equal(rows.length, 1111);
+  assert.equal(new Set(rows.map((row) => row.id)).size, 1111);
+  assert(calls.some(([size, start]) => size === 100 && start === 1000));
 });
 
 test("server collection pages hydrate only returned positions and retain the cursor", async () => {
@@ -1529,7 +1589,10 @@ test("server collection pages hydrate only returned positions and retain the cur
           assert.ok(ids.length <= 200);
           return this;
         },
-        async order() {
+        order() {
+          return this;
+        },
+        async range() {
           return { data: [], error: null };
         },
       };

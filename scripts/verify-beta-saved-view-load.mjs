@@ -5,6 +5,14 @@ import assert from "node:assert/strict";
 import { createClient } from "@supabase/supabase-js";
 import { portfolioService } from "../lib/portfolio-service.js";
 import { createServer } from "node:http";
+import { createPosition, loadPortfolio } from "../lib/supabase-data.js";
+import { normalizeTcgdexCard } from "../lib/providers/tcgdex.js";
+import { collectibleIdentitySnapshot } from "../lib/identity.js";
+const fullInventory = process.env.MICA_BETA_FULL_INVENTORY === "1";
+const accountCount = Number(process.env.MICA_BETA_LOAD_ACCOUNTS || 100);
+assert(
+  Number.isInteger(accountCount) && accountCount >= 20 && accountCount <= 100,
+);
 const workdir = process.env.MICA_CLIENT_06_WORKDIR,
   project = process.env.MICA_CLIENT_06_PROJECT_ID,
   context = process.env.MICA_CLIENT_06_DOCKER_CONTEXT,
@@ -49,7 +57,8 @@ const admin = createClient(cfg.API_URL, cfg.SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 const owners = [],
-  tokens = [];
+  tokens = [],
+  clients = [];
 const sql = (q) =>
   execFileSync(
     "docker",
@@ -84,7 +93,7 @@ const server = createServer((req, res) => {
   void portfolioService(req, res);
 });
 try {
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < (fullInventory ? accountCount : 20); i++) {
     const email = "beta-load-" + randomUUID() + "@example.invalid",
       password = "Mica-" + randomUUID() + "-9a!";
     const user = await admin.auth.admin.createUser({
@@ -100,14 +109,112 @@ try {
     const login = await client.auth.signInWithPassword({ email, password });
     assert.ifError(login.error);
     tokens.push(login.data.session.access_token);
+    clients.push(client);
   }
-  for (let i = 20; i < 100; i++) owners.push(randomUUID());
-  sql(
-    `insert into auth.users(id) values ${owners
-      .slice(20)
-      .map((id) => `('${id}')`)
-      .join(",")};`,
+  if (!fullInventory && accountCount > 20) {
+    for (let i = 20; i < accountCount; i++) owners.push(randomUUID());
+    sql(
+      `insert into auth.users(id) values ${owners
+        .slice(20)
+        .map((id) => `('${id}')`)
+        .join(",")};`,
+    );
+  }
+  const inventoryTimings = [];
+  const baselineBytes = Number(
+    sql("select pg_database_size(current_database());"),
   );
+  if (fullInventory) {
+    const card = normalizeTcgdexCard(
+      {
+        id: "synthetic-beta-1",
+        name: "Synthetic beta card",
+        localId: "1",
+        set: {
+          id: "synthetic",
+          name: "Synthetic Set",
+          cardCount: { official: 100 },
+        },
+        variants_detailed: [
+          {
+            variantId: "plain",
+            type: "holo",
+            size: "standard",
+            subtype: "unlimited",
+            stamp: [],
+          },
+        ],
+      },
+      "en",
+    );
+    const identity = {
+      ...collectibleIdentitySnapshot(card, card.variantOptions[0].id),
+      acquisitionCostKnown: true,
+      acquisitionDateKnown: true,
+    };
+    const itemColumns = sql(
+      "select string_agg(quote_ident(attname),',' order by attnum) from pg_attribute where attrelid='public.collection_items'::regclass and attnum>0 and not attisdropped and attgenerated='';",
+    );
+    for (let i = 0; i < owners.length; i++) {
+      const id = await createPosition(clients[i], {
+        identity,
+        cardState: "graded",
+        grader: "PSA",
+        grade: "9",
+        certificationNumber: "synthetic-" + randomUUID(),
+        quantity: 1,
+        transactionDate: new Date().toISOString().slice(0, 10),
+        unitPrice: 50,
+        currency: "USD",
+        idempotencyKey: randomUUID(),
+        acquisitionMethod: "direct_purchase",
+      });
+      // Seed volume from a real RPC-created copy; all constraints/triggers stay enabled.
+      sql(`with records as (
+        select (jsonb_populate_record(null::public.collection_items,
+          to_jsonb(t) || jsonb_build_object('id',gen_random_uuid(),'certification_number','synthetic-'||gen_random_uuid()))).*
+        from public.collection_items t cross join generate_series(1,999) where t.id='${id}'
+      ), seeded as (
+        insert into public.collection_items(${itemColumns}) select ${itemColumns} from records returning id,user_id
+      ), purchases as (
+        insert into public.collection_transactions(user_id,collection_item_id,transaction_type,transaction_date,quantity,unit_price,subtotal,total_cost,currency)
+        select user_id,id,'purchase',current_date,1,50,50,50,'USD' from seeded returning id,user_id,collection_item_id
+      ) insert into public.purchase_lots(user_id,collection_item_id,purchase_transaction_id,acquired_at,quantity_acquired,quantity_remaining,total_cost,remaining_cost,currency)
+        select user_id,collection_item_id,id,current_date,1,1,50,50,'USD' from purchases;`);
+    }
+    assert.equal(
+      Number(
+        sql(
+          `select count(*) from public.collection_items where user_id in (${owners.map((id) => `'${id}'`).join(",")});`,
+        ),
+      ),
+      accountCount * 1000,
+    );
+    await Promise.all(
+      clients.slice(0, 20).map(async (client) => {
+        const start = performance.now(),
+          items = await loadPortfolio(client);
+        assert.equal(items.length, 1000);
+        assert.equal(
+          items.reduce((n, item) => n + item.quantity, 0),
+          1000,
+        );
+        assert.equal(
+          items.reduce((n, item) => n + item.costBasis, 0),
+          50000,
+        );
+        assert(
+          items.every(
+            (item) =>
+              item.gradingCompany === "PSA" && String(item.grade) === "9",
+          ),
+        );
+        inventoryTimings.push(performance.now() - start);
+      }),
+    );
+  }
+  const inventoryBytes =
+    Number(sql("select pg_database_size(current_database());")) - baselineBytes;
   const now = new Date().toISOString(),
     history = Array.from({ length: 365 }, (_, i) => ({
       date: new Date(Date.now() - (364 - i) * 86400000)
@@ -149,7 +256,7 @@ try {
     sizes = [];
   for (let round = 0; round < 3; round++)
     await Promise.all(
-      tokens.map(async (token) => {
+      tokens.slice(0, 20).map(async (token) => {
         const start = performance.now(),
           response = await fetch(
             origin + "/?surface=portfolio&display=summary",
@@ -169,14 +276,22 @@ try {
   timings.sort((a, b) => a - b);
   const report = {
     checkedAt: new Date().toISOString(),
-    scope:
-      "Owned local Auth/Postgres plus real portfolioService HTTP GET; synthetic saved summaries only",
-    accounts: 100,
+    scope: fullInventory
+      ? "Owned local Auth/Postgres; real physical-copy inventory reads and portfolioService saved-summary HTTP GET"
+      : "Owned local Auth/Postgres plus real portfolioService HTTP GET; synthetic saved summaries only",
+    accounts: accountCount,
     simultaneousReaders: 20,
     requests: 60,
     historyDays: 365,
     representedCopiesPerSummary: 1000,
     physicalInventoryCapacityQualified: false,
+    physicalInventoryReadQualified: fullInventory,
+    seededPhysicalCopies: fullInventory ? accountCount * 1000 : 0,
+    inventoryReadRequests: inventoryTimings.length,
+    inventoryReadMaxMs: inventoryTimings.length
+      ? Math.round(Math.max(...inventoryTimings))
+      : null,
+    inventoryDatabaseGrowthBytes: fullInventory ? inventoryBytes : null,
     p50Ms: Math.round(timings[29]),
     p95Ms: Math.round(timings[56]),
     maxMs: Math.round(timings.at(-1)),
@@ -186,7 +301,10 @@ try {
     customerWrites: 0,
   };
   fs.writeFileSync(
-    "docs/evidence/beta-readiness-2026-10-12/step-7-saved-read-load.json",
+    "docs/evidence/beta-readiness-2026-10-12/" +
+      (fullInventory
+        ? "step-7-physical-inventory-load.json"
+        : "step-7-saved-read-load.json"),
     JSON.stringify(report, null, 2) + "\n",
   );
   console.log(JSON.stringify(report));
