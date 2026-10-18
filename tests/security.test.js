@@ -589,15 +589,15 @@ test("Mica uses one green interface with synchronized light/dark shell assets", 
   assert.match(appShell, /data-software-mode="collector"/);
   assert.match(appShell, /data-software-mode="investor"/);
   assert.match(appShell, /data-software-mode="seller"/);
-  assert.match(appShell, /themes\.css\?v=102/);
+  assert.match(appShell, /themes\.css\?v=103/);
   assert.match(appSource, /let uiTheme = "mica"/);
   assert.match(appSource, /let workspaceMode = "collector"/);
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
   assert.match(themes, /--canvas:\s*#f6f7f4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-design-102/);
-  assert.match(serviceWorker, /themes\.css\?v=102/);
+  assert.match(serviceWorker, /mica-shell-design-103/);
+  assert.match(serviceWorker, /themes\.css\?v=103/);
 });
 
 test("signup distinguishes repeated accounts and supports confirmation resend", () => {
@@ -613,7 +613,7 @@ test("signup distinguishes repeated accounts and supports confirmation resend", 
 test("one interface uses plain language and keeps mode separate from access", () => {
   assert.match(appSource, /let workspaceMode = "collector"/);
   assert.doesNotMatch(appShell, /How much detail do you want/);
-  assert.match(appShell, /Advanced tools/);
+  assert.match(appShell, /<summary>Digital grading<\/summary>/);
   assert.match(appSource, /Total paid/);
   assert.match(appShell, /Unopened/);
   assert.match(appSource, /number printed at the bottom|bottom number/);

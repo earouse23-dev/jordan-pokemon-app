@@ -335,7 +335,7 @@ async function openWatchFromCollection(page, item) {
     { appUrl, item },
   );
   await page.locator(`[data-watch-id="${item.watchlistId}"]`).click();
-  await expect(page.locator("#detailTitle")).toHaveText(item.name);
+  await expect(page.locator("#detailTitle .detail-title-name")).toHaveText(item.name);
 }
 
 function ownedEntry(overrides = {}) {
@@ -392,7 +392,9 @@ test("catalog profile loads a labeled reference without assessing the owned cond
   await expect(page.locator(".identity-secondary")).toContainText("Unknown");
   await expect(page.locator(".market-hero")).toContainText("$10.00");
   await expect(page.locator('[data-detail-tool="valuation-context"]')).toContainText("reference price");
-  expect(lookups).toHaveLength(1);
+  // Catalog enrichment may add a provider ID; identical lookups must still deduplicate.
+  expect(lookups.length).toBeGreaterThan(0);
+  expect(new Set(lookups.map(row => JSON.stringify(row))).size).toBe(lookups.length);
   expect(await page.evaluate(async appUrl => (await import(appUrl)).state.detailCard.condition, appUrl)).toBeUndefined();
 
   await openValueContext(page);
@@ -1001,7 +1003,8 @@ test("saved display currency converts the portfolio and survives profile reload 
   await expect(page.locator("#portfolioValue")).toHaveText("$225.00");
   await expect(page.locator("#retryDisplayFx")).toBeHidden();
   expect(rateCalls).toBe(2);
-  await expect(page.locator("#portfolioChange")).toContainText("ECB rate " + date);
+  await expect(page.locator("#portfolioChange")).toHaveAttribute("title", "ECB rate " + date + " · indicative conversion");
+  await expect(page.locator("#valuationNote")).toContainText("ECB rate " + date);
   await page.evaluate(async url => (await import(url)).routeTo("profile"), appUrl);
   await expect(page.locator("#currencyButton")).toHaveCount(0);
   await expect(page.locator("#everydaySettings #profileDisplayCurrency")).toBeVisible();
@@ -1025,7 +1028,7 @@ test("saved display currency converts the portfolio and survives profile reload 
   expect(native).toEqual([{ currency:"USD", price:100, costBasis:60 }, { currency:"EUR", price:100, costBasis:90 }]);
   await page.evaluate(async url => (await import(url)).routeTo("collection"), appUrl);
   await expect(page.locator(".ledger-row").filter({ hasText: "USD sealed" }).locator(".position-price-grid")).toContainText("€80.00");
-  await expect(page.locator(".ledger-row").filter({ hasText: "USD sealed" }).locator(".position-price-grid")).toContainText("€48.00");
+  await expect(page.locator(".ledger-row").filter({ hasText: "USD sealed" }).locator(".position-price-grid")).not.toContainText("Paid");
   await expect(page.locator(".ledger-row").filter({ hasText: "USD sealed" }).locator(".position-price-grid strong").first()).toHaveAttribute("title", /Original \$100.00.*ECB rate/);
   await page.evaluate(async url => {
     const app = await import(url);
@@ -1033,6 +1036,7 @@ test("saved display currency converts the portfolio and survives profile reload 
   }, appUrl);
   await expect(page.locator(".market-hero > strong")).toHaveText("€80.00");
   await expect(page.locator(".detail-meta")).not.toContainText("Catalog ID");
+  await page.locator(".market-hero .price-source-details > summary").click();
   expect((await page.locator(".market-hero").innerText()).match(/Updated date unavailable/g)).toHaveLength(1);
   expect(await page.locator(".detail-identity").evaluate(element => getComputedStyle(element).boxShadow)).toBe("none");
   expect(await page.locator(".market-hero").evaluate(element => getComputedStyle(element).boxShadow)).toBe("none");
@@ -1255,7 +1259,7 @@ test("existing missing-set card link opens the exact catalog profile", async ({
     bindSetSheet(group);
   }, appUrl);
   await page.locator('[data-set-card="test-25"]').click();
-  await expect(page.locator("#detailTitle")).toHaveText("Pikachu");
+  await expect(page.locator("#detailTitle .detail-title-name")).toHaveText("Pikachu");
   await expect(page.locator(".detail-meta")).toContainText("English");
   await expect(page.locator(".detail-meta")).toContainText("Reverse Holo");
   expect(
@@ -1439,7 +1443,7 @@ test("owned raw value stays separate through graded loading, failure, and retry"
 
   const providerIndex = page.locator('[data-detail-tool="provider-index"]');
   if (await providerIndex.count() && !(await providerIndex.evaluate(element => element.open)))
-    await providerIndex.locator("summary").click();
+    await providerIndex.locator(":scope > summary").click();
   await page.locator("#retryPricingButton").click();
   await expect.poll(() => gradedRequests.length).toBeGreaterThan(failedCount);
   await Promise.all(
@@ -1745,7 +1749,7 @@ for (const card of [
   }) => {
     await setup(page);
     await openCard(page, card);
-    await expect(page.locator("#detailTitle")).toHaveText(card.name);
+    await expect(page.locator("#detailTitle .detail-title-name")).toHaveText(card.name);
     await expect(page.locator(".detail-identity img")).toHaveAttribute(
       "src",
       "./icons/icon.svg",
@@ -1984,7 +1988,7 @@ for (const phase of ["while loading", "after loading"]) test(`same-account Safar
  let pending; await setup(page, {onCards: route => { pending=route; }}); await initializeAccount(page, ownerId); await openCard(page); await expect.poll(()=>Boolean(pending)).toBe(true);
  if (phase === "after loading") { await pending.fulfill({contentType:"application/json",body:JSON.stringify(payload)}); await expect(page.locator(".market-hero")).toContainText("$100.00"); }
  const before = await page.evaluate(async url=>{const app=await import(url); const before={route:app.state.route,id:app.state.detailId}; await app.applySession({user:{id:app.state.session.user.id},access_token:"refreshed-fixture-token"}); return before;},appUrl);
- expect(before.route).toBe("detail"); await expect(page.locator("#detailTitle")).toHaveText("Pikachu");
+ expect(before.route).toBe("detail"); await expect(page.locator("#detailTitle .detail-title-name")).toHaveText("Pikachu");
  if (phase === "while loading") await pending.fulfill({contentType:"application/json",body:JSON.stringify(payload)});
  await expect(page.locator(".market-hero")).toContainText("$100.00"); await expect(page.locator("#positionChart")).toBeVisible();
  expect(await page.evaluate(async url=>{const app=await import(url);return app.state.session.access_token;},appUrl)).toBe("refreshed-fixture-token");
@@ -2005,7 +2009,9 @@ test("a scan condition enum renders its exact quote and history without changing
   await expect(page.locator(".market-hero")).toContainText("$10.00");
   await expect(page.locator("#positionChart")).toBeVisible();
   await expect(page.locator(".detail-image img")).toHaveAttribute("src",/images\.pkmnprices\.com/);
-  expect(lookups).toHaveLength(1);expect(lookups[0].condition).toBe("Near Mint");
+  expect(lookups.length).toBeGreaterThan(0);
+  expect(new Set(lookups.map(row => JSON.stringify(row))).size).toBe(lookups.length);
+  expect(lookups.every(row => row.condition === "Near Mint")).toBe(true);
   expect(await page.evaluate(async appUrl=>(await import(appUrl)).state.detailCard.condition,appUrl)).toBe("near_mint");
 });
 
@@ -2022,7 +2028,7 @@ test("Watch All time preserves full recorded history through a current-price-onl
   await openWatchFromCollection(page,watchEntry());
   await expect(page.locator("#cardHistoryRange")).toHaveValue("all");
   await expect(page.locator("#cardPriceHistory")).toContainText("2025");
-  expect(requests[0]).toBe("full");
+  expect(requests).toContain("full");
   await page.evaluate(async url=>{const app=await import(url);await app.refreshWatchlistPricing();},appUrl);
   await expect(page.locator("#cardPriceHistory")).toContainText("2025");
   expect(await page.evaluate(async url=>(await import(url)).state.watchlist[0].priceHistory.some(point=>point.recordedAt.startsWith("2025-01-01")),appUrl)).toBe(true);

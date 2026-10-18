@@ -103,7 +103,7 @@ async function openDetail(page, overrides = {}) {
     },
     { appUrl, overrides },
   );
-  await expect(page.locator("#detailTitle")).toHaveText("Charizard · Base Set · #4/102 · Finish unconfirmed · Edition unconfirmed · English");
+  await expect(page.locator("#detailTitle .detail-title-name")).toHaveText("Charizard · Base Set · #4/102 · Finish unconfirmed · Edition unconfirmed · English");
 }
 
 async function assertFits(page) {

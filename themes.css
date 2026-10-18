@@ -6450,9 +6450,9 @@ body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage > summary { min-h
 
 body[data-ui-theme="mica"] #appShell .copy-navigation.single-copy :is(.copy-navigation-strip,.copy-navigation-head > div:last-child) { display: none; }
 @media (max-width: 680px) {
-  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row > .card-main { grid-row: 1; padding-right: 28px; }
-  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row > .position-price-grid { grid-row: 2; }
-  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row > .card-thumb { grid-row: 3; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row > .card-main { grid-row: 2; padding-right: 0; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row > .position-price-grid { grid-row: 3; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row > .card-thumb { grid-row: 1; }
 }
 
 /* Shared interaction language: all workspaces, sheets and account dialogs. */
@@ -6462,14 +6462,14 @@ body[data-ui-theme="mica"] {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-text-size-adjust: 100%;
 }
-body[data-ui-theme="mica"] :is(button,input,select,textarea) { font: inherit; }
+body[data-ui-theme="mica"] :is(button,input,select,textarea) { font-family: inherit; }
 body[data-ui-theme="mica"] :is(button,a,summary) { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 body[data-ui-theme="mica"] :is(button,a,input,select,textarea,summary):focus-visible { outline: 3px solid var(--pine-2); outline-offset: 3px; }
 body[data-ui-theme="mica"] :is(.sheet-actions,.settings-actions,.profile-actions,.auth-dialog) button {
   min-height: 44px; padding: 10px 16px; border-radius: var(--control-radius); font-size: 14px; font-weight: 600; line-height: 1.35;
 }
 body[data-ui-theme="mica"] button:not(:disabled):active { filter: brightness(.94); }
-body[data-ui-theme="mica"] button:disabled { cursor: wait; opacity: .6; }
+body[data-ui-theme="mica"] button:disabled { cursor: not-allowed; opacity: .6; }
 body[data-ui-theme="mica"] :is(.primary,.secondary,.quick-add,.tool-button) { white-space: normal; }
 body[data-ui-theme="mica"] :is(input,select,textarea) { accent-color: #276443; }
 body[data-ui-theme="mica"] :is(input,select,textarea):disabled { opacity: .65; cursor: not-allowed; }
@@ -6495,7 +6495,7 @@ body[data-ui-theme="mica"] :is(.settings-group,.profile-card) { padding: 20px; }
 body[data-ui-theme="mica"] .settings-group { margin-block: 16px; }
 body[data-ui-theme="mica"] .settings-group>h2 { font-size: 18px; line-height: 1.3; margin: 0 0 16px; }
 body[data-ui-theme="mica"] .settings-group>summary { min-height: 44px; font-size: 16px; font-weight: 600; cursor: pointer; }
-body[data-ui-theme="mica"] .settings-group button:not(.primary):not(.danger-action):not(.theme-option):not(.motion-option) { background: var(--canvas); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; min-height: 44px; }
+body[data-ui-theme="mica"] .settings-group button:not(.primary):not(.danger-action):not(.theme-option):not(.motion-option) { background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; min-height: 52px; padding: 12px 0; }
 body[data-ui-theme="mica"] :is(.sheet-actions,.auth-dialog) .secondary { color: var(--pine-2); background: var(--paper); border: 1px solid var(--line-dark); }
 body[data-ui-theme="mica"] :is(.sheet-actions,.settings-group) .danger-action { color: var(--danger); background: transparent; border: 1px solid var(--danger); }
 body[data-ui-theme="mica"][data-appearance="dark"] :is(button.secondary,.owned-banner button,.history-controls button) { background: var(--mint); color: var(--pine-2); border-color: var(--line-dark); }
@@ -6525,3 +6525,169 @@ body[data-ui-theme="mica"] .portfolio-history-empty { font-size: 14px; line-heig
 @media (max-width: 759px) {
   body[data-ui-theme="mica"] :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) { font-size: 16px !important; }
 }
+
+/* Screen composition: one hierarchy across browsing, decisions and editing. */
+body[data-ui-theme="mica"] .wordmark { font-weight: 700; letter-spacing: -.035em; }
+body[data-ui-theme="mica"] :is(.screen-heading,.collection-heading,.add-cards-heading) h1 { letter-spacing: -.04em; }
+body[data-ui-theme="mica"] #appShell :is(.portfolio-chart-footer,.history-range-select) { align-items: center; gap: 8px; }
+body[data-ui-theme="mica"] #appShell .portfolio-history-head>strong { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+body[data-ui-theme="mica"] #appShell .portfolio-topline { justify-content: flex-end; }
+body[data-ui-theme="mica"] #appShell .portfolio-hero { display: flex; flex-direction: column; }
+body[data-ui-theme="mica"] #appShell .portfolio-hero .portfolio-topline { order: 2; }
+body[data-ui-theme="mica"] #appShell .portfolio-hero .portfolio-change { order: 3; margin-top: 4px; }
+body[data-ui-theme="mica"] #appShell .portfolio-hero .portfolio-value { order: 1; margin-top: 0; }
+body[data-ui-theme="mica"] #appShell .portfolio-history-head { min-height: 0; margin: 0; }
+body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage { border: 0; }
+body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage>summary { font-weight: 400; font-size: 12px; }
+body[data-ui-theme="mica"] #appShell .portfolio-return-summary { border-top: 0; padding: 12px 0 20px; }
+body[data-ui-theme="mica"] #appShell .portfolio-return-summary>small { color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .ledger-row { gap: 8px; }
+body[data-ui-theme="mica"] #appShell .ledger-row .card-tags { gap: 4px; margin-top: 6px; }
+body[data-ui-theme="mica"] #appShell .ledger-row .micro-tag { border: 0; border-radius: 6px; padding: 3px 6px; font-size: 12px; background: var(--canvas); }
+body[data-ui-theme="mica"] #appShell .ledger-row .micro-tag.graded { color: var(--pine-2); background: var(--mint); }
+body[data-ui-theme="mica"] #appShell .ledger-row .card-set { font-size: 12px; line-height: 1.45; }
+body[data-ui-theme="mica"] #appShell .ledger-row .quantity { font-size: 12px; color: var(--muted); font-weight: 400; }
+body[data-ui-theme="mica"] #appShell .ledger-row .price-cell { font-size: 12px; }
+body[data-ui-theme="mica"] #appShell .ledger-favorite { top: 8px; right: 8px; }
+body[data-ui-theme="mica"] #appShell .position-price-grid.compact { grid-template-columns: 1fr; }
+body[data-ui-theme="mica"] #appShell .single-copy-details { border-block: 1px solid var(--line); margin-block: 16px; }
+body[data-ui-theme="mica"] #appShell .single-copy-details>summary { min-height: 48px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: 600; }
+body[data-ui-theme="mica"] #appShell .single-copy-details>summary::after { content: "⌄"; color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .single-copy-details .copy-navigation-head { display: none; }
+body[data-ui-theme="mica"] #appShell .single-copy-details .copy-navigation { border: 0; padding: 0 0 16px; margin: 0; }
+body[data-ui-theme="mica"] #appShell .detail-title-name { display: block; font-size: clamp(26px,3vw,38px); font-weight: 700; line-height: 1.12; margin-bottom: 8px; color: var(--ink); }
+body[data-ui-theme="mica"] #appShell .detail-title-context { font-size: 14px; font-weight: 450; line-height: 1.5; color: var(--muted); letter-spacing: 0; }
+body[data-ui-theme="mica"] #appShell .detail-title-year:empty { display: none; }
+body[data-ui-theme="mica"] #appShell .detail-title-year { display: block; font-size: 12px; }
+body[data-ui-theme="mica"] #appShell .owned-banner { background: var(--mint); border: 0; border-radius: 14px; padding: 14px; gap: 12px; }
+body[data-ui-theme="mica"] #appShell .owned-banner strong { font-size: 14px; }
+body[data-ui-theme="mica"] #appShell :is(.owned-actions button,.sold-actions>a,.position-new-state) { min-height: 44px; border-radius: 10px; }
+body[data-ui-theme="mica"] #appShell .detail-tool-group { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; margin: 0; }
+body[data-ui-theme="mica"] #appShell .detail-tool-group>summary { min-height: 56px; padding: 12px 0; }
+body[data-ui-theme="mica"] #appShell .detail-tool-group summary small { display: none; }
+body[data-ui-theme="mica"] #appShell .detail-tool-group .detail-tool-content { padding: 0 0 16px; }
+body[data-ui-theme="mica"] #appShell .settings-group { border: 0; background: var(--paper); padding: 20px; }
+body[data-ui-theme="mica"] #appShell .settings-group>h2 { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+body[data-ui-theme="mica"] #appShell .settings-group button small { font-size: 12px; line-height: 1.4; }
+body[data-ui-theme="mica"] #appShell .settings-group button>b { color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .settings-group button:last-child { border-bottom: 0; }
+body[data-ui-theme="mica"] #appShell .settings-group>summary { display: flex; align-items: center; justify-content: space-between; }
+body[data-ui-theme="mica"] #appShell .settings-group>summary::after { content: "⌄"; color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .settings-group:not([open])>summary { margin: 0; }
+body[data-ui-theme="mica"] #appShell #everydaySettings>label { min-height: 56px; padding-block: 8px; border-bottom: 1px solid var(--line); }
+body[data-ui-theme="mica"] #appShell .settings-group select { max-width: 60%; background: transparent; border: 0; text-align: right; }
+body[data-ui-theme="mica"] #appShell #accountSettings .profile-card { padding: 0; border: 0; background: transparent; }
+body[data-ui-theme="mica"] #bottomSheet .card-edit-details { margin: 0; }
+body[data-ui-theme="mica"] #bottomSheet .card-edit-details[open]>.form-grid { padding-top: 12px; }
+body[data-ui-theme="mica"] #bottomSheet .position-total { padding: 12px 0; border: 0; background: transparent; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-heading p { max-width: 44ch; }
+body[data-ui-theme="mica"] #bottomSheet .field-choice { min-height: 44px; align-items: center; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-actions { background: var(--paper); padding-block: 12px; margin-top: 16px; border-top: 1px solid var(--line); }
+body[data-ui-theme="mica"] #bottomSheet :is(.warning-panel,.simple-note,.vision-prefill-note) { font-size: 13px; line-height: 1.5; padding: 12px; }
+body[data-ui-theme="mica"] #bottomSheet .form-error:not(:empty) { border-left: 3px solid var(--danger); padding-left: 12px; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .find-empty { min-height: 96px; padding: 20px 8px; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .search-examples { gap: 6px; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .search-examples button { border: 0; background: var(--mint); color: var(--pine-2); border-radius: 20px; padding-inline: 12px; }
+body[data-ui-theme="mica"] #appShell .find-action { min-height: 60px; }
+body[data-ui-theme="mica"] #appShell :is(.compact-empty,.find-empty,.portfolio-history-empty) strong { letter-spacing: -.02em; }
+body[data-ui-theme="mica"] #appShell .history-values>summary { min-height: 44px; }
+@media (max-width:759px) {
+  body[data-ui-theme="mica"] #appShell .app-header { height: calc(48px + var(--safe-top)); padding-inline: 16px; }
+  body[data-ui-theme="mica"] #appShell .wordmark { font-size: 20px; }
+  body[data-ui-theme="mica"] #appShell .wordmark img { width: 24px; height: 28px; }
+  body[data-ui-theme="mica"] #appShell .view { padding: 16px 16px calc(96px + var(--safe-bottom)); }
+  body[data-ui-theme="mica"] #appShell :is(.collection-heading,.add-cards-heading) { margin-bottom: 16px; }
+  body[data-ui-theme="mica"] #appShell :is(.collection-heading,.add-cards-heading,.screen-heading) h1 { font-size: 26px; }
+  body[data-ui-theme="mica"] #appShell #view-dashboard .collection-heading h1 { font-size: 20px; }
+  body[data-ui-theme="mica"] #appShell #view-dashboard .collection-heading { margin-bottom: 8px; min-height: 44px; }
+  body[data-ui-theme="mica"] #appShell #view-dashboard .portfolio-hero { margin-bottom: 0; }
+  body[data-ui-theme="mica"] #appShell .portfolio-topline { align-items: flex-start; }
+  body[data-ui-theme="mica"] #appShell #portfolioHistory .portfolio-chart-shell { height: clamp(210px,34dvh,280px); margin: 12px -4px 0; width: calc(100% + 8px); }
+  body[data-ui-theme="mica"] #appShell .portfolio-chart-footer { margin: 4px 0; }
+  body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage>summary { min-height: 44px; }
+  body[data-ui-theme="mica"] #appShell .portfolio-return-summary { gap: 6px 12px; }
+  body[data-ui-theme="mica"] #appShell .bottom-nav { left: 12px; right: 12px; bottom: calc(8px + var(--safe-bottom)); height: 64px; padding: 4px; border-radius: 22px; box-shadow: 0 3px 18px #17251b14; }
+  body[data-ui-theme="mica"] #appShell .bottom-nav .nav-item { min-height: 54px; border-radius: 17px; font-size: 12px; }
+  body[data-ui-theme="mica"] #appShell .bottom-nav .nav-item.active { background: transparent; font-weight: 700; }
+  body[data-ui-theme="mica"] #appShell .bottom-nav .nav-item.active>svg { color: var(--pine-2); }
+  body[data-ui-theme="mica"] #appShell .bottom-nav .scan-button { width: 28px; height: 28px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .collection-actions .quick-add { display: none; }
+  body[data-ui-theme="mica"] #appShell #view-collection .view-tabs { gap: 2px; margin: 0 0 8px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .view-tab { min-height: 44px; padding: 6px 8px; font-size: 12px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .view-tab>span { padding: 0; background: none; font-size: 12px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-tools { margin: 4px 0; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-meta { padding: 0 0 4px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row { padding: 12px; gap: 8px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .card-thumb { height: 160px; margin: 0; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .card-name { font-size: 15px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid { margin: 0; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid small { display: none; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .row-move { font-size: 12px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .ledger-row-actions { justify-content: flex-end; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-identity { grid-template-columns: minmax(92px,30%) minmax(0,1fr); gap: 16px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-title-name { font-size: 24px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-title-context { font-size: 13px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-back { margin: 0 0 12px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-section { margin-block: 16px; border-top: 0; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-section-head { margin-bottom: 8px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .chart-wrap { height: 260px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .chart-wrap canvas { height: 260px !important; }
+  body[data-ui-theme="mica"] #appShell .detail-sticky-action { bottom: calc(8px + var(--safe-bottom)); border-radius: 18px; }
+  body[data-ui-theme="mica"] #appShell #view-profile .settings-group { margin-block: 12px; padding: 16px; }
+  body[data-ui-theme="mica"] #appShell #view-profile .screen-heading { margin-bottom: 16px; }
+  body[data-ui-theme="mica"] #appShell .add-cards-layout { gap: 16px; }
+  body[data-ui-theme="mica"] #appShell .add-capture-panel { order: -1; }
+  body[data-ui-theme="mica"] #appShell .add-capture-panel .add-panel-heading { display: none; }
+  body[data-ui-theme="mica"] #appShell .find-actions { grid-template-columns: 1fr 1fr; gap: 8px; }
+  body[data-ui-theme="mica"] #appShell .find-action { gap: 8px; padding: 12px; min-height: 60px; }
+  body[data-ui-theme="mica"] #appShell .find-action strong { font-size: 14px; }
+  body[data-ui-theme="mica"] #appShell .sealed-search-launch { margin-top: 12px; padding-top: 12px; }
+  body[data-ui-theme="mica"] #appShell .sealed-search-launch small { display: none; }
+  body[data-ui-theme="mica"] #appShell .add-panel-heading { margin-bottom: 12px; }
+  body[data-ui-theme="mica"] #bottomSheet { padding-inline: 20px; }
+  body[data-ui-theme="mica"] #bottomSheet .sheet-heading { margin-bottom: 16px; }
+  body[data-ui-theme="mica"] #bottomSheet .sheet-heading h2 { font-size: 24px; }
+}
+/* Amount and currency are one control group in every acquisition form. */
+body[data-ui-theme="mica"] #bottomSheet .acquisition-field { gap: 8px; }
+body[data-ui-theme="mica"] #bottomSheet .acquisition-field>.field-choice { margin: 0; padding: 0; }
+body[data-ui-theme="mica"] #bottomSheet .acquisition-field:has(>select) { display: grid; grid-template-columns: minmax(0,1fr) 96px; }
+body[data-ui-theme="mica"] #bottomSheet .acquisition-field:has(>select)>label:first-child { grid-column: 1 / -1; grid-row: 1; }
+body[data-ui-theme="mica"] #bottomSheet .acquisition-field:has(>select)>.money-input { grid-column: 1; grid-row: 2; min-width: 0; }
+body[data-ui-theme="mica"] #bottomSheet .acquisition-field>select { grid-column: 2; grid-row: 2; }
+body[data-ui-theme="mica"] #bottomSheet .acquisition-field:has(>select)>.field-choice { grid-column: 1 / -1; grid-row: 3; }
+body[data-ui-theme="mica"] #bottomSheet .acquisition-field>label[for$="Currency"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+body[data-ui-theme="mica"] #bottomSheet .money-input { display: flex; min-width: 0; }
+body[data-ui-theme="mica"] #bottomSheet .money-input>span { flex: 0 0 auto; min-width: 36px; padding-inline: 10px; display: grid; place-items: center; }
+body[data-ui-theme="mica"] #bottomSheet .money-input>input { min-width: 0; width: 100%; border-radius: 0 12px 12px 0; }
+body[data-ui-theme="mica"] #bottomSheet .card-edit-details .simple-note { padding: 0; border: 0; background: transparent; }
+body[data-ui-theme="mica"] #appShell .settings-fees { padding-block: 4px; border-bottom: 1px solid var(--line); }
+body[data-ui-theme="mica"] #appShell .settings-fees>summary { display: flex; min-height: 48px; align-items: center; justify-content: space-between; cursor: pointer; }
+body[data-ui-theme="mica"] #appShell .settings-fees>summary::after { content: "⌄"; color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .add-cards-layout { grid-template-areas: "search capture"; }
+body[data-ui-theme="mica"] #appShell .add-search-panel { grid-area: search; }
+body[data-ui-theme="mica"] #appShell .add-capture-panel { grid-area: capture; }
+@media (max-width:759px) {
+  body[data-ui-theme="mica"] #appShell .add-cards-layout { grid-template-areas: "capture" "search"; grid-template-columns: minmax(0,1fr); }
+}
+
+body[data-ui-theme="mica"] #bottomSheet #sheetContent>form>.sheet-actions:last-child,
+body[data-ui-theme="mica"] #bottomSheet #sheetContent>.sheet-actions:last-child { position: sticky; bottom: -1px; z-index: 2; }
+body[data-ui-theme="mica"] #appShell .add-search-panel { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+body[data-ui-theme="mica"] #appShell .add-search-panel>:is(.add-panel-heading,.find-search,.search-examples,.quick-results,.intake-queue-bar,#quickSearchStatus) { grid-column: 1 / -1; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .add-panel-heading { margin: 0; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .search-options { margin: 0; display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .search-options>label { font-size: 12px; }
+body[data-ui-theme="mica"] #appShell .catalog-set-filter { margin: 0; align-self: center; }
+body[data-ui-theme="mica"] #appShell .catalog-set-filter>summary { min-height: 44px; display: flex; justify-content: flex-end; align-items: center; font-size: 13px; }
+body[data-ui-theme="mica"] #appShell .catalog-set-filter[open] { grid-column: 1 / -1; }
+body[data-ui-theme="mica"] #appShell .catalog-set-filter[open]>summary { justify-content: flex-start; }
+/* Keep unit versus position value explicit, including grouped slabs. */
+@media (max-width:759px) {
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid>span:first-child { flex-direction: row; align-items: baseline; gap: 6px; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid small { display: inline; font-size: 12px; font-weight: 400; }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid strong { order: -1; }
+}
+body[data-ui-theme="mica"] #authGate #tryCardSearch { background: transparent; color: var(--pine-2); border: 0; box-shadow: none; min-height: 44px; padding: 8px 0; margin-top: 8px; font-size: 14px; }
+/* WebKit date controls must fit their grid cell on the smallest iPhone. */
+body[data-ui-theme="mica"] :is(input[type="date"],input[type="datetime-local"]) { min-inline-size: 0; max-inline-size: 100%; inline-size: 100%; box-sizing: border-box; }

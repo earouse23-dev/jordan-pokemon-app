@@ -100,6 +100,7 @@ async function setup(page, { failAttempt = 0 } = {}) {
 }
 
 async function saveUnknownCost(page) {
+  await page.locator("#positionCardDetails").evaluate(n => { n.open = true; });
   await page.locator("#positionState").selectOption("raw");
   await page.getByRole("button", { name: "Add card", exact: true }).click();
 }
@@ -199,7 +200,7 @@ test("viewing a reverse printing never substitutes an owned normal copy", async 
   await expect(reverse).toHaveCount(1);
   await expect(reverse.locator(".owned-search-status")).toHaveCount(0);
   await reverse.locator("[data-quick-card]").click();
-  await expect(page.locator("#detailTitle")).toHaveText("Pikachu");
+  await expect(page.locator("#detailTitle .detail-title-name")).toHaveText("Pikachu");
   await expect(page.locator(".detail-meta")).toContainText("Reverse Holofoil");
   await expect(page.locator("#detailContent .owned-banner")).toHaveCount(0);
   await expect(page.locator("#addLibraryButton")).toBeVisible();
@@ -309,7 +310,7 @@ test("changing accounts clears the prior intake queue and dismisses its unfinish
   expect(requests).toHaveLength(0);
 });
 
-test("mobile intake keeps identity readable and quantity directly editable", async ({
+test("mobile intake keeps identity readable and raw quantity editable", async ({
   page,
 }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("mobile-"));
@@ -363,7 +364,8 @@ test("mobile intake keeps identity readable and quantity directly editable", asy
     expect(metrics.fontSize).toBeGreaterThanOrEqual(16);
   }
   await page.locator("[data-add-search-card]").first().click();
-  await expect(page.locator("#positionQuantity")).toBeVisible();
+  await expect(page.locator("#positionQuantity")).toHaveValue("1");
+  await page.locator("#positionCardDetails").evaluate(n => { n.open = true; });
   await page.locator("#positionState").selectOption("raw");
   await page.locator("#positionQuantity").fill("3");
   await page.locator("#positionMoreSummary").click();
@@ -422,6 +424,7 @@ test("printing choices retain the selected version and quantity after a failed a
   await expect(page.locator("#positionVariantId")).toHaveValue(
     "reverse-version",
   );
+  await page.locator("#positionCardDetails").evaluate(n => { n.open = true; });
   await page.locator("#positionState").selectOption("raw");
   await page.locator("#positionQuantity").fill("2");
   await page.getByRole("button", { name: "Add card", exact: true }).click();

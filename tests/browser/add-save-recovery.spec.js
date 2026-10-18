@@ -217,7 +217,7 @@ test("queue survives reload and retries the identical uncertain save", async ({ 
   }, appUrl);
   await page.locator("#reviewNextIntake").click();
   // These recovery cases exercise legacy raw quantities, explicitly selected now.
-  if (await page.locator("#positionState").count()) await page.locator("#positionState").selectOption("raw");
+  if (await page.locator("#positionState").count()) { await page.locator("#positionCardDetails").evaluate(n => { n.open = true; }); await page.locator("#positionState").selectOption("raw"); }
   await submit(page);
   await expect(page.locator("#queueRetrySave")).toBeVisible();
   expect(requests.writes).toHaveLength(1);
@@ -239,7 +239,7 @@ test("queue survives reload and retries the identical uncertain save", async ({ 
   await expect(page.locator("#clearIntakeQueue")).toBeDisabled();
   await page.locator("#reviewNextIntake").click();
   // These recovery cases exercise legacy raw quantities, explicitly selected now.
-  if (await page.locator("#positionState").count()) await page.locator("#positionState").selectOption("raw");
+  if (await page.locator("#positionState").count()) { await page.locator("#positionCardDetails").evaluate(n => { n.open = true; }); await page.locator("#positionState").selectOption("raw"); }
   await page.locator("#queueRetrySave").click();
   await expect.poll(() => requests.writes.length).toBe(2);
   expect(requests.writes[1]).toEqual(original);
@@ -265,7 +265,7 @@ test("queue retains quantity across reload and refuses writes without a saved jo
   await expect(page.locator("[data-intake-quantity]")).toHaveValue("4");
   await page.locator("#reviewNextIntake").click();
   // These recovery cases exercise legacy raw quantities, explicitly selected now.
-  if (await page.locator("#positionState").count()) await page.locator("#positionState").selectOption("raw");
+  if (await page.locator("#positionState").count()) { await page.locator("#positionCardDetails").evaluate(n => { n.open = true; }); await page.locator("#positionState").selectOption("raw"); }
   await submit(page);
   await expect(page.locator("#positionError")).toContainText("Device storage is unavailable");
   await expect(page.locator("#positionQuantity")).toHaveValue("4");
@@ -282,7 +282,7 @@ test("a definite rejected queue save remains editable", async ({ page }) => {
   }, appUrl);
   await page.locator("#reviewNextIntake").click();
   // These recovery cases exercise legacy raw quantities, explicitly selected now.
-  if (await page.locator("#positionState").count()) await page.locator("#positionState").selectOption("raw");
+  if (await page.locator("#positionState").count()) { await page.locator("#positionCardDetails").evaluate(n => { n.open = true; }); await page.locator("#positionState").selectOption("raw"); }
   await submit(page);
   await expect(page.locator("#positionError")).toContainText("Your details are still here");
   await expect(page.locator("#positionQuantity")).toBeEditable();

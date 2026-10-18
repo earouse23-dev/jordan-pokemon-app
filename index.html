@@ -22,7 +22,7 @@
       href="icons/apple-touch-icon.png"
     />
     <link rel="stylesheet" href="styles.css?v=91" />
-    <link rel="stylesheet" href="themes.css?v=102" />
+    <link rel="stylesheet" href="themes.css?v=103" />
     <title>Mica — Pokémon Card Library</title>
   </head>
   <body>
@@ -43,7 +43,6 @@
         <p>
           Sign in to your collection.
         </p>
-        <button class="primary" type="button" id="tryCardSearch">Try card search</button>
 
         <form id="passwordAuthForm" class="auth-form">
           <div class="field">
@@ -91,6 +90,7 @@
             Create account
           </button>
         </form>
+        <button class="secondary" type="button" id="tryCardSearch">Try card search</button>
         <p class="auth-legal-copy">
           By creating an account, you agree to Mica’s
           <button type="button" data-auth-legal="terms">Terms</button> and
@@ -344,7 +344,7 @@
           <section class="dashboard-kpis" aria-label="Collection summary">
             <article class="dashboard-kpi primary">
               <div class="portfolio-topline">
-                <span id="portfolioToplineLabel"
+                <span class="sr-only" id="portfolioToplineLabel"
                   >Estimated collection value</span
                 ><span class="status-label" aria-live="polite"
                   ><i></i> Checking prices</span
@@ -561,7 +561,7 @@
               <input
                 id="collectionSearch"
                 type="search"
-                placeholder="Search name, card number, or grade"
+                placeholder="Search your cards"
                 autocomplete="off"
               />
             </label>
@@ -696,11 +696,58 @@
           aria-labelledby="scanTitle"
         >
           <div class="add-cards-heading">
-            <p class="eyebrow">Add to Mica</p>
+
             <h1 id="scanTitle">Add cards</h1>
 
           </div>
           <div class="add-cards-layout">
+            <aside class="add-capture-panel" aria-labelledby="addCaptureTitle">
+              <div class="add-panel-heading">
+                <h2 id="addCaptureTitle">Identify with a photo</h2>
+              </div>
+              <div class="find-actions">
+                <button
+                  class="find-action primary-find"
+                  id="autoCaptureButton"
+                  type="button"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 8h3l1-2h8l1 2h3v11H4z" />
+                    <circle cx="12" cy="13" r="4" />
+                    <path d="M2 6V3h3M19 3h3v3M22 18v3h-3M5 21H2v-3" /></svg
+                  ><span
+                    ><strong>Take a photo</strong
+                    ></span
+                  >
+                </button>
+                <label class="find-action" for="galleryInput"
+                  ><svg viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="16" rx="2" />
+                    <circle cx="9" cy="10" r="2" />
+                    <path d="m4 18 5-5 3 3 2-2 6 5" /></svg
+                  ><span
+                    ><strong>Choose a photo</strong
+                    ></span
+                  ></label
+                >
+              </div>
+              <button
+                class="sealed-search-launch"
+                id="sealedSearchButton"
+                type="button"
+              >
+                <span
+                  ><strong>Add unopened products</strong
+                  ><small
+                    >Elite Trainer Boxes, booster boxes, tins, and
+                    bundles</small
+                  ></span
+                ><b>→</b>
+              </button>
+              <p class="simple-privacy">
+                Photos aren’t saved. You choose the match.
+              </p>
+            </aside>
             <section class="add-search-panel" aria-labelledby="addSearchTitle">
               <div class="add-panel-heading">
                 <h2 id="addSearchTitle">Find a card</h2>
@@ -775,53 +822,7 @@
                 </div>
               </div>
             </section>
-            <aside class="add-capture-panel" aria-labelledby="addCaptureTitle">
-              <div class="add-panel-heading">
-                <h2 id="addCaptureTitle">Identify with a photo</h2>
-              </div>
-              <div class="find-actions">
-                <button
-                  class="find-action primary-find"
-                  id="autoCaptureButton"
-                  type="button"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 8h3l1-2h8l1 2h3v11H4z" />
-                    <circle cx="12" cy="13" r="4" />
-                    <path d="M2 6V3h3M19 3h3v3M22 18v3h-3M5 21H2v-3" /></svg
-                  ><span
-                    ><strong>Take a photo</strong
-                    ></span
-                  >
-                </button>
-                <label class="find-action" for="galleryInput"
-                  ><svg viewBox="0 0 24 24" aria-hidden="true">
-                    <rect x="3" y="4" width="18" height="16" rx="2" />
-                    <circle cx="9" cy="10" r="2" />
-                    <path d="m4 18 5-5 3 3 2-2 6 5" /></svg
-                  ><span
-                    ><strong>Choose a photo</strong
-                    ></span
-                  ></label
-                >
-              </div>
-              <button
-                class="sealed-search-launch"
-                id="sealedSearchButton"
-                type="button"
-              >
-                <span
-                  ><strong>Add unopened products</strong
-                  ><small
-                    >Elite Trainer Boxes, booster boxes, tins, and
-                    bundles</small
-                  ></span
-                ><b>→</b>
-              </button>
-              <p class="simple-privacy">
-                Photos aren’t saved. You choose the match.
-              </p>
-            </aside>
+
           </div>
         </section>
 
@@ -1215,7 +1216,7 @@
 
         <section class="view" id="view-profile" aria-labelledby="profileTitle">
           <div class="screen-heading">
-            <p class="eyebrow">Account &amp; preferences</p>
+
             <h1 id="profileTitle">Settings</h1>
 
           </div>
@@ -1286,12 +1287,11 @@
               </button>
             </div>
           </div>
-          <div
+          <details
             class="settings-group workflow-defaults advanced-workspace"
             id="advancedSettings"
           >
-            <p class="eyebrow">Advanced tools</p>
-            <h2>Digital grading</h2>
+            <summary>Digital grading</summary>
             <button type="button" id="gradingResearchConsentButton">
               <span
                 >Help improve digital grading<small
@@ -1335,7 +1335,7 @@
               ></label
             >
 
-          </div>
+          </details>
           <details
             class="settings-group grading-calibration"
             id="gradingCalibration"
@@ -1407,8 +1407,9 @@
                 ></span
               ><strong id="installAppState">Check</strong>
             </button>
-            <label for="appearanceSelect">Appearance<select id="appearanceSelect"><option value="auto">Device setting</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
-            <label for="profileDisplayCurrency">Display currency<select id="profileDisplayCurrency"><option value="USD">USD · US dollar</option><option value="EUR">EUR · euro</option></select></label>
+            <label for="appearanceSelect">Appearance<select id="appearanceSelect"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+            <label for="profileDisplayCurrency">Display currency<select id="profileDisplayCurrency"><option value="USD">USD</option><option value="EUR">EUR</option></select></label>
+            <details class="settings-fees"><summary>Selling preferences</summary>
             <label
               >Selling fee<small
                 >Keep at zero for fee-free in-person sales</small
@@ -1423,6 +1424,7 @@
                 /><i>%</i></span
               ></label
             >
+            </details>
             <button class="primary" id="saveWorkflowDefaults" type="button">
               Save preferences
             </button>

@@ -105,7 +105,7 @@ test("sealed candidate rejects wrong language, preserves correction and retries 
     state.items = [item];
     openCardDetail(item, true);
   }, { url: appUrl, identity: writes[1].p_identity });
-  await expect(page.locator("#detailTitle")).toHaveText("Synthetic Elite Trainer Box");
+  await expect(page.locator("#detailTitle .detail-title-name")).toHaveText("Synthetic Elite Trainer Box");
   await expect(page.locator(".detail-meta")).toContainText("Pokemon Center");
   await expect(page.locator(".detail-meta")).toContainText("US");
   await expect(page.locator(".market-hero")).toContainText("Price unavailable");
@@ -359,7 +359,7 @@ test("late sealed history cannot overwrite a newer selection within the same acc
   });
   await pending.fulfill({ contentType: "application/json", body: JSON.stringify({ product: historyProduct }) });
   await page.waitForLoadState("networkidle");
-  await expect(page.locator("#detailTitle")).toHaveText("Second selected ETB");
+  await expect(page.locator("#detailTitle .detail-title-name")).toHaveText("Second selected ETB");
   expect(await page.evaluate(() => globalThis.fixtureSealedApp.state.items[0].priceHistory)).toEqual([]);
 });
 
@@ -531,5 +531,5 @@ for (const currency of ["USD", "EUR"]) test(`box photo opens exact product with 
  await setup(page);const calls=[],writes=[];await page.route("https://mica-sealed-test.supabase.co/**",r=>{writes.push(r.request().method());return r.fulfill({contentType:"application/json",body:"[]"});});
  const product={id:"sealed:77",name:"Synthetic Elite Trainer Box",set:"Synthetic Set",language:"en",productType:"elite_trainer_box",variant:"Sealed product",externalIds:{pkmnpricesSealed:77},cardState:"sealed",quotes:[{provider:currency === "EUR" ? "cardmarket" : "tcgplayer",aggregator:"pkmnprices",currency,finish:"sealed",condition:null,priceType:"market",amount:125,observedAt:new Date().toISOString(),retrievedAt:new Date().toISOString()}]};
  await page.route("**/api/sealed?*",r=>{calls.push(r.request().url());return r.fulfill({contentType:"application/json",body:JSON.stringify(new URL(r.request().url()).searchParams.has("id")?{product:{...product,language:null}}:{products:[product]})});});
- await page.evaluate(async url=>(await import(url)).openSealedSearch(),appUrl);const photo=await page.evaluate(()=>{const c=document.createElement("canvas");c.width=c.height=200;return c.toDataURL("image/png").split(",")[1];});await page.locator("#sealedPhoto").setInputFiles({name:"box.png",mimeType:"image/png",buffer:Buffer.from(photo,"base64")});await expect(page.locator("[data-sealed-id]")).toBeVisible();await page.locator("[data-sealed-id]").click();await expect(page.locator("#detailTitle")).toHaveText(product.name);await expect(page.locator(".market-hero")).toContainText(currency === "EUR" ? "€125.00" : "$125.00");await expect(page.getByRole("button",{name:"Add product",exact:true})).toBeVisible();await expect(page.locator("#sealedPositionForm")).toHaveCount(0);expect(writes.filter(m=>!["GET","HEAD"].includes(m))).toHaveLength(0);await page.locator("#addLibraryButton").click();await expect(page.locator("#sealedPositionForm")).toBeVisible();expect(calls.some(url=>url.includes("id=77"))).toBe(true);
+ await page.evaluate(async url=>(await import(url)).openSealedSearch(),appUrl);const photo=await page.evaluate(()=>{const c=document.createElement("canvas");c.width=c.height=200;return c.toDataURL("image/png").split(",")[1];});await page.locator("#sealedPhoto").setInputFiles({name:"box.png",mimeType:"image/png",buffer:Buffer.from(photo,"base64")});await expect(page.locator("[data-sealed-id]")).toBeVisible();await page.locator("[data-sealed-id]").click();await expect(page.locator("#detailTitle .detail-title-name")).toHaveText(product.name);await expect(page.locator(".market-hero")).toContainText(currency === "EUR" ? "€125.00" : "$125.00");await expect(page.getByRole("button",{name:"Add product",exact:true})).toBeVisible();await expect(page.locator("#sealedPositionForm")).toHaveCount(0);expect(writes.filter(m=>!["GET","HEAD"].includes(m))).toHaveLength(0);await page.locator("#addLibraryButton").click();await expect(page.locator("#sealedPositionForm")).toBeVisible();expect(calls.some(url=>url.includes("id=77"))).toBe(true);
 });

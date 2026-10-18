@@ -102,7 +102,7 @@ async function openDetail(page, overrides = {}) {
     },
     { appUrl, overrides },
   );
-  await expect(page.locator("#detailTitle")).toHaveText("Charizard");
+  await expect(page.locator("#detailTitle .detail-title-name")).toHaveText("Charizard");
 }
 
 async function assertFits(page) {

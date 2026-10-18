@@ -342,7 +342,7 @@ test("shared document capture recovers from denied camera, corrects once, and ke
     ),
   ).toBe(false);
   await expect(
-    page.getByRole("heading", { name: "Add to your library" }),
+    page.getByRole("heading", { name: "Add card" }),
   ).toBeVisible();
   await expect(page.locator("#positionState")).toHaveValue("graded");
   await expect(page.locator("#positionGrader")).toHaveValue("PSA");

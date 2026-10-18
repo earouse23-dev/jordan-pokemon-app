@@ -248,13 +248,15 @@ for (const entry of ["manual", "recognized slab"]) test(`${entry} intake preserv
     await expect(page.locator("#positionGrade")).toHaveValue("10");
     await expect(page.locator("#positionCertification")).toHaveValue("000123");
   }
+  await page.locator("#positionCardDetails").evaluate(n => { n.open = true; });
   await page.locator("#positionGrader").selectOption(corrected.grader);
   await page.locator("#positionGrade").fill(corrected.grade);
   await page.locator("#positionCertification").fill(corrected.certification);
-  await expect(page.locator("#positionIdentitySummary")).toContainText(`Charizard 4/102 · ${corrected.grader} ${corrected.grade}`);
+  await expect(page.locator("#positionIdentitySummary")).toContainText("Charizard · Base Set · 4/102");
+  await expect(page.locator("#positionCardDetails > summary")).toContainText(`${corrected.grader} ${corrected.grade}`);
   await page.locator("#positionIdentitySummary").scrollIntoViewIfNeeded();
   await assertFits(page);
-  expect(await page.locator("#positionForm .simple-note").first().evaluate(el => parseFloat(getComputedStyle(el).borderTopRightRadius))).toBeGreaterThanOrEqual(8);
+  expect(await page.locator("#positionCardDetails").evaluate(el => parseFloat(getComputedStyle(el).borderTopRightRadius))).toBeGreaterThanOrEqual(8);
   await page.screenshot({ path: testInfo.outputPath("confirmed-identity-top-fixture.png"),animations:"disabled" });
   await page.locator("#positionMoreSummary").click();
   await page.locator("#positionCurrency").selectOption("EUR");
@@ -628,7 +630,7 @@ test("private deletion cannot continue or show success under a switched account"
     await expect(row.locator(".price-provenance")).not.toBeEmpty();
     await expect(row.locator(".row-move")).toHaveCount(0);
     await expect(row.locator(".position-price-grid strong").first()).toHaveText("—");
-    if(status==="stale") {expect((await row.innerText()).match(/Stale · observed/g)).toHaveLength(1);await page.screenshot({path:testInfo.outputPath("inventory-single-freshness-fixture.png"),animations:"disabled"});}
+    if(status==="stale") {expect((await row.innerText()).match(/Older price · view details/g)).toHaveLength(1);await page.screenshot({path:testInfo.outputPath("inventory-single-freshness-fixture.png"),animations:"disabled"});}
   }
   await page.evaluate(async url=>{const {state,renderCollection}=await import(url);Object.assign(state.items[0],{price:100,pricingStatus:"live",pricingUpdatedAt:new Date().toISOString(),costBasis:60,marketPriceAtPurchase:60});renderCollection();},appUrl);
   const live=page.locator(".ledger-row").filter({hasText:"Charizard"});

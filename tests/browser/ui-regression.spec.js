@@ -298,7 +298,7 @@ test("exact catalog cards can be queued without slowing the direct add path", as
   );
   await page.locator("#reviewNextIntake").click();
   await expect(
-    page.getByRole("heading", { name: "Add to your library" }),
+    page.getByRole("heading", { name: "Add card" }),
   ).toBeVisible();
   await expect(page.locator("#positionQuantity")).toHaveValue("2");
 });
@@ -472,7 +472,7 @@ test("adding a catalog card requires confirmation of its stable exact version", 
   );
 
   await expect(
-    page.getByRole("heading", { name: "Add to your library" }),
+    page.getByRole("heading", { name: "Add card" }),
   ).toBeVisible();
   const selector = page.locator("#positionVariantChoice");
   await expect(selector).toBeVisible();
@@ -757,6 +757,7 @@ test("research capture consent stays optional and separate from normal grading",
 }) => {
   await page.goto("/");
   await revealShell(page, "view-profile");
+  await page.locator("#advancedSettings > summary").click();
   await expect(page.locator("#gradingResearchConsentButton")).toBeVisible();
   await expect(page.locator("#gradingResearchConsentHelp")).toContainText(
     "normal grading photos are deleted after analysis",

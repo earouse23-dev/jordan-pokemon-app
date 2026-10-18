@@ -6750,14 +6750,14 @@ function renderCollection() {
     `${priceCoverage.automaticCoveragePercent.toFixed(0)}% original USD automatic price coverage · ${priceCoverage.liveAutomaticUnits.toLocaleString()} of ${priceCoverage.totalUnits.toLocaleString()} units`;
   const missingValueUnits = savedPortfolio?.missingUnits ?? profitLoss.missingUnits;
   const partial = missingValueUnits
-    ? ` · ${missingValueUnits} unpriced ${selectedCurrency} unit${missingValueUnits === 1 ? "" : "s"} excluded`
+    ? ` · ${missingValueUnits} unpriced ${missingValueUnits === 1 ? "copy" : "copies"} excluded`
     : "";
   const costCoverage = totals.unknownCost
     ? ` · ${totals.unknownCost} missing purchase cost`
     : "";
   $("#portfolioChange").textContent =
     workspaceMode === "collector"
-      ? `${partial.replace(/^ · /, "")}${valuedItems.some(item => item.retainedPrice) ? " · includes older prices" : ""}${profitLoss.rateRef ? ` · ECB rate ${lastValidatedFxRate.effectiveDate}` : ""}${profitLoss.unconvertedUnits ? ` · ${profitLoss.unconvertedUnits} awaiting conversion` : ""}`
+      ? `${partial.replace(/^ · /, "")}${valuedItems.some(item => item.retainedPrice) ? " · includes older prices" : ""}${profitLoss.rateRef ? " · converted" : ""}${profitLoss.unconvertedUnits ? ` · ${profitLoss.unconvertedUnits} awaiting conversion` : ""}`
       : profitLoss.comparableUnits
         ? `${gain >= 0 ? "Up" : "Down"} ${money(Math.abs(gain))}${portfolioReturn === null ? "" : ` (${portfolioReturn >= 0 ? "+" : ""}${portfolioReturn.toFixed(1)}%)`} since purchase${partial}${costCoverage}`
         : hasProviderPricing
@@ -6767,6 +6767,8 @@ function renderCollection() {
     profitLoss.comparableUnits === totals.quantity
       ? "Based on matching market prices and what was paid. "
       : `Change in value uses ${profitLoss.comparableUnits} of ${totals.quantity} cards that have both a current price and the amount paid. `;
+  $("#portfolioChange").title = profitLoss.rateRef ? `ECB rate ${lastValidatedFxRate.effectiveDate} · indicative conversion` : "";
+  if (profitLoss.rateRef) $("#valuationNote").firstChild.textContent += `ECB rate ${lastValidatedFxRate.effectiveDate} · indicative conversion. `;
   const coverageParts = [
     `${priceCoverage.automaticCoveragePercent.toFixed(0)}% original USD live automatic coverage`,
     `${priceCoverage.categories.strong.units} strong`,
@@ -7144,28 +7146,6 @@ function renderCollection() {
       : item.status === "archived"
         ? "Archived"
         : null;
-    const remainingAcquisitionMethods = [
-      ...new Set(
-        (item.lots || [])
-          .filter((lot) => Number(lot.quantityRemaining) > 0)
-          .map((lot) => lot.acquisitionMethod)
-          .filter(Boolean),
-      ),
-    ];
-    const acquisitionLabels = {
-      direct_purchase: "Bought directly",
-      paid_pack: "Paid pack",
-      free_pack: "Free pack",
-      trade: "Trade",
-      gift: "Gift",
-      prize: "Prize",
-      free_card: "Free card",
-      unknown: "How acquired not recorded",
-    };
-    const acquisitionLabel =
-      remainingAcquisitionMethods.length > 1
-        ? "Mixed"
-        : acquisitionLabels[remainingAcquisitionMethods[0]] || null;
     const tags = [
       item.cardState === "sealed"
         ? "Unopened"
@@ -7174,14 +7154,13 @@ function renderCollection() {
           : item.digitalGrade
             ? `DG ${dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`}`
             : "Ungraded",
-      acquisitionLabel,
       copyGroup?.copies.length > 1
         ? `${activeCopies} active${soldCopies ? `/${soldCopies} sold` : ""}`
         : null,
       listingTag || statusTag,
       ...(item.tags || []).slice(
         0,
-        listingTag || statusTag || acquisitionLabel ? 0 : 1,
+        listingTag || statusTag ? 0 : 1,
       ),
     ].filter(Boolean);
     const selected = state.bulkSelected.has(item.uid);
@@ -7193,9 +7172,9 @@ function renderCollection() {
       ${state.bulkMode ? "" : `<button class="ledger-open-overlay" type="button" data-open-position="${esc(item.uid)}" aria-label="Open ${esc(item.name)} details"></button>`}
       ${state.bulkMode ? "" : `<button class="ledger-favorite${favorite ? " selected" : ""}" type="button" data-toggle-favorite="${esc(item.uid)}" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button>`}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
-      <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span><span class="quantity">×${activeCopies}</span></div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="position-price-grid compact" aria-label="Copy value and purchase amounts"><span><small>${copyGroup?.copies.length > 1 ? "Price each" : "Position value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span><span><small>Paid</small><strong>${copyGroup?.copies.length > 1 ? "Varies by copy" : item.costBasis == null ? "—" : displayCurrencyMoney(item.costBasis, item.currency)}</strong></span></div>
-      <div class="price-cell"><span class="row-unit price-provenance">${esc(priceProvenanceText(item))}</span>${movementLabel ? `<span class="row-move ${moveClass}">${esc(movementLabel)}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}">${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
+      <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${activeCopies > 1 ? `<span class="quantity">×${activeCopies}</span>` : ""}</div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
+      <div class="position-price-grid compact" aria-label="Card value"><span><small>${copyGroup?.copies.length > 1 ? "Price each" : "Position value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span></div>
+      <div class="price-cell"><span class="row-unit price-provenance">${esc(item.pricingStatus === "stale" ? "Older price · view details" : total == null ? (item.gradingCompany ? "Matching sales unavailable" : "Price unavailable") : `${item.gradingCompany ? "Reported sold estimate" : "Market estimate"}${item.pricingUpdatedAt ? ` · Updated ${shortPortfolioDate(item.pricingUpdatedAt)}` : ""}`)}</span>${movementLabel ? `<span class="row-move ${moveClass}">${esc(movementLabel)}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}">${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
     </article>`;
   };
   const groups = groupCollectionOrganization(displayedRows, state.groupBy);
@@ -8750,7 +8729,7 @@ function renderDetail() {
     owned &&
     (item.tags || []).some((tag) => String(tag).toLowerCase() === "favorites");
   const action = owned
-    ? `<div class="owned-banner"><div><span>${Number(item.quantity) === 0 ? "Sold copy" : item.status === "listed" ? "Listed for sale" : "In your collection"}</span><strong>${physicalCopy ? `${copyGroup.activeCount} active ${copyGroup.activeCount === 1 ? "copy" : "copies"}` : `${item.quantity} owned`} · ${ownedValuationPrice == null ? "Current price unavailable" : `${displayCurrencyMoney(ownedValuationPrice, owned.currency)} each`}</strong></div><div class="owned-actions"><button class="favorite-heart${favorite ? " selected" : ""}" id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>${copyNavigation}${!sealed && !item.gradingCompany && item.status === "owned" ? `<section class="detail-digital-grade"><div><span>${item.digitalGrade ? "Digital grade" : "Ungraded card"}</span><strong>${item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Check condition before you submit"}</strong><small>${item.digitalGrade ? "Your latest photo estimate" : "Four guided views · one uninterrupted grader"}</small></div><button id="detailDigitalGradeButton" type="button">${item.digitalGrade ? "Regrade" : "Digital grade"}</button></section>` : ""}`
+    ? `<div class="owned-banner"><div><span>${Number(item.quantity) === 0 ? "Sold copy" : item.status === "listed" ? "Listed for sale" : "In your collection"}</span><strong>${physicalCopy ? `${copyGroup.activeCount} active ${copyGroup.activeCount === 1 ? "copy" : "copies"}` : `${item.quantity} owned`} · ${ownedValuationPrice == null ? "Current price unavailable" : `${displayCurrencyMoney(ownedValuationPrice, owned.currency)} each`}</strong></div><div class="owned-actions"><button class="favorite-heart${favorite ? " selected" : ""}" id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>${physicalCopy && copyGroup.copies.length === 1 ? `<details class="single-copy-details"><summary>Your copy</summary>${copyNavigation}</details>` : copyNavigation}${!sealed && !item.gradingCompany && item.status === "owned" ? `<section class="detail-digital-grade"><div><span>${item.digitalGrade ? "Digital grade" : "Ungraded card"}</span><strong>${item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Check condition before you submit"}</strong><small>${item.digitalGrade ? "Your latest photo estimate" : "Four guided views · one uninterrupted grader"}</small></div><button id="detailDigitalGradeButton" type="button">${item.digitalGrade ? "Regrade" : "Digital grade"}</button></section>` : ""}`
     : state.detailScanDraft ? `<div class="detail-sticky-action scan-add-action"><button id="addLibraryButton" type="button">${sealed ? "Add product" : "Add card"}</button></div>` : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched ? "Edit Watch" : sealed ? "Watch product" : "Watch card"}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
   const watchedPerformance = watched
     ? watchPerformance({
@@ -8801,7 +8780,7 @@ function renderDetail() {
     : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
   const listingTitle = sealed ? item.name : cardListingTitle(item, printing, context);
   const nameAt = listingTitle.indexOf(item.name);
-  const titleMarkup = nameAt < 0 ? esc(listingTitle) : `<span class="detail-title-context">${esc(listingTitle.slice(0, nameAt))}</span><span class="detail-title-name">${esc(item.name)}</span> <span class="detail-title-context">${esc(listingTitle.slice(nameAt + item.name.length).replace(/^\s*·\s*/, ""))}</span>`;
+  const titleMarkup = nameAt < 0 ? esc(listingTitle) : `<span class="detail-title-context detail-title-year">${esc(listingTitle.slice(0, nameAt))}</span><span class="detail-title-name">${esc(item.name)}</span> <span class="detail-title-context detail-title-attributes">${esc(listingTitle.slice(nameAt + item.name.length).replace(/^\s*·\s*/, ""))}</span>`;
   const marketHero = `<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<details class="price-source-details"><summary>Source</summary><small class="price-provenance">${esc(provenance)}</small></details>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button" aria-label="View recent eBay sales">eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
@@ -10241,7 +10220,7 @@ export function openPositionSheet(card, options = {}) {
     prefill.acquisitionDateKnown === false ? "" : prefill.transactionDate || today;
   const initialTotal = prefill.totalAcquisitionCost ?? "";
   const idempotencyKey = options.idempotencyKey || crypto.randomUUID();
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add to your library</h2><p id="positionIdentitySummary"></p></div><button class="sheet-close" aria-label="Close">×</button></div>
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add card</h2><p id="positionIdentitySummary"></p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="positionForm"><div class="form-grid">
       <input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant.label)}"><input id="positionVariantId" name="variantId" type="hidden" value="${esc(initialVariant.id || "")}">${variantControl}
       <div class="field"><label for="positionState">Card type</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>Raw</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Graded</option></select></div>
@@ -10261,6 +10240,24 @@ export function openPositionSheet(card, options = {}) {
     </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>Add the missing purchase details later to see profit or loss.</p>
     <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Add card</button>${!options.visionAnalysis ? '<button class="secondary raw-position" type="submit" id="positionGradeFirst">Grade first</button>' : ""}</div></form>`);
   const form = $("#positionForm");
+  // Purchase facts lead; existing identity controls remain editable and submit unchanged.
+  const grid = form.querySelector(":scope > .form-grid");
+  const purchaseDetails = $("#positionPurchaseDetails");
+  const cardDetails = document.createElement("details");
+  cardDetails.className = "full intake-more card-edit-details";
+  cardDetails.id = "positionCardDetails";
+  cardDetails.innerHTML = '<summary>Card details</summary><div class="form-grid"></div>';
+  const identityFields = cardDetails.querySelector(".form-grid");
+  while (grid.firstElementChild && grid.firstElementChild !== purchaseDetails)
+    identityFields.append(grid.firstElementChild);
+  const paidField = $("#positionPaidField");
+  const dateField = $("#positionDate").closest(".field");
+  grid.prepend(paidField, dateField, cardDetails);
+  cardDetails.open = variantOptions.length > 1 || (initialState === "graded" && (!prefill.grader || !prefill.grade));
+  form.addEventListener("invalid", (event) => {
+    const details = event.target.closest("details");
+    if (details) details.open = true;
+  }, true);
   if (
     typeof __MICA_INTERNAL_CERTIFICATES__ !== "undefined" &&
     __MICA_INTERNAL_CERTIFICATES__
@@ -10305,7 +10302,8 @@ export function openPositionSheet(card, options = {}) {
     $("#positionQuantityLabel").textContent = graded
       ? "Physical copies"
       : "How many cards?";
-    $("#positionQuantityHelp").hidden = !graded;
+    $("#positionQuantityHelp").hidden = true;
+    $("#positionQuantity").closest(".field").hidden = graded;
   };
   const values = () => {
     const data = new FormData(form);
@@ -10313,13 +10311,11 @@ export function openPositionSheet(card, options = {}) {
   };
   const updateTotal = () => {
     const input = values();
-    $("#positionIdentitySummary").textContent = `${card.name} ${card.number} · ${input.cardState === "graded" ? `${input.grader || "Choose grader"} ${input.grade || "Choose grade"}` : "Raw"} · ${languageName(card.language || "en")} · ${card.set}`;
+    $("#positionIdentitySummary").textContent = `${card.name} · ${card.set} · ${card.number}`;
     $("#positionCurrencyMark").textContent = input.currency === "EUR" ? "€" : "$";
     const costUnknown =
       $("#positionCostUnknown").checked ||
       !$("#positionTotalCost").value.trim();
-    const dateUnknown =
-      $("#positionDateUnknown").checked || !$("#positionDate").value;
     const breakdown = costUnknown
       ? acquisitionFromTotal(0, input.quantity)
       : acquisitionFromTotal(input.totalAcquisitionCost, input.quantity);
@@ -10331,10 +10327,10 @@ export function openPositionSheet(card, options = {}) {
         : money(breakdown.totalMinor / 100, input.currency);
     $("#positionCostSummary").textContent =
       `Total for ${count || 0} card${count === 1 ? "" : "s"}`;
-    $("#positionMoreSummary").textContent =
-      costUnknown && dateUnknown
-        ? "Purchase details · optional"
-        : "Purchase details · recorded";
+    $("#positionMoreSummary").textContent = "Notes · optional";
+    cardDetails.querySelector("summary").textContent = input.cardState === "graded"
+      ? `Card details · ${input.grader || "Choose grader"} ${input.grade || "Choose grade"}`
+      : "Card details · ungraded";
     $("#positionUnknownBasisNote").hidden = true;
     $(".position-total", form).hidden = costUnknown;
   };
@@ -11518,6 +11514,8 @@ function openSheet(content, trigger = document.activeElement) {
   if (!wasOpen && trigger?.setAttribute)
     trigger.setAttribute("aria-expanded", "true");
   $("#sheetContent").innerHTML = content;
+  $("#bottomSheet").scrollTop = 0;
+  $("#sheetContent").scrollTop = 0;
   $("#sheetBackdrop").hidden = false;
   $("#bottomSheet").hidden = false;
   $("#appShell").inert = true;

@@ -1668,7 +1668,7 @@ test("grouped inventory reopens all copies and keeps the sold copy's history", a
   await setup(page, { soldB: true });
   await expect(page.locator(".ledger-row")).toHaveCount(1);
   await expect(page.locator(".ledger-row")).toContainText("2 active/1 sold");
-  await expect(page.locator(".ledger-row")).toContainText("Varies by copy");
+  await expect(page.locator(".ledger-row")).toContainText("Price each");
   await capture(page, testInfo, "grouped-inventory");
 
   await page.locator("[data-open-position]").click();
@@ -2100,12 +2100,12 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;const item=app.state.items[0];app.state.detailSales=null;app.openCardDetail(item,true);},appUrl);
  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$5,000.00');
  expect(reads).toBe(1);
- await page.screenshot({path:testInfo.outputPath('slab-history-light.png'),fullPage:true});
+ await page.screenshot({path:testInfo.outputPath('slab-history-light.png'),fullPage:true,animations:"disabled"});
  await page.evaluate(()=>document.body.dataset.appearance='dark');
- await page.screenshot({path:testInfo.outputPath('slab-history-dark.png'),fullPage:true});
+ await page.screenshot({path:testInfo.outputPath('slab-history-dark.png'),fullPage:true,animations:"disabled"});
 });
 
-test('phone library tiles lead with identity and value before artwork', async ({ page }) => {
+test('phone library tiles lead with artwork then identity and value', async ({ page }) => {
   await setup(page);
   await page.setViewportSize({ width: 375, height: 667 });
   const tile = page.locator('.ledger-row[data-id]').first();
@@ -2113,7 +2113,55 @@ test('phone library tiles lead with identity and value before artwork', async ({
   const value = await tile.locator('.position-price-grid').boundingBox();
   const artwork = await tile.locator('.card-thumb').boundingBox();
   expect(identity.y).toBeLessThan(value.y);
-  expect(value.y + value.height).toBeLessThanOrEqual(artwork.y);
-  expect(value.y).toBeLessThan(570);
+  expect(artwork.y + artwork.height).toBeLessThanOrEqual(identity.y);
+  expect(value.y).toBeLessThan(660);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+
+test("full interface uses artwork-first browsing and purchase-first editing", async ({ page }, testInfo) => {
+  await page.setViewportSize({width:375,height:667});
+  await setup(page);
+  const first = page.locator(".ledger-row").first();
+  const image = await first.locator(".card-thumb").boundingBox();
+  const name = await first.locator(".card-main").boundingBox();
+  expect(image.y).toBeLessThan(name.y);
+  expect(image.y).toBeLessThan(400);
+  await page.screenshot({path:testInfo.outputPath("library.png"),fullPage:true,animations:"disabled"});
+  await expect(first).not.toContainText("How acquired");
+  await expect(first.locator(".position-price-grid")).not.toContainText("Paid");
+  await page.evaluate(() => {
+    const app = globalThis.fixtureCopyApp;
+    app.openPositionSheet(app.state.items[0], {prefill:{cardState:"graded",grader:"PSA",grade:"10"}});
+  });
+  await expect(page.locator("#positionCardDetails")).not.toHaveAttribute("open", "");
+  await expect(page.locator("#positionTotalCost")).toBeVisible();
+  await expect(page.locator("#positionDate")).toBeVisible();
+  await page.locator("#positionTotalCost").fill("125");
+  await page.locator("#positionFree").check();
+  await expect(page.locator("#positionTotalCost")).toHaveValue("0.00");
+  await page.locator("#positionFree").uncheck();
+  await expect(page.locator("#positionTotalCost")).toHaveValue("125");
+  await page.locator("#positionCardDetails>summary").click();
+  await expect(page.locator("#positionGrader")).toHaveValue("PSA");
+  await expect(page.locator("#positionGrade")).toHaveValue("10");
+  await page.screenshot({path:testInfo.outputPath("purchase-first.png"),fullPage:true,animations:"disabled"});
+});
+
+
+test("complete screen review covers settings, capture, detail and both appearances", async ({ page }, testInfo) => {
+  await page.setViewportSize({width:375,height:667});
+  await setup(page);
+  for (const appearance of ["light","dark"]) {
+    await page.evaluate(value => {document.body.dataset.appearance=value;},appearance);
+    for(const route of ["collection","scan","profile"]) {
+      await page.evaluate(route => globalThis.fixtureCopyApp.routeTo(route),route);
+      await expect(page.locator("#view-"+route)).toBeVisible();
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({path:testInfo.outputPath(appearance+"-"+route+".png"),fullPage:true,animations:"disabled"});
+    }
+    await page.evaluate(()=>globalThis.fixtureCopyApp.openCardDetail(globalThis.fixtureCopyApp.state.items[0],true));
+    await expect(page.locator("#detailTitle")).toContainText("PSA 10");
+    await page.screenshot({path:testInfo.outputPath(appearance+"-detail.png"),fullPage:true,animations:"disabled"});
+  }
 });
