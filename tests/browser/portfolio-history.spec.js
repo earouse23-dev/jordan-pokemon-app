@@ -812,3 +812,39 @@ test('saved chart paints while account and server reads are pending, survives re
   release();await page.evaluate(()=>window.savedRead);
   await expect(page.locator('#portfolioValue')).toHaveText('—');await expect(page.locator('#portfolioHistoryChart')).toHaveCount(0);
 });
+
+test('saved EUR portfolio requests conversion before inventory arrives and retries without losing history', async ({ page }) => {
+  const owner='11111111-1111-4111-8111-111111111111';
+  let fxCalls=0, fail=true;
+  await page.route('**/app.js?v=114',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
+  await page.route('https://mica-portfolio-test.supabase.co/**',route=>route.abort());
+  await page.route('**/api/**',route=>route.fulfill({status:503,body:'{}'}));
+  await page.route('**/api/fx',route=>{
+    fxCalls++;
+    const day=new Date().toISOString().slice(0,10),hash='a'.repeat(64);
+    return route.fulfill({status:fail?503:200,contentType:'application/json',body:JSON.stringify(fail?{}:{sourceId:'ecb-eurofxref-daily',sourceUrl:'https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml',base:'EUR',quote:'USD',units:'USD per EUR',rate:2,contentSha256:hash,rateRef:`ecb-eurofxref-daily:${day}:${hash}`,effectiveDate:day,fetchedAt:new Date().toISOString()})});
+  });
+  await page.goto('/');
+  await page.evaluate(async ({ appUrl,owner })=>{
+    const a=await import(appUrl);a.bindEvents();a.state.session={user:{id:owner}};a.state.profile={displayCurrency:'EUR'};a.state.accountLoading=true;a.state.items=[];
+    a.state.portfolioHistoryMode='value';a.state.portfolioHistoryRange='all';
+    document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');
+    localStorage.setItem('mica:portfolio-view:'+owner,JSON.stringify({version:1,updatedAt:'2026-01-03T12:00:00Z',summaries:[{currency:'USD',total:450,knownTotal:450,missingUnits:0,history:[{date:'2026-01-02',total:400},{date:'2026-01-03',total:450}]}]}));
+    a.routeTo('dashboard');await a.loadSavedPortfolio(owner);a.renderCollection();
+  },{appUrl,owner});
+  await expect(page.locator('#retryDisplayFx')).toBeVisible();
+  expect(fxCalls).toBe(2);
+  await expect(page.locator('#portfolioHistory')).toContainText('Currency conversion unavailable');
+  fail=false;
+  await page.locator('#retryDisplayFx').click();
+  await expect(page.locator('#portfolioValue')).toHaveText('€225.00');
+  await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
+  await expect(page.locator('#retryDisplayFx')).toBeHidden();
+  expect(fxCalls).toBe(3);
+  expect(await page.locator('#portfolioChartRange').evaluate(n=>n.getBoundingClientRect().top >= document.querySelector('#portfolioHistoryChart').getBoundingClientRect().bottom)).toBe(true);
+  await page.evaluate(async appUrl=>{const a=await import(appUrl);a.state.portfolioView.summaries[0].history=a.state.portfolioView.summaries[0].history.slice(-1);a.renderCollection();},appUrl);
+  await expect(page.locator('#portfolioHistory')).toContainText('One recorded value');
+  await expect(page.locator('#portfolioHistory')).toContainText('€225.00');
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('mica:portfolio-view:11111111-1111-4111-8111-111111111111')).summaries[0].history.length)).toBe(2);
+});

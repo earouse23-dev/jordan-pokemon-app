@@ -2050,7 +2050,7 @@ for (const [prices, estimate] of [[[100,110,120],100],[[225,215,230.2,219,220.46
   await expect(page.locator("#positionChart")).toBeVisible();
   await page.waitForTimeout(500);
   await expect(page.locator(".detail-performance")).not.toContainText("Purchase cost or matching value missing");
-  await expect(page.locator("#detailContent")).toContainText("Matching completed-sale prices");
+  await expect(page.locator("#detailContent")).toContainText("Sales history");
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(prices.length);
   expect(await page.evaluate(async url=>(await import(url)).state.items.find(item=>item.id==="tcgdex:en:unavailable").notes,appUrl)).toBe("Unpriced entry preserved");

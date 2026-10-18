@@ -931,7 +931,7 @@ test("graded certification checks stay on official sites and avoid authenticity 
 });
 
 test("large CSV imports preview, stage, commit atomically, and roll back safely", () => {
-  assert.match(appShell, /up to 5,000 saved entries/i);
+  assert.match(appShell, /up to 5,000 entries/i);
   assert.doesNotMatch(appSource, /records\.slice\(0,\s*100\)/);
   assert.match(appSource, /openCsvImportReview/);
   assert.match(appSource, /loadImportMappingProfile/);

@@ -1013,3 +1013,64 @@ test("account setup retries without collecting or changing rejected preferences"
   await expect(page.locator(".onboarding-tour")).toHaveCount(0);
   await expect(page.locator("#onboardingDialog")).not.toContainText("getUser");
 });
+
+test('device appearance follows changes and explicit appearance survives reload', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveAttribute('data-appearance','dark');
+  await expect(page.locator('#appearanceSelect')).toHaveValue('auto');
+  await page.emulateMedia({ colorScheme:'light' });
+  await expect(page.locator('body')).toHaveAttribute('data-appearance','light');
+  await page.evaluate(()=>localStorage.setItem('mica-appearance','dark'));
+  await page.reload();
+  await expect(page.locator('body')).toHaveAttribute('data-appearance','dark');
+  await expect(page.locator('#appearanceSelect')).toHaveValue('dark');
+});
+
+test('phone settings and recovery dialogs retain readable controls in both appearances', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await page.setViewportSize({width:375,height:667});
+  await revealShell(page,'view-profile');
+  for (const appearance of ['light','dark']) {
+    await page.evaluate(value=>document.body.dataset.appearance=value,appearance);
+    const audit=await layoutAudit(page);
+    expect(audit.overflow).toBeLessThanOrEqual(0);
+    expect(audit.textBelowFloor).toEqual([]);
+    expect(audit.undersizedMobileButtons).toEqual([]);
+    await page.screenshot({path:`/tmp/mica-design-settings-${appearance}-${testInfo.project.name}.png`,fullPage:true});
+  }
+  await page.evaluate(()=>document.querySelector('#passwordResetDialog').showModal());
+  const button=page.locator('#passwordResetDialog [data-close-reset-dialog]');
+  const bounds=await button.boundingBox();
+  expect(bounds.width).toBeGreaterThanOrEqual(44);
+  expect(bounds.height).toBeGreaterThanOrEqual(44);
+  await expect(page.locator('#newAccountPassword')).toBeVisible();
+});
+
+test('keyboard viewport shrinks the form sheet without hiding the focused field', async ({ page }) => {
+  await page.setViewportSize({width:375,height:667});
+  await page.addInitScript(()=>{
+    const viewport=new EventTarget();viewport.height=667;viewport.offsetTop=0;
+    Object.defineProperty(window,'visualViewport',{value:viewport,configurable:true});
+  });
+  await page.goto('/');
+  await page.evaluate(()=>{
+    const sheet=document.querySelector('#bottomSheet');sheet.hidden=false;
+    document.querySelector('#sheetContent').innerHTML='<div style="height:900px"></div><label for="keyboardCheck">Paid</label><input id="keyboardCheck" inputmode="decimal">';
+    document.querySelector('#keyboardCheck').focus();
+    window.visualViewport.height=330;window.visualViewport.dispatchEvent(new Event('resize'));
+  });
+  await expect.poll(()=>page.locator('#bottomSheet').evaluate(n=>getComputedStyle(n).bottom)).toBe('337px');
+  await expect.poll(()=>page.locator('#keyboardCheck').evaluate(n=>n.getBoundingClientRect().bottom)).toBeLessThanOrEqual(330);
+  await page.evaluate(()=>{window.visualViewport.height=667;window.visualViewport.dispatchEvent(new Event('resize'));});
+  await expect.poll(()=>page.locator('#bottomSheet').evaluate(n=>getComputedStyle(n).bottom)).toBe('0px');
+});
+
+test('mobile selectors and inputs keep the iOS focus-zoom floor', async ({ page }) => {
+  await page.goto('/');await page.setViewportSize({width:375,height:667});
+  for(const view of ['view-profile','view-scan','view-collection']) {
+    await revealShell(page,view);
+    const small=await page.locator('input:not([type=checkbox]):not([type=radio]),select,textarea').evaluateAll(nodes=>nodes.filter(n=>n.getBoundingClientRect().width && getComputedStyle(n).fontSize && parseFloat(getComputedStyle(n).fontSize)<16).map(n=>n.id));
+    expect(small).toEqual([]);
+  }
+});

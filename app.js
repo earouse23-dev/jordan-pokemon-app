@@ -281,8 +281,10 @@ let motionPreference = "auto";
 let targetAlertsEnabled = false;
 let workspaceMode = "collector";
 let uiTheme = "mica";
-let appearance = "light";
-try { appearance = localStorage.getItem("mica-appearance") === "dark" ? "dark" : "light"; } catch {}
+const deviceAppearance = window.matchMedia("(prefers-color-scheme: dark)");
+let appearancePreference = "auto";
+try { const saved = localStorage.getItem("mica-appearance"); if (["light", "dark"].includes(saved)) appearancePreference = saved; } catch {}
+let appearance = appearancePreference === "auto" ? deviceAppearance.matches ? "dark" : "light" : appearancePreference;
 let sessionLoadVersion = 0;
 let largeCollectionRequestVersion = 0;
 let pendingActionDestinationApplied = false;
@@ -1930,7 +1932,7 @@ function applyUiTheme(_theme, { announce = false } = {}) {
   document.body.dataset.appearance = appearance;
   document.documentElement.style.colorScheme = appearance;
   const picker = $("#appearanceSelect");
-  if (picker) picker.value = appearance;
+  if (picker) picker.value = appearancePreference;
   const meta = $('meta[name="theme-color"]');
   if (meta) meta.content = appearance === "dark" ? "#111814" : "#f6f7f4";
   if (state.portfolioView || state.portfolioHistory.length) renderPortfolioHistory();
@@ -5418,13 +5420,19 @@ function renderPortfolioHistory() {
   const ranges = [["all", "All time"], ["1m", "Month"], ["ytd", "YTD"], ["1y", "Year"], ["1d", "Day"]];
   const rangeControls = () => `<select id="portfolioChartRange" aria-label="Graph timeframe">${ranges.map(([value, label]) => `<option value="${value}" ${state.portfolioHistoryRange === value ? "selected" : ""}>${label}</option>`).join("")}</select>`;
   const saved = displayPortfolioView(state.portfolioView, displayCurrency(), lastValidatedFxRate);
+  if (saved?.fxUnavailable && state.portfolioHistoryMode === "value") {
+    destroyPortfolioHistoryChart();
+    portfolioRenderKey = null;
+    root.innerHTML = '<p class="portfolio-history-empty" role="status">' + (state.displayFxStatus === "error" ? "Currency conversion unavailable. Retry above." : "Converting saved history…") + '</p>';
+    return;
+  }
   if (saved && state.portfolioHistoryMode === "value") {
     const points = portfolioHistoryRangePoints(saved.history || [], state.portfolioHistoryRange);
     const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, saved, state.portfolioHistoryRange, appearance]);
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : '<div class="portfolio-history-empty">Historical prices are not available for every holding yet.</div>'}<details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `History available from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
+    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong></div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${esc(money(points[0].total, saved.currency))} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}<div class="portfolio-chart-footer">${rangeControls()}</div><details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `History available from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
     $("#portfolioChartRange", root)?.addEventListener("change", event => { state.portfolioHistoryRange = event.target.value; renderPortfolioHistory(); });
     if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false }));
     return;
@@ -6026,7 +6034,7 @@ function renderDashboardHighlights() {
               : transaction.totalCost;
           return `<button class="activity-row" type="button" data-detail="${esc(item.uid)}">
             <span><strong>${esc(item.name)}</strong><small>${esc(action)}</small></span>
-            <span>${collector ? `<strong>${transaction.type === "sale" ? "Sold" : "Added"}</strong><small>${Number(transaction.quantity || 0) > 0 ? `${Number(transaction.quantity).toLocaleString()} copies` : "View card"}</small>` : `<strong>${amount == null ? "Amount unavailable" : money(amount, transaction.currency)}</strong><small>${transaction.date || "Date unavailable"}</small>`}</span>
+            <span>${collector ? `<strong>${transaction.type === "sale" ? "Sold" : "Added"}</strong><small>${Number(transaction.quantity || 0) > 0 ? `${Number(transaction.quantity).toLocaleString()} ${Number(transaction.quantity) === 1 ? "copy" : "copies"}` : "View card"}</small>` : `<strong>${amount == null ? "Amount unavailable" : money(amount, transaction.currency)}</strong><small>${transaction.date || "Date unavailable"}</small>`}</span>
           </button>`;
         })
         .join("")
@@ -6635,10 +6643,10 @@ function renderCollection() {
       ? "Reconnecting to your library…"
       : "Your library couldn't load";
     $("#collectionEmptyCopy").textContent = state.accountLoading
-      ? "Mica is securely checking your account again."
+      ? "Loading your saved collection."
       : navigator.onLine
-        ? "Your saved data was not changed. Check your connection and try again."
-        : "You’re offline. For privacy, the installed shell does not keep a readable copy of your collection on this device. Reconnect to load it.";
+        ? "Your saved collection is safe. Try again."
+        : "You’re offline. Reconnect to load your collection.";
     $("#emptyAddCard").classList.remove("hidden");
     $("#emptyAddCard").disabled = state.accountLoading;
     $("#emptyAddCard").textContent = state.accountLoading
@@ -8798,7 +8806,7 @@ function renderDetail() {
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
     <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${titleMarkup}</h1>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "transaction") ? "Matching completed-sale prices" : "Recorded sold-derived estimates") : "Provider-recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "transaction") ? "Sales history" : "Recorded sold-derived estimates") : "Recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
     ${context.cardState === "graded" ? `<details class="provider-index-details" data-detail-tool="provider-index"><summary>Provider reference index</summary>${marketHero}</details>` : ""}
@@ -9508,7 +9516,7 @@ function openSealedPositionSheet(product, options = {}) {
     source: product.externalIds?.pkmnpricesSealed ? "pkmnprices" : "manual",
   });
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm unopened product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="simple-note"><strong>${esc(languageName(product.language))} · ${esc(String(product.productType || "type unknown").replaceAll("_", " "))}</strong><br>Package variant: ${esc(product.sealedVariant || "not confirmed")} · Region: ${esc(product.sealedRegion || "not confirmed")}. ${product.externalIds?.pkmnpricesSealed ? "Provider candidate; check the box before saving." : "Manual identity; provider prices remain unavailable."}</div><div class="sheet-actions"><button class="secondary" id="sealedChangeProduct" type="button">Search another product</button><button class="secondary" id="sealedEnterManual" type="button">Correct details manually</button><button class="secondary" id="sealedViewProduct" type="button">View product details</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field full acquisition-field"><label for="sealedTotalCost">Total paid</label><div class="money-input"><span id="sealedCurrencyMark">$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><label for="sealedCurrency">Currency</label><select id="sealedCurrency" name="currency"><option value="USD">USD</option><option value="EUR">EUR</option></select><input id="sealedCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="sealedFree" type="checkbox"> Free (trade)</label></div><details class="full intake-more"><summary id="sealedMoreSummary">More purchase details · 1 product · ${today}</summary><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">When did you buy it?</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required><label class="field-choice"><input id="sealedDateUnknown" type="checkbox"> I don't know the date</label></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Condition of the box, source, or reminder…"></textarea></div></div></details><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><p class="unknown-basis-note" id="sealedUnknownBasisNote" hidden>Value tracking still works, but Mica cannot show money gained until you add what you paid.</p><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm unopened product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="simple-note"><strong>${esc(languageName(product.language))} · ${esc(String(product.productType || "type unknown").replaceAll("_", " "))}</strong><br>Package variant: ${esc(product.sealedVariant || "not confirmed")} · Region: ${esc(product.sealedRegion || "not confirmed")}. ${product.externalIds?.pkmnpricesSealed ? "Provider candidate; check the box before saving." : "Manual identity; provider prices remain unavailable."}</div><div class="sheet-actions"><button class="secondary" id="sealedChangeProduct" type="button">Change product</button><button class="secondary" id="sealedEnterManual" type="button">Edit details</button><button class="secondary" id="sealedViewProduct" type="button">View product</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field full acquisition-field"><label for="sealedTotalCost">Total paid</label><div class="money-input"><span id="sealedCurrencyMark">$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><label for="sealedCurrency">Currency</label><select id="sealedCurrency" name="currency"><option value="USD">USD</option><option value="EUR">EUR</option></select><input id="sealedCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="sealedFree" type="checkbox"> Free (trade)</label></div><details class="full intake-more"><summary id="sealedMoreSummary">Purchase details · 1 product · ${today}</summary><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">Purchase date</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required><label class="field-choice"><input id="sealedDateUnknown" type="checkbox"> I don't know the date</label></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Condition of the box, source, or reminder…"></textarea></div></div></details><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><p class="unknown-basis-note" id="sealedUnknownBasisNote" hidden>Value tracking still works, but Mica cannot show money gained until you add what you paid.</p><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
   );
   $("#sealedChangeProduct").addEventListener("click", () => openSealedSearch({ name: product.name, language: product.language, photoFile: options.photoFile }));
   $("#sealedEnterManual").addEventListener("click", () => openManualSealedEntry({ ...product, photoFile: options.photoFile }));
@@ -10243,12 +10251,12 @@ export function openPositionSheet(card, options = {}) {
       <div class="field graded-position" hidden><label for="positionGrader">Grading company</label><select id="positionGrader" name="grader"><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === prefill.grader ? "selected" : ""}>${value}</option>`).join("")}</select></div>
       <div class="field graded-position" hidden><label for="positionGrade">Grade</label><input id="positionGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(prefill.grade || "")}" placeholder="10"></div>
       <div class="field full graded-position" hidden><label for="positionQualifier">Qualifier or label <span class="optional-label">Optional</span></label><input id="positionQualifier" name="gradeQualifier" maxlength="80" value="${esc(prefill.gradeQualifier || "")}" placeholder="OC, qualified, black label…"></div>
-      <div class="field graded-position full" hidden><label for="positionCertification">Certification number <span class="optional-label">Optional</span></label><input id="positionCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(prefill.certificationNumber || "")}"><small>Saved exactly as entered, including leading zeros. Until official provider access is connected, this is a user-entered claim.</small></div>
+      <div class="field graded-position full" hidden><label for="positionCertification">Certification number <span class="optional-label">Optional</span></label><input id="positionCertification" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(prefill.certificationNumber || "")}"><small>User entered · not verified. Leading zeros are kept.</small></div>
       ${options.visionAnalysis ? options.visionAnalysis.mode === "grade" ? `<div class="vision-prefill-note full"><strong>AI suggestion · confirm before saving</strong><span>Mica pregrade ${esc(options.visionAnalysis.gradeRange || "unavailable")} · ${esc(conditionLabel(options.visionAnalysis.condition))} · ${esc(confidenceLabel(options.visionAnalysis.confidence))}. This is not an official grade or condition guarantee.</span></div>` : '<p class="simple-note full">Read from photo · confirm the card and slab details.</p>' : ""}
       <details class="full intake-more" id="positionPurchaseDetails"><summary id="positionMoreSummary">Purchase details · optional</summary><div class="form-grid">
       <input id="positionAcquisitionMethod" name="acquisitionMethod" type="hidden" value="direct_purchase">
       <div class="field full acquisition-field" id="positionPaidField"><label for="positionTotalCost">Total paid</label><label for="positionCurrency">Currency</label><select id="positionCurrency" name="currency"><option value="USD" ${prefill.currency !== "EUR" ? "selected" : ""}>USD</option><option value="EUR" ${prefill.currency === "EUR" ? "selected" : ""}>EUR</option></select><div class="money-input"><span id="positionCurrencyMark">$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="Not recorded"></div><input id="positionCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="positionFree" type="checkbox"> Free (trade)</label></div>
-      <div class="field full"><label for="positionDate">When did you get it?</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}"><input id="positionDateUnknown" type="checkbox" hidden></div><div class="field full"><label for="positionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="positionNotes" name="notes" maxlength="10000" placeholder="A note about this copy or purchase…">${esc(prefill.notes || "")}</textarea></div></div></details>
+      <div class="field full"><label for="positionDate">Purchase date</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}"><input id="positionDateUnknown" type="checkbox" hidden></div><div class="field full"><label for="positionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="positionNotes" name="notes" maxlength="10000" placeholder="A note about this copy or purchase…">${esc(prefill.notes || "")}</textarea></div></div></details>
       <p class="form-error" id="positionError" role="alert"></p>
     </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>Add the missing purchase details later to see profit or loss.</p>
     <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Add card</button>${!options.visionAnalysis ? '<button class="secondary raw-position" type="submit" id="positionGradeFirst">Grade first</button>' : ""}</div></form>`);
@@ -15923,9 +15931,9 @@ function applyMotionPreference() {
     motionPreference
   ];
   const help = {
-    auto: "Follow your device preference · select to change",
-    reduce: "Animations minimized on this device · select to change",
-    full: "Use full interface motion · select to change",
+    auto: "Device setting",
+    reduce: "Reduced motion",
+    full: "Full motion",
   }[motionPreference];
   if ($("#motionState")) $("#motionState").textContent = label;
   if ($("#motionHelp")) $("#motionHelp").textContent = help;
@@ -17147,7 +17155,19 @@ function cachePortfolioView(owner, view) {
 
 function renderSavedPortfolio() {
   const saved = displayPortfolioView(state.portfolioView, displayCurrency(), lastValidatedFxRate);
-  if (!state.session || !saved || (saved.total === null && saved.knownTotal === null)) return false;
+  if (!state.session || !saved) return false;
+  if (saved.fxUnavailable) {
+    if (state.displayFxStatus === "ready" && !usableFxRate(lastValidatedFxRate)) state.displayFxStatus = "idle";
+    if (state.displayFxStatus === "idle") void loadDisplayFx();
+    $("#retryDisplayFx").hidden = state.displayFxStatus !== "error";
+    $("#portfolioValue").textContent = "—";
+    $("#portfolioChange").textContent = state.displayFxStatus === "error" ? "Currency conversion unavailable" : "Converting saved value…";
+    $(".status-label").textContent = "Saved portfolio";
+    renderPortfolioHistory();
+    return true;
+  }
+  $("#retryDisplayFx").hidden = true;
+  if (saved.total === null && saved.knownTotal === null) return false;
   renderSoftwareModeHome();
   $("#portfolioToplineLabel").textContent = saved.total === null ? "Known portfolio value" : "Total portfolio value";
   $("#portfolioValue").textContent = money(saved.total ?? saved.knownTotal, saved.currency);
@@ -19255,7 +19275,7 @@ function bindQuickCardSearch() {
             return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Version unknown")}</em>${ownedSearchStatus(item)}</span></button><div class="quick-card-actions"><button type="button" data-add-search-card="${esc(item.id)}" aria-label="${owned.quantity ? "Add another" : "Add"} ${esc(item.name)} card">${owned.quantity ? "Add another" : "Add"}</button><button type="button" data-queue-search-card="${esc(item.id)}" aria-label="Queue ${esc(item.name)} for batch review">Queue</button></div></div>`;
           })
           .join("")}`
-      : '<div class="find-empty"><strong>No matching cards</strong><span>Try fewer details, verify the language, or search the collector number by itself.</span></div>';
+      : '<div class="find-empty"><strong>No matching cards</strong><span>Try a name, set or collector number.</span></div>';
     if (nextCursor)
       resultsNode.insertAdjacentHTML(
         "beforeend",
@@ -19803,8 +19823,9 @@ function bindEvents() {
     ),
   );
   $("#appearanceSelect")?.addEventListener("change", (event) => {
-    appearance = event.target.value === "dark" ? "dark" : "light";
-    try { localStorage.setItem("mica-appearance", appearance); } catch {}
+    appearancePreference = ["light", "dark"].includes(event.target.value) ? event.target.value : "auto";
+    appearance = appearancePreference === "auto" ? deviceAppearance.matches ? "dark" : "light" : appearancePreference;
+    try { localStorage.setItem("mica-appearance", appearancePreference); } catch {}
     applyUiTheme(uiTheme);
   });
   $("#themeQuickSwitch")?.addEventListener("click", () =>
@@ -21441,6 +21462,23 @@ window
   .matchMedia("(display-mode: standalone)")
   .addEventListener?.("change", updateInstallControl);
 
+function syncVisualViewport() {
+  const viewport = window.visualViewport;
+  if (!viewport) return;
+  document.documentElement.style.setProperty("--visual-height", `${viewport.height}px`);
+  const keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+  document.documentElement.style.setProperty("--keyboard-inset", `${keyboardInset > 100 ? keyboardInset : 0}px`);
+  const field = document.activeElement;
+  if (keyboardInset > 100 && field?.matches("input,textarea,select") && field.closest("#bottomSheet"))
+    requestAnimationFrame(() => field.isConnected && field.scrollIntoView({ block: "nearest", behavior: "instant" }));
+}
+window.visualViewport?.addEventListener("resize", syncVisualViewport);
+syncVisualViewport();
+deviceAppearance.addEventListener("change", () => {
+  if (appearancePreference !== "auto") return;
+  appearance = deviceAppearance.matches ? "dark" : "light";
+  applyUiTheme(uiTheme);
+});
 applyUiTheme(uiTheme);
 applyMotionPreference();
 if (nativeBuild) {

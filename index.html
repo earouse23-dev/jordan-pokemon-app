@@ -114,7 +114,7 @@
       <section id="publicCatalog" class="public-catalog" hidden aria-labelledby="publicCatalogTitle">
         <button type="button" class="secondary" id="publicCatalogBack">Back to sign in</button>
         <h1 id="publicCatalogTitle">Find your cards</h1>
-        <p>Explore card versions. Create an account when you’re ready to save your collection.</p>
+        <p>Find a card. Sign in to save it.</p>
         <form id="publicCatalogForm" class="form-grid">
           <div class="field full"><label for="publicCatalogQuery">Card name or number</label><input id="publicCatalogQuery" type="search" placeholder="Pikachu 58/102" minlength="2" maxlength="80" required></div>
           <div class="field"><label for="publicCatalogLanguage">Language</label><select id="publicCatalogLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="de">German</option><option value="fr">French</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div>
@@ -152,7 +152,7 @@
         <div class="auth-dialog-head">
           <div>
             <h2 id="passwordResetTitle">Choose a new password</h2>
-            <p>Your recovery link is verified. Use at least 8 characters.</p>
+            <p>Use at least 8 characters.</p>
           </div>
           <button type="button" data-close-reset-dialog aria-label="Close">
             ×
@@ -375,7 +375,7 @@
             aria-live="polite"
           ></section>
           <details id="dashboardMoneyDetails" class="dashboard-money-details">
-            <summary>Collection value &amp; money details</summary>
+            <summary>Portfolio details</summary>
             <div id="dashboardAccountingKpis" class="dashboard-kpis"></div>
           </details>
           <div class="dashboard-owned-tools">
@@ -732,7 +732,7 @@
                   <option value="th">Thai</option>
                 </select>
               </div>
-              <details class="catalog-set-filter"><summary>Filter by set</summary><label for="quickSearchSet">Set name</label><input id="quickSearchSet" type="search" placeholder="For example, Base Set" autocomplete="off"><small>Leave blank to search every set.</small></details>
+              <details class="catalog-set-filter"><summary>Filter by set</summary><label for="quickSearchSet">Set name</label><input id="quickSearchSet" type="search" placeholder="For example, Base Set" autocomplete="off"></details>
               <div
                 class="search-examples"
                 role="group"
@@ -770,7 +770,7 @@
                 <div class="find-empty compact">
                   <strong>Find your next card</strong
                   ><span
-                    >Search by name or the number at the bottom of your card.</span
+                    >Search a name, set or card number.</span
                   >
                 </div>
               </div>
@@ -791,7 +791,7 @@
                     <path d="M2 6V3h3M19 3h3v3M22 18v3h-3M5 21H2v-3" /></svg
                   ><span
                     ><strong>Take a photo</strong
-                    ><small>Find the exact card</small></span
+                    ></span
                   >
                 </button>
                 <label class="find-action" for="galleryInput"
@@ -801,7 +801,7 @@
                     <path d="m4 18 5-5 3 3 2-2 6 5" /></svg
                   ><span
                     ><strong>Choose a photo</strong
-                    ><small>Use an existing image</small></span
+                    ></span
                   ></label
                 >
               </div>
@@ -1216,8 +1216,8 @@
         <section class="view" id="view-profile" aria-labelledby="profileTitle">
           <div class="screen-heading">
             <p class="eyebrow">Account &amp; preferences</p>
-            <h1 id="profileTitle">Your Mica account</h1>
-            <p>Your collection follows you across signed-in devices.</p>
+            <h1 id="profileTitle">Settings</h1>
+
           </div>
           <div class="settings-group" id="accountSettings">
             <h2>Account</h2>
@@ -1225,7 +1225,7 @@
               <div class="profile-avatar">ME</div>
               <div>
                 <strong>Your collection</strong
-                ><span>Securely synced to your account</span>
+                ><span>Private collection</span>
               </div>
               <span class="plan-badge">Private beta</span>
             </div>
@@ -1362,30 +1362,29 @@
             </button>
             <button type="button" id="importButton">
               <span
-                >Import a collection spreadsheet<small
-                  >Add up to 5,000 saved entries from a CSV file</small
+                >Import spreadsheet<small
+                  >CSV · up to 5,000 entries</small
                 ></span
               ><b>›</b>
             </button>
             <button type="button" id="importHistoryButton">
               <span
-                >Spreadsheet import history<small
-                  >Review receipts or safely roll back an untouched
-                  import</small
+                >Import history<small
+                  >Review or undo an import</small
                 ></span
               ><b>›</b>
             </button>
             <button type="button" id="exportButton">
               <span
-                >Download a complete backup<small
+                >Download backup<small
                   >Cards, purchases, sales, and watched items</small
                 ></span
               ><b>›</b>
             </button>
             <button type="button" id="exportCsvButton">
               <span
-                >Download collection spreadsheet<small
-                  >A CSV copy of every saved entry</small
+                >Export spreadsheet<small
+                  >CSV · all saved entries</small
                 ></span
               ><b>›</b>
             </button>
@@ -1400,16 +1399,15 @@
             <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
           </div>
           <div class="settings-group workflow-defaults" id="everydaySettings">
-            <h2>Everyday preferences</h2>
+            <h2>Preferences</h2>
             <button type="button" id="installAppButton">
               <span
-                >Install Mica on this device<small id="installAppHelp"
-                  >Open the app shell from your home screen; private data still
-                  needs a connection</small
+                >Install Mica<small id="installAppHelp"
+                  >Add Mica to your home screen</small
                 ></span
               ><strong id="installAppState">Check</strong>
             </button>
-            <label for="appearanceSelect">Appearance<select id="appearanceSelect"><option value="light">Light</option><option value="dark">Dark</option></select></label>
+            <label for="appearanceSelect">Appearance<select id="appearanceSelect"><option value="auto">Device setting</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
             <label for="profileDisplayCurrency">Display currency<select id="profileDisplayCurrency"><option value="USD">USD · US dollar</option><option value="EUR">EUR · euro</option></select></label>
             <label
               >Selling fee<small
@@ -1448,9 +1446,9 @@
             </button>
           </div>
           <div class="settings-group" id="privacySettings">
-            <h2>Trust &amp; privacy</h2>
+            <h2>Privacy</h2>
             <button type="button" data-info="sources">
-              <span>Data sources &amp; attribution</span><b>›</b>
+              <span>Data sources</span><b>›</b>
             </button>
             <button type="button" data-info="retention">
               <span>Scan retention</span><b>›</b>
