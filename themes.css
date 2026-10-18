@@ -6737,3 +6737,5 @@ body[data-ui-theme="mica"] #appShell .history-period-change span { color: var(--
   body[data-ui-theme="mica"] #appShell .view { padding-top: 28px; }
   body[data-ui-theme="mica"] #appShell .view>:is(.collection-heading,.add-cards-heading,.screen-heading) { padding-right: 200px; min-height: 44px; }
 }
+body[data-ui-theme="mica"]::before { content: ""; position: fixed; inset: 0 0 auto; height: var(--safe-top); background: var(--canvas); z-index: 29; pointer-events: none; }
+html:has(body[data-ui-theme="mica"]) { scroll-padding-top: 100px; scroll-padding-bottom: 100px; }
