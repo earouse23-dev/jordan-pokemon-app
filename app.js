@@ -2950,7 +2950,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
             maxTicksLimit: 4,
             color: muted,
             padding: 8,
-            callback: value => new Intl.NumberFormat("en-US", { style: "currency", currency: model.currency, notation: "compact", maximumFractionDigits: 1 }).format(value),
+            callback: value => new Intl.NumberFormat("en-US", { style: "currency", currency: model.currency, notation: "compact", maximumFractionDigits: 2 }).format(value),
             font: { size: 12 },
           },
           grid: { color: line, drawTicks: false, lineWidth: 0.5 },
@@ -5309,7 +5309,7 @@ async function mountPortfolioHistoryChart({
     style: "currency",
     currency,
     notation: "compact",
-    maximumFractionDigits: 1,
+    maximumFractionDigits: 2,
   });
   portfolioChartInstance = new Chart(canvas, {
     type: "line",
