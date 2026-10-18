@@ -2789,13 +2789,39 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   const chart = insufficientHistory
     ? '<p class="unavailable-panel" role="status">Only one recorded price is available. More history is needed to show a trend.</p>'
     : `<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>`;
-  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}
+  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong><span>in selected period</span></div>` : ""}${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}
     ${points.length ? `<small class="history-coverage">Available from ${esc(new Date(points[0].x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }))}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
     <details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary>
     <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
     <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
     <div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : ""}</div>`;
 
+}
+
+// Shared inspection and fill keep card and portfolio histories visually consistent.
+const historyChartCursor = {
+  id: "historyCursor",
+  afterDatasetsDraw(chart) {
+    const active = chart.tooltip?.getActiveElements?.() || [];
+    if (!active.length) return;
+    const { ctx, chartArea } = chart;
+    ctx.save();
+    ctx.beginPath();
+    ctx.setLineDash([3, 4]);
+    ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue("--muted").trim();
+    ctx.lineWidth = 1;
+    ctx.moveTo(active[0].element.x, chartArea.top);
+    ctx.lineTo(active[0].element.x, chartArea.bottom);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+function historyChartFill({ chart, dataset }) {
+  if (!chart.chartArea) return "transparent";
+  const gradient = chart.ctx.createLinearGradient(0, chart.chartArea.top, 0, chart.chartArea.bottom);
+  gradient.addColorStop(0, `${dataset.borderColor}24`);
+  gradient.addColorStop(1, `${dataset.borderColor}00`);
+  return gradient;
 }
 
 async function mountPriceChart(item, history = historyForItem(item)) {
@@ -2819,11 +2845,6 @@ async function mountPriceChart(item, history = historyForItem(item)) {
     void mountPriceChart(item, history);
     $("#cardHistoryRange", next)?.focus({ preventScroll: true });
   };
-  const graph = $(".chart-wrap", root);
-  const summary = $(".history-summary", root);
-  if (graph) { root.prepend(graph); graph.after($(".history-range-select", root)); }
-  const values = $(".history-values", root);
-  if (values && summary) { values.append(summary); root.querySelectorAll(".chart-context, .chart-purchases-note").forEach(note => values.append(note)); }
   const canvas = $("#positionChart", root);
   const collapsedPrices = canvas?.closest('[data-detail-tool="prices"]');
   if (!canvas || (collapsedPrices && !collapsedPrices.open)) return;
@@ -2838,12 +2859,14 @@ async function mountPriceChart(item, history = historyForItem(item)) {
     data: model.points.map(point => ({ x: point.x, y: point.amount, point })),
     borderColor: accent,
     borderWidth: 2.25,
-    backgroundColor: "rgba(47,99,70,.08)",
-    fill: "origin",
+    backgroundColor: historyChartFill,
+    fill: "start",
     pointRadius: 0,
-    pointHoverRadius: 0,
-    tension: 0.28,
-    cubicInterpolationMode: "monotone",
+    pointHoverRadius: 4,
+    pointHoverBackgroundColor: accent,
+    pointHoverBorderColor: paper,
+    pointHoverBorderWidth: 2,
+    tension: 0,
     spanGaps: true,
   }];
   let Chart;
@@ -2873,13 +2896,14 @@ async function mountPriceChart(item, history = historyForItem(item)) {
     });
   chartInstance = new Chart(canvas, {
     type: "line",
+    plugins: [historyChartCursor],
     data: { datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       parsing: false,
       animation: false,
-      interaction: { mode: "nearest", intersect: false },
+      interaction: { mode: "nearest", axis: "x", intersect: false },
       plugins: {
         legend: {
           display: false,
@@ -2907,19 +2931,29 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           min: model.start,
           max: model.end,
           grid: { display: false },
+          border: { display: false },
           ticks: {
-            maxTicksLimit: 5,
+            maxTicksLimit: 4,
+            color: muted,
+            padding: 10,
+            align: "inner",
             maxRotation: 0,
             callback: (value) => dateLabel(value),
             font: { size: 12 },
           },
         },
         y: {
+          position: "right",
+          grace: "8%",
+          border: { display: false },
           ticks: {
-            callback: (value) => money(value, model.currency),
+            maxTicksLimit: 4,
+            color: muted,
+            padding: 8,
+            callback: value => new Intl.NumberFormat("en-US", { style: "currency", currency: model.currency, notation: "compact", maximumFractionDigits: 1 }).format(value),
             font: { size: 12 },
           },
-          grid: { color: "rgba(60,70,65,.08)" },
+          grid: { color: line, drawTicks: false, lineWidth: 0.5 },
         },
       },
     },
@@ -5260,7 +5294,15 @@ async function mountPortfolioHistoryChart({
   const line = styles.getPropertyValue("--line").trim() || "#1b2735";
   const paper = styles.getPropertyValue("--paper").trim() || "#0d151f";
   const ink = styles.getPropertyValue("--ink").trim() || "#f7f8fc";
-  const firstValue = values.find((value) => value !== null) ?? 0;
+  const observedValues = [...values, ...(partialValues || [])].filter(value => Number.isFinite(value));
+  if (!observedValues.length) {
+    canvas.parentElement.innerHTML = '<p class="unavailable-panel" role="status">No recorded values in this range.</p>';
+    return;
+  }
+  const lowestValue = Math.min(...observedValues);
+  const highestValue = Math.max(...observedValues);
+  const valueSpan = highestValue - lowestValue;
+  const scalePadding = Math.max(valueSpan * 0.08, Math.abs(highestValue) * 0.02, 0.01);
   const observedDates = points.filter((point, index) => values[index] !== null || partialValues?.[index] != null).map(point => point.date);
   const chartDates = observedDates.length > 1 ? observedDates : points.map(point => point.date);
   const compactCurrency = new Intl.NumberFormat("en-US", {
@@ -5269,27 +5311,9 @@ async function mountPortfolioHistoryChart({
     notation: "compact",
     maximumFractionDigits: 1,
   });
-  const crosshair = {
-    id: "portfolioCrosshair",
-    afterDatasetsDraw(chart) {
-      const active = chart.tooltip?.getActiveElements?.() || [];
-      if (!active.length) return;
-      const x = active[0].element.x;
-      const { ctx, chartArea } = chart;
-      ctx.save();
-      ctx.beginPath();
-      ctx.setLineDash([3, 4]);
-      ctx.strokeStyle = muted;
-      ctx.lineWidth = 1;
-      ctx.moveTo(x, chartArea.top);
-      ctx.lineTo(x, chartArea.bottom);
-      ctx.stroke();
-      ctx.restore();
-    },
-  };
   portfolioChartInstance = new Chart(canvas, {
     type: "line",
-    plugins: [crosshair],
+    plugins: [historyChartCursor],
     data: {
       labels: points.map((point) => Date.parse(`${point.date}T00:00:00Z`)),
       datasets: [
@@ -5302,23 +5326,9 @@ async function mountPortfolioHistoryChart({
           data: values,
           borderColor: accent,
           borderWidth: 2.25,
-          backgroundColor(context) {
-            const { chart } = context;
-            const { ctx, chartArea } = chart;
-            if (!chartArea) return `${accent}18`;
-            const gradient = ctx.createLinearGradient(
-              0,
-              chartArea.top,
-              0,
-              chartArea.bottom,
-            );
-            gradient.addColorStop(0, `${accent}45`);
-            gradient.addColorStop(1, `${accent}00`);
-            return gradient;
-          },
-          fill: true,
-          tension: 0.28,
-          cubicInterpolationMode: "monotone",
+          backgroundColor: historyChartFill,
+          fill: "start",
+          tension: 0,
           pointRadius: 0,
           pointHoverRadius: 5,
           pointHoverBackgroundColor: accent,
@@ -5335,8 +5345,7 @@ async function mountPortfolioHistoryChart({
                 showLine: true,
                 borderColor: accent,
                 borderDash: [],
-                tension: 0.28,
-                cubicInterpolationMode: "monotone",
+                tension: 0,
                 fill: false,
                 pointStyle: "rectRot",
                 pointRadius: 0,
@@ -5383,7 +5392,8 @@ async function mountPortfolioHistoryChart({
             color: muted,
             autoSkip: true,
             stepSize: Date.parse(chartDates.at(-1)) - Date.parse(chartDates[0]) <= 7 * 86_400_000 ? 86_400_000 : undefined,
-            maxTicksLimit: 6,
+            maxTicksLimit: 4,
+            align: "inner",
             maxRotation: 0,
             padding: 8,
             font: { size: 11, weight: 500 },
@@ -5394,13 +5404,14 @@ async function mountPortfolioHistoryChart({
         },
         y: {
           position: "right",
-          min: !pnlMode && !marketMode ? 0 : undefined,
-          grace: "10%",
-          grid: { color: line, drawTicks: false },
+          min: !pnlMode && !marketMode ? Math.max(0, lowestValue - scalePadding) : lowestValue - scalePadding,
+          max: highestValue + scalePadding,
+          grid: { color: line, drawTicks: false, lineWidth: 0.5 },
           border: { display: false },
           ticks: {
             color: muted,
-            maxTicksLimit: 5,
+            maxTicksLimit: 4,
+            includeBounds: false,
             padding: 8,
             font: { size: 11, weight: 500 },
             callback(value) {

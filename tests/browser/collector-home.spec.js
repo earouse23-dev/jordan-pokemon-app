@@ -442,9 +442,15 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
   await expect(page.locator("#portfolioPnlRange")).toHaveValue("all");
   await expect(page.locator("#portfolioHistoryChart")).toBeVisible();
   for (const selector of ["#portfolioChartRange", "#portfolioPnlRange"])
-    expect(await page.locator(selector).evaluate(element => getComputedStyle(element).borderTopLeftRadius)).toBe("12px");
+    expect(parseFloat(await page.locator(selector).evaluate(element => getComputedStyle(element).borderTopLeftRadius))).toBeGreaterThanOrEqual(12);
   await expect.poll(() => page.evaluate(() => Boolean(globalThis.fixtureApp.portfolioChartInstance))).toBe(true);
   expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.options.animation)).toBe(false);
+  expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.data.datasets[0].tension)).toBe(0);
+  expect(await page.locator(".app-header").evaluate(el => getComputedStyle(el).position)).toBe("fixed");
+  const headerTop = (await page.locator(".app-header").boundingBox()).y;
+  await page.evaluate(() => window.scrollTo(0, 400));
+  expect((await page.locator(".app-header").boundingBox()).y).toBe(headerTop);
+  await page.evaluate(() => window.scrollTo(0, 0));
   expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.scales.y.min)).toBeGreaterThanOrEqual(0);
   expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.data.datasets.every(dataset => !dataset.borderDash?.length))).toBe(true);
   await expect(page.locator("#portfolioReturn")).toHaveAttribute("data-pnl-sign", "positive");

@@ -2095,6 +2095,10 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await expect(page.locator('.copy-navigation.single-copy #nextCopyButton')).toBeHidden();
  const bounds=await page.evaluate(()=>{const {chartInstance:chart}=globalThis.fixtureCopyApp;return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
  expect(bounds).toEqual({min:Date.parse(dates[0]),max:Date.parse(dates[2]),radius:0});
+ expect(await page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance.options.scales.y.position)).toBe("right");
+ expect(await page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance.config.plugins.some(plugin=>plugin.id==="historyCursor"))).toBe(true);
+ expect(await page.locator(".history-period-change").evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector("#positionChart"))&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
+
  expect(await page.locator('.exact-sold-value .inline-source-link').evaluate(el=>parseFloat(getComputedStyle(el).borderRadius))).toBeGreaterThanOrEqual(12);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;const item=app.state.items[0];app.state.detailSales=null;app.openCardDetail(item,true);},appUrl);

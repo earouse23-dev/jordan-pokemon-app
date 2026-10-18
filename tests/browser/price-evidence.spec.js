@@ -242,9 +242,9 @@ test("dated chart uses elapsed time and range-consistent values, including empty
   expect(plot.type).toBe("linear");
   expect(plot.datasetCount).toBe(1);
   expect(plot.radius).toBe(0);
-  expect(plot.hoverRadius).toBe(0);
-  expect(plot.interpolation).toBe("monotone");
-  expect(plot.tension).toBe(0.28);
+  expect(plot.hoverRadius).toBe(4);
+  expect(plot.interpolation).toBeUndefined();
+  expect(plot.tension).toBe(0);
   expect(plot.tooltipValue).toBe("$10.00");
   expect(plot.tooltipDate).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/);
   expect(plot.segments).toEqual([{ start: 0, end: 2 }]);
