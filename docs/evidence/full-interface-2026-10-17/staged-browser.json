@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-10-18T02:40:18.357Z",
+  "target": "https://jordan-pokemon-3s16a8vz6-earouse23-devs-projects.vercel.app",
+  "shippingAssetsAndCsp": true,
+  "directPublicSite": true,
+  "realDemoAuthentication": true,
+  "realDemoInventory": true,
+  "savedChartBeforeInventoryReads": true,
+  "reloadChartElapsedMs": 66,
+  "heldInventoryReads": 25,
+  "heroAboveChart": true,
+  "uncaughtErrors": [],
+  "customerWrites": 0,
+  "blockedWrites": 6,
+  "apis": [
+    {
+      "path": "/api/capabilities?surface=portfolio&display=summary",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/fx",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "path": "/api/capabilities?surface=portfolio&display=summary",
+      "method": "GET",
+      "status": 200
+    }
+  ]
+}

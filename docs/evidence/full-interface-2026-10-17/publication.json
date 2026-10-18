@@ -1,0 +1,24 @@
+{
+  "source": "402224d08e5609aa8d6ec3e623aa0634f18169ee",
+  "project": "prj_ICSEVLitTA6RdwTTy14BThiAvPEQ",
+  "deployment": "dpl_7a2TRsDiYhxrQ9rpRYWEe9yV4XHP",
+  "url": "https://jordan-pokemon-app.vercel.app",
+  "ci": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/39090807686",
+  "ciConclusion": "success",
+  "unit": {
+    "passed": 583,
+    "skipped": 3
+  },
+  "browser": {
+    "passed": 360,
+    "passedOnRetry": 1,
+    "skipped": 8
+  },
+  "largeInventoryPassed": 3,
+  "fxRecheckPassed": 6,
+  "productionStylesMatch": true,
+  "shellVersion": 103,
+  "productionStylesSha256": "57b1c436cd25b7fe7ca49f3542637c6dc6aab07fc0cbff754e0486619b818906",
+  "runtimeErrorLogSampleRows": 0,
+  "physicalDeviceAcceptanceOutstanding": true
+}

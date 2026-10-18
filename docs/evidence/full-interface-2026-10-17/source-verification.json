@@ -1,0 +1,14 @@
+{
+  "source": "402224d08e5609aa8d6ec3e623aa0634f18169ee",
+  "nativeSourceMatches": true,
+  "nativeInstalledCssMatches": true,
+  "hashes": {
+    "app.js": "844d7a4990c6839489769e5be944d4072c1a34cbea6378855c195c6ca2a91cd3",
+    "index.html": "5e643d11fbabc8d233d8947af8c823e46f71abacde90e5f8ecdbf3dcd63f6062",
+    "themes.css": "57b1c436cd25b7fe7ca49f3542637c6dc6aab07fc0cbff754e0486619b818906",
+    "sw.js": "89180c7f1e9c3dd2b25ddd64c850b5fe499ec2fbf0ccd51c30258bfd1f7d8e56"
+  },
+  "customerWriteTests": 0,
+  "newDependencies": 0,
+  "newProviderBudgets": 0
+}

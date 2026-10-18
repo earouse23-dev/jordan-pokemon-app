@@ -39,7 +39,7 @@ Research recommendations are applied where they fit the existing collector workf
 
 ## Verification and publication
 
-Pending final review. Screenshots use synthetic/isolated demo accounts; no customer write tests.
+Final verification and publication follow below. Browser screenshots use synthetic holdings; native captures use the isolated demo account. No customer write tests.
 
 ### Review findings addressed
 
@@ -54,3 +54,22 @@ Pending final review. Screenshots use synthetic/isolated demo accounts; no custo
 - Bumped the shell/style cache version to 103 so installed web shells receive the new design. Native builds bundle the same source.
 
 Local evidence: 583 unit checks passed (3 explicit skips), initial 603-case cross-browser run passed 573 with 16 explicit environment skips and 14 outdated presentation expectations. The corrected 33-case follow-up passed 32 (one desktop-only skip), retaining identity/currency/history/save assertions. An earlier 318-case run passed 309 with 3 skips; its six presentation failures were corrected and rechecked. No provider/database logic was changed to satisfy presentation tests. Exact source CI/publication evidence follows after release checks.
+
+
+### Independent correction gate
+
+The first independent candidate gate (39089812796) passed 358 browser checks with eight explicit skips, but failed the three phone-chart checks: the new item plot was 260px high against the existing 290px minimum. The implementation was corrected to retain 300px item plots; the acceptance threshold was preserved. All three targeted project checks passed. A subsequent native SE review also found the iOS date control painting past its field. Disabling the control's default appearance retained its native date type/picker and contained the border. The shared date style applies throughout the app; all six combined purchase-form/chart checks passed.
+
+Final runtime source: 402224d08e5609aa8d6ec3e623aa0634f18169ee. The installed native input files and CSS match that source. The final staged authenticated demo check showed the saved chart before 25 delayed inventory reads in 66ms, with no uncaught browser errors and customer writes blocked. This is a controlled observation, not a field percentile. Existing provider/database behavior and cron schedules remain intact.
+
+Release procedure correction: the artifact builder clears its staging directory, including the local Vercel link. An initial staging command therefore created an unused separate project. It was removed, the existing Mica project was explicitly relinked and its project/team IDs asserted after rebuilding. Subsequent candidates use only project prj_ICSEVLitTA6RdwTTy14BThiAvPEQ. The canonical production site was not switched to the unintended project. Future releases must relink/verify after artifact generation.
+
+The runtime log sample contained the existing Node dependency url.parse deprecation warning on a successful HTTP 200 response. No failed application response was observed in that sample; this is not a guarantee of zero production errors.
+
+### Final publication
+
+[Independent gate 39090807686](https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/39090807686) passed on final runtime source `402224d08e5609aa8d6ec3e623aa0634f18169ee`: 583 unit checks passed (three explicit skips); 360 browser checks passed, one FX case passed on retry, eight environment checks skipped; all three large-inventory checks passed. The FX case initially lost its browser execution context during evaluation; it passed on CI retry and six further local repetitions (two per browser project). This is recorded as a flaky test, not concealed as a clean first-pass run.
+
+The tested production candidate `dpl_7a2TRsDiYhxrQ9rpRYWEe9yV4XHP` was promoted to https://jordan-pokemon-app.vercel.app. Canonical health returned healthy with release `402224d08e56`. The authenticated demo saved-chart check passed on the canonical site in 324ms before delayed inventory reads, with no uncaught browser errors; customer writes were blocked. Production HTML, version-103 styles and service-worker cache version match the reviewed artifact. The final deployment's sampled error-log query returned no rows.
+
+The installed SE build uses the same reviewed source and passed normal signed simulator startup. Actual native screenshots cover portfolio and purchase-first intake, including the corrected date width. Browser coverage includes full flows and both appearances; simulator coordinate automation remained unavailable. Physical camera, haptics and full assistive-technology acceptance are not certified by these checks. No App Store submission, schema change, new dependency, provider budget or business/legal policy change shipped.
