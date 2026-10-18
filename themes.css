@@ -6690,4 +6690,4 @@ body[data-ui-theme="mica"] #appShell .catalog-set-filter[open]>summary { justify
 }
 body[data-ui-theme="mica"] #authGate #tryCardSearch { background: transparent; color: var(--pine-2); border: 0; box-shadow: none; min-height: 44px; padding: 8px 0; margin-top: 8px; font-size: 14px; }
 /* WebKit date controls must fit their grid cell on the smallest iPhone. */
-body[data-ui-theme="mica"] :is(input[type="date"],input[type="datetime-local"]) { min-inline-size: 0; max-inline-size: 100%; inline-size: 100%; box-sizing: border-box; }
+body[data-ui-theme="mica"] :is(input[type="date"],input[type="datetime-local"]) { min-inline-size: 0; max-inline-size: 100%; inline-size: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none; display: block; }

@@ -2137,6 +2137,9 @@ test("full interface uses artwork-first browsing and purchase-first editing", as
   await expect(page.locator("#positionCardDetails")).not.toHaveAttribute("open", "");
   await expect(page.locator("#positionTotalCost")).toBeVisible();
   await expect(page.locator("#positionDate")).toBeVisible();
+  const dateBounds = await page.locator("#positionDate").boundingBox();
+  const formBounds = await page.locator("#positionForm").boundingBox();
+  expect(dateBounds.x + dateBounds.width).toBeLessThanOrEqual(formBounds.x + formBounds.width + 1);
   await page.locator("#positionTotalCost").fill("125");
   await page.locator("#positionFree").check();
   await expect(page.locator("#positionTotalCost")).toHaveValue("0.00");
