@@ -32,3 +32,24 @@ Sources: [Apple HIG](https://developer.apple.com/design/human-interface-guidelin
 ## Acceptance limits
 
 This is an implementation and verification pass, not proof of a flawless product. Simulator/browser checks cannot establish physical camera, glare, haptic feel or every assistive-technology/device combination. Existing provider coverage and unverified certificate facts remain truthful. No App Store submission or commercial launch readiness is implied. Final source, checks, screenshots and publication evidence follow below.
+
+## Final local review
+
+Source commit: `55083e5970467ef3b0ac7e9f9e40676279110afa`.
+
+- Lint and syntax checks passed. Unit checks: 583 passed, three explicit environment skips.
+- Final pricing/portfolio/physical-copy/native/layout suite: 246 passed, three explicit environment skips.
+- After the final mobile focus-size and copy refinements, dashboard/layout suite: 201 passed. This includes device appearance changes, explicit appearance persistence, readable controls in both appearances, simulated keyboard viewport shrink/recovery and the 16px iOS focus-zoom floor.
+- Initial final-suite failures identified two obsolete copy assertions and a real conversion-error message being cleared while inventory was loading. Assertions retain their original semantic checks; the rendering path was corrected and the final suite passed.
+- One interim dashboard run was invalidated by rebuilding its shared dev-server directory while it was running. The combined final dashboard/layout run used stable assets and passed; this interruption is not counted as a product pass or a product defect.
+- Actual SE simulator review found sub-16px chart controls triggering focus zoom. Final mobile controls use 16px text; chart selector and portfolio were visually reviewed again. Native build succeeded and its three changed source files match the reviewed source. Simulator coordinate input remained intermittent; keyboard/menu input and browser workflow coverage were used. No claim of every physical touch interaction is made.
+- Staged production source passed release routing checks. Controlled live demo check rendered the saved chart before delayed inventory reads in 83ms, with successful portfolio-summary and FX responses, no uncaught browser errors, and writes/paid requests blocked by the verifier. This timing is a single controlled observation, not a performance percentile.
+- Staged runtime scan found one Node dependency `url.parse()` deprecation warning on an HTTP 200 response; no failed application response appeared in that scan. No dependency upgrade was introduced for this UI task.
+
+Independent CI and final publication are recorded in the evidence directory after completion. Physical camera, assistive-technology coverage and keyboard acceptance on real devices remain acceptance limits.
+
+## Independent gate and publication
+
+[CI run 39085587492](https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/39085587492) passed on the exact runtime commit: 583 unit checks (three explicit skips), 355 core browser checks (eight explicit skips) and three large-inventory checks. No browser retry markers appeared. The tested deployment `dpl_4MeNyBv69ATFg4mStAGz64ho5ziB` was promoted to https://jordan-pokemon-app.vercel.app. No SQL, dependency or provider-policy change shipped.
+
+Final canonical-site health returned healthy with release `55083e597046`. The controlled authenticated demo check passed again on the public URL: saved chart before delayed inventory reads in 242ms, no uncaught browser errors, no customer writes. See `production-browser.json`; this is a controlled timing observation, not a field performance percentile. The code remains at the runtime commit above; the following evidence-only commit does not change the deployed runtime.

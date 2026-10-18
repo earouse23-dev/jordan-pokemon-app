@@ -1,0 +1,66 @@
+{
+  "source": "55083e5970467ef3b0ac7e9f9e40676279110afa",
+  "unit": {
+    "passed": 583,
+    "skipped": 3
+  },
+  "broadBrowser": {
+    "passed": 246,
+    "skipped": 3
+  },
+  "finalDashboardLayout": {
+    "passed": 201
+  },
+  "initialStage3": {
+    "passed": 230,
+    "skipped": 3,
+    "timeouts": 1,
+    "recheckPassed": 3
+  },
+  "nativeSource": [
+    {
+      "file": "app.js",
+      "matched": true
+    },
+    {
+      "file": "index.html",
+      "matched": true
+    },
+    {
+      "file": "themes.css",
+      "matched": true
+    }
+  ],
+  "nativeBuildSucceeded": true,
+  "simulator": "iPhone SE (3rd generation), iOS 26.4",
+  "nativeNotes": [
+    "Portfolio, chart selector and restored add form visually inspected.",
+    "Coordinate input is intermittent; keyboard/menu access used.",
+    "Keyboard viewport regression uses a simulated VisualViewport; physical keyboard/camera acceptance is outstanding."
+  ],
+  "customerRecordWrites": 0,
+  "dependenciesAdded": 0,
+  "migrations": 0,
+  "independentCI": {
+    "run": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/39085587492",
+    "passed": true,
+    "unitPassed": 583,
+    "unitSkipped": 3,
+    "browserPassed": 355,
+    "browserSkipped": 8,
+    "largeInventoryPassed": 3,
+    "browserRetryMarkers": 0
+  },
+  "publication": {
+    "deploymentId": "dpl_4MeNyBv69ATFg4mStAGz64ho5ziB",
+    "url": "https://jordan-pokemon-app.vercel.app",
+    "source": "55083e5970467ef3b0ac7e9f9e40676279110afa",
+    "promoted": true
+  },
+  "runtimeScan": {
+    "failedResponses": 0,
+    "warnings": [
+      "Node dependency url.parse deprecation on HTTP 200"
+    ]
+  }
+}
