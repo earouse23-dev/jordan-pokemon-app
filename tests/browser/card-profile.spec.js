@@ -2108,6 +2108,12 @@ test("settings use grouped rows, direct appearance choices and an isolated sign-
   await initializeAccount(page,ownerId);
   await page.evaluate(async url=>(await import(url)).routeTo('profile'),appUrl);
   await expect(page.locator('#profileTitle')).toHaveText('Settings');
+  await page.locator('.settings-fees>summary').click();
+  await expect(page.locator('#defaultSellingFeePercent')).toBeVisible();
+  expect(await page.locator('.settings-fees small').evaluate(el=>getComputedStyle(el).display)).toBe('block');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.screenshot({path:testInfo.outputPath('settings-expanded-fee-fixture.png'),animations:'disabled'});
+  await page.locator('.settings-fees>summary').click();
   await expect(page.locator('.profile-card strong')).toHaveText('Fixture Collector');
   await expect(page.locator('.profile-card span').first()).toHaveText('fixture@example.test');
   await expect(page.locator('#appearanceSettings #appearanceSelect')).toBeVisible();

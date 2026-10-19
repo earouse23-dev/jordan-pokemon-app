@@ -6820,3 +6820,7 @@ body[data-ui-theme="mica"] #appShell #view-profile .settings-group>label:last-ch
 body[data-ui-theme="mica"] #appShell #view-profile #exportCsvButton { border-bottom: 0; }
 body[data-ui-theme="mica"] #appShell #view-profile.active { align-items: stretch; }
 body[data-ui-theme="mica"] #appShell #view-profile>:is(.settings-group,.settings-about,.settings-account-actions) { width: 100%; box-sizing: border-box; }
+body[data-ui-theme="mica"] #appShell #view-profile .settings-fees>label { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 8px 14px; font-size: 15px; }
+body[data-ui-theme="mica"] #appShell #view-profile .settings-fees small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+body[data-ui-theme="mica"] #appShell #view-profile .settings-fees .suffix-input { flex: 0 0 96px; width: 96px; }
+body[data-ui-theme="mica"] #appShell #view-profile .settings-fees input { width: 100%; min-width: 0; }
