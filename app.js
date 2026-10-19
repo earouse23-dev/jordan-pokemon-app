@@ -15918,7 +15918,7 @@ function updateInstallControl() {
   const installed = isInstalledApp();
   const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
   button.disabled = installed;
-  if ($("#deviceSettings")) $("#deviceSettings").hidden = installed;
+  if ($("#deviceSettings")) $("#deviceSettings").hidden = true;
   $("#installAppState").textContent = installed
     ? "Installed"
     : deferredInstallPrompt
@@ -16044,13 +16044,8 @@ function updateTargetAlertControl() {
   if (state.actionCenter.status === "ready") {
     const preferences = state.actionCenter.preferences;
     button.disabled = false;
-    $("#targetAlertState").textContent = preferences.enabled
-      ? preferences.channels.inApp
-        ? "On"
-        : "Paused"
-      : "Paused";
-    $("#targetAlertHelp").textContent =
-      `${preferences.dailyCap} per day per channel`;
+    $("#targetAlertState").textContent = preferences.enabled && Object.values(preferences.channels).some(Boolean) ? "On" : "Off";
+    $("#targetAlertHelp").textContent = "Price targets and collection updates";
     return;
   }
   const supported = "Notification" in window;
@@ -16204,7 +16199,7 @@ function openNotificationPreferencesSheet() {
     )
     .join("");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Action alerts</h2><p>Choose where and when Mica notifies you.</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="notificationPreferencesForm"><div class="settings-form"><label class="toggle-field"><input type="checkbox" name="enabled" ${preferences.enabled ? "checked" : ""}><span><strong>Enable alerts</strong><small>Pause new alerts anytime.</small></span></label><label class="toggle-field"><input type="checkbox" name="inApp" ${preferences.channels.inApp ? "checked" : ""}><span><strong>In Mica</strong><small>See alerts when you open Mica.</small></span></label><label class="toggle-field"><input type="checkbox" name="email" ${preferences.channels.email ? "checked" : ""} ${!emailAvailable && !preferences.channels.email ? "disabled" : ""}><span><strong>Email</strong><small>${emailAvailable ? "Delivery hasn’t been verified yet." : "Email alerts aren’t available yet."}</small></span></label><label class="toggle-field"><input type="checkbox" name="webPush" ${preferences.channels.webPush ? "checked" : ""} ${!pushAvailable && !preferences.channels.webPush ? "disabled" : ""}><span><strong>Web push</strong><small>${pushAvailable ? "This device needs notification permission." : "Push notifications aren’t available yet."}</small></span></label><section class="device-notification-settings"><strong>This device</strong><p id="devicePushStatus" role="status">Checking notification support…</p><button id="enableDevicePush" class="secondary" type="button" ${pushAvailable ? "" : "disabled"}>Enable on this device</button><button id="disableDevicePush" class="secondary" type="button">Disable on this device</button><small>Device permission is separate from your account’s Web push setting.</small></section><label class="toggle-field"><input type="checkbox" name="quietEnabled" ${preferences.quietHours.enabled ? "checked" : ""}><span><strong>Quiet hours</strong><small>Pause email and push during these hours.</small></span></label><div class="form-grid"><div class="field"><label for="quietStart">Start</label><input id="quietStart" name="quietStart" type="time" value="${esc(preferences.quietHours.start)}"></div><div class="field"><label for="quietEnd">End</label><input id="quietEnd" name="quietEnd" type="time" value="${esc(preferences.quietHours.end)}"></div><div class="field full"><label for="dailyAlertCap">Maximum per channel each day</label><input id="dailyAlertCap" name="dailyCap" type="number" min="1" max="50" step="1" value="${preferences.dailyCap}"></div><div class="field full"><label for="notificationTimeZone">Timezone</label><input id="notificationTimeZone" name="timeZone" value="${esc(preferences.timeZone)}" placeholder="America/Chicago" required><small>Quiet hours and the daily limit use this timezone.</small></div></div><fieldset class="notification-kinds"><legend>Actions to include</legend>${kindControls}</fieldset></div><p class="form-error" id="notificationPreferencesError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="disableOptionalAlerts" type="button">Unsubscribe optional channels</button><button class="primary" type="submit">Save alert settings</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Notifications</h2></div><button class="sheet-close" aria-label="Close">×</button></div><form id="notificationPreferencesForm"><div class="settings-form"><label class="toggle-field"><input type="checkbox" name="enabled" ${preferences.enabled ? "checked" : ""}><span><strong>Enable alerts</strong><small>Pause new alerts anytime.</small></span></label><label class="toggle-field"><input type="checkbox" name="inApp" ${preferences.channels.inApp ? "checked" : ""}><span><strong>In Mica</strong><small>See alerts when you open Mica.</small></span></label><details class="notification-advanced"><summary>More options</summary><label class="toggle-field"><input type="checkbox" name="email" ${preferences.channels.email ? "checked" : ""} ${!emailAvailable && !preferences.channels.email ? "disabled" : ""}><span><strong>Email</strong><small>${emailAvailable ? "Delivery hasn’t been verified yet." : "Email alerts aren’t available yet."}</small></span></label><label class="toggle-field"><input type="checkbox" name="webPush" ${preferences.channels.webPush ? "checked" : ""} ${!pushAvailable && !preferences.channels.webPush ? "disabled" : ""}><span><strong>Web push</strong><small>${pushAvailable ? "This device needs notification permission." : "Push notifications aren’t available yet."}</small></span></label><section class="device-notification-settings"><strong>This device</strong><p id="devicePushStatus" role="status">Checking notification support…</p><button id="enableDevicePush" class="secondary" type="button" ${pushAvailable ? "" : "disabled"}>Enable on this device</button><button id="disableDevicePush" class="secondary" type="button">Disable on this device</button><small>Device permission is separate from your account’s Web push setting.</small></section><label class="toggle-field"><input type="checkbox" name="quietEnabled" ${preferences.quietHours.enabled ? "checked" : ""}><span><strong>Quiet hours</strong><small>Pause email and push during these hours.</small></span></label><div class="form-grid"><div class="field"><label for="quietStart">Start</label><input id="quietStart" name="quietStart" type="time" value="${esc(preferences.quietHours.start)}"></div><div class="field"><label for="quietEnd">End</label><input id="quietEnd" name="quietEnd" type="time" value="${esc(preferences.quietHours.end)}"></div><div class="field full"><label for="dailyAlertCap">Daily alert limit</label><input id="dailyAlertCap" name="dailyCap" type="number" min="1" max="50" step="1" value="${preferences.dailyCap}"><small>Maximum alerts each for email, push, and in Mica.</small></div><div class="field full"><label for="notificationTimeZone">Timezone</label><input id="notificationTimeZone" name="timeZone" value="${esc(preferences.timeZone)}" placeholder="America/Chicago" required><small>Used for quiet hours and daily limits.</small></div></div><fieldset class="notification-kinds"><legend>Actions to include</legend>${kindControls}</fieldset></details></div><p class="form-error" id="notificationPreferencesError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="disableOptionalAlerts" type="button">Turn off email &amp; push</button><button class="primary" type="submit">Save alert settings</button></div></form>`,
   );
   const form = $("#notificationPreferencesForm");
   const errorNode = $("#notificationPreferencesError");
@@ -20706,10 +20701,7 @@ async function persistWorkflowDefaults() {
   const ownerId = state.session?.user?.id;
   const version = sessionLoadVersion;
   const selectedCurrency = $("#profileDisplayCurrency").value;
-  const preferences = {
-    ...state.preferences,
-    sellingFeePercent: Number($("#defaultSellingFeePercent").value),
-  };
+  const preferences = { ...state.preferences };
   button.disabled = true;
   status.textContent = "Saving…";
   try {

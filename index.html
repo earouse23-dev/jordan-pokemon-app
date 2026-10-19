@@ -1351,7 +1351,7 @@
               </div>
             </div>
           </details>
-          <div class="settings-group" id="collectionDataSettings">
+          <div class="settings-group" id="collectionDataSettings" hidden inert>
             <h2>Collection &amp; data</h2>
             <button type="button" id="sharePortfolioButton" hidden inert>
               <span
@@ -1401,9 +1401,9 @@
           <div class="settings-group" id="appearanceSettings">
             <h2>Appearance</h2>
             <label for="appearanceSelect">Theme<select id="appearanceSelect"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
-            <label for="motionPreferenceSelect">Animations<select id="motionPreferenceSelect"><option value="auto">System</option><option value="reduce">Reduced</option><option value="full">Full</option></select></label>
+            <label for="motionPreferenceSelect" hidden inert>Animations<select id="motionPreferenceSelect"><option value="auto">System</option><option value="reduce">Reduced</option><option value="full">Full</option></select></label>
           </div>
-          <div class="settings-group" id="deviceSettings"><h2>This device</h2>
+          <div class="settings-group" id="deviceSettings" hidden inert><h2>This device</h2>
             <button type="button" id="installAppButton">
               <span
                 >Install Mica<small id="installAppHelp"
@@ -1414,9 +1414,9 @@
 
           </div>
           <div class="settings-group workflow-defaults" id="everydaySettings">
-            <h2>Collection preferences</h2>
+            <h2>Preferences</h2>
             <label for="profileDisplayCurrency">Display currency<select id="profileDisplayCurrency"><option value="USD">USD</option><option value="EUR">EUR</option></select></label>
-            <details class="settings-fees"><summary>Selling preferences</summary>
+            <details class="settings-fees" hidden inert><summary>Selling preferences</summary>
             <label
               ><span>Selling fee<small>0% for no fees</small></span
               ><span class="suffix-input"
@@ -1440,7 +1440,7 @@
             <h2>Notifications</h2>
             <button type="button" id="targetAlertButton">
               <span
-                >Action alerts<small id="targetAlertHelp"
+                >Alerts<small id="targetAlertHelp"
                   >Price targets and collection updates</small
                 ></span
               ><strong id="targetAlertState">Off</strong>

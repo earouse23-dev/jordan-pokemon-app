@@ -947,7 +947,7 @@ test("late account setup cannot replace another owner's profile or reopen a priv
   await expect(page.getByText("Private account A draft")).toHaveCount(0);
 });
 
-test("visible fee preference saves preserve hidden mode and trade values", async ({ page }, testInfo) => {
+test("currency preference saves preserve hidden selling, mode and trade values", async ({ page }, testInfo) => {
   const writes = [];
   const preferences = { softwareMode: "seller", collectorGoal: "selling", experienceLevel: "professional", tradeValuePercent: 73, quickSalePercent: 61, sellingFeePercent: 7 };
   await setup(page, { accountProfiles: { [ownerId]: { onboardingCompletedAt: "2026-09-01T12:00:00.000Z", preferences } }, onSupabase: async route => {
@@ -965,7 +965,7 @@ test("visible fee preference saves preserve hidden mode and trade values", async
     document.querySelector("#saveWorkflowDefaults").click();
   });
   await expect.poll(() => writes.length).toBe(1);
-  expect(writes[0].preferences).toMatchObject({ ...preferences, sellingFeePercent: 9 });
+  expect(writes[0].preferences).toMatchObject(preferences);
   expect(writes[0]).not.toHaveProperty("display_currency");
   await expect(page.locator("#workflowDefaultsStatus")).toHaveText("Changes saved");
   await expect(page.locator("#gradingCalibration")).not.toHaveAttribute("open", "");
@@ -2108,21 +2108,13 @@ test("settings use grouped rows, direct appearance choices and an isolated sign-
   await initializeAccount(page,ownerId);
   await page.evaluate(async url=>(await import(url)).routeTo('profile'),appUrl);
   await expect(page.locator('#profileTitle')).toHaveText('Settings');
-  await page.locator('.settings-fees>summary').click();
-  await expect(page.locator('#defaultSellingFeePercent')).toBeVisible();
-  expect(await page.locator('.settings-fees small').evaluate(el=>getComputedStyle(el).display)).toBe('block');
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await page.screenshot({path:testInfo.outputPath('settings-expanded-fee-fixture.png'),animations:'disabled'});
-  await page.locator('.settings-fees>summary').click();
+  for (const selector of ['.settings-fees', '#motionPreferenceSelect', '#collectionDataSettings', '#deviceSettings']) await expect(page.locator(selector)).toBeHidden();
   await expect(page.locator('.profile-card strong')).toHaveText('Fixture Collector');
   await expect(page.locator('.profile-card span').first()).toHaveText('fixture@example.test');
   await expect(page.locator('#appearanceSettings #appearanceSelect')).toBeVisible();
-  await expect(page.locator('#appearanceSettings #motionPreferenceSelect')).toBeVisible();
+  await expect(page.locator('#targetAlertHelp')).not.toContainText('per channel');
   await expect(page.locator('#accountSettings #signOutButton')).toHaveCount(0);
   await expect(page.locator('#accountActions #signOutButton')).toBeVisible();
-  await page.locator('#motionPreferenceSelect').selectOption('reduce');
-  await expect(page.locator('body')).toHaveAttribute('data-motion','reduce');
-  expect(await page.evaluate(()=>localStorage.getItem('mica-motion-preference'))).toBe('reduce');
   await expect(page.locator('#settingsAbout')).not.toHaveAttribute('open','');
   await page.locator('#settingsAbout>summary').click();
   await expect(page.locator('#settingsAbout')).toContainText('not affiliated');

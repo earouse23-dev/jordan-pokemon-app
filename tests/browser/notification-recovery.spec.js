@@ -15,7 +15,11 @@ async function openPreferences(page) {
     ({ handler, preferences }) => {
       window.$ = (selector) => document.querySelector(selector);
       window.esc = (value) => String(value);
+      window.sessionLoadVersion = 1;
+      window.notificationTimeZone = value => value;
+      window.devicePushStatus = async () => "disabled";
       window.state = {
+        session: { user: { id: "fixture-owner" } },
         actionCenter: {
           status: "ready",
           preferences,
@@ -89,6 +93,8 @@ test("alert settings retain choices and hide server detail through retry", async
 }) => {
   await openPreferences(page);
   await page.locator('input[name="inApp"]').uncheck();
+  await expect(page.locator("#dailyAlertCap")).toBeHidden();
+  await page.locator(".notification-advanced>summary").click();
   await page.locator("#dailyAlertCap").fill("9");
   const button = page.getByRole("button", { name: "Save alert settings" });
   await button.click();
