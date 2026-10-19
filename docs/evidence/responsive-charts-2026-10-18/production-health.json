@@ -1,0 +1,1 @@
+{"status":"healthy","checkedAt":"2026-10-19T04:06:23.671Z","release":"d1d847532c8f","services":{"database":"healthy","auth":"healthy","appSchema":"access_restricted","schemaVerification":"requires_authenticated_acceptance","catalog":"configured","pricingProvider":"healthy","paidPricing":"configured_unverified","vision":"release_hold"}}
