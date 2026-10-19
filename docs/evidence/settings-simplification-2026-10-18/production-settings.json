@@ -1,0 +1,41 @@
+{
+  "rows": 5,
+  "layouts": [
+    {
+      "width": 375,
+      "overflow": 0,
+      "groupWidth": 343
+    },
+    {
+      "width": 1440,
+      "overflow": 0,
+      "groupWidth": 728
+    }
+  ],
+  "errors": [],
+  "failures": [
+    {
+      "path": "/rest/v1/rpc/grading_calibration_summary",
+      "status": 503
+    },
+    {
+      "path": "/api/capabilities",
+      "status": 503
+    },
+    {
+      "path": "/rest/v1/rpc/upsert_action_center_snapshot",
+      "status": 503
+    },
+    {
+      "path": "/api/capabilities",
+      "status": 503
+    }
+  ],
+  "blockedPaths": [
+    "/rest/v1/rpc/grading_calibration_summary",
+    "/api/capabilities",
+    "/rest/v1/rpc/upsert_action_center_snapshot",
+    "/api/capabilities"
+  ],
+  "blockedWrites": 4
+}
