@@ -28,4 +28,16 @@ Initial complete local UI/card-profile run after the functional refactor: 195 pa
 
 Installed native app reviewed in the iPhone SE third-generation simulator through the actual profile button, not Safari. Native review includes account wrapping, appearance controls, scroll layout and hiding redundant installation. Exported screenshots use synthetic accounts; private demo email is not copied to public evidence. Physical iPhone touch/VoiceOver acceptance remains separate.
 
-Final independent CI, deployment and live observations will be recorded after release. No customer write testing, destructive migration, legal setup or new billing is included.
+Final independent CI, deployment and live observations are recorded below. No customer write testing, destructive migration, legal setup or new billing is included.
+
+## Published release
+
+Runtime source: 858a341c3017936b4d65ebd7ab558d5339861a12. [Release CI](https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/39191705282): 583 unit passed / 3 explicit skips; 361 browser passed / 8 environment skips; 3 large-inventory passed. No flaky/retry result was reported. The expanded selling-fee check exposed joined label/help text; corrected with a two-column row and separate helper, then added to the permanent settings check. Final fee/persistence checks passed 9 tests across all three browser projects.
+
+[Published deployment](https://jordan-pokemon-4i1sva2il-earouse23-devs-projects.vercel.app), ID dpl_8MESfqSBM44P3sm3H4cjLbtQPHBt, promoted to [Mica](https://jordan-pokemon-app.vercel.app). Health reports source 858a341c3017. Existing crons, provider budgets and nine-function footprint retained; no SQL or provider activation changes. Prior health holds remain unchanged (vision release hold; paid-pricing live acceptance is outside this UI task).
+
+Read-only isolated demo review against both stage and production: 5 saved rows loaded; settings groups align at 343px within a 375px phone viewport and 728px within a 1440px desktop viewport; zero horizontal overflow and no uncaught browser errors. The harness deliberately blocked provider/background-write paths, yielding documented 503 responses. These are not production endpoint failures, and this review does not claim live provider-price verification. No customer records were written.
+
+Native build succeeded and installed; all four bundled UI input hashes match the runtime source. Actual simulator profile navigation and settings layout were observed. Later native touch attempts encountered the computer-use service's intermittent noWindowsAvailable error; exhaustive native touch/VoiceOver acceptance is not claimed. Browser WebKit checks cover direct controls, fee expansion, appearance and persisted currency behavior. Private demo email is kept out of repository screenshots.
+
+Evidence: [publication](evidence/settings-redesign-2026-10-18/publication.json), [production observation](evidence/settings-redesign-2026-10-18/production-settings-observation.json), [phone settings](evidence/settings-redesign-2026-10-18/mobile-webkit-light-viewport-fixture.png), [desktop settings](evidence/settings-redesign-2026-10-18/desktop-chromium-light-fixture.png), [expanded fee](evidence/settings-redesign-2026-10-18/mobile-webkit-expanded-fee-fixture.png). Screenshots are synthetic fixtures, including their reserved example.test email address.

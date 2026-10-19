@@ -1,0 +1,33 @@
+{
+  "runtimeCommit": "858a341c3017936b4d65ebd7ab558d5339861a12",
+  "deployment": "https://jordan-pokemon-4i1sva2il-earouse23-devs-projects.vercel.app",
+  "deploymentId": "dpl_8MESfqSBM44P3sm3H4cjLbtQPHBt",
+  "projectId": "prj_ICSEVLitTA6RdwTTy14BThiAvPEQ",
+  "production": "https://jordan-pokemon-app.vercel.app",
+  "ci": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/39191705282",
+  "unit": {
+    "passed": 583,
+    "skipped": 3
+  },
+  "browser": {
+    "passed": 361,
+    "skipped": 8
+  },
+  "largeInventory": {
+    "passed": 3
+  },
+  "localUiAndCardProfile": {
+    "passed": 195,
+    "skipped": 9
+  },
+  "finalTargeted": {
+    "passed": 18
+  },
+  "expandedFeeAndPersistence": {
+    "passed": 9
+  },
+  "functions": 9,
+  "newDependencies": 0,
+  "newPaidServices": 0,
+  "customerWrites": 0
+}
