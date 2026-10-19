@@ -31,7 +31,7 @@ test.beforeAll(async () => {
     );
   const result = await build({
     stdin: {
-      contents: `${source.replace("void bootstrap();", "")}\nexport { valuationContextForItem, state, loadDisplayFx, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, refreshWatchlistPricing, supabase as testSupabase };`,
+      contents: `${source.replace("void bootstrap();", "")}\nexport { chartInstance, valuationContextForItem, state, loadDisplayFx, applySession, bindEvents, bindSetSheet, openCardDetail, openSheet, renderCollection, renderDetail, restorePendingProfileAction, routeTo, setSheetMarkup, refreshWatchlistPricing, supabase as testSupabase };`,
       resolveDir: baselineFile ? baselineFile.slice(0, baselineFile.lastIndexOf("/")) : root,
       sourcefile: "app.js",
     },
@@ -2132,3 +2132,34 @@ test("settings use grouped rows, direct appearance choices and an isolated sign-
   }
   expect(writes).toBe(0);
 });
+
+ test("price chart uses the phone width and resizes its actual plot without remounting", async ({page}, testInfo) => {
+  await setup(page);
+  await openCard(page, exactCard({identityStatus:"exact", edition:"unlimited", promoType:"none", condition:"Near Mint", priceHistory:[
+    {recordedAt:"2026-01-01",amount:8,currency:"USD",condition:"Near Mint",finish:"reverseHolofoil",provider:"tcgplayer"},
+    {recordedAt:"2026-09-16",amount:10,currency:"USD",condition:"Near Mint",finish:"reverseHolofoil",provider:"tcgplayer"},
+  ]}));
+  await expect(page.locator('#positionChart')).toBeVisible();
+  const measurements=[];
+  for(const [width,height] of [[320,568],[375,667],[430,932],[667,375],[768,1024],[1440,900]]) {
+    await page.setViewportSize({width,height});
+    await expect.poll(async()=>page.evaluate(async url=>{
+      const chart=(await import(url)).chartInstance;
+      const box=document.querySelector('#positionChart').parentElement.getBoundingClientRect();
+      return !!chart && Math.abs(chart.width-box.width)<2 && Math.abs(chart.height-box.height)<2;
+    },appUrl)).toBe(true);
+    const size=await page.evaluate(async url=>{
+      const chart=(await import(url)).chartInstance;
+      const box=chart.canvas.getBoundingClientRect();
+      return {width:box.width,height:box.height,left:box.left,right:box.right,plotWidth:chart.chartArea.width,overflow:document.documentElement.scrollWidth-innerWidth};
+    },appUrl);
+    expect(size.overflow).toBeLessThanOrEqual(1);
+    expect(size.plotWidth/size.width).toBeGreaterThan(.92);
+    if(width<760) { expect(size.left).toBeGreaterThanOrEqual(7); expect(size.right).toBeLessThanOrEqual(width-7); expect(size.width).toBeGreaterThanOrEqual(width-18); }
+    measurements.push({viewport:{width,height},...size});
+    await page.locator('#positionChart').scrollIntoViewIfNeeded();
+    await page.screenshot({path:testInfo.outputPath('responsive-price-'+width+'.png'),animations:'disabled'});
+  }
+  expect(measurements[2].height).toBeGreaterThan(measurements[1].height+25);
+  await testInfo.attach('chart-measurements',{body:JSON.stringify(measurements,null,2),contentType:'application/json'});
+ });

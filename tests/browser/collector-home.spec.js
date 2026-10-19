@@ -487,6 +487,24 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
     return [chart.scales.x.min === observed[0], chart.scales.x.max === observed.at(-1), chart.data.datasets[0].data[0] === null];
   })).toEqual([true, true, true]);
   expect(await page.locator(".portfolio-chart-shell").evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(test.info().project.name.includes("mobile") ? 240 : 300);
+  const sizes=[];
+  for(const [width,height] of [[320,568],[375,667],[430,932],[667,375],[768,1024],[1440,900]]) {
+    await page.setViewportSize({width,height});
+    await expect.poll(()=>page.evaluate(()=>{
+      const chart=globalThis.fixtureApp.portfolioChartInstance,box=chart.canvas.parentElement.getBoundingClientRect();
+      return Math.abs(chart.width-box.width)<2 && Math.abs(chart.height-box.height)<2;
+    })).toBe(true);
+    const box=await page.evaluate(()=>{const c=globalThis.fixtureApp.portfolioChartInstance,b=c.canvas.getBoundingClientRect();return {width:b.width,height:b.height,left:b.left,right:b.right,plotWidth:c.chartArea.width,overflow:document.documentElement.scrollWidth-innerWidth};});
+    expect(await page.locator("#portfolioHistory").evaluate(el=>getComputedStyle(el).overflow)).toBe("visible");
+    expect(box.plotWidth/box.width).toBeGreaterThan(.92);
+    expect(box.overflow).toBeLessThanOrEqual(1);
+    if(width<760) {expect(box.left).toBeGreaterThanOrEqual(7);expect(box.right).toBeLessThanOrEqual(width-7);expect(box.width).toBeGreaterThanOrEqual(width-18);}
+    sizes.push({viewport:{width,height},...box});
+    await page.locator('#portfolioHistoryChart').scrollIntoViewIfNeeded();
+    await page.screenshot({path:testInfo.outputPath('responsive-portfolio-'+width+'.png'),animations:'disabled'});
+  }
+  expect(sizes[2].height).toBeGreaterThan(sizes[1].height+25);
+  await testInfo.attach('chart-measurements',{body:JSON.stringify(sizes,null,2),contentType:'application/json'});
   await page.locator(".portfolio-pnl-picker > summary").click();
   await page.locator("#portfolioPnlRange").selectOption("1m");
   await expect(page.locator("#portfolioReturn")).toHaveText("+20.0%");

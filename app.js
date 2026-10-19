@@ -2935,7 +2935,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           ticks: {
             maxTicksLimit: 4,
             color: muted,
-            padding: 10,
+            padding: 6,
             align: "inner",
             maxRotation: 0,
             callback: (value) => dateLabel(value),
@@ -2948,8 +2948,9 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           border: { display: false },
           ticks: {
             maxTicksLimit: 4,
+            mirror: true,
             color: muted,
-            padding: 8,
+            padding: 4,
             callback: value => new Intl.NumberFormat("en-US", { style: "currency", currency: model.currency, notation: "compact", maximumFractionDigits: 2 }).format(value),
             font: { size: 12 },
           },
@@ -5395,7 +5396,7 @@ async function mountPortfolioHistoryChart({
             maxTicksLimit: 4,
             align: "inner",
             maxRotation: 0,
-            padding: 8,
+            padding: 4,
             font: { size: 11, weight: 500 },
             callback(value) {
               return shortPortfolioDate(new Date(value).toISOString().slice(0, 10));
@@ -5412,7 +5413,8 @@ async function mountPortfolioHistoryChart({
             color: muted,
             maxTicksLimit: 4,
             includeBounds: false,
-            padding: 8,
+            mirror: true,
+            padding: 4,
             font: { size: 11, weight: 500 },
             callback(value) {
               return compactCurrency.format(value);
