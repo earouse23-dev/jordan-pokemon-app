@@ -22,7 +22,7 @@
       href="icons/apple-touch-icon.png"
     />
     <link rel="stylesheet" href="styles.css?v=91" />
-    <link rel="stylesheet" href="themes.css?v=104" />
+    <link rel="stylesheet" href="themes.css?v=105" />
     <title>Mica — Pokémon Card Library</title>
   </head>
   <body>
@@ -1377,14 +1377,14 @@
             <button type="button" id="exportButton">
               <span
                 >Download backup<small
-                  >Cards, purchases, sales, and watched items</small
+                  >Full collection · JSON</small
                 ></span
               ><b>›</b>
             </button>
             <button type="button" id="exportCsvButton">
               <span
                 >Export spreadsheet<small
-                  >CSV · all saved entries</small
+                  >All saved entries · CSV</small
                 ></span
               ><b>›</b>
             </button>
@@ -1398,8 +1398,12 @@
             </button>
             <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
           </div>
-          <div class="settings-group workflow-defaults" id="everydaySettings">
-            <h2>Preferences</h2>
+          <div class="settings-group" id="appearanceSettings">
+            <h2>Appearance</h2>
+            <label for="appearanceSelect">Theme<select id="appearanceSelect"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+            <label for="motionPreferenceSelect">Animations<select id="motionPreferenceSelect"><option value="auto">System</option><option value="reduce">Reduced</option><option value="full">Full</option></select></label>
+          </div>
+          <div class="settings-group" id="deviceSettings"><h2>This device</h2>
             <button type="button" id="installAppButton">
               <span
                 >Install Mica<small id="installAppHelp"
@@ -1407,7 +1411,10 @@
                 ></span
               ><strong id="installAppState">Check</strong>
             </button>
-            <label for="appearanceSelect">Appearance<select id="appearanceSelect"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+
+          </div>
+          <div class="settings-group workflow-defaults" id="everydaySettings">
+            <h2>Collection preferences</h2>
             <label for="profileDisplayCurrency">Display currency<select id="profileDisplayCurrency"><option value="USD">USD</option><option value="EUR">EUR</option></select></label>
             <details class="settings-fees"><summary>Selling preferences</summary>
             <label
@@ -1426,23 +1433,16 @@
             >
             </details>
             <button class="primary" id="saveWorkflowDefaults" type="button">
-              Save preferences
+              Save changes
             </button>
             <p id="workflowDefaultsStatus" role="status" aria-live="polite"></p>
-            <button type="button" id="motionButton">
-              <span
-                >Animations<small id="motionHelp"
-                  >Follow your device preference · select to change</small
-                ></span
-              ><strong id="motionState">Auto</strong>
-            </button>
           </div>
           <div class="settings-group" id="notificationSettings">
             <h2>Notifications</h2>
             <button type="button" id="targetAlertButton">
               <span
                 >Action alerts<small id="targetAlertHelp"
-                  >Free in-app alerts; optional delivery stays off</small
+                  >Price targets and collection updates</small
                 ></span
               ><strong id="targetAlertState">Off</strong>
             </button>
@@ -1459,11 +1459,14 @@
               <span>Privacy &amp; account deletion</span><b>›</b>
             </button>
           </div>
+          <details class="settings-about" id="settingsAbout"><summary>About Mica</summary>
           <p class="legal-copy">
             Mica is an independent collection tool and is not affiliated with or
             endorsed by The Pokémon Company, Nintendo, Creatures, Game Freak,
             TCGplayer, Cardmarket, eBay, PSA, CGC, or Beckett.
           </p>
+          </details>
+          <div class="settings-account-actions" id="accountActions"></div>
         </section>
 
         <section

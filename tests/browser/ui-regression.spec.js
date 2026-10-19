@@ -1038,7 +1038,7 @@ test('phone settings and recovery dialogs retain readable controls in both appea
     expect(audit.overflow).toBeLessThanOrEqual(0);
     expect(audit.textBelowFloor).toEqual([]);
     expect(audit.undersizedMobileButtons).toEqual([]);
-    await page.screenshot({path:`/tmp/mica-design-settings-${appearance}-${testInfo.project.name}.png`,fullPage:true});
+    await page.screenshot({path:`/tmp/mica-design-settings-${appearance}-${testInfo.project.name}.png`,fullPage:true,animations:"disabled"});
   }
   await page.evaluate(()=>document.querySelector('#passwordResetDialog').showModal());
   const button=page.locator('#passwordResetDialog [data-close-reset-dialog]');

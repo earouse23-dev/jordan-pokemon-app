@@ -15918,6 +15918,7 @@ function updateInstallControl() {
   const installed = isInstalledApp();
   const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
   button.disabled = installed;
+  if ($("#deviceSettings")) $("#deviceSettings").hidden = installed;
   $("#installAppState").textContent = installed
     ? "Installed"
     : deferredInstallPrompt
@@ -15936,29 +15937,16 @@ function updateInstallControl() {
 
 function applyMotionPreference() {
   document.body.dataset.motion = motionPreference;
-  const label = { auto: "Auto", reduce: "Reduce", full: "Full" }[
-    motionPreference
-  ];
-  const help = {
-    auto: "Device setting",
-    reduce: "Reduced motion",
-    full: "Full motion",
-  }[motionPreference];
-  if ($("#motionState")) $("#motionState").textContent = label;
-  if ($("#motionHelp")) $("#motionHelp").textContent = help;
+  if ($("#motionPreferenceSelect")) $("#motionPreferenceSelect").value = motionPreference;
 }
 
-function cycleMotionPreference() {
-  const modes = ["auto", "reduce", "full"];
-  motionPreference =
-    modes[(modes.indexOf(motionPreference) + 1) % modes.length];
+function setMotionPreference(value) {
+  if (!["auto", "reduce", "full"].includes(value)) return;
+  motionPreference = value;
   try {
     localStorage.setItem("mica-motion-preference", motionPreference);
   } catch {}
   applyMotionPreference();
-  toast(
-    `Motion set to ${{ auto: "device preference", reduce: "reduced", full: "full" }[motionPreference]}`,
-  );
 }
 
 function targetAlertStorageKey() {
@@ -16062,7 +16050,7 @@ function updateTargetAlertControl() {
         : "Paused"
       : "Paused";
     $("#targetAlertHelp").textContent =
-      `${preferences.dailyCap} per channel each day · quiet ${preferences.quietHours.start}–${preferences.quietHours.end} ${preferences.timeZone}`;
+      `${preferences.dailyCap} per day per channel`;
     return;
   }
   const supported = "Notification" in window;
@@ -19863,7 +19851,7 @@ function bindEvents() {
     "click",
     () => void openInstallExperience(),
   );
-  $("#motionButton").addEventListener("click", cycleMotionPreference);
+  $("#motionPreferenceSelect").addEventListener("change", event => setMotionPreference(event.target.value));
   $("#targetAlertButton").addEventListener(
     "click",
     () => void toggleTargetAlerts(),
@@ -20561,12 +20549,7 @@ async function openGradingPilotReview() {
 
 function ensureProfileAccount() {
   const email = state.session?.user?.email || "Signed in";
-  const profileName = String(
-    state.session?.user?.user_metadata?.full_name || email.split("@")[0],
-  )
-    .replace(/[._-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
-    .trim();
+  const profileName = profileDisplayName() || "Collector";
   const accountLabel = email;
   const initials =
     profileName
@@ -20583,14 +20566,14 @@ function ensureProfileAccount() {
   if ($(".avatar")) $(".avatar").textContent = initials;
   if ($(".profile-avatar")) $(".profile-avatar").textContent = initials;
   const heading = $("#profileTitle");
-  if (heading) heading.textContent = "Your collection account";
+  if (heading) heading.textContent = "Settings";
   const profile = $(".profile-card");
   const strong = profile?.querySelector("strong");
   const span = profile?.querySelector("span");
-  if (strong) strong.textContent = accountLabel;
+  if (strong) strong.textContent = profileName || "Collector";
   if (span)
     span.textContent =
-      "Collection and purchase history sync securely across devices";
+      accountLabel;
   let pilotButton = $("#gradingPilotReviewButton");
   const pilotRole = gradingPilotRole();
   if (pilotRole && !pilotButton) {
@@ -20613,7 +20596,7 @@ function ensureProfileAccount() {
     button.type = "button";
     button.className = "profile-signout";
     button.textContent = "Sign out";
-    $("#accountSettings").append(button);
+    $("#accountActions").append(button);
   }
   button.onclick = async () => {
     button.disabled = true;
@@ -20742,7 +20725,7 @@ async function persistWorkflowDefaults() {
     renderWorkflowDefaults();
     renderTrade();
     renderLiquidationPlanner();
-    status.textContent = "Saved to your Mica account.";
+    status.textContent = "Changes saved";
   } catch (error) {
     status.textContent = error.message || "Could not save these defaults.";
   } finally {

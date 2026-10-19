@@ -967,7 +967,7 @@ test("visible fee preference saves preserve hidden mode and trade values", async
   await expect.poll(() => writes.length).toBe(1);
   expect(writes[0].preferences).toMatchObject({ ...preferences, sellingFeePercent: 9 });
   expect(writes[0]).not.toHaveProperty("display_currency");
-  await expect(page.locator("#workflowDefaultsStatus")).toHaveText("Saved to your Mica account.");
+  await expect(page.locator("#workflowDefaultsStatus")).toHaveText("Changes saved");
   await expect(page.locator("#gradingCalibration")).not.toHaveAttribute("open", "");
   const heading = await page.locator("#profileTitle").boundingBox();
   for (const id of ["collectionInsights", "gradingCalibration"]) {
@@ -1012,7 +1012,7 @@ test("saved display currency converts the portfolio and survives profile reload 
   for (const id of ["profileDisplayCurrency", "saveWorkflowDefaults"]) expect(await page.locator("#"+id).evaluate(el=>parseFloat(getComputedStyle(el).borderTopRightRadius))).toBeGreaterThanOrEqual(10);
   await page.locator("#profileDisplayCurrency").selectOption("EUR");
   await page.locator("#saveWorkflowDefaults").click();
-  await expect(page.locator("#workflowDefaultsStatus")).toHaveText("Saved to your Mica account.");
+  await expect(page.locator("#workflowDefaultsStatus")).toHaveText("Changes saved");
   expect(writes).toHaveLength(1);
   expect(writes[0].display_currency).toBe("EUR");
   expect(writes[0].preferences).toMatchObject(preferences);
@@ -2100,4 +2100,37 @@ test("beta design keeps exact results readable in light and dark with one clear 
   expect(await page.locator("#positionPurchaseDetails").evaluate(n => getComputedStyle(n).backgroundColor)).toBe(await page.evaluate(() => getComputedStyle(document.querySelector("#view-detail")).backgroundColor));
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:`/tmp/mica102-add-dark-${testInfo.project.name}.png`,fullPage:true,animations:"disabled"});
+});
+
+test("settings use grouped rows, direct appearance choices and an isolated sign-out action", async ({page}, testInfo) => {
+  let writes=0;
+  await setup(page,{accountProfiles:{[ownerId]:{onboardingCompletedAt:"2026-09-01T12:00:00.000Z"}},onSupabase:async route=>{if(route.request().method()==="POST"&&new URL(route.request().url()).pathname.endsWith('/rest/v1/profiles')) writes++;return false;}});
+  await initializeAccount(page,ownerId);
+  await page.evaluate(async url=>(await import(url)).routeTo('profile'),appUrl);
+  await expect(page.locator('#profileTitle')).toHaveText('Settings');
+  await expect(page.locator('.profile-card strong')).toHaveText('Fixture Collector');
+  await expect(page.locator('.profile-card span').first()).toHaveText('fixture@example.test');
+  await expect(page.locator('#appearanceSettings #appearanceSelect')).toBeVisible();
+  await expect(page.locator('#appearanceSettings #motionPreferenceSelect')).toBeVisible();
+  await expect(page.locator('#accountSettings #signOutButton')).toHaveCount(0);
+  await expect(page.locator('#accountActions #signOutButton')).toBeVisible();
+  await page.locator('#motionPreferenceSelect').selectOption('reduce');
+  await expect(page.locator('body')).toHaveAttribute('data-motion','reduce');
+  expect(await page.evaluate(()=>localStorage.getItem('mica-motion-preference'))).toBe('reduce');
+  await expect(page.locator('#settingsAbout')).not.toHaveAttribute('open','');
+  await page.locator('#settingsAbout>summary').click();
+  await expect(page.locator('#settingsAbout')).toContainText('not affiliated');
+  await page.locator('#settingsAbout>summary').click();
+  for(const appearance of ['light','dark']) {
+    await page.locator('#appearanceSelect').selectOption(appearance);
+    await expect(page.locator('body')).toHaveAttribute('data-appearance',appearance);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    expect((await page.locator('#view-profile').boundingBox()).width).toBeLessThanOrEqual(840);
+    await page.evaluate(()=>{document.activeElement?.blur();window.scrollTo(0,0);});
+    const widths=await page.locator('#view-profile>.settings-group:visible').evaluateAll(els=>els.map(el=>el.getBoundingClientRect().width));
+    expect(Math.max(...widths)-Math.min(...widths)).toBeLessThanOrEqual(1);
+    await page.screenshot({path:testInfo.outputPath('settings-'+appearance+'-fixture.png'),fullPage:true,animations:'disabled'});
+    await page.screenshot({path:testInfo.outputPath('settings-'+appearance+'-viewport-fixture.png'),animations:'disabled'});
+  }
+  expect(writes).toBe(0);
 });
