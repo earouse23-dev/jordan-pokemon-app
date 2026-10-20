@@ -5281,6 +5281,8 @@ async function mountPortfolioHistoryChart({
   pnlMode = false,
   partialValues = null,
   coverageMode = false,
+  dateDomain = null,
+  zeroBaseline = false,
 }) {
   const version = ++portfolioChartMountVersion;
   portfolioChartInstance?.destroy();
@@ -5296,12 +5298,8 @@ async function mountPortfolioHistoryChart({
   const paper = styles.getPropertyValue("--paper").trim() || "#0d151f";
   const ink = styles.getPropertyValue("--ink").trim() || "#f7f8fc";
   const observedValues = [...values, ...(partialValues || [])].filter(value => Number.isFinite(value));
-  if (!observedValues.length) {
-    canvas.parentElement.innerHTML = '<p class="unavailable-panel" role="status">No recorded values in this range.</p>';
-    return;
-  }
-  const lowestValue = Math.min(...observedValues);
-  const highestValue = Math.max(...observedValues);
+  const lowestValue = observedValues.length ? Math.min(...observedValues) : 0;
+  const highestValue = observedValues.length ? Math.max(...observedValues) : 1;
   const valueSpan = highestValue - lowestValue;
   const scalePadding = Math.max(valueSpan * 0.08, Math.abs(highestValue) * 0.02, 0.01);
   const observedDates = points.filter((point, index) => values[index] !== null || partialValues?.[index] != null).map(point => point.date);
@@ -5387,8 +5385,8 @@ async function mountPortfolioHistoryChart({
           type: "linear",
           grid: { display: false },
           border: { display: false },
-          min: Date.parse(`${chartDates[0]}T00:00:00Z`),
-          max: Date.parse(`${chartDates.at(-1)}T00:00:00Z`),
+          min: Date.parse(`${dateDomain?.start || chartDates[0]}T00:00:00Z`),
+          max: Date.parse(`${dateDomain?.end || chartDates.at(-1)}T00:00:00Z`),
           ticks: {
             color: muted,
             autoSkip: true,
@@ -5399,13 +5397,13 @@ async function mountPortfolioHistoryChart({
             padding: 4,
             font: { size: 11, weight: 500 },
             callback(value) {
-              return shortPortfolioDate(new Date(value).toISOString().slice(0, 10));
+              return shortPortfolioDate(new Date(value).toISOString().slice(0, 10), (dateDomain?.start || chartDates[0]).slice(0,4) !== (dateDomain?.end || chartDates.at(-1)).slice(0,4));
             },
           },
         },
         y: {
           position: "right",
-          min: !pnlMode && !marketMode ? Math.max(0, lowestValue - scalePadding) : lowestValue - scalePadding,
+          min: zeroBaseline ? 0 : !pnlMode && !marketMode ? Math.max(0, lowestValue - scalePadding) : lowestValue - scalePadding,
           max: highestValue + scalePadding,
           grid: { color: line, drawTicks: false, lineWidth: 0.5 },
           border: { display: false },
@@ -5440,14 +5438,28 @@ function renderPortfolioHistory() {
     return;
   }
   if (saved && state.portfolioHistoryMode === "value") {
-    const points = portfolioHistoryRangePoints(saved.history || [], state.portfolioHistoryRange);
+    const today = localIsoDate();
+    const timeline = (saved.history || []).filter(point => point.date <= today).map(point => ({ ...point }));
+    // The display endpoint is today's saved current value in the user's local day.
+    // Provider ingestion still uses its existing UTC daily cache boundary.
+    if (timeline.length && Number.isFinite(saved.total)) {
+      const endpoint = { date: today, total: saved.total };
+      if (timeline.at(-1).date === today) timeline[timeline.length - 1] = endpoint;
+      else timeline.push(endpoint);
+    }
+    const points = portfolioHistoryRangePoints(timeline, state.portfolioHistoryRange);
+    const allTime = state.portfolioHistoryRange === "all";
+    const historyStart = allTime ? saved.acquiredAt || points[0]?.date : points[0]?.date;
+    const pricedFrom = points.find(point => Number.isFinite(point.total))?.date;
+    const missingHistory = (allTime && historyStart && (!pricedFrom || pricedFrom > historyStart)) || points.some(point => point.total === null);
+    const historyNotice = missingHistory ? '<p class="history-coverage" role="status">' + (pricedFrom && historyStart && pricedFrom > historyStart ? 'Some historical prices are unavailable before ' + esc(shortPortfolioDate(pricedFrom, true)) + '. Missing values are not counted as zero.' : 'Some historical prices are unavailable. Missing values are not counted as zero.') + '</p>' : '';
     const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, saved, state.portfolioHistoryRange, appearance]);
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong></div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${esc(money(points[0].total, saved.currency))} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}<div class="portfolio-chart-footer">${rangeControls()}</div><details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `History available from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
+    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong></div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(points[0].total) ? esc(money(points[0].total, saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}<div class="portfolio-chart-footer">${rangeControls()}</div>${historyNotice}<details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
     $("#portfolioChartRange", root)?.addEventListener("change", event => { state.portfolioHistoryRange = event.target.value; renderPortfolioHistory(); });
-    if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false }));
+    if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false, dateDomain: { start: historyStart, end: today }, zeroBaseline: allTime }));
     return;
   }
   const bindControls = () => {
@@ -17213,6 +17225,7 @@ async function refreshSavedPortfolio(owner, version) {
     cachePortfolioView(owner, view);
     renderCollection(); renderInsights();
     if (state.route === "detail") renderDetail();
+    if (attempt === 0 && !view.refreshIncomplete && view.checkedDay && view.checkedDay < new Date().toISOString().slice(0,10)) continue;
     return true;
     }
   } catch { return true; }

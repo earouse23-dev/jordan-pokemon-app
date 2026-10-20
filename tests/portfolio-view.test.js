@@ -59,8 +59,12 @@ test("purchase-date market values reconstruct daily ownership without logins or 
   assert.equal(
     buildPortfolioView([noEarly], "2026-01-12T12:00:00Z").summaries[0]
       .historyStartsAt,
-    "2026-01-08",
+    "2026-01-01",
   );
+  const missingDays = buildPortfolioView([noEarly], "2026-01-12T12:00:00Z").summaries[0].history;
+  assert.equal(missingDays.length, 12);
+  assert.ok(missingDays.slice(0,7).every(p => p.total === null));
+  assert.equal(missingDays[7].total,100);
 });
 test("sales remove holdings, preserve zero, and missing holdings cannot masquerade as the full portfolio", () => {
   const a = item("sold", "2026-01-01", 200);
@@ -79,8 +83,8 @@ test("sales remove holdings, preserve zero, and missing holdings cannot masquera
   ).summaries[0];
   assert.equal(summary.total, null);
   assert.equal(summary.history.length, 6);
-  assert.ok(summary.history.every((p) => p.total === 200));
-  assert.equal(summary.historyExcludedPositions, 1);
+  assert.ok(summary.history.every((p) => p.total === null && p.knownTotal === 200 && p.unpricedItems === 1));
+  assert.equal(summary.historyExcludedPositions, 0);
   assert.equal(summary.knownTotal, 200);
   assert.equal(buildPortfolioView([]).summaries[0].total, 0);
 });
@@ -120,6 +124,12 @@ test("display totals include every native currency and never assume a missing ex
   assert.equal(display.history.find((p) => p.date === "2026-01-01").total, 200);
   assert.equal(display.history.at(-1).total, 325);
   assert.equal(displayPortfolioView(view, "USD", null, now).total, null);
+  b.priceHistory[0].recordedAt = "2026-01-04T12:00:00Z";
+  const gap = displayPortfolioView(buildPortfolioView([a,b],"2026-01-05T12:00:00Z"),"USD",rate,now);
+  assert.equal(gap.acquiredAt,"2026-01-01");
+  assert.equal(gap.history[0].date,"2026-01-01");
+  assert.equal(gap.history.find(p=>p.date==="2026-01-03").total,null);
+  assert.equal(gap.history.at(-1).total,325);
 });
 
 test("saved daily values remain unchanged; missed days append from stored evidence and dated corrections recalculate only affected days", () => {
@@ -221,3 +231,28 @@ test("daily portfolio matches an independent acquisition/sale ledger across spar
     view.history,
   );
 });
+
+ test("All time preserves acquisition dates and earlier complete segments across later missing evidence", async () => {
+  const a=item("old", "2025-12-01",200),b=item("late", "2026-01-01",100);
+  b.priceHistory[0].recordedAt="2026-07-24T12:00:00Z";
+  const view=buildPortfolioView([a,b],"2026-10-19T12:00:00Z");
+  const summary=view.summaries[0];
+  assert.equal(summary.history[0].date,"2025-12-01");
+  assert.equal(summary.history[0].total,200);
+  assert.equal(summary.history.find(p=>p.date==="2026-01-01").total,null);
+  assert.equal(summary.history.find(p=>p.date==="2026-07-24").total,300);
+  assert.equal(summary.history.at(-1).date,"2026-10-19");
+  assert.equal(summary.history.at(-1).total,summary.total);
+  const slab={...b,cardState:'graded',gradingCompany:'PSA',grade:'10',soldValuation:{status:'ready',ruleVersion:'mica-last-ebay-sale-v1',currency:'USD',estimate:100,contextValidated:true},matchedHistory:[{...b.priceHistory[0],verifiedExactSold:true,contextValidated:true}]};
+  const graded=buildPortfolioView([a,slab],"2026-10-19T12:00:00Z").summaries[0];
+  assert.equal(graded.history[0].date,"2025-12-01");
+  assert.equal(graded.history.find(p=>p.date==="2026-01-01").total,null);
+  assert.equal(graded.history.at(-1).total,300);
+  // Upgrade a truncated v1 snapshot from local evidence; never retain the bad prefix.
+  const old=structuredClone(view);old.version=1;old.summaries[0].history=summary.history.filter(p=>p.date>="2026-07-24");
+  const upgrade=buildPortfolioView([a,b],"2026-10-19T12:00:00Z",{previousView:old});
+  assert.deepEqual(upgrade.summaries[0].history,summary.history);
+  const {displayPortfolioView}=await import('../lib/portfolio-view.js');
+  // Same-currency path must preserve the null gap, rather than treating it as zero.
+  assert.equal(displayPortfolioView(upgrade,"USD",null).history.find(p=>p.date==="2026-01-01").total,null);
+ });

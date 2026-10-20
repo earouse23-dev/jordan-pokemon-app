@@ -877,3 +877,36 @@ test('delayed sheet autofocus preserves a control the user already focused', asy
   });
   expect(focused).toBe('fixtureEarlyFocus');
 });
+
+test("saved All time spans first ownership to today, uses zero baseline and fills the desktop content width", async ({page},testInfo) => {
+  await openCollection(page);
+  await page.evaluate(()=>{
+    const {state,buildPortfolioView,renderCollection,routeTo}=globalThis.fixtureApp;
+    const base=state.items[0];
+    const item=(uid,acquiredAt,priceAt,price)=>({...base,uid,id:uid,cardState:'raw',gradingCompany:null,currency:'USD',variant:'Holofoil',condition:'Near Mint',quantity:1,price,pricingStatus:'live',quotes:[],lots:[{acquiredAt,acquisitionDateKnown:true,quantityAcquired:1,quantityRemaining:1}],transactions:[],priceHistory:[{recordedAt:priceAt+'T00:00:00Z',amount:price,currency:'USD',finish:'holofoil',condition:'Near Mint',provider:'tcgplayer'}]});
+    state.items=[item('old','2025-12-01','2025-12-01',200),item('later','2026-01-01','2026-07-24',100)];
+    state.portfolioView=buildPortfolioView(state.items);
+    state.portfolioHistoryRange='all';state.portfolioHistoryMode='value';
+    renderCollection();routeTo('dashboard',{focus:false});
+  });
+  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.scales.y.min)).toBe(0);
+  const expectedStart=Date.parse('2025-12-01T00:00:00Z');
+  expect(await page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance.scales.x.min)).toBe(expectedStart);
+  expect(await page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance.scales.x.max)).toBe(await page.evaluate(()=>Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate())));
+  expect(await page.evaluate(()=>{const c=globalThis.fixtureApp.portfolioChartInstance;return c.data.datasets[0].data[c.data.labels.indexOf(Date.parse('2026-01-01T00:00:00Z'))];})).toBeNull();
+  await expect(page.locator('.history-coverage')).toContainText('not counted as zero');
+  for(const appearance of ['light','dark']) for(const [width,height] of [[375,667],[768,1024],[1440,900],[1920,1080],[2560,1440]]) {
+    await page.setViewportSize({width,height});
+    await page.evaluate(value=>{const picker=document.querySelector('#appearanceSelect');picker.value=value;picker.dispatchEvent(new Event('change',{bubbles:true}));window.scrollTo(0,0);},appearance);
+    await expect.poll(()=>page.evaluate(()=>{const c=globalThis.fixtureApp.portfolioChartInstance;return !!c && Math.abs(c.width-c.canvas.parentElement.getBoundingClientRect().width)<2;})).toBe(true);
+    const box=await page.locator('#portfolioHistoryChart').boundingBox();
+    const main=await page.locator('#main').boundingBox();
+    if(width>=760) {expect(box.x-main.x).toBeLessThanOrEqual(40);expect(main.x+main.width-box.x-box.width).toBeLessThanOrEqual(40);}
+    await assertFits(page);
+    await page.screenshot({path:testInfo.outputPath(`all-time-${appearance}-${width}.png`),animations:'disabled'});
+  }
+  // Older compact caches also retain their acquisition boundary on the very first paint.
+  await page.evaluate(()=>{const {state,renderCollection}=globalThis.fixtureApp;state.portfolioView.version=1;state.portfolioView.summaries[0].history=state.portfolioView.summaries[0].history.filter(p=>p.date>='2026-07-24');renderCollection();});
+  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.scales.x.min)).toBe(expectedStart);
+  await expect(page.locator('.history-coverage')).toContainText('before Jul 24, 2026');
+});

@@ -201,6 +201,12 @@ test('daily cache skips inventory and providers; revisions reuse today’s price
   inventoryReads=0;
   assert.deepEqual(await refreshPortfolioView(db,owner,{}, {now}),stored);
   assert.equal(inventoryReads,0);assert.equal(claims,0);assert.equal(paid,0);
+  // A v1 saved chart is rebuilt once from today's stored quotes/history, with zero provider calls.
+  stored.version=1;
+  const rebuilt=await refreshPortfolioView(db,owner,{}, {now});
+  assert.equal(rebuilt.version,2);assert.equal(inventoryReads,1);assert.equal(paid,0);
+  await refreshPortfolioView(db,owner,{}, {now});assert.equal(inventoryReads,1);
+  inventoryReads=0;
   revision++;dirty='2026-01-01';quantity=2;
   const added=await refreshPortfolioView(db,owner,{}, {now});
   assert.equal(inventoryReads,1,'No second inventory hydration');
@@ -215,6 +221,13 @@ test('daily cache skips inventory and providers; revisions reuse today’s price
   const reads=inventoryReads;
   await refreshPortfolioView(db,owner,{}, {now});assert.equal(inventoryReads,reads,'Bounded failed refresh retries');
   assert.equal(paid,0);
+  revision=published.inventoryRevision;
+  stored={...published,version:1,refreshIncomplete:false};
+  const upgradedNextDay=await refreshPortfolioView(db,owner,{}, {now:'2026-01-04T12:00:00Z'});
+  assert.equal(upgradedNextDay.version,2);
+  assert.equal(upgradedNextDay.checkedDay,day,'A history repair does not falsely mark old quotes as checked today');
+  assert.equal(upgradedNextDay.updatedAt,published.updatedAt);
+  assert.equal(paid,0,'Old model repair is independent of new-day provider availability');
 });
 
 test('a partial refresh keeps useful progress and does not exhaust continuation retries', async t => {
