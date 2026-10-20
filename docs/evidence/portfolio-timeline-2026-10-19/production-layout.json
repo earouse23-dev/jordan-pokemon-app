@@ -1,0 +1,61 @@
+{
+  "rows": 5,
+  "layouts": [
+    {
+      "width": 375,
+      "height": 667,
+      "chartWidth": 359,
+      "chartHeight": 306.8125,
+      "left": 8
+    },
+    {
+      "width": 430,
+      "height": 932,
+      "chartWidth": 414,
+      "chartHeight": 352.59375,
+      "left": 8
+    },
+    {
+      "width": 1440,
+      "height": 900,
+      "chartWidth": 1172,
+      "chartHeight": 378,
+      "left": 244
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "chartWidth": 1652,
+      "chartHeight": 453.59375,
+      "left": 244
+    },
+    {
+      "width": 2560,
+      "height": 1440,
+      "chartWidth": 2292,
+      "chartHeight": 560,
+      "left": 244
+    }
+  ],
+  "errors": [],
+  "failures": [
+    {
+      "path": "/rest/v1/rpc/grading_calibration_summary",
+      "status": 503
+    },
+    {
+      "path": "/api/capabilities",
+      "status": 503
+    },
+    {
+      "path": "/rest/v1/rpc/upsert_action_center_snapshot",
+      "status": 503
+    }
+  ],
+  "blockedPaths": [
+    "/rest/v1/rpc/grading_calibration_summary",
+    "/api/capabilities",
+    "/rest/v1/rpc/upsert_action_center_snapshot"
+  ],
+  "blockedWrites": 3
+}

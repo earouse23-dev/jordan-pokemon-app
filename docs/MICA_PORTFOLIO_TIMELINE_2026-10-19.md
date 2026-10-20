@@ -20,3 +20,13 @@ This fixes the app's truncation and layout, not source coverage. A price for an 
 ## Verification
 
 Lint and syntax/type checks passed. 584 unit checks passed with 3 explicit skips. Focused model/service tests cover backdated ownership, raw and exact slab evidence, sparse/missing prices, preservation of prior complete segments, mixed-currency null gaps, current endpoint, corrections, same-day no-op, v1 upgrade with no provider requests on same and next days, and inventory revision races. Nine browser cases passed across desktop Chromium, phone Chromium and phone WebKit, including real theme changes, 375/768/1440/1920/2560 layouts, the date/zero axes, legacy first paint, no horizontal overflow and the existing six-size canvas checks. Synthetic screenshots are retained here. Customer records remain outside write-test scope.
+
+## Published verification
+
+Runtime `bb56895bd9e0ff8a56d7cb0f797316491c6a85ff` published as `dpl_913ojy5kVGxYHqVA7reohEEVAKns` and promoted to https://jordan-pokemon-app.vercel.app. Release routing passed, with the existing nine functions and unchanged held routes/crons. Canonical health is healthy and reports that source. No SQL migration, new service, dependency or budget change.
+
+The isolated authorized demo account was repaired through the staged authenticated API after preflight confirmed every position could reuse its matching cached pricing key. Version 1 became version 2, total/check-day/price-update time stayed unchanged, and the next GET returned the identical persisted timeline (October 5 through server UTC October 20, 16 days). No provider work was required. This was a demo-only write; customer history was diagnosed with read-only metadata queries only.
+
+The production read-only demo browser measured 24px desktop gutters: 1440px screen → 1172px chart, 1920px → 1652px, 2560px → 2292px, all beginning at x244 beside the 220px sidebar. Phone canvases remain x8/359px at 375px and x8/414px at 430px. No page errors or overflow. Three intentional 503s in the restricted read-only harness blocked unrelated calibration, capability and snapshot calls; these are not live pricing failures.
+
+The signed native build succeeded, installed and launched on the existing SE simulator. Native device/touch acceptance is not certified by that build. GitHub beta run 39346967636 was still in progress at the final publication check; only the completed local checks above are claimed here. Existing web sessions require a reload to load the new bundle; normal background portfolio refresh performs the saved-view repair.
