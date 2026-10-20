@@ -1,0 +1,12 @@
+{
+  "demoOnly": true,
+  "beforeVersion": 2,
+  "afterVersion": 3,
+  "pricingCallsRequired": false,
+  "totalsPreserved": true,
+  "persisted": true,
+  "firstOwnership": "2026-10-05",
+  "firstSavedDay": "2026-10-05",
+  "savedDays": 16,
+  "estimatedDays": 16
+}
