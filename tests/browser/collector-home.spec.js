@@ -878,7 +878,7 @@ test('delayed sheet autofocus preserves a control the user already focused', asy
   expect(focused).toBe('fixtureEarlyFocus');
 });
 
-test("saved All time spans first ownership to today, uses zero baseline and fills the desktop content width", async ({page},testInfo) => {
+test("saved All time fits available prices, preserves gaps and fills the desktop content width", async ({page},testInfo) => {
   await openCollection(page);
   await page.evaluate(()=>{
     const {state,buildPortfolioView,renderCollection,routeTo}=globalThis.fixtureApp;
@@ -901,12 +901,13 @@ test("saved All time spans first ownership to today, uses zero baseline and fill
     await expect.poll(()=>page.evaluate(()=>{const c=globalThis.fixtureApp.portfolioChartInstance;return !!c && Math.abs(c.width-c.canvas.parentElement.getBoundingClientRect().width)<2;})).toBe(true);
     const box=await page.locator('#portfolioHistoryChart').boundingBox();
     const main=await page.locator('#main').boundingBox();
-    if(width>=760) {expect(box.x-main.x).toBeLessThanOrEqual(40);expect(main.x+main.width-box.x-box.width).toBeLessThanOrEqual(40);}
+    if(width>=760) {expect(box.height).toBeLessThanOrEqual(400);expect(box.x-main.x).toBeLessThanOrEqual(40);expect(main.x+main.width-box.x-box.width).toBeLessThanOrEqual(40);}
     await assertFits(page);
     await page.screenshot({path:testInfo.outputPath(`all-time-${appearance}-${width}.png`),animations:'disabled'});
   }
-  // Older compact caches also retain their acquisition boundary on the very first paint.
+  // Old ownership without price evidence must not squeeze the available line to the right.
   await page.evaluate(()=>{const {state,renderCollection}=globalThis.fixtureApp;state.portfolioView.version=1;state.portfolioView.summaries[0].history=state.portfolioView.summaries[0].history.filter(p=>p.date>='2026-07-24');renderCollection();});
-  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.scales.x.min)).toBe(expectedStart);
+  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.scales.x.min)).toBe(Date.parse('2026-07-24T00:00:00Z'));
   await expect(page.locator('.history-coverage')).toContainText('before Jul 24, 2026');
+  await page.screenshot({path:testInfo.outputPath('available-history.png'),animations:'disabled'});
 });

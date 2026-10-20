@@ -6741,6 +6741,7 @@ body[data-ui-theme="mica"] #appShell .history-period-change[data-direction="down
 body[data-ui-theme="mica"] #appShell .history-period-change span { color: var(--muted); font-size: 12px; }
 @media (min-width: 760px) {
   body[data-ui-theme="mica"] #appShell .view { padding-top: 28px; }
+  body[data-ui-theme="mica"] #appShell #portfolioHistory .portfolio-chart-shell { height: clamp(300px, 34dvh, 400px); }
   body[data-ui-theme="mica"] #appShell :is(#view-dashboard,#view-detail) { max-width: none; padding-inline: 24px; }
   body[data-ui-theme="mica"] #appShell #view-detail #detailContent { max-width: none; }
   body[data-ui-theme="mica"] #appShell .view>:is(.collection-heading,.add-cards-heading,.screen-heading) { padding-right: 200px; min-height: 44px; }
