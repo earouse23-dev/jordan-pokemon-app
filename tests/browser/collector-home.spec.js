@@ -878,7 +878,7 @@ test('delayed sheet autofocus preserves a control the user already focused', asy
   expect(focused).toBe('fixtureEarlyFocus');
 });
 
-test("saved All time fits available prices, preserves gaps and fills the desktop content width", async ({page},testInfo) => {
+test("saved All time spans ownership, preserves gaps and fills the desktop content width", async ({page},testInfo) => {
   await openCollection(page);
   await page.evaluate(()=>{
     const {state,buildPortfolioView,renderCollection,routeTo}=globalThis.fixtureApp;
@@ -905,9 +905,35 @@ test("saved All time fits available prices, preserves gaps and fills the desktop
     await assertFits(page);
     await page.screenshot({path:testInfo.outputPath(`all-time-${appearance}-${width}.png`),animations:'disabled'});
   }
-  // Old ownership without price evidence must not squeeze the available line to the right.
+  // Legacy caches keep the ownership boundary until the background model upgrade.
   await page.evaluate(()=>{const {state,renderCollection}=globalThis.fixtureApp;state.portfolioView.version=1;state.portfolioView.summaries[0].history=state.portfolioView.summaries[0].history.filter(p=>p.date>='2026-07-24');renderCollection();});
-  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.scales.x.min)).toBe(Date.parse('2026-07-24T00:00:00Z'));
+  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.scales.x.min)).toBe(expectedStart);
   await expect(page.locator('.history-coverage')).toContainText('before Jul 24, 2026');
   await page.screenshot({path:testInfo.outputPath('available-history.png'),animations:'disabled'});
+});
+
+test("saved purchase-price estimates fill early slab history and keep the chart stable on repeated renders", async ({page},testInfo) => {
+  await openCollection(page);
+  let marketRequests=0;
+  page.on('request',request=>{if(/\/api\/(sales|graded-valuation|price-sync)/.test(request.url()))marketRequests++;});
+  await page.evaluate(()=>{
+    const {state,buildPortfolioView,renderCollection,routeTo}=globalThis.fixtureApp;
+    const base=state.items[0];
+    const slab={...base,uid:'estimate-slab',id:'estimate-slab',quantity:2,cardState:'graded',gradingCompany:'PSA',grade:'10',currency:'USD',quotes:[],transactions:[],lots:[{id:'paid-lot',acquiredAt:'2024-11-03',acquisitionDateKnown:true,quantityAcquired:2,quantityRemaining:2,currency:'USD',totalCost:400,costBasisKnown:true}],soldValuation:{estimate:350,status:'ready',ruleVersion:'mica-last-ebay-sale-v1',currency:'USD',contextValidated:true},matchedHistory:[{recordedAt:'2026-07-24T00:00:00Z',amount:300,currency:'USD',contextValidated:true,verifiedExactSold:true}]};
+    state.items=[slab];state.portfolioHistoryRange='all';state.portfolioHistoryMode='value';
+    state.portfolioView=JSON.parse(JSON.stringify(buildPortfolioView(state.items)));
+    renderCollection();routeTo('dashboard',{focus:false});
+  });
+  await expect.poll(()=>page.evaluate(()=>!!globalThis.fixtureApp.portfolioChartInstance)).toBe(true);
+  await expect(page.locator('.history-estimate-note')).toHaveText('Dashed line: purchase-price estimates.');
+  expect(await page.evaluate(()=>{const chart=globalThis.fixtureApp.portfolioChartInstance;return [chart.scales.x.min,chart.scales.y.min,chart.data.datasets[0].data[0]];})).toEqual([Date.parse('2024-11-03T00:00:00Z'),0,400]);
+  const metadata=await page.evaluate(()=>{
+    const {state,portfolioChartInstance:chart}=globalThis.fixtureApp;
+    const history=state.portfolioView.summaries[0].history,index=history.findIndex(p=>p.date==='2026-07-24');
+    return {earlyDash:chart.data.datasets[0].segment.borderDash({p0DataIndex:0,p1DataIndex:1}),marketDash:chart.data.datasets[0].segment.borderDash({p0DataIndex:index,p1DataIndex:index+1}),earlyTooltip:chart.options.plugins.tooltip.callbacks.label({dataIndex:0}),marketValue:chart.data.datasets[0].data[index]};
+  });
+  expect(metadata.earlyDash).toEqual([5,4]);expect(metadata.marketDash).toBeUndefined();expect(metadata.earlyTooltip[1]).toContain('purchase-price estimates');expect(metadata.marketValue).toBe(600);
+  expect(await page.evaluate(()=>{const {renderCollection,portfolioChartInstance}=globalThis.fixtureApp;renderCollection();renderCollection();return portfolioChartInstance===globalThis.fixtureApp.portfolioChartInstance;})).toBe(true);
+  expect(marketRequests).toBe(0);
+  for(const [width,height] of [[375,667],[1440,900]]){await page.setViewportSize({width,height});await assertFits(page);await page.screenshot({path:testInfo.outputPath('estimated-slab-'+width+'.png'),animations:'disabled'});}
 });

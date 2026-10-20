@@ -5317,6 +5317,7 @@ async function mountPortfolioHistoryChart({
       labels: points.map((point) => Date.parse(`${point.date}T00:00:00Z`)),
       datasets: [
         {
+          segment: { borderDash: context => points[context.p0DataIndex]?.estimatedItems || points[context.p1DataIndex]?.estimatedItems ? [5, 4] : undefined },
           label: pnlMode
             ? "Known unrealized profit or loss"
             : marketMode
@@ -5376,7 +5377,7 @@ async function mountPortfolioHistoryChart({
           padding: 12,
           callbacks: {
             title(items) { return items.length ? money(items[0].parsed.y, currency) : ""; },
-            label(context) { return shortPortfolioDate(points[context.dataIndex]?.date || "", true); },
+            label(context) { const point = points[context.dataIndex], date = shortPortfolioDate(point?.date || "", true); return point?.estimatedItems ? [date, "Includes purchase-price estimates"] : date; },
           },
         },
       },
@@ -5452,14 +5453,15 @@ function renderPortfolioHistory() {
     const historyStart = allTime ? saved.acquiredAt || points[0]?.date : points[0]?.date;
     const pricedFrom = points.find(point => Number.isFinite(point.total))?.date;
     const missingHistory = (allTime && historyStart && (!pricedFrom || pricedFrom > historyStart)) || points.some(point => point.total === null);
+    const estimateNotice = points.some(point => point.estimatedItems) ? '<small id="portfolioEstimateNote" class="history-coverage history-estimate-note">Dashed line: purchase-price estimates.</small>' : "";
     const historyNotice = missingHistory ? '<p class="history-coverage" role="status">' + (pricedFrom && historyStart && pricedFrom > historyStart ? 'Some historical prices are unavailable before ' + esc(shortPortfolioDate(pricedFrom, true)) + '. Missing values are not counted as zero.' : 'Some historical prices are unavailable. Missing values are not counted as zero.') + '</p>' : '';
     const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, saved, state.portfolioHistoryRange, appearance]);
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong></div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio market value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(points[0].total) ? esc(money(points[0].total, saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}<div class="portfolio-chart-footer">${rangeControls()}</div>${historyNotice}<details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
+    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong></div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(points[0].total) ? esc(money(points[0].total, saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}<div class="portfolio-chart-footer">${rangeControls()}</div>${historyNotice}${estimateNotice}<details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
     $("#portfolioChartRange", root)?.addEventListener("change", event => { state.portfolioHistoryRange = event.target.value; renderPortfolioHistory(); });
-    if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false, dateDomain: { start: allTime ? pricedFrom || historyStart : historyStart, end: today }, zeroBaseline: allTime }));
+    if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false, dateDomain: { start: historyStart, end: today }, zeroBaseline: allTime }));
     return;
   }
   const bindControls = () => {

@@ -1,4 +1,4 @@
-const SHELL_CACHE = "mica-shell-design-108";
+const SHELL_CACHE = "mica-shell-design-109";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [

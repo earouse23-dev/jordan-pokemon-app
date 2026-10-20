@@ -130,6 +130,11 @@ test("display totals include every native currency and never assume a missing ex
   assert.equal(gap.history[0].date,"2026-01-01");
   assert.equal(gap.history.find(p=>p.date==="2026-01-03").total,null);
   assert.equal(gap.history.at(-1).total,325);
+  b.lots[0].currency='EUR';b.lots[0].totalCost=40;
+  const estimated=displayPortfolioView(buildPortfolioView([a,b],"2026-01-05T12:00:00Z"),"USD",rate,now);
+  assert.equal(estimated.history.find(p=>p.date==='2026-01-03').total,250);
+  assert.equal(estimated.history.find(p=>p.date==='2026-01-03').estimatedItems,1);
+  assert.equal(estimated.history.at(-1).estimatedItems,0);
 });
 
 test("saved daily values remain unchanged; missed days append from stored evidence and dated corrections recalculate only affected days", () => {
@@ -256,3 +261,39 @@ test("daily portfolio matches an independent acquisition/sale ledger across spar
   // Same-currency path must preserve the null gap, rather than treating it as zero.
   assert.equal(displayPortfolioView(upgrade,"USD",null).history.find(p=>p.date==="2026-01-01").total,null);
  });
+
+test("purchase-price history estimates respect lots, partial sales, zero cost and the first market observation", async () => {
+  const a=item('paid','2024-12-01',350,2);
+  a.lots=[{id:'lot1',acquiredAt:'2024-12-01',acquisitionDateKnown:true,quantityAcquired:2,quantityRemaining:1,totalCost:400,currency:'USD',costBasisKnown:true},{id:'lot2',acquiredAt:'2025-02-01',acquisitionDateKnown:true,quantityAcquired:1,quantityRemaining:1,totalCost:150,currency:'USD',costBasisKnown:true}];
+  a.transactions=[{type:'sale',date:'2025-03-01',quantity:1,currency:'USD',allocatedCost:200}];
+  a.priceHistory=[{...a.priceHistory[0],recordedAt:'2026-07-01T00:00:00Z',amount:300}];
+  const view=buildPortfolioView([a],'2026-10-20T12:00:00Z'),summary=view.summaries[0];
+  const point=date=>summary.history.find(p=>p.date===date);
+  assert.equal(point('2024-12-01').total,400);assert.equal(point('2024-12-01').estimatedItems,2);
+  assert.equal(point('2025-02-01').total,550);assert.equal(point('2025-03-01').total,350);assert.equal(point('2025-03-01').estimatedItems,2);
+  assert.equal(point('2026-07-01').total,600);assert.equal(point('2026-07-01').estimatedItems,0);
+  assert.equal(summary.history.at(-1).total,700);assert.equal(summary.history.at(-1).estimatedItems,0);
+  const {portfolioProfitLoss}=await import('../lib/portfolio.js');
+  assert.equal(portfolioProfitLoss([{...a,matchedHistory:[]}],'USD','2025-03-01').valueComplete,false,'Default market/P&L calculations never substitute purchase cost');
+  const free=item('free','2026-01-01',100);free.priceHistory=[];free.lots[0]={...free.lots[0],currency:'USD',totalCost:0,costBasisKnown:true};
+  const zero=buildPortfolioView([free],'2026-01-05T12:00:00Z').summaries[0];
+  assert.equal(zero.history[0].total,0);assert.equal(zero.history[0].estimatedItems,1);
+  free.lots[0].costBasisKnown=false;
+  assert.equal(buildPortfolioView([free],'2026-01-05T12:00:00Z').summaries[0].history[0].total,null);
+  free.lots[0].costBasisKnown=true;free.lots[0].currency='EUR';
+  assert.equal(buildPortfolioView([free],'2026-01-05T12:00:00Z').summaries[0].history[0].total,null,'Do not assume historical exchange rates');
+  // A same-day model repair uses the old cached source rows, not new provider downloads.
+  const old=structuredClone(view);old.version=2;old.summaries[0].history=summary.history.filter(p=>p.date>='2026-07-01');
+  assert.equal(buildPortfolioView([a],'2026-10-20T12:00:00Z',{previousView:old}).summaries[0].history[0].total,400);
+  const saved=buildPortfolioView([a],'2026-10-19T12:00:00Z');
+  a.lots[0].totalCost=600;
+  const appended=buildPortfolioView([a],'2026-10-20T12:00:00Z',{previousView:saved});
+  assert.deepEqual(appended.summaries[0].history.slice(0,-1),saved.summaries[0].history,'Routine daily appends preserve every saved day and estimate marker');
+  const corrected=buildPortfolioView([a],'2026-10-20T12:00:00Z',{previousView:saved,recalculateFrom:'2024-12-01'});
+  assert.equal(corrected.summaries[0].history[0].total,600);
+  a.lots[0].totalCost=400;
+  a.priceHistory.unshift({...a.priceHistory[0],recordedAt:'2026-06-01T00:00:00Z',amount:250});
+  const backfilled=buildPortfolioView([a],'2026-10-20T12:00:00Z',{previousView:saved});
+  assert.equal(backfilled.summaries[0].history.find(p=>p.date==='2026-06-01').total,500);
+  assert.equal(backfilled.summaries[0].history.find(p=>p.date==='2026-06-01').estimatedItems,0);
+});
