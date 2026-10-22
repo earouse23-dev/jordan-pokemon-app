@@ -5248,9 +5248,10 @@ function destroyPortfolioHistoryChart() {
 
 function portfolioHistoryRangePoints(points, range) {
   if (range === "all") return points;
-  const latestTime = Date.now();
+  // Portfolio observations are UTC calendar days, not rolling intraday timestamps.
+  const latestDate = new Date();
+  const latestTime = Date.UTC(latestDate.getUTCFullYear(), latestDate.getUTCMonth(), latestDate.getUTCDate());
   if (!Number.isFinite(latestTime)) return points;
-  const latestDate = new Date(latestTime);
   const cutoff =
     range === "ytd"
       ? Date.UTC(latestDate.getUTCFullYear(), 0, 1)
@@ -5440,7 +5441,7 @@ function renderPortfolioHistory() {
     return;
   }
   if (saved && state.portfolioHistoryMode === "value") {
-    const today = localIsoDate();
+    const today = new Date().toISOString().slice(0, 10);
     const timeline = portfolioDisplayTimeline(saved, today, state.portfolioView.updatedAt);
     const points = portfolioHistoryRangePoints(timeline, state.portfolioHistoryRange);
     const allTime = state.portfolioHistoryRange === "all";

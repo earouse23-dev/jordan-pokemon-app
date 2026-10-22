@@ -859,3 +859,38 @@ test('saved EUR portfolio requests conversion before inventory arrives and retri
   expect(endpoint.label).toContain('Saved valuation from Jan 3, 2026');
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('mica:portfolio-view:11111111-1111-4111-8111-111111111111')).summaries[0].history.length)).toBe(2);
 });
+
+test.describe('UTC daily valuation boundaries', () => {
+ test.use({timezoneId:'America/Chicago'});
+ test('saved dashboard timeframes retain daily observations across local and UTC midnight without pricing requests', async ({page}) => {
+  await page.clock.install({time:new Date('2026-10-22T02:30:00Z')});
+  await page.route('**/app.js?v=114',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={};'}));
+  let requests=0;
+  await page.route('**/api/**',route=>{requests++;return route.abort();});
+  await page.goto('/');
+  const dates=['2024-11-03','2025-10-20','2025-10-21','2025-12-31','2026-01-01','2026-09-20','2026-09-21','2026-10-20','2026-10-21','2026-10-22'];
+  await page.evaluate(async({appUrl,dates})=>{
+    const a=await import(appUrl);a.state.session={user:{id:'11111111-1111-4111-8111-111111111111'}};a.state.accountLoading=false;a.state.items=[];
+    a.state.profile={displayCurrency:'USD'};a.state.portfolioHistoryMode='value';a.state.portfolioHistoryRange='all';
+    a.state.portfolioView={version:4,updatedAt:'2026-10-22T02:00:00Z',summaries:[{currency:'USD',total:1000,knownTotal:1000,missingUnits:0,acquiredAt:dates[0],history:dates.map((date,i)=>({date,total:(i+1)*100}))}],dashboard:{holdings:[],nativePerformance:[]}};
+    document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');
+    a.routeTo('dashboard');a.renderCollection();
+  },{appUrl,dates});
+  const before=requests;
+  for(const [range,start] of [['all','2024-11-03'],['1d','2026-10-21'],['1m','2026-09-21'],['ytd','2026-01-01'],['1y','2025-10-21'],['all','2024-11-03'],['1d','2026-10-21']]) {
+    await page.locator('#portfolioChartRange').selectOption(range);
+    await expect(page.locator('#portfolioChartRange')).toHaveValue(range);
+    await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
+    await expect.poll(()=>page.evaluate(async({appUrl,start})=>{
+      const chart=(await import(appUrl)).portfolioChartInstance;
+      return chart ? {first:chart.data.labels[0],last:chart.data.labels.at(-1),min:chart.scales.x.min,max:chart.scales.x.max} : null;
+    },{appUrl,start})).toEqual({first:Date.parse(start),last:Date.parse('2026-10-22'),min:Date.parse(start),max:Date.parse('2026-10-22')});
+    await expect(page.locator('#portfolioValue')).toHaveText('$1,000.00');
+  }
+  expect(requests).toBe(before);
+  const saved=await page.evaluate(async appUrl=>(await import(appUrl)).state.portfolioView.summaries[0].history,appUrl);
+  expect(saved.map(p=>p.date)).toEqual(dates);
+});
+
+});
