@@ -1,0 +1,19 @@
+{
+  "auditDateLocal": "2026-10-21",
+  "sourceCommit": "7b65a82d697030d5a6d80b44bbdfc6d200c61685",
+  "production": "https://jordan-pokemon-app.vercel.app",
+  "remoteCandidate": {"run": "39699027670", "passed": 365, "skipped": 8, "failed": 2, "failure": "mobile slab chart vertical placement"},
+  "freshLocalSlabReplay": {"passed": 1, "failed": 2, "chartTopChromium": 570.09375, "chartTopWebKit": 566, "requiredLessThan": 520},
+  "freshRecoverySelection": {"passed": 19, "failed": 6, "failureGroups": ["through-today endpoint changes expected dataset", "through-today endpoint changes single-value presentation"], "productClassification": "expectation reconciliation and endpoint provenance review required"},
+  "productionReadOnlySecurity": {"publicOrdinaryTablesWithoutRls": 0, "storageBuckets": 4, "publicStorageBuckets": 0, "privilegedFunctionAdvisorCount": 14, "globalAdminGuardsInspected": 3, "otherAuthOwnerGuardPrefixesInspected": 11, "databaseSize": "331 MB", "fiveMinutePortfolioJobActive": false, "unauthenticatedPortfolioStatus": 401, "unauthenticatedAccountDeleteStatus": 401},
+  "dependencyAudit": {"affectedProductionPackage": "undici", "installed": "7.29.0", "highestSeverity": "high", "tlsAdvisoryPatchedVersion": "7.29.1", "exploitationProven": false},
+  "liveWorkflowObservations": ["saved total/chart with transient unpriced holdings and partial P/L, then recovered", "graded library and detail back-navigation", "current Blastoise eBay sale evidence", "camera-to-search fallback", "Blastoise Base Set returns variant choices with indistinguishable accessible button names", "settings and alert modal read-only", "desktop viewport restored"],
+  "customerInventoryWrites": 0,
+  "manualSettingsWrites": 0,
+  "normalAppBackgroundRefreshAllowed": true,
+  "schemaChanges": 0,
+  "newPackages": 0,
+  "deploymentPerformed": false,
+  "physicalIphoneAccepted": false,
+  "appStoreAccepted": false
+}
