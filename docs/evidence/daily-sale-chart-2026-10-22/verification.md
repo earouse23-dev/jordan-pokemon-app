@@ -38,3 +38,12 @@ The compact-cache source `64393af655323c18179213daa3b96e2a2826381c` passed `npm 
 The live visual review caught over-aggressive automatic tick rounding with tight explicit bounds. Raising the native Chart.js tick budget from four to six restores the clean $3k/$4k/$5k interior labels, rather than only $4k or imprecise padding-bound labels. This one-line presentation correction and shell-cache bump were checked with lint, syntax, all 590 unit passes, and six targeted desktop/mobile chart checks. The real-data browser regression explicitly asserts those three tick values. The statistical series, persistence and provider workflow are unchanged by this final presentation correction.
 
 GitHub's duplicate final-source beta check was queued while the identical local gate completed; remote status is reported separately rather than described as a remote pass.
+
+## Shipped result
+
+- The compact daily-series workflow's full GitHub beta gate [39797226756](https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/39797226756) succeeded for source `64393af655323c18179213daa3b96e2a2826381c`, in addition to the complete local gate.
+- Final presentation source: `65f76998d835bd5b0884c5bf47e68e7841e14f18`; its six desktop/mobile chart rechecks and all 590 unit checks passed. The duplicate full GitHub gate for this final tick-budget/cache-version adjustment was still pending at publication; no pending run is represented as a remote pass.
+- Final staged bundle was byte-checked against the built release artifact and its health response confirmed `65f76998d835` before promotion.
+- Promoted existing-project deployment `dpl_56p7ZwTsAoxHhYwQuDZKeNMZ5ccJ` (`https://jordan-pokemon-qwinyz1xe-earouse23-devs-projects.vercel.app`). Canonical health confirms healthy release `65f76998d835`.
+- Live Chrome reload and saved-card reopening visibly confirm the daily-median label, correct median-based change, unconnected original-sale dots, smooth daily line, and clean $3k/$4k/$5k labels. `published-chart.png` captures the actual published chart.
+- The live walkthrough retained the user's existing saved 113-sale daily snapshot. Newer provider records verified through the read-only API follow the existing normal daily pricing policy; no private customer pricing refresh was forced for testing.
