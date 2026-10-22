@@ -2966,7 +2966,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           max: high + padding,
           border: { display: false },
           ticks: {
-            maxTicksLimit: 4,
+            maxTicksLimit: 6,
             includeBounds: false,
             mirror: true,
             color: muted,
