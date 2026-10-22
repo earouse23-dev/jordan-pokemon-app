@@ -1,0 +1,43 @@
+{
+  "scope": "Read-only research; no application or production data changes; no paid API download",
+  "mica": {
+    "card": "Umbreon VMAX",
+    "set": "Evolving Skies",
+    "number": "215/203",
+    "grade": "PSA 10",
+    "currency": "USD",
+    "amount": 3750,
+    "latestDisplayedDate": "2026-09-27",
+    "amountLabel": "Unverified amount",
+    "history": {
+      "records": 113,
+      "distinctDisplayedTimestamps": 49,
+      "first": "2026-07-20",
+      "last": "2026-09-27",
+      "firstDateRecords": 6
+    }
+  },
+  "providerCache": {
+    "providerCardId": "17262",
+    "cachedSales": 113,
+    "checkedDay": "2026-10-21",
+    "backfillPending": false,
+    "highestIngestedAt": "2026-09-28T02:26:53.978436Z",
+    "note": "Read-only aggregate metadata. Does not prove current upstream October-sale coverage."
+  },
+  "cardLadderLiveBrowser": {
+    "url": "https://www.cardladder.com/ladder/card/Zrxi8aY5mAA6roFkKUVX",
+    "grade": "PSA 10",
+    "latestDisplayedAmount": 3500,
+    "latestDisplayedDate": "2026-10-19",
+    "selectedWindow": "3 months",
+    "sales": 193,
+    "note": "Live browser after grade selection; web-text cache showed an older last-sale snapshot. Vendor figures were not independently transaction-verified."
+  },
+  "confirmedSourceGaps": [
+    "Latest-comp headline explicitly allows older sales and price outliers",
+    "Incremental ingest does not fetch updated_since corrections",
+    "Retained sale key includes mutable amount/currency/sold date",
+    "Connected date-only sale records share x coordinates"
+  ]
+}
