@@ -1,0 +1,55 @@
+{
+  "source": "0a3aeed3c6ffcdddc8aa09710e38337574217431",
+  "regression": {
+    "timezone": "America/Chicago",
+    "fixedUtcTime": "2026-10-22T02:30:00Z",
+    "ranges": [
+      "Day",
+      "Month",
+      "YTD",
+      "Year",
+      "All time"
+    ],
+    "browsers": 3,
+    "passed": 3,
+    "rolloverPassed": true,
+    "additionalPricingRequests": 0
+  },
+  "targetedBrowser": {
+    "passed": 60,
+    "failed": 0
+  },
+  "focusedUnit": {
+    "passed": 83,
+    "failed": 0
+  },
+  "fullRemoteGate": {
+    "run": 39712769369,
+    "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/39712769369",
+    "conclusion": "success",
+    "unitPassed": 588,
+    "unitSkipped": 3,
+    "browserPassed": 369,
+    "browserPassedOnRetry": 1,
+    "browserSkipped": 8,
+    "retriedCase": "mobile-webkit manual set filter preserves keyboard focus and next result order",
+    "largeInventoryPassed": 3
+  },
+  "localFullGate": {
+    "unitPassed": 588,
+    "browserPassed": 369,
+    "browserFailed": 1,
+    "browserSkipped": 8,
+    "failedCase": "mobile-chromium account and route changes reject delayed FX display",
+    "error": "Execution context was destroyed",
+    "isolatedReplayPassed": 9
+  },
+  "canonical": {
+    "release": "0a3aeed3c6ff",
+    "allRangesCanvasVisible": true,
+    "totalUnchanged": true,
+    "dayEmptyMessage": null,
+    "showcaseInventoryWrites": 0,
+    "restoredRange": "all"
+  }
+}
