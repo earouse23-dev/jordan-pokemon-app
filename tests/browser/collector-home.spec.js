@@ -921,7 +921,7 @@ test("saved All time spans ownership, preserves gaps and fills the desktop conte
   await expect.poll(()=>page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance?.scales.y.min)).toBe(0);
   const expectedStart=Date.parse('2025-12-01T00:00:00Z');
   expect(await page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance.scales.x.min)).toBe(expectedStart);
-  expect(await page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance.scales.x.max)).toBe(await page.evaluate(()=>Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate())));
+  expect(await page.evaluate(()=>globalThis.fixtureApp.portfolioChartInstance.scales.x.max)).toBe(await page.evaluate(()=>Date.UTC(new Date().getUTCFullYear(),new Date().getUTCMonth(),new Date().getUTCDate())));
   expect(await page.evaluate(()=>{const c=globalThis.fixtureApp.portfolioChartInstance;return c.data.datasets[0].data[c.data.labels.indexOf(Date.parse('2026-01-01T00:00:00Z'))];})).toBeNull();
   await expect(page.locator('.history-coverage')).toContainText('not counted as zero');
   for(const appearance of ['light','dark']) for(const [width,height] of [[375,667],[768,1024],[1440,900],[1920,1080],[2560,1440]]) {

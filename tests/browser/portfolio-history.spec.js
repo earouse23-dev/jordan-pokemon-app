@@ -888,6 +888,9 @@ test.describe('UTC daily valuation boundaries', () => {
     },{appUrl,start})).toEqual({first:Date.parse(start),last:Date.parse('2026-10-22'),min:Date.parse(start),max:Date.parse('2026-10-22')});
     await expect(page.locator('#portfolioValue')).toHaveText('$1,000.00');
   }
+  await page.clock.setFixedTime(new Date('2026-10-23T02:30:00Z'));
+  await page.evaluate(async appUrl=>(await import(appUrl)).renderPortfolioHistory(),appUrl);
+  await expect.poll(()=>page.evaluate(async appUrl=>(await import(appUrl)).portfolioChartInstance?.data.labels,appUrl)).toEqual([Date.parse('2026-10-22'),Date.parse('2026-10-23')]);
   expect(requests).toBe(before);
   const saved=await page.evaluate(async appUrl=>(await import(appUrl)).state.portfolioView.summaries[0].history,appUrl);
   expect(saved.map(p=>p.date)).toEqual(dates);
