@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-10-22T14:18:42.367Z",
+  "status": 200,
+  "providerCardId": "17262",
+  "sales": 117,
+  "oldest": "2026-07-20",
+  "newest": "2026-10-21",
+  "received": 164,
+  "accepted": 117,
+  "excluded": 47,
+  "exclusions": {
+    "normalizationRejected": 0,
+    "contextMismatch": 19,
+    "canonicalIdentityMismatch": 28
+  },
+  "hasMore": false
+}

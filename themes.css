@@ -6858,3 +6858,6 @@ body[data-ui-theme="mica"] #appShell #view-profile .settings-fees input { width:
   body[data-ui-theme="mica"] #appShell .owned-banner > .owned-actions { position: fixed; z-index: 34; bottom: calc(8px + var(--safe-bottom)); left: 12px; right: 12px; display: grid; grid-template-columns: 44px 1fr 1fr; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 18px; background: color-mix(in srgb,var(--paper) 96%,transparent); backdrop-filter: blur(12px); box-shadow: 0 4px 20px #17251b1c; }
   body[data-ui-theme="mica"] #appShell #duplicateCopyButton { background: var(--pine-2); color: var(--paper); }
 }
+
+/* Keep the sale-chart method visible on narrow screens. */
+body[data-ui-theme="mica"] #appShell #detailContent .detail-section-head > .daily-sale-history-label { display: block; }

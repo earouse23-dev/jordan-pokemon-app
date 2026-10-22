@@ -17,7 +17,7 @@ import {
   replaceRequiredCapture,
 } from "./lib/grading-capture.js";
 import { normalizeCardImageSource } from "./lib/image-source.js";
-import { cardPriceHistoryWindow, displayHistoryCurrency } from "./lib/price-history.js";
+import { cardPriceHistoryWindow, displayHistoryCurrency, completedSalePriceHistory } from "./lib/price-history.js";
 import {
   money,
   calculateTotals,
@@ -2534,7 +2534,7 @@ function historyForItem(item) {
 function portfolioHistoryForItem(item) {
   if (!(item.cardState === "graded" || item.gradingCompany)) return historyForItem(item);
   const evidence = savedSaleEvidenceForContext(item, valuationContextForItem(item)) || (item.gradedValuations || []).find(point => point.contextValidated && point.saleEvidence)?.saleEvidence;
-  return completedSaleHistory(item, valuationContextForItem(item), evidence).map(point => ({ ...point, verifiedExactSold: true, contextValidated: true }));
+  return completedSaleHistory(item, valuationContextForItem(item), evidence).flatMap(point => point.observations || [point]).map(point => ({ ...point, verifiedExactSold: true, contextValidated: true }));
 }
 
 function purchaseMarketReference(item, lot) {
@@ -2749,7 +2749,7 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   const itemKey = String(item.uid || item.id || "");
   if (focusedRange) queueMicrotask(() => $("#cardHistoryRange")?.focus({ preventScroll: true }));
   const { summary, points, currency } = model;
-  const insufficientHistory = points.length < 2;
+  const insufficientHistory = points.length < 2 && !model.observations.length;
   const controls = `<label class="history-range-select">Timeframe<select id="cardHistoryRange" aria-label="Price history timeframe">${[["1m", "1 month"], ["6m", "6 months"], ["1y", "1 year"], ["all", "All time"]].map(([value, label]) => `<option value="${value}" ${model.range === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>`;
   const context =
     item.cardState === "sealed"
@@ -2778,7 +2778,8 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
       hour: "numeric",
       minute: "2-digit",
     });
-  const rows = points
+  const dailySales = points.some(point => point.granularity === "daily_median");
+  const rows = (dailySales ? model.observations : points)
     .map(
       (point) =>
         `<tr><td>${esc(dateLabel(point.x))}</td><td>${esc(point.provider || "Recorded source")}</td><td>${money(point.amount, currency)}${point.nativeCurrency !== currency ? ` · original ${money(point.nativeAmount, point.nativeCurrency)}` : ""}</td></tr>`,
@@ -2793,8 +2794,8 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong><span>in selected period</span></div>` : ""}${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}
     ${points.length ? `<small class="history-coverage">Available from ${esc(new Date(points[0].x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }))}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
     <details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary>
-    <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>Average recorded price</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
-    <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. Recorded prices only; dates in UTC. The line connects available records.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
+    <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>${dailySales ? "Average daily median" : "Average recorded price"}</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
+    <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. ${dailySales ? "Line: daily median. Dots: individual reported sales. Dashed sections connect dates without sales; no price is recorded between them." : "Recorded prices only. The line connects available records."} Dates in UTC.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
     <div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : ""}</div>`;
 
 }
@@ -2855,21 +2856,33 @@ async function mountPriceChart(item, history = historyForItem(item)) {
   const muted = styles.getPropertyValue("--muted").trim() || "#7a746a";
   const line = styles.getPropertyValue("--line").trim() || "#ded8cc";
   const paper = styles.getPropertyValue("--paper").trim() || "#faf7ef";
+  const dailySales = model.points.some(point => point.granularity === "daily_median");
   const datasets = [{
-    label: "Recorded price",
+    label: dailySales ? "Daily median" : "Recorded price",
     data: model.points.map(point => ({ x: point.x, y: point.amount, point })),
     borderColor: accent,
     borderWidth: 2.25,
     backgroundColor: historyChartFill,
     fill: "start",
-    pointRadius: 0,
+    pointRadius: model.points.length === 1 ? 3 : 0,
     pointHoverRadius: 4,
     pointHoverBackgroundColor: accent,
     pointHoverBorderColor: paper,
     pointHoverBorderWidth: 2,
-    tension: 0,
-    spanGaps: true,
+    cubicInterpolationMode: dailySales ? "monotone" : undefined,
+    tension: dailySales ? 0.2 : 0,
+    spanGaps: false,
+    segment: dailySales ? { borderDash: segment => segment.p1.parsed.x - segment.p0.parsed.x > 86_400_000 ? [4, 4] : undefined } : undefined,
   }];
+  if (dailySales) datasets.push({
+    type: "scatter", label: "Individual sale", showLine: false,
+    data: model.observations.map(point => ({ x: point.x, y: point.amount, point })),
+    pointRadius: 2, pointHoverRadius: 5, pointHitRadius: 7,
+    backgroundColor: `${accent}70`, borderColor: accent, borderWidth: 0,
+  });
+  const values = [...model.points, ...model.observations].map(point => point.amount);
+  const low = Math.min(...values), high = Math.max(...values);
+  const padding = Math.max((high - low) * 0.06, high * 0.01, 0.01);
   let Chart;
   try {
     ({ default: Chart } = await import("chart.js/auto"));
@@ -2904,7 +2917,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
       maintainAspectRatio: false,
       parsing: false,
       animation: false,
-      interaction: { mode: "nearest", axis: "x", intersect: false },
+      interaction: { mode: "nearest", axis: dailySales ? "xy" : "x", intersect: false },
       plugins: {
         legend: {
           display: false,
@@ -2921,8 +2934,12 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           bodyFont: { size: 12 },
           padding: 12,
           callbacks: {
-            title: items => items.length ? money(items[0].parsed.y, model.currency) : "",
-            label: context => shortPortfolioDate(new Date(context.parsed.x).toISOString().slice(0, 10), true),
+            title: items => items.length ? `${dailySales ? `${items[0].dataset.label} · ` : ""}${money(items[0].parsed.y, model.currency)}` : "",
+            label: context => {
+              const point = context.raw?.point || {};
+              const date = shortPortfolioDate(new Date(context.parsed.x).toISOString().slice(0, 10), true);
+              return point.saleCount ? [date, `${point.saleCount} sale${point.saleCount === 1 ? "" : "s"} · ${money(point.low, model.currency)}–${money(point.high, model.currency)}`] : point.provider === "eBay reported comp" ? [date, "Amount unverified"] : date;
+            },
           },
         },
       },
@@ -2945,10 +2962,12 @@ async function mountPriceChart(item, history = historyForItem(item)) {
         },
         y: {
           position: "right",
-          grace: "8%",
+          min: Math.max(0, low - padding),
+          max: high + padding,
           border: { display: false },
           ticks: {
             maxTicksLimit: 4,
+            includeBounds: false,
             mirror: true,
             color: muted,
             padding: 4,
@@ -3088,7 +3107,10 @@ function savedSaleEvidenceForContext(item, context) {
 function completedSaleHistory(item, context, sales) {
   if (!sales?.validatedContext) return [];
   const result = latestEbaySoldValuation(sales.sales || [], exactSaleContext(item, context), { validatedContext: sales.validatedContext, retrievedAt: sales.retrievedAt, hasMore: sales.hasMore });
-  return result.evidence.filter(sale => (result.eligibleEvidenceIds || result.contributingEvidenceIds).includes(sale.transactionKey)).map(sale => ({ amount: sale.amount, currency: sale.currency, recordedAt: sale.soldAt, provider: sale.saleType || sale.evidenceKind === "completed_sale" ? "eBay completed sale" : "eBay reported comp", providerVariantId: sale.transactionKey, gradingCompany: context.gradingCompany, grade: context.grade, sourceUrl: sale.sourceUrl, granularity: "transaction" }));
+  sales.chartHistory = completedSalePriceHistory(result, sales.chartHistory);
+  const saved = savedSaleEvidenceForContext(item, context);
+  if (saved?.sales === sales.sales) saved.chartHistory = sales.chartHistory;
+  return sales.chartHistory.points;
 }
 
 function renderExactSoldValue(item, context, sales) {
@@ -3904,6 +3926,7 @@ async function loadSales(item, force = false) {
     requestId,
     salesStatus: "loading",
     sales: previous?.sales || [],
+    chartHistory: previous?.chartHistory || null,
     validatedContext: previous?.validatedContext || null,
     retrievedAt: previous?.retrievedAt || null,
     hasMore: previous?.hasMore || false,
@@ -3947,6 +3970,7 @@ async function loadSales(item, force = false) {
         ? {
             salesStatus: "unconfigured",
             sales: previous?.sales || [],
+    chartHistory: previous?.chartHistory || null,
             validatedContext: previous?.validatedContext || null,
             retrievedAt: previous?.retrievedAt || null,
             hasMore: previous?.hasMore || false,
@@ -3959,6 +3983,7 @@ async function loadSales(item, force = false) {
           ? {
               salesStatus: "plan_required",
               sales: previous?.sales || [],
+    chartHistory: previous?.chartHistory || null,
               validatedContext: previous?.validatedContext || null,
               retrievedAt: previous?.retrievedAt || null,
               hasMore: previous?.hasMore || false,
@@ -3971,6 +3996,7 @@ async function loadSales(item, force = false) {
             ? {
                 salesStatus: "error",
                 sales: previous?.sales || [],
+    chartHistory: previous?.chartHistory || null,
                 validatedContext: previous?.validatedContext || null,
                 retrievedAt: previous?.retrievedAt || null,
                 hasMore: previous?.hasMore || false,
@@ -3982,6 +4008,7 @@ async function loadSales(item, force = false) {
             : {
                 salesStatus: "live",
                 sales: Array.isArray(payload.sales) ? payload.sales : [],
+                chartHistory: payload.chartHistory || null,
                 validatedContext: payload.validatedContext || null,
                 retrievedAt: payload.retrievedAt || null,
                 hasMore: payload.hasMore === true,
@@ -3996,6 +4023,7 @@ async function loadSales(item, force = false) {
     result = {
       salesStatus: "error",
       sales: previous?.sales || [],
+    chartHistory: previous?.chartHistory || null,
       validatedContext: previous?.validatedContext || null,
       retrievedAt: previous?.retrievedAt || null,
       hasMore: previous?.hasMore || false,
@@ -8583,7 +8611,8 @@ function renderDetail() {
       context.cardState === "graded" ? context.gradeQualifier : null,
     currency: context.currency || baseItem.currency || "USD",
   };
-  const detailHistory = context.cardState === "graded"
+  const recordedSalesHistory = context.cardState === "graded" ? completedSaleHistory(baseItem, context, sales || savedSaleEvidenceForContext(baseItem, context)) : [];
+  const detailHistory = recordedSalesHistory.length ? recordedSalesHistory : context.cardState === "graded"
     ? detailContextKey(valuationContextForItem(baseItem)) === detailContextKey(context)
       ? ((baseItem.gradedValuations || []).filter(point => point.contextValidated && point.currency === context.currency).length
         ? (baseItem.gradedValuations || []).filter(point => point.contextValidated && point.currency === context.currency)
@@ -8829,7 +8858,7 @@ function renderDetail() {
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
     <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><div class="detail-title-block"><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="sr-only" aria-live="polite">Copy title</span></button></div>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "transaction") ? "Sales history" : "Recorded sold-derived estimates") : "Recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span class="${detailHistory.some(point => point.granularity === "daily_median") ? "daily-sale-history-label" : ""}">${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "daily_median") ? "Daily median · sale prices" : "Recorded sold-derived estimates") : "Recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
     ${context.cardState === "graded" ? `<details class="provider-index-details" data-detail-tool="provider-index"><summary>Provider reference index</summary>${marketHero}</details>` : ""}

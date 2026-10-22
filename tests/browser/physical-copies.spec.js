@@ -1286,8 +1286,8 @@ test("CLIENT-05F account and route changes reject delayed FX display", async ({
   await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect.poll(() => calls).toBe(1);
-  await page.evaluate(async (url) => {
-    const { state, renderDetail } = await import(url);
+  await page.evaluate(() => {
+    const { state, renderDetail } = globalThis.fixtureCopyApp;
     state.session = { user: { id: "another-account" } };
     renderDetail();
   }, appUrl);
@@ -1295,8 +1295,8 @@ test("CLIENT-05F account and route changes reject delayed FX display", async ({
   await expect(page.locator(".exact-fx")).not.toContainText("About");
   await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
-  await page.evaluate(async (url) => {
-    const { state } = await import(url);
+  await page.evaluate(() => {
+    const { state } = globalThis.fixtureCopyApp;
     state.session = { user: { id: "11111111-1111-4111-8111-111111111111" } };
   }, appUrl);
   release = null;
@@ -1305,15 +1305,15 @@ test("CLIENT-05F account and route changes reject delayed FX display", async ({
   await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect.poll(() => calls).toBe(2);
-  await page.evaluate(async (url) => {
-    const { routeTo } = await import(url);
+  await page.evaluate(() => {
+    const { routeTo } = globalThis.fixtureCopyApp;
     routeTo("collection", { focus: false });
   }, appUrl);
   release();
   await expect(page.locator(".exact-sold-value")).toBeHidden();
   expect(
     await page.evaluate(
-      async (url) => (await import(url)).state.detailFx,
+      () => globalThis.fixtureCopyApp.state.detailFx,
       appUrl,
     ),
   ).toBeNull();
@@ -2047,7 +2047,7 @@ for (const [prices, estimate] of [[[100,110,120],100],[[225,215,230.2,219,220.46
   await expect(page.locator("#positionChart")).toBeVisible();
   await page.waitForTimeout(500);
   await expect(page.locator(".detail-performance")).not.toContainText("Purchase cost or matching value missing");
-  await expect(page.locator("#detailContent")).toContainText("Sales history");
+  await expect(page.locator("#detailContent")).toContainText("Daily median · sale prices");
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(prices.length);
   expect(await page.evaluate(async url=>(await import(url)).state.items.find(item=>item.id==="tcgdex:en:unavailable").notes,appUrl)).toBe("Unpriced entry preserved");
@@ -2061,7 +2061,7 @@ for (const [prices, estimate] of [[[100,110,120],100],[[225,215,230.2,219,220.46
 test('latest slab comp and full-width recorded history stay legible in light and dark mode',async({page},testInfo)=>{
  await setup(page);
  let reads=0;
- const dates=['2026-08-01','2026-08-10','2026-08-31'];
+ const dates=['2026-08-01','2026-08-01','2026-08-31'];
  await page.route('**/api/sales?*',route=>{
   reads++;
   const lookup=JSON.parse(new URL(route.request().url()).searchParams.get('lookup'));
@@ -2092,6 +2092,17 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await expect(page.locator('.copy-navigation.single-copy #nextCopyButton')).toBeHidden();
  const bounds=await page.evaluate(()=>{const {chartInstance:chart}=globalThis.fixtureCopyApp;return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
  expect(bounds).toEqual({min:Date.parse(dates[0]),max:Date.parse(dates[2]),radius:0});
+ const dailyPlot=await page.evaluate(()=>{const chart=globalThis.fixtureCopyApp.chartInstance;return {points:chart.data.datasets[0].data.map(p=>({x:p.x,y:p.y,count:p.point.saleCount})),sales:chart.data.datasets[1].data.length,scatter:chart.data.datasets[1].showLine,max:chart.options.scales.y.max,change:document.querySelector('.history-period-change strong').textContent};});
+ expect(dailyPlot.points.map(p=>p.y)).toEqual([1010,5000]);
+ expect(dailyPlot.points.map(p=>p.count)).toEqual([2,1]);
+ expect(new Set(dailyPlot.points.map(p=>p.x)).size).toBe(2);
+ expect(dailyPlot.sales).toBe(3);expect(dailyPlot.scatter).toBe(false);
+ expect(dailyPlot.max).toBeLessThan(5500);expect(dailyPlot.max).toBeGreaterThan(5000);
+ expect(dailyPlot.change).toContain('$3,990.00');
+ await page.locator('.history-values > summary').click();
+ await expect(page.locator('.history-values tbody tr')).toHaveCount(3);
+ await page.locator('.history-values > summary').click();
+
  expect(await page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance.options.scales.y.position)).toBe("right");
  expect(await page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance.config.plugins.some(plugin=>plugin.id==="historyCursor"))).toBe(true);
  expect(await page.locator(".history-period-change").evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector("#positionChart"))&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
@@ -2101,6 +2112,9 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;const item=app.state.items[0];app.state.detailSales=null;app.openCardDetail(item,true);},appUrl);
  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$5,000.00');
  expect(reads).toBe(1);
+ const savedChart=await page.evaluate(()=>globalThis.fixtureCopyApp.state.items[0].exactSaleEvidence.chartHistory);
+ expect(savedChart.version).toBe('daily-median-v1');expect(savedChart.points).toHaveLength(2);
+ await expect(page.locator('.daily-sale-history-label')).toBeVisible();
  const originalSaleUrl='https://www.ebay.com/itm/11002?nordt=true&orig_cvip=true&rt=nc';
  const compLink=page.locator('.exact-sold-value .inline-source-link');
  await expect(compLink).toHaveAttribute('href',originalSaleUrl);
@@ -2187,4 +2201,27 @@ test("complete screen review covers settings, capture, detail and both appearanc
     await expect(page.locator("#detailTitle")).toContainText("PSA 10");
     await page.screenshot({path:testInfo.outputPath(appearance+"-detail.png"),fullPage:true,animations:"disabled"});
   }
+});
+
+test('retained public Umbreon sales render as a daily trend with every original sale', async ({ page }, testInfo) => {
+  test.skip(!process.env.MICA_DAILY_HISTORY_REVIEW, 'Optional read-only retained-provider visual review');
+  const sales=JSON.parse(await readFile(process.env.MICA_DAILY_HISTORY_REVIEW,'utf8'));
+  await setup(page);
+  await page.route('**/api/sales?*',route=>{
+    const lookup=JSON.parse(new URL(route.request().url()).searchParams.get('lookup'));
+    return route.fulfill({contentType:'application/json',body:JSON.stringify(soldPayload(lookup,sales))});
+  });
+  const item={...gradedCopy('a'),id:'tcgdex:en:swsh7-215',name:'Umbreon VMAX',set:'Evolving Skies',number:'215/203',costBasis:1500,cost:1500};
+  await page.evaluate(item=>{const app=globalThis.fixtureCopyApp;app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'fixture'};app.state.items=[item];document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');app.openCardDetail(item,true);},item);
+  await expect(page.locator('.exact-sold-value > strong')).toHaveText(sales.length===113?'$3,750.00':'$3,763.00');
+  await expect(page.locator('#positionChart')).toBeVisible();
+  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance?.data.datasets.length)).toBe(2);
+  const plot=await page.evaluate(()=>{const c=globalThis.fixtureCopyApp.chartInstance;return {trend:c.data.datasets[0].data.map(p=>p.y),sales:c.data.datasets[1].data.length,yMax:c.options.scales.y.max};});
+  expect(plot.trend).toHaveLength(sales.length===113?49:51);expect(plot.sales).toBe(sales.length);
+  expect(plot.trend[0]).toBe(4750);expect(plot.trend.at(-1)).toBe(sales.length===113?3825:3763);expect(plot.yMax).toBeLessThan(5500);
+  await expect(page.locator('.history-period-change strong')).toHaveText(sales.length===113?'−$925.00 (-19.5%)':'−$987.00 (-20.8%)');
+  await page.locator('#positionChart').scrollIntoViewIfNeeded();
+  await page.screenshot({path:testInfo.outputPath('retained-umbreon-daily-trend.png'),animations:'disabled'});
+  await page.locator('.history-values > summary').click();
+  await expect(page.locator('.history-values tbody tr')).toHaveCount(sales.length);
 });
