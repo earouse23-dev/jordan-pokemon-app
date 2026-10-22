@@ -1143,10 +1143,7 @@ test("CLIENT-05F expires an open equivalent at UTC midnight and guards pending r
   await openSaleDetails(page);
   await page.locator("#toggleExactFxButton").click();
   await expect(page.locator(".exact-fx")).toContainText("Checking ECB rate");
-  await page.evaluate(async (url) => {
-    const { renderDetail } = await import(url);
-    renderDetail();
-  }, appUrl);
+  await page.evaluate(() => globalThis.fixtureCopyApp.renderDetail());
   await expect(page.locator(".exact-fx")).toContainText("Checking ECB rate");
   await expect.poll(() => Boolean(release)).toBe(true);
   release();
@@ -2103,6 +2100,25 @@ test('latest slab comp and full-width recorded history stay legible in light and
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;const item=app.state.items[0];app.state.detailSales=null;app.openCardDetail(item,true);},appUrl);
  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$5,000.00');
+ expect(reads).toBe(1);
+ const originalSaleUrl='https://www.ebay.com/itm/11002?nordt=true&orig_cvip=true&rt=nc';
+ const compLink=page.locator('.exact-sold-value .inline-source-link');
+ await expect(compLink).toHaveAttribute('href',originalSaleUrl);
+ await openSaleDetails(page);
+ await page.locator('#exactSaleEvidence > summary').click();
+ const evidenceLinks=await page.locator('#exactSaleEvidence a').evaluateAll(links=>links.map(link=>link.href));
+ expect(evidenceLinks).toContain(originalSaleUrl);
+ expect(evidenceLinks.every(href=>new URL(href).searchParams.get('orig_cvip')==='true')).toBe(true);
+ await page.context().route('https://www.ebay.com/**',route=>{
+  const url=new URL(route.request().url());
+  return route.fulfill({contentType:'text/html; charset=utf-8',body:url.href===originalSaleUrl?'<h1>Original PSA 10 sale - $5,000.00</h1>':'<h1>Unrelated replacement listing</h1>'});
+ });
+ const compPopupPromise=page.waitForEvent('popup');
+ await compLink.click();
+ const compPopup=await compPopupPromise;
+ await expect(compPopup).toHaveURL(originalSaleUrl);
+ await expect(compPopup.getByRole('heading')).toHaveText('Original PSA 10 sale - $5,000.00');
+ await compPopup.close();
  expect(reads).toBe(1);
  await page.screenshot({path:testInfo.outputPath('slab-history-light.png'),fullPage:true,animations:"disabled"});
  await page.evaluate(()=>document.body.dataset.appearance='dark');

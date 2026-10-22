@@ -357,7 +357,7 @@ test("card detail links only validated marketplace sources and the latest matchi
   await expect(page.locator('[data-detail-tool="prices"]')).toHaveAttribute("open", "");
   await expect(page.locator("#marketProofDetails")).toHaveAttribute("open", "");
   await expect(page.locator("#marketProofDetails > summary")).toBeFocused();
-  await expect(page.getByRole("link", { name: /View last eBay sale/ })).toHaveAttribute("href", "https://www.ebay.com/itm/123456789011");
+  await expect(page.getByRole("link", { name: /View last eBay sale/ })).toHaveAttribute("href", "https://www.ebay.com/itm/123456789011?nordt=true&orig_cvip=true&rt=nc");
   await expect(page.locator(".sale-row")).toHaveCount(2);
   await expect(page.locator(".sales-list")).not.toContainText("Wrong language");
   await expect(page.getByRole("link", { name: /View last eBay sale/ })).toHaveAttribute("rel", "noopener noreferrer");

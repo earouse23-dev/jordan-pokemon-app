@@ -87,6 +87,23 @@ import {
   normalizeJustTcgCard,
   normalizePrinting,
 } from "../lib/providers/justtcg.js";
+
+test("saved eBay item links keep the original sale instead of a replacement product", () => {
+  for (const source of [
+    "https://www.ebay.com/itm/128082935445",
+    "https://www.ebay.co.uk/itm/Umbreon-PSA-10/128082935445?nordt=false&orig_cvip=false&rt=shopping",
+  ]) {
+    const result = new URL(safeMarketSourceUrl(source, "ebay"));
+    assert.equal(result.pathname, new URL(source).pathname);
+    assert.equal(result.searchParams.get("nordt"), "true");
+    assert.equal(result.searchParams.get("orig_cvip"), "true");
+    assert.equal(result.searchParams.get("rt"), "nc");
+    assert.equal(safeMarketSourceUrl(result.href, "ebay"), result.href);
+  }
+  assert.equal(safeMarketSourceUrl("https://www.ebay.com/sch/i.html?_nkw=Umbreon", "ebay"), "https://www.ebay.com/sch/i.html?_nkw=Umbreon");
+  for (const source of ["https://ebay.com.evil.example/itm/128082935445", "https://user@www.ebay.com/itm/128082935445", "http://www.ebay.com/itm/128082935445"])
+    assert.equal(safeMarketSourceUrl(source, "ebay"), null);
+});
 import {
   fetchPkmnPricesOffers,
   fetchPkmnPricesSales,
