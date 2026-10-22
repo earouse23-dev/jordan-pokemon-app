@@ -180,7 +180,7 @@ test('daily cache skips inventory and providers; revisions reuse today’s price
       const body=JSON.parse(init.body);
       assert.equal(body.p_user_id,owner);assert.equal(body.p_revision,revision);
       if(race){revision++;return Response.json(false);}
-      stored=body.p_view;dirty=null;attempted=now;return Response.json(true);
+      stored=body.p_view;dirty=null;attempted=body.p_now;return Response.json(true);
     }
     if(table==='portfolio_views'){
       assert.equal(u.searchParams.get('user_id'),'eq.'+owner);
@@ -228,6 +228,13 @@ test('daily cache skips inventory and providers; revisions reuse today’s price
   assert.equal(upgradedNextDay.checkedDay,day,'A history repair does not falsely mark old quotes as checked today');
   assert.equal(upgradedNextDay.updatedAt,published.updatedAt);
   assert.equal(paid,0,'Old model repair is independent of new-day provider availability');
+  assert.equal(upgradedNextDay.attemptDay,null,'A presentation repair does not consume the daily price retry');
+  const readsBeforeDaily=inventoryReads;
+  await refreshPortfolioView(db,owner,{}, {now:'2026-01-04T12:00:00Z'});
+  assert.ok(inventoryReads>readsBeforeDaily,'Normal daily work starts immediately after the model repair');
+  const readsAfterDaily=inventoryReads;
+  await refreshPortfolioView(db,owner,{}, {now:'2026-01-04T12:00:00Z'});
+  assert.equal(inventoryReads,readsAfterDaily,'An actual failed daily refresh still uses the existing backoff');
 });
 
 test('a partial refresh keeps useful progress and does not exhaust continuation retries', async t => {
