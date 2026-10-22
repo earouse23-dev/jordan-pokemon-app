@@ -123,6 +123,34 @@ async function assertFits(page) {
   expect(overflow).toBeLessThanOrEqual(0);
 }
 
+test("polished detail preserves the complete copyable identity and ranks holdings by position value", async ({ page }, testInfo) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async text => { globalThis.__copiedTitle = text; } } }));
+  await openDetail(page, { edition: "unlimited", finish: "holofoil", promoType: "none", cardState: "graded", gradingCompany: "PSA", grade: "9" });
+  await page.getByRole("button", { name: "Copy full card title" }).click();
+  const copied = await page.evaluate(() => globalThis.__copiedTitle);
+  expect(copied).toContain("Charizard"); expect(copied).toContain("Base Set"); expect(copied).toContain("4/102"); expect(copied).toContain("Holofoil"); expect(copied).toContain("PSA 9");
+  await expect(page.locator(".detail-grade-badge")).toHaveText("PSA 9");
+  await expect(page.locator("#copyCardTitle")).toContainText("Copied");
+  for (const [width, height] of [[375,667],[1440,900]]) {
+    await page.setViewportSize({ width, height });
+    await assertFits(page);
+    await page.screenshot({ path: testInfo.outputPath(`polished-detail-${width}.png`), animations: "disabled" });
+  }
+  await page.evaluate(() => {
+    const { state, renderCollection } = globalThis.fixtureApp;
+    const base = state.items[0];
+    state.items = [
+      {...base, uid:"low", name:"Low value", cardState:"raw", gradingCompany:"", grade:"", quantity:1, price:3, pricingStatus:"live"},
+      {...base, uid:"single", name:"One valuable card", cardState:"raw", gradingCompany:"", grade:"", quantity:1, price:100, pricingStatus:"live"},
+      {...base, uid:"multiple", name:"Multiple copies", cardState:"raw", gradingCompany:"", grade:"", quantity:3, price:50, pricingStatus:"live"},
+    ];
+    renderCollection();
+  });
+  const names = await page.locator("#dashboardHighestCards .dashboard-card-row>span:first-of-type>strong").allTextContents();
+  expect(names).toEqual(["Multiple copies", "One valuable card", "Low value"]);
+  await expect(page.locator("#dashboardHighestTitle")).toHaveText("Top holdings");
+});
+
 async function openCollection(page) {
   await openDetail(page);
   await page.evaluate(async (url) => {
@@ -160,7 +188,7 @@ test("client portfolio preserves unpriced inventory without rejected workspace c
     state.organization.goals = [{ id: "goal-home", name: "Base Set binder", progress: { status: "ready", current: 2, target: 102, percent: 2 / 102 * 100 } }];
     renderCollection(); routeTo("dashboard", { focus: false });
   }, appUrl);
-  await expect(page.locator("#dashboardHighestTitle")).toHaveText("Your cards");
+  await expect(page.locator("#dashboardHighestTitle")).toHaveText("Top holdings");
   await expect(page.locator("#dashboardHighestCards button")).toHaveCount(2);
   await expect(page.locator("#dashboardHighestCards")).toContainText("×3");
   await expect(page.locator("#softwareModeHome")).not.toBeVisible();
@@ -187,7 +215,7 @@ test("client portfolio preserves unpriced inventory without rejected workspace c
   } else { await assertFits(page); await page.screenshot({path:testInfo.outputPath("collector-home-desktop.png"),fullPage:true,animations:"disabled"}); }
   await page.locator("#dashboardMoneyDetails > summary").click();
   await expect(page.locator(".dashboard-owned-tools")).toBeVisible();
-  await page.locator("#dashboardHighestCards button").first().click();
+  await page.locator("#dashboardHighestCards button").filter({ hasText: "Charizard" }).click();
   await expect(page.locator("#detailTitle")).toContainText("Charizard");
   expect(await page.evaluate(async url => (await import(url)).state.items.reduce((sum,item)=>sum+item.quantity,0), appUrl)).toBe(4);
 });

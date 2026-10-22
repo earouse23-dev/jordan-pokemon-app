@@ -1154,6 +1154,28 @@ test("primary intake camera fills viewport edge to edge with overlay controls, r
 });
 
 
+for (const live of [false, true]) test(`intake camera search ${live ? "stops the live stream" : "works with denied permission"} and returns to capture`, async ({ page }, testInfo) => {
+  const requests = await setup(page, { live, automatic: false, experience: "intake" });
+  await page.getByRole("button", { name: "Search by card name", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Find a card", exact: true })).toBeVisible();
+  await expect(page.locator("#catalogQuery")).toBeFocused();
+  await expect(page.locator("#bottomSheet")).not.toHaveAttribute("data-experience", "intake");
+  expect(await page.evaluate(() => (globalThis.__mediaStreams || []).every(stream => stream.getTracks().every(track => track.readyState === "ended")))).toBe(true);
+  await page.getByRole("button", { name: "Back to camera", exact: true }).click();
+  await expect(page.locator("#deviceCameraSearch")).toBeVisible();
+  await expect(page.locator("#bottomSheet")).toHaveAttribute("data-experience", "intake");
+  const library = await page.locator(".camera-upload-fallback").boundingBox();
+  const shutter = await page.locator("#deviceCameraCapture").boundingBox();
+  const search = await page.locator("#deviceCameraSearch").boundingBox();
+  expect(library.x + library.width).toBeLessThanOrEqual(shutter.x);
+  expect(search.x).toBeGreaterThanOrEqual(shutter.x + shutter.width);
+  expect(search.height).toBeGreaterThanOrEqual(44);
+  expect(requests.pricing).toHaveLength(0);
+  expect(requests.writes.filter(row => !row.path.endsWith("/rpc/record_ingestion_event"))).toHaveLength(0);
+  await page.screenshot({ path: testInfo.outputPath("camera-search.png") });
+  await page.locator("#bottomSheet .sheet-close").click();
+});
+
 for (const automatic of [false, true]) test('full-screen intake '+(automatic?'automatic':'shutter')+' live fixture corrects once and stops stream without photo confirmation', async ({page},testInfo)=>{
   const errors=[]; page.on('pageerror',error=>errors.push(error.message));
   const requests=await setup(page,{live:true,automatic,experience:'intake'});

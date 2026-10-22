@@ -6075,6 +6075,7 @@ body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-permis
 body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"]:has(#deviceCameraHelp:not([hidden])) .auto-capture-state { bottom: calc(230px + var(--safe-bottom)); }
 body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"]:has(#deviceCameraUse:not([hidden])) .auto-capture-state { bottom: calc(300px + var(--safe-bottom)); }
 body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] .camera-capture-actions > button:not(.sheet-close):not(.camera-shutter) { color: #fff; border-color: rgba(255,255,255,.4); background: rgba(0,0,0,.65); border-radius: 10px; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="intake"] #deviceCameraSearch { grid-row: 1; grid-column: 3; justify-self: end; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 64px; min-height: 56px; padding: 4px; border: 0; background: transparent; font-size: 12px; }
 
 /* Keep confirmation notes gently curved without adding another container. */
 body[data-ui-theme="mica"] .simple-note { border-radius: 8px; }
@@ -6531,10 +6532,11 @@ body[data-ui-theme="mica"] .wordmark { font-weight: 700; letter-spacing: -.035em
 body[data-ui-theme="mica"] :is(.screen-heading,.collection-heading,.add-cards-heading) h1 { letter-spacing: -.04em; }
 body[data-ui-theme="mica"] #appShell :is(.portfolio-chart-footer,.history-range-select) { align-items: center; gap: 8px; }
 body[data-ui-theme="mica"] #appShell .portfolio-history-head>strong { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-body[data-ui-theme="mica"] #appShell .portfolio-topline { justify-content: flex-end; }
+body[data-ui-theme="mica"] #appShell .portfolio-topline { justify-content: flex-start; }
 body[data-ui-theme="mica"] #appShell .portfolio-hero { display: flex; flex-direction: column; }
 body[data-ui-theme="mica"] #appShell .portfolio-hero .portfolio-topline { order: 2; }
 body[data-ui-theme="mica"] #appShell .portfolio-hero .portfolio-change { order: 3; margin-top: 4px; }
+body[data-ui-theme="mica"] #appShell .portfolio-hero .portfolio-change:empty { display: none; }
 body[data-ui-theme="mica"] #appShell .portfolio-hero .portfolio-value { order: 1; margin-top: 0; }
 body[data-ui-theme="mica"] #appShell .portfolio-history-head { min-height: 0; margin: 0; }
 body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage { border: 0; }
@@ -6557,6 +6559,14 @@ body[data-ui-theme="mica"] #appShell .single-copy-details .copy-navigation-head 
 body[data-ui-theme="mica"] #appShell .single-copy-details .copy-navigation { border: 0; padding: 0 0 16px; margin: 0; }
 body[data-ui-theme="mica"] #appShell .detail-title-name { display: block; font-size: clamp(26px,3vw,38px); font-weight: 700; line-height: 1.12; margin-bottom: 8px; color: var(--ink); }
 body[data-ui-theme="mica"] #appShell .detail-title-context { font-size: 14px; font-weight: 450; line-height: 1.5; color: var(--muted); letter-spacing: 0; }
+body[data-ui-theme="mica"] #appShell .detail-title-attributes { display: block; max-width: 48ch; text-wrap: pretty; }
+body[data-ui-theme="mica"] #appShell .detail-grade-badge { display: inline-block; padding: 2px 7px; border-radius: 6px; background: var(--mint); color: var(--ink); font-weight: 650; white-space: nowrap; }
+body[data-ui-theme="mica"] #appShell .detail-copy-title { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: 0 0 8px; padding: 6px 0; border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; }
+body[data-ui-theme="mica"] #appShell .detail-copy-title svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+body[data-ui-theme="mica"] #appShell .detail-copy-title:hover { color: var(--ink); }
+body[data-ui-theme="mica"] #appShell :is(.exact-sold-value,.market-hero)[data-price-state="empty"]>strong { font-size: clamp(22px,3vw,30px); letter-spacing: -.025em; line-height: 1.2; }
+body[data-ui-theme="mica"] #appShell #detailContent .sold-actions { gap: 8px 16px; }
+body[data-ui-theme="mica"] #appShell #detailContent .sold-actions>.inline-source-link { font-size: 13px; }
 body[data-ui-theme="mica"] #appShell .detail-title-year:empty { display: none; }
 body[data-ui-theme="mica"] #appShell .detail-title-year { display: block; font-size: 12px; }
 body[data-ui-theme="mica"] #appShell .owned-banner { background: var(--mint); border: 0; border-radius: 14px; padding: 14px; gap: 12px; }

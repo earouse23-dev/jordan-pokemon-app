@@ -3139,7 +3139,7 @@ function renderExactSoldValue(item, context, sales) {
     .filter((row) => row.sourceMarket === "ebay" && result.contributingEvidenceIds.includes(row.transactionKey) && safeMarketSourceUrl(row.sourceUrl, "ebay"))
     .sort((left, right) => String(right.soldAt).localeCompare(String(left.soldAt)))[0];
   const lastSoldLink = latestEbay
-    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer" aria-label="View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · differs from older comps" : " · comparable"}">eBay sale</a>`
+    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer" aria-label="View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · differs from older comps" : " · comparable"}">eBay · ${esc(shortPortfolioDate(latestEbay.soldAt))} · ${money(latestEbay.amount, latestEbay.currency)} ↗</a>`
     : "";
   const upstream = Array.isArray(sales?.upstreamExclusions)
     ? sales.upstreamExclusions
@@ -3181,7 +3181,7 @@ function renderExactSoldValue(item, context, sales) {
     : sales?.salesStatus === "error" ? "Refresh failed · saved estimate"
       : result.status === "stale" ? `Older sale · stale estimate${result.amountVerified ? "" : " · Unverified amount"}`
         : `${result.newestSoldAt?.slice(0, 10) || "Date unknown"} · ${result.amountVerified ? "" : "Unverified amount · "}${result.confidence.level === "limited" ? "Limited sales" : `${result.confidence.level} evidence`}`;
-  return `<section class="exact-sold-value" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(displayCurrency())}</span><strong>${value}</strong><small class="sold-summary">${esc(saleSummary)}</small><div class="sold-actions">${lastSoldLink}${!hasEstimate ? button : ""}<details class="sold-price-details" data-detail-tool="sold-price"><summary>Price details</summary><div>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${!hasEstimate ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${fxLine}${hasEstimate ? button : ""}${details}${history}</div></details></div></section>`;
+  return `<section class="exact-sold-value" data-price-state="${hasEstimate ? "ready" : "empty"}" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(displayCurrency())}</span><strong>${value}</strong><small class="sold-summary">${esc(saleSummary)}</small><div class="sold-actions">${lastSoldLink}${!hasEstimate ? button : ""}<details class="sold-price-details" data-detail-tool="sold-price"><summary>Price details</summary><div>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${!hasEstimate ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${fxLine}${hasEstimate ? button : ""}${details}${history}</div></details></div></section>`;
 }
 
 let fxMidnightTimer = null;
@@ -5980,7 +5980,7 @@ function renderSoftwareModeHome() {
   if (modeHome) { modeHome.replaceChildren(); modeHome.hidden = true; }
   if ($("#dashboardTitle")) $("#dashboardTitle").textContent = "Portfolio";
   if ($("#dashboardSubtitle")) $("#dashboardSubtitle").textContent = "Your collection, over time";
-  if ($("#dashboardHighestTitle")) $("#dashboardHighestTitle").textContent = "Your cards";
+  if ($("#dashboardHighestTitle")) $("#dashboardHighestTitle").textContent = "Top holdings";
 }
 
 function renderDashboardHighlights() {
@@ -6005,8 +6005,13 @@ function renderDashboardHighlights() {
         Number(item.quantity) > 0 &&
         (collector || itemValue(item) != null),
     )
-    .sort((left, right) => (collector ? 0 : itemValue(right) - itemValue(left)))
-    .slice(0, 5);
+    .map(item => {
+      const amount = itemValue(item);
+      return { item, value: amount === null ? -Infinity : convertIndicative(amount, item.currency || "USD", displayCurrency(), lastValidatedFxRate) ?? -Infinity };
+    })
+    .sort((left, right) => right.value - left.value || left.item.name.localeCompare(right.item.name))
+    .slice(0, 5)
+    .map(({ item }) => item);
   highest.innerHTML = ranked.length
     ? ranked
         .map((item) => {
@@ -8807,11 +8812,13 @@ function renderDetail() {
     : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
   const listingTitle = sealed ? item.name : cardListingTitle(item, printing, context);
   const nameAt = listingTitle.indexOf(item.name);
-  const titleMarkup = nameAt < 0 ? esc(listingTitle) : `<span class="detail-title-context detail-title-year">${esc(listingTitle.slice(0, nameAt))}</span><span class="detail-title-name">${esc(item.name)}</span> <span class="detail-title-context detail-title-attributes">${esc(listingTitle.slice(nameAt + item.name.length).replace(/^\s*·\s*/, ""))}</span>`;
-  const marketHero = `<section class="market-hero" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<details class="price-source-details"><summary>Source</summary><small class="price-provenance">${esc(provenance)}</small></details>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button" aria-label="View recent eBay sales">eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
+  const gradeLabel = context.cardState === "graded" && context.gradingCompany && context.grade ? `${context.gradingCompany} ${context.grade}` : "";
+  const attributes = listingTitle.slice(nameAt + item.name.length).replace(/^\s*·\s*/, "").split(" · ").map(part => part === gradeLabel ? `<span class="detail-grade-badge">${esc(part)}</span>` : esc(part)).join(" · ");
+  const titleMarkup = nameAt < 0 ? esc(listingTitle) : `<span class="detail-title-context detail-title-year">${esc(listingTitle.slice(0, nameAt))}</span><span class="detail-title-name">${esc(item.name)}</span> <span class="detail-title-context detail-title-attributes">${attributes}</span>`;
+  const marketHero = `<section class="market-hero" data-price-state="${displayPrice == null ? "empty" : "ready"}" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<details class="price-source-details"><summary>Source</summary><small class="price-provenance">${esc(provenance)}</small></details>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button" aria-label="View recent eBay sales">eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${titleMarkup}</h1>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
+    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Copy title</span></button>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "transaction") ? "Sales history" : "Recorded sold-derived estimates") : "Recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
@@ -8831,6 +8838,15 @@ function renderDetail() {
     ${owned ? collectionAttachmentMarkup(item) : ""}</div>
     <p class="legal-copy">Prices are estimates, not guaranteed sale amounts. ${sealed ? "The box and seal" : "Wear on the card"} can change what someone will pay.</p>`;
   const conditionTool = detailRoot.querySelector(".detail-digital-grade");
+  $("#copyCardTitle").addEventListener("click", async () => {
+    const button = $("#copyCardTitle");
+    try {
+      await navigator.clipboard.writeText(listingTitle);
+      if (button.isConnected) button.querySelector("span").textContent = "Copied";
+    } catch {
+      if (button.isConnected) button.querySelector("span").textContent = "Select title to copy";
+    }
+  });
   const gradingTools = detailRoot.querySelector('[data-detail-tool="grading"] .detail-tool-content');
   if (conditionTool && gradingTools) gradingTools.prepend(conditionTool);
   const conversionNote = detailRoot.querySelector(".detail-currency-note");
@@ -11954,6 +11970,19 @@ async function openDeviceCamera({
     });
     library.firstChild.replaceWith(document.createElement("span"));
     library.firstChild.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg>';
+    const search = document.createElement("button");
+    search.id = "deviceCameraSearch";
+    search.type = "button";
+    search.setAttribute("aria-label", "Search by card name");
+    search.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>Search</span>';
+    search.addEventListener("click", () => {
+      closeSheet({ discardHistory: true });
+      openManualSearch({ returnToCamera: () => {
+        if (accountRequestIsCurrent(ownerId, loadVersion))
+          void openDeviceCamera({ kind, automatic, onPhoto, captureRequest, experience, stepIndex, stepTotal, gradingMode, reportId });
+      } });
+    });
+    $(".camera-capture-actions").append(search);
   }
   if (gradingExperience) $("#bottomSheet").dataset.experience = "grading";
   $("#bottomSheet").dataset.sensitive = "true";
@@ -15625,11 +15654,23 @@ function setFilterMarkup(results, selected = "") {
   return `<div class="result-filters" role="group" aria-label="Filter search results by set"><button type="button" data-result-set="" aria-pressed="${String(!selected)}">All</button>${sets.map((set) => `<button type="button" data-result-set="${esc(set)}" aria-pressed="${String(selected === set)}">${esc(set)}</button>`).join("")}</div>`;
 }
 
-function openManualSearch() {
+function openManualSearch({ returnToCamera = null } = {}) {
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find a card</h2><p>Type the card name and the number printed at the bottom, such as 4/102.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="catalogQuery" type="search" placeholder="Charizard 4/102" aria-label="Search by card name and bottom number"></label><div class="field"><label for="catalogLanguage">Language on the card</label><select id="catalogLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div><div class="field full"><label for="catalogSet">Set name · optional</label><input id="catalogSet" type="search" placeholder="All sets"></div></div><div class="manual-results" id="manualResults" aria-live="polite"><div class="unavailable-panel">Type at least two characters to search.</div></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find a card</h2></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="catalogQuery" type="search" placeholder="Charizard 4/102" aria-label="Search by card name and bottom number"></label><div class="field"><label for="catalogLanguage">Language on the card</label><select id="catalogLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="fr">French</option><option value="de">German</option><option value="es">Spanish</option><option value="it">Italian</option><option value="pt">Portuguese</option><option value="zh-tw">Traditional Chinese</option><option value="id">Indonesian</option><option value="th">Thai</option></select></div><div class="field full"><label for="catalogSet">Set name · optional</label><input id="catalogSet" type="search" placeholder="All sets"></div></div><div class="manual-results" id="manualResults" aria-live="polite"><div class="unavailable-panel">Type at least two characters to search.</div></div>`,
   );
   const input = $("#catalogQuery");
+  if (returnToCamera) {
+    const back = document.createElement("button");
+    back.type = "button";
+    back.className = "detail-back";
+    back.textContent = "← Camera";
+    back.setAttribute("aria-label", "Back to camera");
+    back.addEventListener("click", () => {
+      closeSheet({ discardHistory: true });
+      returnToCamera();
+    });
+    $("#sheetContent .sheet-heading").before(back);
+  }
   const language = $("#catalogLanguage");
   const resultsNode = $("#manualResults");
   input.value = $("#quickCardSearch")?.value || "";
