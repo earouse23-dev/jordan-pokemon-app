@@ -1,0 +1,81 @@
+{
+  "source": "33bc0e8c74e119fc4bb8a28e6717044f2be05a6c",
+  "local": {
+    "unit": {
+      "passed": 588,
+      "skipped": 3,
+      "failed": 0
+    },
+    "betaBrowser": {
+      "passed": 367,
+      "skipped": 8,
+      "failed": 0
+    },
+    "largeInventory": {
+      "passed": 3,
+      "failed": 0
+    },
+    "expandedBrowser": {
+      "passed": 358,
+      "skipped": 9,
+      "failed": 0
+    },
+    "lint": "passed",
+    "syntax": "passed",
+    "releaseRouting": "passed; 64 entries, 9 functions, 3 held routes"
+  },
+  "database": {
+    "environment": "existing local test database; rollback-only tests",
+    "canonicalIdentity": 47,
+    "reliableIngestion": 31,
+    "collectionOrganization": 53,
+    "portfolioQueue": "300-owner fairness, daily rollover, backoff, leases and role boundaries passed",
+    "heldFailure": "Optional outbound action delivery worker lacks SELECT on auth.users for service_role. Outbound delivery remains held; no broad grant added."
+  },
+  "productionAudit": {
+    "vulnerabilities": 0,
+    "devOnlyModerate": 3,
+    "devChain": "Capacitor CLI -> xcode -> uuid 7; compatibility-sensitive fix deferred"
+  },
+  "productionMetadata": {
+    "publicOrdinaryTablesWithoutRls": 0,
+    "privateStorageBuckets": 4,
+    "securityDefinerFunctionsReviewed": 14
+  },
+  "providerBudget": {
+    "dailyAppCap": 20000,
+    "before": {
+      "requests": 10,
+      "reserved": 106,
+      "returned": 10
+    },
+    "after": {
+      "requests": 13,
+      "reserved": 147,
+      "returned": 11
+    },
+    "errors": 0,
+    "pending": 0,
+    "note": "App metering, not the entire provider account. Same-day second refresh reused saved view."
+  },
+  "limits": [
+    "Physical iPhone camera acceptance pending owner",
+    "Signed native/App Store release not performed",
+    "No 100-account/1000-distinct-card capacity certification",
+    "Public legal/email and recurring five-minute refresh rollout remain separate gates"
+  ],
+  "remoteGate": {
+    "run": 39706774628,
+    "conclusion": "success",
+    "unitPassed": 588,
+    "browserPassed": 370,
+    "browserSkipped": 8,
+    "largeInventoryPassed": 3
+  },
+  "canonical": {
+    "release": "33bc0e8c74e1",
+    "unauthPortfolio": "401 no-store",
+    "unauthAccountDelete": "401 no-store",
+    "readOnlyBrowser": "passed; stable saved EUR dashboard before inventory and after hydration; no page errors"
+  }
+}
