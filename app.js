@@ -3110,7 +3110,9 @@ function completedSaleHistory(item, context, sales) {
   sales.chartHistory = completedSalePriceHistory(result, sales.chartHistory);
   const saved = savedSaleEvidenceForContext(item, context);
   if (saved?.sales === sales.sales) saved.chartHistory = sales.chartHistory;
-  return sales.chartHistory.points;
+  // Resolve the dots from retained evidence; the saved daily series only stores IDs.
+  const observations = new Map(result.evidence.map(sale => [sale.transactionKey, { amount: sale.amount, currency: sale.currency, recordedAt: sale.soldAt, provider: sale.saleType || sale.evidenceKind === "completed_sale" ? "eBay completed sale" : "eBay reported comp", providerVariantId: sale.transactionKey, gradingCompany: context.gradingCompany, grade: context.grade, sourceUrl: sale.sourceUrl, granularity: "transaction" }]));
+  return sales.chartHistory.points.map(point => ({ ...point, observations: point.saleIds.map(id => observations.get(id)).filter(Boolean) }));
 }
 
 function renderExactSoldValue(item, context, sales) {

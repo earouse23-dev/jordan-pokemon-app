@@ -96,9 +96,10 @@ test("daily sale history is order-independent, revision-aware and preserves ever
  const changed=completedSalePriceHistory({...result,evidence:evidence.map((p,i)=>i===9?{...p,amount:4000}:p)},derived);
  assert.notEqual(changed.sourceKey,derived.sourceKey);assert.equal(changed.points[1].amount,3875);
  const model=cardPriceHistoryWindow({currency:'USD'},derived.points,'all',Date.parse('2026-10-22'));
- assert.equal(model.summary.change,-925);assert.equal(model.observations.length,10);
+ assert.equal(model.summary.change,-925);assert.equal(derived.points.flatMap(point=>point.saleIds).length,10);
  assert.equal(new Set(model.points.map(p=>p.x)).size,model.points.length);
- assert.equal(model.observations.filter(p=>p.provider==='eBay reported comp').length,10);
+ assert.equal(derived.points.every(point=>!Object.hasOwn(point,'observations')),true,'saved daily points reference rather than duplicate sales');
+ assert.deepEqual(derived.points.flatMap(point=>point.saleIds).sort(),result.eligibleEvidenceIds.toSorted());
  assert.equal(completedSalePriceHistory({...result,eligibleEvidenceIds:[]}).points.length,0);
  const midnight=completedSalePriceHistory({evidence:[{...evidence[0],soldAt:'2026-09-26T23:30:00-02:00'}],eligibleEvidenceIds:[evidence[0].transactionKey]});
  assert.equal(midnight.points[0].recordedAt,'2026-09-27T00:00:00Z');
@@ -107,5 +108,5 @@ test("daily sale history is order-independent, revision-aware and preserves ever
  const separated=completedSalePriceHistory({evidence:[...evidence,{...evidence[0],transactionKey:'ebay:eur',currency:'EUR',amount:999}],eligibleEvidenceIds:[...result.eligibleEvidenceIds,'ebay:eur']});
  assert.equal(separated.points.length,3);assert.equal(separated.points.find(p=>p.currency==='EUR').amount,999);
  const sparse=cardPriceHistoryWindow({currency:'USD'},derived.points,'1m',Date.parse('2026-10-22'));
- assert.equal(sparse.points.length,1);assert.equal(sparse.summary.change,null);assert.equal(sparse.observations.length,4);
+ assert.equal(sparse.points.length,1);assert.equal(sparse.summary.change,null);assert.equal(sparse.points[0].saleCount,4);
 });

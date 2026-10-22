@@ -2216,8 +2216,9 @@ test('retained public Umbreon sales render as a daily trend with every original 
   await expect(page.locator('.exact-sold-value > strong')).toHaveText(sales.length===113?'$3,750.00':'$3,763.00');
   await expect(page.locator('#positionChart')).toBeVisible();
   await expect.poll(()=>page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance?.data.datasets.length)).toBe(2);
-  const plot=await page.evaluate(()=>{const c=globalThis.fixtureCopyApp.chartInstance;return {trend:c.data.datasets[0].data.map(p=>p.y),sales:c.data.datasets[1].data.length,yMax:c.options.scales.y.max};});
+  const plot=await page.evaluate(()=>{const c=globalThis.fixtureCopyApp.chartInstance;return {trend:c.data.datasets[0].data.map(p=>p.y),sales:c.data.datasets[1].data.length,yMax:c.options.scales.y.max, saleTooltip:c.options.plugins.tooltip.callbacks.label({parsed:c.data.datasets[1].data[0],raw:c.data.datasets[1].data[0]})};});
   expect(plot.trend).toHaveLength(sales.length===113?49:51);expect(plot.sales).toBe(sales.length);
+  expect(plot.saleTooltip).toContain('Amount unverified');
   expect(plot.trend[0]).toBe(4750);expect(plot.trend.at(-1)).toBe(sales.length===113?3825:3763);expect(plot.yMax).toBeLessThan(5500);
   await expect(page.locator('.history-period-change strong')).toHaveText(sales.length===113?'−$925.00 (-19.5%)':'−$987.00 (-20.8%)');
   await page.locator('#positionChart').scrollIntoViewIfNeeded();
