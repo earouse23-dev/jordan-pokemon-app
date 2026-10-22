@@ -25,3 +25,21 @@ An expired or removed listing may still become unavailable on eBay. These parame
 - Initial popup fixture lacked a UTF-8 charset; corrected the fixture response encoding without changing application behavior.
 - Final browser and publication outcomes are recorded below after release verification.
 - The broader 120-case run exposed an existing fake-clock FX fixture failure at an unnecessary dynamic import (`Execution context was destroyed`). The test now reuses its already retained module handle for the same render operation and keeps every behavioral assertion. This is test-only; no FX application behavior changed.
+
+## Final local qualification and staging
+
+- Final full pricing/physical-copy browser run: 117 passed, 3 intentionally skipped, 0 failures across the three configured browsers.
+- Schema and migration-baseline checks passed; release-routing validation made zero outbound provider calls.
+- Source release: `afe137cad3f49a117e46b1ba983198df2252f0f1`.
+- Staged deployment: `https://jordan-pokemon-jay7y5vsc-earouse23-devs-projects.vercel.app`.
+- Staged health returned release `afe137cad3f4`, with database, auth and pricing-provider health healthy.
+- Downloaded staged browser bundle SHA-256 equals the locally qualified release artifact; original-listing flags are present.
+- Existing project, functions, cron schedules and provider budgets are unchanged.
+
+## Publication and live acceptance
+
+- GitHub beta gate [39718149235](https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/39718149235) succeeded for the exact source commit: 589 unit checks passed, 3 skipped; 370 browser checks passed, 8 skipped; 3 large-inventory checks passed. No browser retries were reported.
+- Promoted the qualified deployment `dpl_49vWBU6UfFh4JeC7zTjjMBwd6EAm` to the existing canonical app. Canonical `/api/health` confirms healthy release `afe137cad3f4`.
+- Reloaded live Mica, opened the saved Umbreon PSA 10 from Top holdings, and clicked its actual eBay comp link. The published anchor includes the original-listing parameters, and the opened tab stays on item 128082935445. The visible original sold listing matches PSA 10, $3,750, September 27.
+- `published-original-sale.png` records the actual post-publication click result; `published-mica-comp.png` records the published Mica page. No inventory or settings were edited.
+- Pricing algorithm, historical ingestion, graph work and unrelated repository changes were held outside this link fix.
