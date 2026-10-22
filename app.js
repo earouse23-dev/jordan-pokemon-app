@@ -1,4 +1,4 @@
-import { portfolioPricingKey, displayPortfolioView, hasPortfolioValue, compactPortfolioView } from "./lib/portfolio-view.js";
+import { portfolioPricingKey, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -102,6 +102,7 @@ import {
   marketAdjustedPortfolioHistory,
   portfolioProfitLoss,
   portfolioDisplayProfitLoss,
+  displayNativePortfolioProfitLoss,
   portfolioDisplayProfitLossHistory,
   portfolioActions,
   portfolioReview,
@@ -3139,7 +3140,7 @@ function renderExactSoldValue(item, context, sales) {
     .filter((row) => row.sourceMarket === "ebay" && result.contributingEvidenceIds.includes(row.transactionKey) && safeMarketSourceUrl(row.sourceUrl, "ebay"))
     .sort((left, right) => String(right.soldAt).localeCompare(String(left.soldAt)))[0];
   const lastSoldLink = latestEbay
-    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer" aria-label="View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · differs from older comps" : " · comparable"}">eBay · ${esc(shortPortfolioDate(latestEbay.soldAt))} · ${money(latestEbay.amount, latestEbay.currency)} ↗</a>`
+    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer" aria-label="View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · differs from older comps" : " · comparable"}">eBay · ${esc(shortPortfolioDate(latestEbay.soldAt))} · ${money(latestEbay.amount, latestEbay.currency)}</a>`
     : "";
   const upstream = Array.isArray(sales?.upstreamExclusions)
     ? sales.upstreamExclusions
@@ -5317,7 +5318,7 @@ async function mountPortfolioHistoryChart({
       labels: points.map((point) => Date.parse(`${point.date}T00:00:00Z`)),
       datasets: [
         {
-          segment: { borderDash: context => points[context.p0DataIndex]?.estimatedItems || points[context.p1DataIndex]?.estimatedItems ? [5, 4] : undefined },
+          segment: { borderDash: context => points[context.p0DataIndex]?.estimatedItems || points[context.p1DataIndex]?.estimatedItems ? [5, 4] : points[context.p1DataIndex]?.carriedForward ? [2, 3] : undefined },
           label: pnlMode
             ? "Known unrealized profit or loss"
             : marketMode
@@ -5377,7 +5378,7 @@ async function mountPortfolioHistoryChart({
           padding: 12,
           callbacks: {
             title(items) { return items.length ? money(items[0].parsed.y, currency) : ""; },
-            label(context) { const point = points[context.dataIndex], date = shortPortfolioDate(point?.date || "", true); return point?.estimatedItems ? [date, "Includes purchase-price estimates"] : date; },
+            label(context) { const point = points[context.dataIndex], date = shortPortfolioDate(point?.date || "", true); const notes = [...(point?.estimatedItems ? ["Includes purchase-price estimates"] : []), ...(point?.carriedForward ? [`Saved valuation from ${shortPortfolioDate(point.valuationDate, true)}`] : [])]; return notes.length ? [date, ...notes] : date; },
           },
         },
       },
@@ -5440,14 +5441,7 @@ function renderPortfolioHistory() {
   }
   if (saved && state.portfolioHistoryMode === "value") {
     const today = localIsoDate();
-    const timeline = (saved.history || []).filter(point => point.date <= today).map(point => ({ ...point }));
-    // The display endpoint is today's saved current value in the user's local day.
-    // Provider ingestion still uses its existing UTC daily cache boundary.
-    if (timeline.length && Number.isFinite(saved.total)) {
-      const endpoint = { date: today, total: saved.total };
-      if (timeline.at(-1).date === today) timeline[timeline.length - 1] = endpoint;
-      else timeline.push(endpoint);
-    }
+    const timeline = portfolioDisplayTimeline(saved, today, state.portfolioView.updatedAt);
     const points = portfolioHistoryRangePoints(timeline, state.portfolioHistoryRange);
     const allTime = state.portfolioHistoryRange === "all";
     const historyStart = allTime ? saved.acquiredAt || points[0]?.date : points[0]?.date;
@@ -5455,7 +5449,7 @@ function renderPortfolioHistory() {
     const missingHistory = (allTime && historyStart && (!pricedFrom || pricedFrom > historyStart)) || points.some(point => point.total === null);
     const estimateNotice = points.some(point => point.estimatedItems) ? '<small id="portfolioEstimateNote" class="history-coverage history-estimate-note">Dashed line: purchase-price estimates.</small>' : "";
     const historyNotice = missingHistory ? '<p class="history-coverage" role="status">' + (pricedFrom && historyStart && pricedFrom > historyStart ? 'Some historical prices are unavailable before ' + esc(shortPortfolioDate(pricedFrom, true)) + '. Missing values are not counted as zero.' : 'Some historical prices are unavailable. Missing values are not counted as zero.') + '</p>' : '';
-    const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, saved, state.portfolioHistoryRange, appearance]);
+    const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, saved, today, state.portfolioHistoryRange, appearance]);
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
@@ -5926,12 +5920,23 @@ function renderPortfolioPnl() {
   const note = $("#portfolioPnlNote");
   const color = (amount) => { output.dataset.pnlSign = note.dataset.pnlSign = amount == null ? "unknown" : amount >= 0 ? "positive" : "negative"; };
   $("#portfolioPnlLabel").textContent = { all: "All time", "1m": "Month", ytd: "YTD", "1y": "Year", "1d": "Day" }[state.portfolioPnlRange];
+  if (displayPortfolioView(state.portfolioView, displayCurrency(), lastValidatedFxRate)?.fxUnavailable) {
+    output.textContent = "—"; note.textContent = "Currency conversion unavailable"; color(null); return;
+  }
   if (state.portfolioPnlRange === "all") {
-    const current = portfolioDisplayProfitLoss(items, displayCurrency(), lastValidatedFxRate);
+    if (hasPortfolioValue(state.portfolioView) && !state.portfolioView.dashboard) {
+      output.textContent = "—"; note.textContent = "Updating saved performance"; color(null); return;
+    }
+    const current = state.portfolioView?.dashboard
+      ? displayNativePortfolioProfitLoss(state.portfolioView.dashboard.nativePerformance, displayCurrency(), lastValidatedFxRate)
+      : portfolioDisplayProfitLoss(items, displayCurrency(), lastValidatedFxRate);
     output.textContent = current.totalProfitPercent === null ? "—" : `${current.totalProfitPercent >= 0 ? "+" : ""}${current.totalProfitPercent.toFixed(1)}%`;
     note.textContent = current.comparableUnits || current.knownRealizedSales ? `${money(current.totalProfitMinor / 100, displayCurrency())} · known total P/L` : "Matching value or purchase cost missing";
     color(current.comparableUnits || current.knownRealizedSales ? current.totalProfitMinor : null);
     return;
+  }
+  if (hasPortfolioValue(state.portfolioView) && (state.accountLoading || !state.portfolioView.pricing)) {
+    output.textContent = "—"; note.textContent = "Updating period performance"; color(null); return;
   }
   const history = portfolioHistoryRangePoints(portfolioDisplayProfitLossHistory(items.map(item => ({ ...item, matchedHistory: portfolioHistoryForItem(item) })), displayCurrency(), lastValidatedFxRate), state.portfolioPnlRange);
   const first = history[0], last = history.at(-1);
@@ -5998,7 +6003,8 @@ function renderDashboardHighlights() {
     renderSoftwareModeHome();
     return;
   }
-  const ranked = state.items
+  const savedHoldings = collector && hasPortfolioValue(state.portfolioView) ? state.portfolioView.dashboard?.holdings : null;
+  const ranked = (savedHoldings || state.items)
     .filter(
       (item) =>
         item.status !== "sold" &&
@@ -6006,21 +6012,24 @@ function renderDashboardHighlights() {
         (collector || itemValue(item) != null),
     )
     .map(item => {
-      const amount = itemValue(item);
+      const amount = savedHoldings ? item.total : itemValue(item);
       return { item, value: amount === null ? -Infinity : convertIndicative(amount, item.currency || "USD", displayCurrency(), lastValidatedFxRate) ?? -Infinity };
     })
     .sort((left, right) => right.value - left.value || left.item.name.localeCompare(right.item.name))
     .slice(0, 5)
     .map(({ item }) => item);
-  highest.innerHTML = ranked.length
+  highest.innerHTML = collector && hasPortfolioValue(state.portfolioView) && !savedHoldings
+    ? '<div class="compact-empty" role="status">Updating saved holdings</div>'
+    : ranked.length
     ? ranked
         .map((item) => {
+          const value = savedHoldings ? item.total : itemValue(item);
           const performance = itemPurchasePerformance(item);
           const change = performance?.change;
-          return `<button class="dashboard-card-row" type="button" data-detail="${esc(item.uid)}">
+          return `<button class="dashboard-card-row" type="button" data-detail="${esc(item.uid)}"${savedHoldings && !state.items.some(candidate => candidate.uid === item.uid) ? ' disabled aria-label="Collection loading"' : ""}>
             <img loading="lazy" decoding="async" width="40" height="56" src="${esc(item.thumb || item.image)}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="" />
             <span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number || "Number unavailable")}</small></span>
-            <span>${collector ? `<strong>${itemValue(item) === null ? "—" : displayCurrencyMoney(itemValue(item), item.currency)}${Number(item.quantity) > 1 ? ` <small style="display:inline;color:var(--muted);font-weight:400">×${Number(item.quantity).toLocaleString()}</small>` : ""}</strong>` : `<strong>${displayCurrencyMoney(itemValue(item), item.currency)}</strong><small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${change == null ? "Performance unavailable" : `${change >= 0 ? "+" : ""}${money(change, item.currency)}`}</small><small class="price-provenance">${esc(priceProvenanceText(item))}</small>`}</span>
+            <span>${collector ? `<strong>${value === null ? "—" : displayCurrencyMoney(value, item.currency)}${Number(item.quantity) > 1 ? ` <small style="display:inline;color:var(--muted);font-weight:400">×${Number(item.quantity).toLocaleString()}</small>` : ""}</strong>` : `<strong>${displayCurrencyMoney(itemValue(item), item.currency)}</strong><small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${change == null ? "Performance unavailable" : `${change >= 0 ? "+" : ""}${money(change, item.currency)}`}</small><small class="price-provenance">${esc(priceProvenanceText(item))}</small>`}</span>
           </button>`;
         })
         .join("")
@@ -8818,7 +8827,7 @@ function renderDetail() {
   const marketHero = `<section class="market-hero" data-price-state="${displayPrice == null ? "empty" : "ready"}" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}<details class="price-source-details"><summary>Source</summary><small class="price-provenance">${esc(provenance)}</small></details>${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button" aria-label="View recent eBay sales">eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span>Copy title</span></button>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
+    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><div class="detail-title-block"><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="sr-only" aria-live="polite">Copy title</span></button></div>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "transaction") ? "Sales history" : "Recorded sold-derived estimates") : "Recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
@@ -8842,9 +8851,9 @@ function renderDetail() {
     const button = $("#copyCardTitle");
     try {
       await navigator.clipboard.writeText(listingTitle);
-      if (button.isConnected) button.querySelector("span").textContent = "Copied";
+      if (button.isConnected) { button.querySelector("span").textContent = "Copied"; toast("Full title copied"); }
     } catch {
-      if (button.isConnected) button.querySelector("span").textContent = "Select title to copy";
+      if (button.isConnected) { button.querySelector("span").textContent = "Select title to copy"; toast("Select the card title to copy it"); }
     }
   });
   const gradingTools = detailRoot.querySelector('[data-detail-tool="grading"] .detail-tool-content');
@@ -15692,7 +15701,7 @@ function openManualSearch({ returnToCamera = null } = {}) {
             const owned = ownedCardSummary(item, state.items, {
               exactPrinting: true,
             });
-            return `<button class="catalog-result" type="button" data-catalog-id="${esc(item.id)}" aria-label="Review ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong>${esc(item.set || "Set unavailable")} · ${esc(item.number)}<small>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant)}</small>${ownedSearchStatus(item)}${matchReason(item)}</span><b>${owned.quantity ? "Owned" : "Review"}</b></button>`;
+            return `<button class="catalog-result" type="button" data-catalog-id="${esc(item.id)}" aria-label="Review ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}, ${esc(languageName(item.language || language.value))}, ${esc(item.variant)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong>${esc(item.set || "Set unavailable")} · ${esc(item.number)}<small>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant)}</small>${ownedSearchStatus(item)}${matchReason(item)}</span><b>${owned.quantity ? "Owned" : "Review"}</b></button>`;
           })
           .join("")}`
       : '<div class="unavailable-panel">No catalog matches found. Try fewer details or verify the language.</div>';
@@ -15887,12 +15896,10 @@ async function refreshCapabilityStatus() {
     );
     setStatus(
       "visionConnectionState",
-      capabilities.vision?.status === "connected"
-        ? "AI scans ready"
-        : capabilities.vision?.status === "vercel_managed"
-          ? "Checked when you scan"
-          : "AI connection needed",
-      capabilities.vision?.status === "connected" ? "active" : "limited",
+      capabilities.vision?.identification === "configured_unverified"
+        ? "Identification configured · checked when you scan"
+        : "Identification connection needed",
+      "limited",
     );
     setStatus(
       "pushConnectionState",
@@ -16514,6 +16521,7 @@ async function clearDeletedAccountClientData(ownerId) {
           key === `mica-collection-view-${owner}` ||
           key === `mica-target-alert-hits-${owner}` ||
           key === `mica-grading-coach-${owner}-v1` ||
+          key === `mica:portfolio-view:${owner}` ||
           key.startsWith(`mica-workflow-${owner}-`)
         )
           localStorage.removeItem(key);
@@ -17224,6 +17232,8 @@ function renderSavedPortfolio() {
   $("#portfolioChange").textContent = saved.missingUnits ? `${saved.missingUnits} unpriced ${saved.missingUnits === 1 ? "copy" : "copies"} excluded` : "";
   $(".status-label").innerHTML = `<i></i> Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}`;
   renderPortfolioHistory();
+  renderPortfolioPnl();
+  renderDashboardHighlights();
   return true;
 }
 
@@ -19611,6 +19621,9 @@ async function openGradingResearchConsent() {
 }
 
 function bindEvents() {
+  const secondarySettings = $("#profileCollectionTools");
+  if (secondarySettings) for (const id of ["collectionInsights", "advancedSettings", "gradingCalibration"])
+    secondarySettings.append($("#" + id));
   document.addEventListener(
     "error",
     (event) => {
@@ -19913,6 +19926,7 @@ function bindEvents() {
     "click",
     () => void persistWorkflowDefaults(),
   );
+  $("#profileDisplayCurrency")?.addEventListener("change", () => void persistWorkflowDefaults());
   $("#retryDisplayFx").addEventListener("click", () => void loadDisplayFx());
   $("#gradingResearchConsentButton")?.addEventListener(
     "click",
@@ -20684,7 +20698,12 @@ function profileDisplayName() {
 }
 
 function renderWorkflowDefaults() {
-  $("#profileDisplayCurrency").value = displayCurrency();
+  const currencySelect = $("#profileDisplayCurrency");
+  if (currencySelect.dataset.pendingOwner !== state.session?.user?.id) {
+    delete currencySelect.dataset.pendingValue;
+    delete currencySelect.dataset.pendingOwner;
+  }
+  currencySelect.value = currencySelect.dataset.pendingValue || displayCurrency();
   if ($("#defaultTradePercent"))
     $("#defaultTradePercent").value = state.preferences.tradeValuePercent;
   if ($("#defaultQuickSalePercent"))
@@ -20759,8 +20778,13 @@ async function persistWorkflowDefaults() {
   const ownerId = state.session?.user?.id;
   const version = sessionLoadVersion;
   const selectedCurrency = $("#profileDisplayCurrency").value;
+  const currencySelect = $("#profileDisplayCurrency");
+  currencySelect.dataset.pendingValue = selectedCurrency;
+  currencySelect.dataset.pendingOwner = ownerId || "";
   const preferences = { ...state.preferences };
   button.disabled = true;
+  currencySelect.disabled = true;
+  button.hidden = true;
   status.textContent = "Saving…";
   try {
     const profile = await saveProfile(supabase, {
@@ -20771,15 +20795,20 @@ async function persistWorkflowDefaults() {
     if (ownerId && !accountRequestIsCurrent(ownerId, version)) return;
     state.profile = profile;
     state.preferences = profile.preferences;
+    delete currencySelect.dataset.pendingValue;
+    delete currencySelect.dataset.pendingOwner;
     renderCollection();
     renderWorkflowDefaults();
     renderTrade();
     renderLiquidationPlanner();
     status.textContent = "Changes saved";
   } catch (error) {
-    status.textContent = error.message || "Could not save these defaults.";
+    if (ownerId && !accountRequestIsCurrent(ownerId, version)) return;
+    status.textContent = "Couldn’t save currency. Try again.";
+    button.hidden = false;
   } finally {
     button.disabled = false;
+    currencySelect.disabled = false;
   }
 }
 
@@ -20956,6 +20985,7 @@ async function applySession(session) {
   state.session = session;
   if (session) pendingProfileAction(ownerId);
   if (previousOwnerId !== ownerId) {
+    if (previousOwnerId) try { localStorage.removeItem(`mica:portfolio-view:${previousOwnerId}`); } catch {}
     if ($("#onboardingDialog")) {
       $("#onboardingDialog").remove();
       $("#appShell").removeAttribute("aria-hidden");
@@ -21421,6 +21451,28 @@ function bindPublicCatalog() {
   );
 }
 
+function watchAppUpdates() {
+  if (nativeBuild || !navigator.serviceWorker) return;
+  let controlled = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!controlled) { controlled = true; return; }
+    if ($("#appUpdateNotice")) return;
+    const notice = document.createElement("aside");
+    notice.id = "appUpdateNotice";
+    notice.setAttribute("role", "status");
+    notice.innerHTML = '<span>Update ready</span><button type="button" data-update-reload>Reload</button><button type="button" aria-label="Update later" data-update-dismiss>×</button>';
+    notice.querySelector("[data-update-dismiss]").addEventListener("click", () => notice.remove());
+    notice.querySelector("[data-update-reload]").addEventListener("click", () => {
+      if (!$("#bottomSheet").hidden || $("#onboardingDialog:not([hidden])") || state.intakeQueue.length || $("#profileDisplayCurrency")?.dataset.pendingValue) {
+        toast("Finish your current work before reloading");
+        return;
+      }
+      location.reload();
+    });
+    document.body.append(notice);
+  });
+}
+
 async function bootstrap() {
   bindPublicCatalog();
   if (!supabase) {
@@ -21481,7 +21533,7 @@ async function bootstrap() {
     "serviceWorker" in navigator &&
     location.protocol !== "file:"
   )
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    { watchAppUpdates(); navigator.serviceWorker.register("./sw.js").catch(() => {}); }
 }
 
 window.addEventListener("beforeinstallprompt", (event) => {

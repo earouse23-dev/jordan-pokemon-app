@@ -22,7 +22,7 @@
       href="icons/apple-touch-icon.png"
     />
     <link rel="stylesheet" href="styles.css?v=91" />
-    <link rel="stylesheet" href="themes.css?v=108" />
+    <link rel="stylesheet" href="themes.css?v=109" />
     <title>Mica — Pokémon Card Library</title>
   </head>
   <body>
@@ -745,7 +745,7 @@
                 ><b>→</b>
               </button>
               <p class="simple-privacy">
-                Photos aren’t saved. You choose the match.
+                Review the match before saving.
               </p>
             </aside>
             <section class="add-search-panel" aria-labelledby="addSearchTitle">
@@ -884,7 +884,7 @@
               <path d="M8 10V7a4 4 0 0 1 8 0v3" />
             </svg>
             <p>
-              Photos aren’t saved. You choose the match.
+              Review the match before saving.
             </p>
           </div>
           <div class="manual-divider"><span>or</span></div>
@@ -1431,8 +1431,8 @@
               ></label
             >
             </details>
-            <button class="primary" id="saveWorkflowDefaults" type="button">
-              Save changes
+            <button class="primary" id="saveWorkflowDefaults" type="button" hidden>
+              Retry save
             </button>
             <p id="workflowDefaultsStatus" role="status" aria-live="polite"></p>
           </div>
@@ -1458,6 +1458,7 @@
               <span>Privacy &amp; account deletion</span><b>›</b>
             </button>
           </div>
+          <details class="settings-group" id="profileCollectionTools"><summary>Collection tools</summary></details>
           <details class="settings-about" id="settingsAbout"><summary>About Mica</summary>
           <p class="legal-copy">
             Mica is an independent collection tool and is not affiliated with or

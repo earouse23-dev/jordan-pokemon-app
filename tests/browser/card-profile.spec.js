@@ -947,6 +947,28 @@ test("late account setup cannot replace another owner's profile or reopen a priv
   await expect(page.getByText("Private account A draft")).toHaveCount(0);
 });
 
+test("currency save failure retains the selection and retries without changing other preferences", async ({page}) => {
+  let attempts=0;
+  await setup(page,{accountProfiles:{[ownerId]:{onboardingCompletedAt:"2026-09-01T12:00:00.000Z"}},onSupabase:async route=>{
+    if(new URL(route.request().url()).pathname.endsWith('/rest/v1/profiles') && route.request().method()==='POST') {
+      attempts++;
+      if(attempts===1) {await route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'private server detail'})});return true;}
+    }
+    return false;
+  }});
+  await initializeAccount(page,ownerId);
+  await page.evaluate(async url=>(await import(url)).routeTo('profile'),appUrl);
+  await page.locator('#profileDisplayCurrency').selectOption('EUR');
+  await expect(page.locator('#saveWorkflowDefaults')).toBeVisible();
+  await expect(page.locator('#workflowDefaultsStatus')).toHaveText('Couldn’t save currency. Try again.');
+  await page.evaluate(async url=>(await import(url)).renderCollection(),appUrl);
+  await expect(page.locator('#profileDisplayCurrency')).toHaveValue('EUR');
+  await page.getByRole('button',{name:'Retry save',exact:true}).click();
+  await expect(page.locator('#workflowDefaultsStatus')).toHaveText('Changes saved');
+  await expect(page.locator('#saveWorkflowDefaults')).toBeHidden();
+  expect(attempts).toBe(2);
+});
+
 test("currency preference saves preserve hidden selling, mode and trade values", async ({ page }, testInfo) => {
   const writes = [];
   const preferences = { softwareMode: "seller", collectorGoal: "selling", experienceLevel: "professional", tradeValuePercent: 73, quickSalePercent: 61, sellingFeePercent: 7 };
@@ -969,6 +991,7 @@ test("currency preference saves preserve hidden selling, mode and trade values",
   expect(writes[0]).not.toHaveProperty("display_currency");
   await expect(page.locator("#workflowDefaultsStatus")).toHaveText("Changes saved");
   await expect(page.locator("#gradingCalibration")).not.toHaveAttribute("open", "");
+  await page.locator("#profileCollectionTools > summary").click();
   const heading = await page.locator("#profileTitle").boundingBox();
   for (const id of ["collectionInsights", "gradingCalibration"]) {
     const secondary = await page.locator("#"+id).boundingBox();
@@ -1008,10 +1031,9 @@ test("saved display currency converts the portfolio and survives profile reload 
   await page.evaluate(async url => (await import(url)).routeTo("profile"), appUrl);
   await expect(page.locator("#currencyButton")).toHaveCount(0);
   await expect(page.locator("#everydaySettings #profileDisplayCurrency")).toBeVisible();
-  await expect(page.locator("#everydaySettings #saveWorkflowDefaults")).toBeVisible();
+  await expect(page.locator("#everydaySettings #saveWorkflowDefaults")).toBeHidden();
   for (const id of ["profileDisplayCurrency", "saveWorkflowDefaults"]) expect(await page.locator("#"+id).evaluate(el=>parseFloat(getComputedStyle(el).borderTopRightRadius))).toBeGreaterThanOrEqual(10);
   await page.locator("#profileDisplayCurrency").selectOption("EUR");
-  await page.locator("#saveWorkflowDefaults").click();
   await expect(page.locator("#workflowDefaultsStatus")).toHaveText("Changes saved");
   expect(writes).toHaveLength(1);
   expect(writes[0].display_currency).toBe("EUR");

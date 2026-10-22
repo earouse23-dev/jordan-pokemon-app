@@ -589,15 +589,15 @@ test("Mica uses one green interface with synchronized light/dark shell assets", 
   assert.match(appShell, /data-software-mode="collector"/);
   assert.match(appShell, /data-software-mode="investor"/);
   assert.match(appShell, /data-software-mode="seller"/);
-  assert.match(appShell, /themes\.css\?v=108/);
+  assert.match(appShell, /themes\.css\?v=109/);
   assert.match(appSource, /let uiTheme = "mica"/);
   assert.match(appSource, /let workspaceMode = "collector"/);
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
   assert.match(themes, /--canvas:\s*#f6f7f4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-design-110/);
-  assert.match(serviceWorker, /themes\.css\?v=108/);
+  assert.match(serviceWorker, /mica-shell-design-111/);
+  assert.match(serviceWorker, /themes\.css\?v=109/);
 });
 
 test("signup distinguishes repeated accounts and supports confirmation resend", () => {
@@ -782,7 +782,9 @@ test("public capability status is explicit and never exposes provider secrets", 
     assert.equal(body.pricing.status, "public_fallback");
     assert.equal(body.pricing.capabilityAuthority, "runtime_endpoint_response");
     assert.equal(body.pricing.features.graded, "not_requested");
-    assert.equal(body.vision.status, "release_hold");
+    assert.equal(body.vision.status, "identification_only");
+    assert.equal(body.vision.grading, "release_hold");
+    assert.equal(body.vision.verification, "requires_authenticated_acceptance");
     assert.equal(body.advisor.status, "release_hold");
     assert.deepEqual(body.notifications, { inApp: "active", email: "release_hold", webPush: "release_hold" });
     assert.equal(JSON.stringify(body).includes("secret-never-returned"), false);

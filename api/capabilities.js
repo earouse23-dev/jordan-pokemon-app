@@ -1,5 +1,5 @@
 import { withNativeCors } from "../lib/native-cors.js";
-import { serverEnvironment } from "../lib/env.js";
+import { serverEnvironment, identificationReadiness } from "../lib/env.js";
 import { notificationDeliveryCapabilities } from "../lib/notification-delivery.js";
 import { portfolioService } from "../lib/portfolio-service.js";
 import gradingPilotHandler, {
@@ -50,9 +50,12 @@ async function handler(request, response) {
         },
       },
       notifications: { inApp: "active", email: "release_hold", webPush: "release_hold" },
-      recognition: { status: "active", engine: "ai_gateway", languages: ["en", "ja", "de"], photoUpload: true },
+      recognition: { status: identificationReadiness(config), engine: "ai_gateway", languages: ["en", "ja", "de"], photoUpload: true },
       vision: {
-        status: "release_hold",
+        status: "identification_only",
+        identification: identificationReadiness(config),
+        grading: "release_hold",
+        verification: "requires_authenticated_acceptance",
       },
       advisor: {
         status: "release_hold",

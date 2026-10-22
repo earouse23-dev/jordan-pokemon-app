@@ -204,7 +204,7 @@ test('daily cache skips inventory and providers; revisions reuse today’s price
   // A v1 saved chart is rebuilt once from today's stored quotes/history, with zero provider calls.
   stored.version=2;
   const rebuilt=await refreshPortfolioView(db,owner,{}, {now});
-  assert.equal(rebuilt.version,3);assert.equal(inventoryReads,1);assert.equal(paid,0);
+  assert.equal(rebuilt.version,4);assert.equal(inventoryReads,1);assert.equal(paid,0);
   await refreshPortfolioView(db,owner,{}, {now});assert.equal(inventoryReads,1);
   inventoryReads=0;
   revision++;dirty='2026-01-01';quantity=2;
@@ -224,7 +224,7 @@ test('daily cache skips inventory and providers; revisions reuse today’s price
   revision=published.inventoryRevision;
   stored={...published,version:1,refreshIncomplete:false};
   const upgradedNextDay=await refreshPortfolioView(db,owner,{}, {now:'2026-01-04T12:00:00Z'});
-  assert.equal(upgradedNextDay.version,3);
+  assert.equal(upgradedNextDay.version,4);
   assert.equal(upgradedNextDay.checkedDay,day,'A history repair does not falsely mark old quotes as checked today');
   assert.equal(upgradedNextDay.updatedAt,published.updatedAt);
   assert.equal(paid,0,'Old model repair is independent of new-day provider availability');

@@ -644,3 +644,18 @@ test("public card search works before sign-in and preserves the selected card", 
     ),
   ).toBe("Pikachu");
 });
+
+test('manual printing choices have distinct accessible names with edition, finish and language', async ({page})=>{
+  const variants=['Unlimited Holofoil','1st Edition Holofoil','Non-holo'];
+  await page.route('**/api/catalog?**',route=>fulfillCards(route,variants.map((variant,index)=>({...card('Blastoise'),id:`en:blastoise-${index}`,set:'Base Set',number:'2/102',variant,variants:[variant]}))));
+  await setup(page);
+  await page.evaluate(async()=> (await import('/app.js?v=114')).openManualSearch());
+  await page.getByRole('searchbox',{name:'Search by card name and bottom number',exact:true}).fill('Blastoise Base Set');
+  await expect(page.locator('.catalog-result')).toHaveCount(3);
+  const names=await page.locator('.catalog-result').evaluateAll(buttons=>buttons.map(b=>b.getAttribute('aria-label')));
+  expect(new Set(names).size).toBe(3);
+  for(const name of names) expect(name).toContain('Review Blastoise from Base Set, number 2/102, English');
+  await expect(page.getByRole('button',{name:/English, Unlimited.*Holofoil/})).toBeVisible();
+  await expect(page.getByRole('button',{name:/English, 1st Edition.*Holofoil/})).toBeVisible();
+  await expect(page.getByRole('button',{name:/English, Non-holo/})).toBeVisible();
+});

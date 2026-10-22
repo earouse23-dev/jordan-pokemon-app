@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet, watchAppUpdates }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -437,6 +437,7 @@ test("secondary insights use native sealed values and exact-sold graded evidence
     renderInsights(); routeTo("profile", { focus: false });
   });
   await expect(page.locator("#positionRankings")).not.toBeVisible();
+  await page.locator("#profileCollectionTools > summary").click();
   await page.locator("#collectionInsights > summary").click();
   await expect(page.locator("#positionRankings")).toBeVisible();
   await expect(page.locator("#positionRankings .mover")).toHaveCount(3);
@@ -964,4 +965,16 @@ test("saved purchase-price estimates fill early slab history and keep the chart 
   expect(await page.evaluate(()=>{const {renderCollection,portfolioChartInstance}=globalThis.fixtureApp;renderCollection();renderCollection();return portfolioChartInstance===globalThis.fixtureApp.portfolioChartInstance;})).toBe(true);
   expect(marketRequests).toBe(0);
   for(const [width,height] of [[375,667],[1440,900]]){await page.setViewportSize({width,height});await assertFits(page);await page.screenshot({path:testInfo.outputPath('estimated-slab-'+width+'.png'),animations:'disabled'});}
+});
+
+test("an app update waits for explicit reload and preserves unfinished work", async ({page})=>{
+  await openDetail(page);
+  await page.evaluate(async url=>{const app=await import(url); const worker=new EventTarget(); worker.controller={};Object.defineProperty(navigator,'serviceWorker',{configurable:true,value:worker}); app.watchAppUpdates();worker.dispatchEvent(new Event('controllerchange'));},appUrl);
+  await expect(page.locator('#appUpdateNotice')).toBeVisible();
+  await page.evaluate(async url=>{const app=await import(url);app.state.intakeQueue=[{operationId:'unsaved'}];},appUrl);
+  await page.locator('[data-update-reload]').click();
+  await expect(page.locator('#toastRegion')).toContainText('Finish your current work before reloading');
+  await expect(page.locator('#appUpdateNotice')).toBeVisible();
+  await page.getByRole('button',{name:'Update later',exact:true}).click();
+  await expect(page.locator('#appUpdateNotice')).toHaveCount(0);
 });

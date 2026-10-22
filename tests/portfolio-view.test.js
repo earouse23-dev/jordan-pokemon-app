@@ -3,7 +3,21 @@ import assert from "node:assert/strict";
 import {
   buildPortfolioView,
   portfolioCondition,
+  compactPortfolioView,
+  portfolioDisplayTimeline,
 } from "../lib/portfolio-view.js";
+import { displayNativePortfolioProfitLoss } from "../lib/portfolio.js";
+test("display endpoints retain estimates and distinguish carried valuations without changing saved history", () => {
+  const summary={total:200,history:[{date:"2026-01-01",total:200,estimatedItems:2,unpricedItems:0}]};
+  const original=structuredClone(summary);
+  const carried=portfolioDisplayTimeline(summary,"2026-01-03","2026-01-01T12:00:00Z");
+  assert.equal(carried.at(-1).estimatedItems,2);
+  assert.equal(carried.at(-1).carriedForward,true);
+  assert.equal(carried.at(-1).valuationDate,"2026-01-01");
+  assert.equal(portfolioDisplayTimeline(summary,"2026-01-01","2026-01-01T12:00:00Z").length,1);
+  assert.equal(portfolioDisplayTimeline(summary,"2026-01-03","2026-01-03T12:00:00Z").at(-1).carriedForward,false);
+  assert.deepEqual(summary,original);
+});
 const item = (uid, date, amount, quantity = 1) => ({
   uid,
   id: uid,
@@ -34,6 +48,21 @@ const item = (uid, date, amount, quantity = 1) => ({
       provider: "tcgplayer",
     },
   ],
+});
+test("saved dashboard retains bounded holdings and the same performance arithmetic without pricing evidence", () => {
+  const entries = Array.from({length:8}, (_,i) => ({...item(`card-${i}`, "2026-01-01", 100+i), name:`Card ${i}`, costBasis:50, lots:[{acquiredAt:"2026-01-01",quantityAcquired:1,quantityRemaining:1,currency:"USD",totalCost:50,remainingCost:50}]}));
+  const full = buildPortfolioView(entries, "2026-01-05T12:00:00Z");
+  full.pricing = [{secretEvidence:"not needed for first paint"}];
+  const compact = JSON.parse(JSON.stringify(compactPortfolioView(full)));
+  assert.equal(compact.pricing, undefined);
+  assert.equal(compact.dashboard.holdings.length,5);
+  assert.equal(compact.dashboard.holdings[0].name,"Card 7");
+  assert.equal(compact.dashboard.holdings[0].total,107);
+  const pnl = displayNativePortfolioProfitLoss(compact.dashboard.nativePerformance, "USD", null);
+  assert.equal(pnl.valueMinor, compact.summaries[0].total*100);
+  assert.equal(pnl.totalProfitMinor, 42800);
+  assert.equal(displayNativePortfolioProfitLoss(compact.dashboard.nativePerformance,"EUR",null).unconvertedUnits,8);
+  assert.deepEqual(compact.summaries[0].history,full.summaries[0].history);
 });
 test("purchase-date market values reconstruct daily ownership without logins or future-price backfill", () => {
   const a = item("charizard", "2026-01-01", 200, 2),

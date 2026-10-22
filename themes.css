@@ -6561,7 +6561,9 @@ body[data-ui-theme="mica"] #appShell .detail-title-name { display: block; font-s
 body[data-ui-theme="mica"] #appShell .detail-title-context { font-size: 14px; font-weight: 450; line-height: 1.5; color: var(--muted); letter-spacing: 0; }
 body[data-ui-theme="mica"] #appShell .detail-title-attributes { display: block; max-width: 48ch; text-wrap: pretty; }
 body[data-ui-theme="mica"] #appShell .detail-grade-badge { display: inline-block; padding: 2px 7px; border-radius: 6px; background: var(--mint); color: var(--ink); font-weight: 650; white-space: nowrap; }
-body[data-ui-theme="mica"] #appShell .detail-copy-title { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; margin: 0 0 8px; padding: 6px 0; border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 500; }
+body[data-ui-theme="mica"] #appShell .detail-title-block { position: relative; }
+body[data-ui-theme="mica"] #appShell .detail-title-block .detail-title-name { padding-right: 40px; }
+body[data-ui-theme="mica"] #appShell .detail-copy-title { position: absolute; top: -8px; right: -6px; display: inline-flex; justify-content: center; align-items: center; width: 44px; min-height: 44px; margin: 0; padding: 8px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); }
 body[data-ui-theme="mica"] #appShell .detail-copy-title svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
 body[data-ui-theme="mica"] #appShell .detail-copy-title:hover { color: var(--ink); }
 body[data-ui-theme="mica"] #appShell :is(.exact-sold-value,.market-hero)[data-price-state="empty"]>strong { font-size: clamp(22px,3vw,30px); letter-spacing: -.025em; line-height: 1.2; }
@@ -6833,13 +6835,26 @@ body[data-ui-theme="mica"] #appShell #signOutButton { min-height: 48px; width: 1
   body[data-ui-theme="mica"] #appShell .settings-account-actions { padding-inline: 4px; }
 }
 body[data-ui-theme="mica"] #appShell #deviceSettings { order: 6; }
-body[data-ui-theme="mica"] #appShell :is(#collectionInsights,#gradingCalibration) { order: 8; }
+body[data-ui-theme="mica"] #appShell :is(#collectionInsights,#gradingCalibration,#profileCollectionTools) { order: 8; }
+body[data-ui-theme="mica"] #appShell #profileCollectionTools>.settings-group { border: 0; border-top: 1px solid var(--line); border-radius: 0; margin: 0; padding: 4px 0; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23808b80' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group>label:last-child,
 body[data-ui-theme="mica"] #appShell #view-profile #exportCsvButton { border-bottom: 0; }
 body[data-ui-theme="mica"] #appShell #view-profile.active { align-items: stretch; }
 body[data-ui-theme="mica"] #appShell #view-profile>:is(.settings-group,.settings-about,.settings-account-actions) { width: 100%; box-sizing: border-box; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-fees>label { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 8px 14px; font-size: 15px; }
+
+#appUpdateNotice { position: fixed; z-index: 40; left: 16px; right: 16px; bottom: calc(92px + var(--safe-bottom)); max-width: 360px; margin-inline: auto; display: flex; align-items: center; gap: 12px; padding: 4px 8px 4px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: 0 4px 20px #17251b26; }
+#appUpdateNotice span { flex: 1; }
+#appUpdateNotice button { min-width: 44px; min-height: 44px; border: 0; border-radius: 10px; background: var(--mint); color: var(--ink); }
+body:has(#bottomSheet:not([hidden])) #appUpdateNotice { display: none; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-fees small { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-fees .suffix-input { flex: 0 0 96px; width: 96px; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-fees input { width: 100%; min-width: 0; }
+
+/* Keep saved-copy actions reachable without moving valuation content. */
+@media (max-width: 680px) {
+  body[data-ui-theme="mica"] #appShell #detailContent { padding-bottom: calc(88px + var(--safe-bottom)); }
+  body[data-ui-theme="mica"] #appShell .owned-banner > .owned-actions { position: fixed; z-index: 34; bottom: calc(8px + var(--safe-bottom)); left: 12px; right: 12px; display: grid; grid-template-columns: 44px 1fr 1fr; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 18px; background: color-mix(in srgb,var(--paper) 96%,transparent); backdrop-filter: blur(12px); box-shadow: 0 4px 20px #17251b1c; }
+  body[data-ui-theme="mica"] #appShell #duplicateCopyButton { background: var(--pine-2); color: var(--paper); }
+}

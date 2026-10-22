@@ -576,11 +576,13 @@ test("native owner-bound queue relaunch, signout and account switch clear privat
     const app = await import(url);
     app.state.portfolioHistoryRange = "1m";
     app.state.portfolioPnlRange = "ytd";
+    localStorage.setItem(`mica:portfolio-view:${app.state.session.user.id}`,JSON.stringify({privateSavedPerformance:123}));
     await app.signOut(app.testSupabase);
   }, appUrl);
   await expect(page.locator("#authGate")).toBeVisible();
   await expect.poll(() => f.preferences.size).toBe(0);
   expect(f.secrets.size).toBe(0);
+  expect(await page.evaluate(()=>Object.keys(localStorage).filter(key=>key.startsWith('mica:portfolio-view:')))).toEqual([]);
   await login(page, "synthetic-b@example.invalid");
   await expect(page.locator("#intakeQueueBar")).toBeHidden();
   expect(

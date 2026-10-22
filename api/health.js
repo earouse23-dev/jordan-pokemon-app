@@ -1,4 +1,4 @@
-import { serverEnvironment } from "../lib/env.js";
+import { serverEnvironment, identificationReadiness } from "../lib/env.js";
 
 async function probe(url, headers = {}, privateTable = false) {
   const controller = new AbortController();
@@ -70,7 +70,8 @@ export default async function handler(request, response) {
       catalog: "configured",
       pricingProvider,
       paidPricing: config.pkmnpricesApiKey && config.pkmnpricesPlan === "pro" && config.supabaseSecretKey ? "configured_unverified" : "not_configured",
-      vision: "release_hold",
+      vision: `identification_${identificationReadiness(config)}`,
+      grading: "release_hold",
     },
   });
 }

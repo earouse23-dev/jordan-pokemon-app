@@ -4,6 +4,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { normalizeTcgdexCard } from "../../lib/providers/tcgdex.js";
 import { collectibleIdentitySnapshot } from "../../lib/identity.js";
+import { buildPortfolioView } from "../../lib/portfolio-view.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
 const appUrl = "/app.js?v=114";
@@ -733,7 +734,7 @@ test("portfolio overlaps three batches and publishes only after the final batch"
 
 test('saved chart and total restore together and publish only after a completed refresh',async({page},testInfo)=>{
  const owner='11111111-1111-4111-8111-111111111111';
- const makeView=(total,day)=>({version:1,complete:true,updatedAt:`2026-01-${day}T12:00:00Z`,summaries:[{currency:'USD',total,knownTotal:total,missingUnits:0,historyStartsAt:'2026-01-01',history:[{date:'2026-01-01',total:400},{date:'2026-01-02',total}]}],pricing:[]});
+ const makeView=(total,day)=>({version:4,complete:true,updatedAt:`2026-01-${day}T12:00:00Z`,dashboard:buildPortfolioView([{uid:'saved-card',id:'saved-card',name:'Saved Charizard',set:'Base Set',number:'4/102',quantity:1,currency:'USD',price:total,pricingStatus:'live',costBasis:200,lots:[],transactions:[]}]).dashboard,summaries:[{currency:'USD',total,knownTotal:total,missingUnits:0,historyStartsAt:'2026-01-01',history:[{date:'2026-01-01',total:400},{date:'2026-01-02',total}]}],pricing:[]});
  let saved=makeView(400,'02'),release,fail=false,empty=false,paid=0,posts=0;
  await page.route('**/app.js?v=114',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
  await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
@@ -757,14 +758,21 @@ test('saved chart and total restore together and publish only after a completed 
   app.bindEvents();app.state.portfolioView=await app.loadSavedPortfolio(owner);app.routeTo('insights');app.renderCollection();app.renderPortfolioHistory();
  },{appUrl,owner});
  await page.goto('/');await restore();await expect(page.locator('#portfolioValue')).toHaveText('$400.00');await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
+ await expect(page.locator('#dashboardHighestCards')).toContainText('$400.00');
+ await expect(page.locator('#portfolioReturn')).toHaveText('+100.0%');
+ await page.evaluate(async url=>{const a=await import(url);a.state.items=[{uid:'saved-card',name:'Saved Charizard',currency:'USD',quantity:1,price:null,pricingStatus:'missing',lots:[],transactions:[]}];a.renderCollection();},appUrl);
+ await expect(page.locator('#dashboardHighestCards')).toContainText('$400.00');
+ await expect(page.locator('#portfolioReturn')).toHaveText('+100.0%');
  await page.evaluate(async({appUrl,owner})=>{const a=await import(appUrl);window.fixtureRefresh=a.refreshSavedPortfolio(owner,a.sessionLoadVersion);},{appUrl,owner});
  await expect.poll(()=>Boolean(release)).toBe(true);await expect(page.locator('#portfolioValue')).toHaveText('$400.00');release();await page.evaluate(()=>window.fixtureRefresh);
  await expect(page.locator('#portfolioValue')).toHaveText('$450.00');expect(posts).toBe(2);
+ await expect(page.locator('#dashboardHighestCards')).toContainText('$450.00');
+ await expect(page.locator('#portfolioReturn')).toHaveText('+125.0%');
  fail=true;await page.evaluate(async({appUrl,owner})=>{const a=await import(appUrl);await a.refreshSavedPortfolio(owner,a.sessionLoadVersion);},{appUrl,owner});await expect(page.locator('#portfolioValue')).toHaveText('$450.00');
  empty=true;await page.evaluate(async({appUrl,owner})=>{const a=await import(appUrl);await a.refreshSavedPortfolio(owner,a.sessionLoadVersion);},{appUrl,owner});await expect(page.locator('#portfolioValue')).toHaveText('$450.00');
  await page.reload();await restore();await expect(page.locator('#portfolioValue')).toHaveText('$450.00');await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
  expect(paid).toBe(0);
- await expect.poll(()=>page.evaluate(async url=>(await import(url)).portfolioChartInstance?.data.datasets[0].data,appUrl)).toEqual([400,450]);
+ await expect.poll(()=>page.evaluate(async url=>(await import(url)).portfolioChartInstance?.data.datasets[0].data,appUrl)).toEqual([400,450,450]);
  expect(await page.evaluate(async url => (await import(url)).portfolioChartInstance?.options.animation, appUrl)).toBe(false);
  await page.evaluate(()=>{document.body.dataset.uiTheme='mica';const select=document.querySelector('#appearanceSelect');select.value='dark';select.dispatchEvent(new Event('change',{bubbles:true}));});
  await expect.poll(()=>page.evaluate(async url=>(await import(url)).portfolioChartInstance?.options.scales.y.ticks.color,appUrl)).toBe('#b4bcb2');
@@ -844,7 +852,10 @@ test('saved EUR portfolio requests conversion before inventory arrives and retri
   expect(fxCalls).toBe(3);
   expect(await page.locator('#portfolioChartRange').evaluate(n=>n.getBoundingClientRect().top >= document.querySelector('#portfolioHistoryChart').getBoundingClientRect().bottom)).toBe(true);
   await page.evaluate(async appUrl=>{const a=await import(appUrl);a.state.portfolioView.summaries[0].history=a.state.portfolioView.summaries[0].history.slice(-1);a.renderCollection();},appUrl);
-  await expect(page.locator('#portfolioHistory')).toContainText('One recorded value');
-  await expect(page.locator('#portfolioHistory')).toContainText('€225.00');
+  await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
+  await expect.poll(()=>page.evaluate(async url=>Boolean((await import(url)).portfolioChartInstance),appUrl)).toBe(true);
+  const endpoint = await page.evaluate(async url=>{const chart=(await import(url)).portfolioChartInstance; const c=chart.options.plugins.tooltip.callbacks; return {values:chart.data.datasets[0].data, label:c.label({dataIndex:1})};},appUrl);
+  expect(endpoint.values).toEqual([225,225]);
+  expect(endpoint.label).toContain('Saved valuation from Jan 3, 2026');
   expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('mica:portfolio-view:11111111-1111-4111-8111-111111111111')).summaries[0].history.length)).toBe(2);
 });

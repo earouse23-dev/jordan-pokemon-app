@@ -1,6 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import healthHandler from "../api/health.js";
+import { identificationReadiness } from "../lib/env.js";
+
+test("scan readiness distinguishes identification configuration from held grading and runtime proof", () => {
+  const config={supabaseUrl:"https://example.supabase.co",supabasePublishableKey:"public",supabaseSecretKey:"server"};
+  assert.equal(identificationReadiness(config,{}),"not_configured");
+  assert.equal(identificationReadiness({...config,aiGatewayApiKey:"secret"},{}),"configured_unverified");
+  assert.equal(identificationReadiness(config,{VERCEL:"1"}),"configured_unverified");
+  assert.equal(identificationReadiness({...config,supabaseSecretKey:""},{VERCEL:"1"}),"not_configured");
+});
 
 function responseRecorder() {
   const result = { statusCode: null, body: null, headers: {} };
