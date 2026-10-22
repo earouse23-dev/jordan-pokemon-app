@@ -6,6 +6,14 @@ import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { heldRoutes, proRoutes } from "../lib/held-routes.js";
 const stage = process.argv[2] || "/tmp/mica-client-reset-corrected";
+let project;
+try { project = JSON.parse(await fs.readFile(new URL("../.vercel/project.json", import.meta.url))); }
+catch (error) { if (error.code !== "ENOENT") throw error; }
+if (project) {
+  const linked = JSON.parse(await fs.readFile(path.join(stage, ".vercel/project.json")));
+  assert.equal(linked.projectId, project.projectId, "Prebuilt project changed");
+  assert.equal(linked.orgId, project.orgId, "Prebuilt team changed");
+}
 const manifest = JSON.parse(
   await fs.readFile(
     process.argv[3] || new URL(

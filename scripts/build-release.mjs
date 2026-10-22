@@ -37,6 +37,19 @@ async function files(root, relative = "") {
 const baseline = await json(path.join(old, "configured-manifest.json"));
 await fs.rm(stage, { recursive: true, force: true });
 await fs.mkdir(source, { recursive: true });
+// A local prebuilt deployment must keep its existing project link. Otherwise
+// the CLI can create a new project named after this temporary directory.
+try {
+  const project = await json(path.join(repo, ".vercel/project.json"));
+  assert.match(project.projectId, /^prj_[A-Za-z0-9]+$/);
+  assert.match(project.orgId, /^team_[A-Za-z0-9]+$/);
+  await write(path.join(stage, ".vercel/project.json"), {
+    projectId: project.projectId, orgId: project.orgId,
+    ...(project.projectName ? { projectName: project.projectName } : {}),
+  });
+} catch (error) {
+  if (error.code !== "ENOENT") throw error;
+}
 const changes = [
   "app.js",
   "sw.js",
