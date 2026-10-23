@@ -2708,7 +2708,7 @@ function renderHistory(item) {
   if (item.historyStatus === "plan_required" && history.length < 2)
     return `<div class="unavailable-panel"><strong>Price history needs PkmnPrices Pro.</strong><br>Today’s matching price still works. Mica will not draw a line until real past prices are connected.</div>`;
   if (history.length < 2)
-    return `<div class="unavailable-panel">Mica needs matching prices from at least two different days before it can draw this chart.</div>`;
+    return `<div class="unavailable-panel">Two days of prices are needed for a trend.</div>`;
   const values = history.map((point) => point.amount);
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -2765,10 +2765,10 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
     model.conversionUnavailable
       ? !supportedCurrency ? "Currency conversion is not available for this record's currency." : state.displayFxStatus === "loading" ? "Loading currency conversion…" : 'Currency conversion unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>'
       : model.range !== "all"
-      ? "No matching prices recorded in this range. Try a longer range."
+      ? "No prices in this period. Try All time."
       : item.historyStatus === "plan_required"
-        ? "Historical prices are unavailable from the connected source."
-        : "No matching price history is available yet.";
+        ? "Price history unavailable."
+        : "No price history yet.";
   const dateLabel = (x) =>
     new Date(x).toLocaleString("en-US", {
       timeZone: "UTC",
@@ -2789,9 +2789,9 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
     ? `<p class="chart-purchases-note">${model.purchases.length} purchase${model.purchases.length === 1 ? "" : "s"} with a known date and amount in this range.</p>`
     : "";
   const chart = insufficientHistory
-    ? '<p class="unavailable-panel" role="status">Only one recorded price is available. More history is needed to show a trend.</p>'
+    ? '<p class="unavailable-panel" role="status">One price recorded. A trend needs two.</p>'
     : `<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>`;
-  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong><span>in selected period</span></div>` : ""}${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}
+  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong></div>` : ""}${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}
     ${points.length ? `<small class="history-coverage">Available from ${esc(new Date(points[0].x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }))}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
     <details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary>
     <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>${dailySales ? "Average daily median" : "Average recorded price"}</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
@@ -2933,13 +2933,11 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           bodyColor: muted,
           bodyFont: { size: 12 },
           padding: 12,
+          // Overlapping sale dots and trend points describe one hover, not two tooltips.
+          filter: (item, _index, items) => item === (items.find(row => row.datasetIndex === 0) || items[0]),
           callbacks: {
-            title: items => items.length ? `${dailySales ? `${items[0].dataset.label} · ` : ""}${money(items[0].parsed.y, model.currency)}` : "",
-            label: context => {
-              const point = context.raw?.point || {};
-              const date = shortPortfolioDate(new Date(context.parsed.x).toISOString().slice(0, 10), true);
-              return point.saleCount ? [date, `${point.saleCount} sale${point.saleCount === 1 ? "" : "s"} · ${money(point.low, model.currency)}–${money(point.high, model.currency)}`] : point.provider === "eBay reported comp" ? [date, "Amount unverified"] : date;
-            },
+            title: items => items.length ? money(items[0].parsed.y, model.currency) : "",
+            label: context => shortPortfolioDate(new Date(context.parsed.x).toISOString().slice(0, 10), true),
           },
         },
       },
@@ -3137,11 +3135,11 @@ function renderExactSoldValue(item, context, sales) {
       ? "Estimate unavailable"
       : displayCurrencyMoney(result.estimate, result.currency);
   const status = !checked
-    ? "Check completed sales for this exact card and grade."
+    ? ""
     : sales.salesStatus === "loading"
-      ? "Checking completed sales… previous evidence is shown if available."
+      ? "Checking sales…"
       : sales.salesStatus === "error"
-        ? "Couldn’t refresh. Previous evidence is shown if available."
+        ? "Couldn’t update. Try again."
         : ["unconfigured", "plan_required"].includes(sales.salesStatus)
           ? "Completed-sale access is unavailable."
           : result.status === "unresolved_context"
@@ -3164,7 +3162,7 @@ function renderExactSoldValue(item, context, sales) {
     .filter((row) => row.sourceMarket === "ebay" && result.contributingEvidenceIds.includes(row.transactionKey) && safeMarketSourceUrl(row.sourceUrl, "ebay"))
     .sort((left, right) => String(right.soldAt).localeCompare(String(left.soldAt)))[0];
   const lastSoldLink = latestEbay
-    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer" aria-label="View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · differs from older comps" : " · comparable"}">eBay · ${esc(shortPortfolioDate(latestEbay.soldAt))} · ${money(latestEbay.amount, latestEbay.currency)}</a>`
+    ? `<a class="inline-source-link" href="${esc(safeMarketSourceUrl(latestEbay.sourceUrl, "ebay"))}" target="_blank" rel="noopener noreferrer" aria-label="View eBay comp · ${esc(latestEbay.soldAt.slice(0, 10))} · ${money(latestEbay.amount, latestEbay.currency)}${latestEbay.outlierReview?.flagged ? " · differs from older comps" : " · comparable"}">eBay · ${esc(shortPortfolioDate(latestEbay.soldAt))}</a>`
     : "";
   const upstream = Array.isArray(sales?.upstreamExclusions)
     ? sales.upstreamExclusions
@@ -3202,11 +3200,11 @@ function renderExactSoldValue(item, context, sales) {
     : "";
   const hasEstimate = result.estimate !== null;
   const saleSummary = !hasEstimate ? status
-    : sales?.salesStatus === "loading" ? "Updating · saved estimate"
-    : sales?.salesStatus === "error" ? "Refresh failed · saved estimate"
-      : result.status === "stale" ? `Older sale · stale estimate${result.amountVerified ? "" : " · Unverified amount"}`
-        : `${result.newestSoldAt?.slice(0, 10) || "Date unknown"} · ${result.amountVerified ? "" : "Unverified amount · "}${result.confidence.level === "limited" ? "Limited sales" : `${result.confidence.level} evidence`}`;
-  return `<section class="exact-sold-value" data-price-state="${hasEstimate ? "ready" : "empty"}" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(displayCurrency())}</span><strong>${value}</strong><small class="sold-summary">${esc(saleSummary)}</small><div class="sold-actions">${lastSoldLink}${!hasEstimate ? button : ""}<details class="sold-price-details" data-detail-tool="sold-price"><summary>Price details</summary><div>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${!hasEstimate ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${fxLine}${hasEstimate ? button : ""}${details}${history}</div></details></div></section>`;
+    : sales?.salesStatus === "loading" ? "Updating…"
+    : sales?.salesStatus === "error" ? "Couldn’t update · saved price"
+      : result.status === "stale" ? "Older price"
+        : "";
+  return `<section class="exact-sold-value" data-price-state="${hasEstimate ? "ready" : "empty"}" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(displayCurrency())}</span><strong>${value}</strong>${saleSummary ? `<small class="sold-summary">${esc(saleSummary)}</small>` : ""}<div class="sold-actions">${lastSoldLink}${!hasEstimate ? button : ""}<details class="sold-price-details" data-detail-tool="sold-price"><summary>Price details</summary><div>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${hasEstimate && !result.amountVerified ? "<small>Reported amount; final paid price unverified.</small>" : ""}${!hasEstimate ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${fxLine}${hasEstimate ? button : ""}${details}${history}</div></details></div></section>`;
 }
 
 let fxMidnightTimer = null;
@@ -4701,7 +4699,7 @@ function renderWatchlistRows() {
     : "No watched items match";
   $("#collectionEmptyCopy").textContent = trulyEmpty
     ? "Find a card or unopened product and choose Watch. Mica can tell you when it reaches the price you want."
-    : "Try clearing the search or changing your filters.";
+    : "Clear the search or filters.";
   $("#emptyAddCard").classList.toggle("hidden", !trulyEmpty);
   $("#emptyAddCard").textContent = trulyEmpty
     ? "Find an item to watch"
@@ -5962,7 +5960,7 @@ function renderPortfolioPnl() {
       ? displayNativePortfolioProfitLoss(state.portfolioView.dashboard.nativePerformance, displayCurrency(), lastValidatedFxRate)
       : portfolioDisplayProfitLoss(items, displayCurrency(), lastValidatedFxRate);
     output.textContent = current.totalProfitPercent === null ? "—" : `${current.totalProfitPercent >= 0 ? "+" : ""}${current.totalProfitPercent.toFixed(1)}%`;
-    note.textContent = current.comparableUnits || current.knownRealizedSales ? `${money(current.totalProfitMinor / 100, displayCurrency())} · known total P/L` : "Matching value or purchase cost missing";
+    note.textContent = current.comparableUnits || current.knownRealizedSales ? `${money(current.totalProfitMinor / 100, displayCurrency())} · total P/L` : "Matching value or purchase cost missing";
     color(current.comparableUnits || current.knownRealizedSales ? current.totalProfitMinor : null);
     return;
   }
@@ -7264,8 +7262,8 @@ function renderCollection() {
     ? "Your library is empty"
     : "No items match this view";
   $("#collectionEmptyCopy").textContent = trulyEmpty
-    ? "Start with one card or unopened product. Mica only asks for the details that apply."
-    : "Try clearing the search or changing your filters.";
+    ? "Add a card or unopened product."
+    : "Clear the search or filters.";
   $("#emptyAddCard").classList.toggle("hidden", !trulyEmpty);
   $("#emptyAddCard").textContent = "Add your first item";
   $("#clearFilters").classList.toggle("hidden", trulyEmpty);
@@ -8369,7 +8367,7 @@ function renderOwnedDetailLegacy() {
     <div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${total == null ? "Price unavailable" : money(total)}</strong></div><button id="editCopyButton" type="button">Edit details</button></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>${item.price == null ? "No matching price" : item.pricingStatus === "live" ? "Live price" : "Older provider price"}</span></div>${sourceRows}<p class="legal-copy">Prices are estimates, not guaranteed sale amounts. Wear and where you sell can change what someone will pay.</p></section>
     <section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} grade ${esc(item.grade)}` : esc(conditionLabel(item.condition))}</strong><span>Bought ${esc(item.purchaseDate || "date not recorded")} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="unavailable-panel">${esc(item.notes)}</div>` : ""}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span>Recorded matching prices</span></div>${renderInteractiveHistory(item)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2></div>${renderInteractiveHistory(item)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent completed sales</h2><span>${item.salesStatus === "live" ? "Completed sale links" : "Needs a connected price source"}</span></div>${renderSales(item)}</section>`;
   $("#detailBack").addEventListener("click", () => routeTo("collection"));
   $("#editCopyButton").addEventListener("click", () =>
@@ -8860,7 +8858,7 @@ function renderDetail() {
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
     <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><div class="detail-title-block"><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="sr-only" aria-live="polite">Copy title</span></button></div>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price over time</h2><span class="${detailHistory.some(point => point.granularity === "daily_median") ? "daily-sale-history-label" : ""}">${context.cardState === "graded" ? (detailHistory.some(point => point.granularity === "daily_median") ? "Daily median · sale prices" : "Recorded sold-derived estimates") : "Recorded prices"}</span></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
+    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
     ${context.cardState === "graded" ? `<details class="provider-index-details" data-detail-tool="provider-index"><summary>Provider reference index</summary>${marketHero}</details>` : ""}
@@ -8870,14 +8868,14 @@ function renderDetail() {
     ${action}
     ${listingSection}
     ${gradingSubmissionSection}
-    ${owned && !sealed ? `<details class="detail-tool-group" data-detail-tool="grading"><summary><span><strong>Grading history</strong><small>Photo estimates, reports, and professional grades</small></span><b>Details</b></summary><div class="detail-tool-content">${gradingLifecycleMarkup(item)}${!item.gradingCompany ? gradingReportHistoryMarkup(item) : ""}</div></details>` : ""}
-    ${owned ? `<details class="detail-tool-group" data-detail-tool="purchases"><summary><span><strong>Purchases, sales &amp; notes</strong><small>What you paid, activity, and copies</small></span><b>Open</b></summary><div class="detail-tool-content">${positionSection}${ownedSection}</div></details>` : ""}
+    ${owned && !sealed ? `<details class="detail-tool-group" data-detail-tool="grading"><summary><span><strong>Grading history</strong></span><b>Details</b></summary><div class="detail-tool-content">${gradingLifecycleMarkup(item)}${!item.gradingCompany ? gradingReportHistoryMarkup(item) : ""}</div></details>` : ""}
+    ${owned ? `<details class="detail-tool-group" data-detail-tool="purchases"><summary><span><strong>Purchases, sales &amp; notes</strong></span><b>Open</b></summary><div class="detail-tool-content">${positionSection}${ownedSection}</div></details>` : ""}
     <button class="secondary" id="detailMoreToolsButton" type="button" aria-controls="detailMoreTools" aria-expanded="false">More options</button>
-    <div id="detailMoreTools" hidden>    <details class="detail-tool-group" data-detail-tool="prices"><summary><span><strong>Price details</strong><small>Matching sources and price history</small></span><b>Details</b></summary><div class="detail-tool-content"><section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
+    <div id="detailMoreTools" hidden>    <details class="detail-tool-group" data-detail-tool="prices"><summary><span><strong>Price details</strong></span><b>Details</b></summary><div class="detail-tool-content"><section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
     ${!sealed ? `<details id="marketProofDetails" data-detail-tool="sales"><summary>Recent sold listings</summary><section class="detail-section" aria-label="Recent sold listings">${renderSales(valuationItem)}</section></details>` : ""}</div></details>
 
     ${owned ? collectionAttachmentMarkup(item) : ""}</div>
-    <p class="legal-copy">Prices are estimates, not guaranteed sale amounts. ${sealed ? "The box and seal" : "Wear on the card"} can change what someone will pay.</p>`;
+    <p class="legal-copy">Prices are estimates.</p>`;
   const conditionTool = detailRoot.querySelector(".detail-digital-grade");
   $("#copyCardTitle").addEventListener("click", async () => {
     const button = $("#copyCardTitle");
@@ -9352,7 +9350,7 @@ function openSealedSearch(defaults = {}) {
   let photoCandidate = defaults.photoCandidate || null;
   let photoVersion = 0;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find unopened products</h2><p>Search the PkmnPrices product list.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search unopened products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="de">German</option></select></div></div><div class="sealed-photo-check"><label class="sealed-photo-button" for="sealedPhoto">Take a box or ETB photo</label><input class="sr-only" id="sealedPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"><img id="sealedPhotoPreview" alt="Selected unopened product photo for visual comparison" hidden><small>Read the front of the package, then choose its exact version.</small></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search unopened products</strong><span>Try a set name plus booster box, Elite Trainer Box, tin, bundle, or collection.</span></div></div><p class="legal-copy">Product details and prices come from PkmnPrices. Confirm the exact product and language before adding it.</p><div class="sheet-actions"><button class="secondary" id="manualSealedEntry" type="button">Enter product manually</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find unopened products</h2></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search unopened products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="de">German</option></select></div></div><div class="sealed-photo-check"><label class="sealed-photo-button" for="sealedPhoto">Take a box or ETB photo</label><input class="sr-only" id="sealedPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"><img id="sealedPhotoPreview" alt="Selected unopened product photo for visual comparison" hidden><small>Choose the matching product.</small></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search unopened products</strong><span>Search a set or product name.</span></div></div><p class="legal-copy">Confirm the product and language before saving.</p><div class="sheet-actions"><button class="secondary" id="manualSealedEntry" type="button">Enter product manually</button></div>`,
   );
   const input = $("#sealedQuery");
   const language = $("#sealedLanguage");
@@ -11514,7 +11512,7 @@ function openRemapPositionSheet(item) {
               `<button class="catalog-result" type="button" data-remap-result="${index}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.rarity || "Rarity unavailable")}</small>${matchReason(card)}</span><b>Select</b></button>`,
           )
           .join("")
-      : '<div class="unavailable-panel">No matching cards were found. Try fewer words or check the language.</div>';
+      : '<div class="unavailable-panel">No matches. Try a name or card number.</div>';
     $$("[data-remap-result]", $("#remapResults")).forEach((button) =>
       button.addEventListener("click", () => {
         selected = cards[Number(button.dataset.remapResult)];
@@ -15736,7 +15734,7 @@ function openManualSearch({ returnToCamera = null } = {}) {
             return `<button class="catalog-result" type="button" data-catalog-id="${esc(item.id)}" aria-label="Review ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}, ${esc(languageName(item.language || language.value))}, ${esc(item.variant)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong>${esc(item.set || "Set unavailable")} · ${esc(item.number)}<small>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant)}</small>${ownedSearchStatus(item)}${matchReason(item)}</span><b>${owned.quantity ? "Owned" : "Review"}</b></button>`;
           })
           .join("")}`
-      : '<div class="unavailable-panel">No catalog matches found. Try fewer details or verify the language.</div>';
+      : '<div class="unavailable-panel">No matches. Check the name or language.</div>';
     if (nextCursor)
       resultsNode.insertAdjacentHTML(
         "beforeend",
@@ -16295,7 +16293,7 @@ function openNotificationPreferencesSheet() {
     )
     .join("");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Notifications</h2></div><button class="sheet-close" aria-label="Close">×</button></div><form id="notificationPreferencesForm"><div class="settings-form"><label class="toggle-field"><input type="checkbox" name="enabled" ${preferences.enabled ? "checked" : ""}><span><strong>Enable alerts</strong><small>Pause new alerts anytime.</small></span></label><label class="toggle-field"><input type="checkbox" name="inApp" ${preferences.channels.inApp ? "checked" : ""}><span><strong>In Mica</strong><small>See alerts when you open Mica.</small></span></label><details class="notification-advanced"><summary>More options</summary><label class="toggle-field"><input type="checkbox" name="email" ${preferences.channels.email ? "checked" : ""} ${!emailAvailable && !preferences.channels.email ? "disabled" : ""}><span><strong>Email</strong><small>${emailAvailable ? "Delivery hasn’t been verified yet." : "Email alerts aren’t available yet."}</small></span></label><label class="toggle-field"><input type="checkbox" name="webPush" ${preferences.channels.webPush ? "checked" : ""} ${!pushAvailable && !preferences.channels.webPush ? "disabled" : ""}><span><strong>Web push</strong><small>${pushAvailable ? "This device needs notification permission." : "Push notifications aren’t available yet."}</small></span></label><section class="device-notification-settings"><strong>This device</strong><p id="devicePushStatus" role="status">Checking notification support…</p><button id="enableDevicePush" class="secondary" type="button" ${pushAvailable ? "" : "disabled"}>Enable on this device</button><button id="disableDevicePush" class="secondary" type="button">Disable on this device</button><small>Device permission is separate from your account’s Web push setting.</small></section><label class="toggle-field"><input type="checkbox" name="quietEnabled" ${preferences.quietHours.enabled ? "checked" : ""}><span><strong>Quiet hours</strong><small>Pause email and push during these hours.</small></span></label><div class="form-grid"><div class="field"><label for="quietStart">Start</label><input id="quietStart" name="quietStart" type="time" value="${esc(preferences.quietHours.start)}"></div><div class="field"><label for="quietEnd">End</label><input id="quietEnd" name="quietEnd" type="time" value="${esc(preferences.quietHours.end)}"></div><div class="field full"><label for="dailyAlertCap">Daily alert limit</label><input id="dailyAlertCap" name="dailyCap" type="number" min="1" max="50" step="1" value="${preferences.dailyCap}"><small>Maximum alerts each for email, push, and in Mica.</small></div><div class="field full"><label for="notificationTimeZone">Timezone</label><input id="notificationTimeZone" name="timeZone" value="${esc(preferences.timeZone)}" placeholder="America/Chicago" required><small>Used for quiet hours and daily limits.</small></div></div><fieldset class="notification-kinds"><legend>Actions to include</legend>${kindControls}</fieldset></details></div><p class="form-error" id="notificationPreferencesError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="disableOptionalAlerts" type="button">Turn off email &amp; push</button><button class="primary" type="submit">Save alert settings</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Notifications</h2></div><button class="sheet-close" aria-label="Close">×</button></div><form id="notificationPreferencesForm"><div class="settings-form"><label class="toggle-field"><input type="checkbox" name="enabled" ${preferences.enabled ? "checked" : ""}><span><strong>Enable alerts</strong></span></label><label class="toggle-field"><input type="checkbox" name="inApp" ${preferences.channels.inApp ? "checked" : ""}><span><strong>In Mica</strong></span></label><details class="notification-advanced"><summary>More options</summary><label class="toggle-field"><input type="checkbox" name="email" ${preferences.channels.email ? "checked" : ""} ${!emailAvailable && !preferences.channels.email ? "disabled" : ""}><span><strong>Email</strong><small>${emailAvailable ? "Delivery hasn’t been verified yet." : "Email alerts aren’t available yet."}</small></span></label><label class="toggle-field"><input type="checkbox" name="webPush" ${preferences.channels.webPush ? "checked" : ""} ${!pushAvailable && !preferences.channels.webPush ? "disabled" : ""}><span><strong>Web push</strong><small>${pushAvailable ? "This device needs notification permission." : "Push notifications aren’t available yet."}</small></span></label><section class="device-notification-settings"><strong>This device</strong><p id="devicePushStatus" role="status">Checking notification support…</p><button id="enableDevicePush" class="secondary" type="button" ${pushAvailable ? "" : "disabled"}>Enable on this device</button><button id="disableDevicePush" class="secondary" type="button">Disable on this device</button><small>Device permission is separate from your account’s Web push setting.</small></section><label class="toggle-field"><input type="checkbox" name="quietEnabled" ${preferences.quietHours.enabled ? "checked" : ""}><span><strong>Quiet hours</strong><small>Pause email and push during these hours.</small></span></label><div class="form-grid"><div class="field"><label for="quietStart">Start</label><input id="quietStart" name="quietStart" type="time" value="${esc(preferences.quietHours.start)}"></div><div class="field"><label for="quietEnd">End</label><input id="quietEnd" name="quietEnd" type="time" value="${esc(preferences.quietHours.end)}"></div><div class="field full"><label for="dailyAlertCap">Daily alert limit</label><input id="dailyAlertCap" name="dailyCap" type="number" min="1" max="50" step="1" value="${preferences.dailyCap}"><small>Maximum alerts each for email, push, and in Mica.</small></div><div class="field full"><label for="notificationTimeZone">Timezone</label><input id="notificationTimeZone" name="timeZone" value="${esc(preferences.timeZone)}" placeholder="America/Chicago" required><small>Used for quiet hours and daily limits.</small></div></div><fieldset class="notification-kinds"><legend>Actions to include</legend>${kindControls}</fieldset></details></div><p class="form-error" id="notificationPreferencesError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="disableOptionalAlerts" type="button">Turn off email &amp; push</button><button class="primary" type="submit">Save alert settings</button></div></form>`,
   );
   const form = $("#notificationPreferencesForm");
   const errorNode = $("#notificationPreferencesError");
@@ -19455,8 +19453,7 @@ function bindQuickCardSearch() {
     if (q.length < 2) {
       resultsNode.setAttribute("aria-busy", "false");
       if (statusNode) statusNode.textContent = "Enter at least two characters.";
-      resultsNode.innerHTML =
-        '<div class="find-empty"><strong>Find the right card</strong><span>Results show the picture, set, and bottom number so you can choose the matching version.</span></div>';
+      resultsNode.innerHTML = "";
       return;
     }
     resultsNode.setAttribute("aria-busy", "true");

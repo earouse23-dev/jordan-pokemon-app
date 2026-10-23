@@ -269,7 +269,7 @@ test("dated chart uses elapsed time and range-consistent values, including empty
   await expect(page.locator("#positionChart")).toBeVisible();
   await openDetail(page, { priceHistory: [point(800, 10), point(790, 30)], historyStatus: "live" });
   await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("1y");
-  await expect(page.locator("#cardPriceHistory")).toContainText("No matching prices recorded in this range");
+  await expect(page.locator("#cardPriceHistory")).toContainText("No prices in this period");
   await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("all");
   await expect(page.locator("#positionChart")).toBeVisible();
   await assertFits(page);

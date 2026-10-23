@@ -2047,7 +2047,7 @@ for (const [prices, estimate] of [[[100,110,120],100],[[225,215,230.2,219,220.46
   await expect(page.locator("#positionChart")).toBeVisible();
   await page.waitForTimeout(500);
   await expect(page.locator(".detail-performance")).not.toContainText("Purchase cost or matching value missing");
-  await expect(page.locator("#detailContent")).toContainText("Daily median · sale prices");
+  await expect(page.locator("#detailContent")).toContainText("Price history");
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(prices.length);
   expect(await page.evaluate(async url=>(await import(url)).state.items.find(item=>item.id==="tcgdex:en:unavailable").notes,appUrl)).toBe("Unpriced entry preserved");
@@ -2080,7 +2080,7 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.state.detailSales.salesStatus='live';app.renderDetail();},appUrl);
  await expect(page.locator('.exact-sold-value .inline-source-link')).toHaveAttribute('aria-label',/2026-08-31/);
  await expect(page.locator('.sold-price-details')).not.toHaveAttribute('open','');
- await expect(page.locator('.sold-summary')).toContainText('stale estimate');
+ await expect(page.locator('.sold-summary')).toContainText('Older price');
  await expect(page.locator('.sold-price-details > summary')).toBeVisible();
  await expect(page.locator('#toggleExactFxButton')).toBeHidden();
  if(testInfo.project.name !== 'desktop-chromium') {
@@ -2099,6 +2099,20 @@ test('latest slab comp and full-width recorded history stay legible in light and
  expect(dailyPlot.sales).toBe(3);expect(dailyPlot.scatter).toBe(false);
  expect(dailyPlot.max).toBeLessThan(5500);expect(dailyPlot.max).toBeGreaterThan(5000);
  expect(dailyPlot.change).toContain('$3,990.00');
+ const hover = await page.evaluate(() => {
+   const chart = globalThis.fixtureCopyApp.chartInstance;
+   const tooltip = chart.options.plugins.tooltip;
+   const trend = { datasetIndex: 0, parsed: chart.data.datasets[0].data[1] };
+   const sale = { datasetIndex: 1, parsed: chart.data.datasets[1].data[2] };
+   const selected = [sale, trend].filter((item, index, items) => tooltip.filter(item, index, items));
+   return { count: selected.length, dataset: selected[0].datasetIndex,
+     title: tooltip.callbacks.title(selected), date: tooltip.callbacks.label(selected[0]),
+     loneSale: tooltip.filter(sale, 0, [sale]) };
+ });
+ expect(hover).toEqual({count: 1, dataset: 0, title: '$5,000.00', date: 'Aug 31, 2026', loneSale: true});
+ await expect(page.locator('.exact-sold-value > .sold-summary')).not.toContainText('Unverified');
+ await expect(page.locator('.exact-sold-value .inline-source-link')).toHaveText('eBay · Aug 31');
+
  await page.locator('.history-values > summary').click();
  await expect(page.locator('.history-values tbody tr')).toHaveCount(3);
  await page.locator('.history-values > summary').click();
@@ -2114,7 +2128,7 @@ test('latest slab comp and full-width recorded history stay legible in light and
  expect(reads).toBe(1);
  const savedChart=await page.evaluate(()=>globalThis.fixtureCopyApp.state.items[0].exactSaleEvidence.chartHistory);
  expect(savedChart.version).toBe('daily-median-v1');expect(savedChart.points).toHaveLength(2);
- await expect(page.locator('.daily-sale-history-label')).toBeVisible();
+ await expect(page.getByRole('heading', {name: 'Price history', exact: true})).toBeVisible();
  const originalSaleUrl='https://www.ebay.com/itm/11002?nordt=true&orig_cvip=true&rt=nc';
  const compLink=page.locator('.exact-sold-value .inline-source-link');
  await expect(compLink).toHaveAttribute('href',originalSaleUrl);
@@ -2218,7 +2232,8 @@ test('retained public Umbreon sales render as a daily trend with every original 
   await expect.poll(()=>page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance?.data.datasets.length)).toBe(2);
   const plot=await page.evaluate(()=>{const c=globalThis.fixtureCopyApp.chartInstance;return {trend:c.data.datasets[0].data.map(p=>p.y),sales:c.data.datasets[1].data.length,yMax:c.options.scales.y.max, ticks:c.scales.y.ticks.map(t=>t.value), saleTooltip:c.options.plugins.tooltip.callbacks.label({parsed:c.data.datasets[1].data[0],raw:c.data.datasets[1].data[0]})};});
   expect(plot.trend).toHaveLength(sales.length===113?49:51);expect(plot.sales).toBe(sales.length);
-  expect(plot.saleTooltip).toContain('Amount unverified');
+  expect(typeof plot.saleTooltip).toBe('string');
+  expect(plot.saleTooltip).not.toContain('unverified');
   expect(plot.ticks).toEqual([3000,4000,5000]);
   expect(plot.trend[0]).toBe(4750);expect(plot.trend.at(-1)).toBe(sales.length===113?3825:3763);expect(plot.yMax).toBeLessThan(5500);
   await expect(page.locator('.history-period-change strong')).toHaveText(sales.length===113?'−$925.00 (-19.5%)':'−$987.00 (-20.8%)');

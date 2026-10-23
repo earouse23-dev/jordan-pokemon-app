@@ -455,7 +455,7 @@ test("native manual collector loop: secure login, interrupted graded form, save,
   await expect(page.locator("#view-dashboard")).toHaveCSS("opacity", "1");
   await expect(page.locator("#portfolioHistory")).toContainText("Portfolio value · USD");
   await expect(page.locator("#portfolioHistory")).toContainText("Known value$0.00");
-  await expect(page.locator("#portfolioPnlNote")).toContainText("$50.00 · known total P/L");
+  await expect(page.locator("#portfolioPnlNote")).toContainText("$50.00 · total P/L");
   await page.screenshot({
     path: `${evidence}/${info.project.name}-synthetic-native-sale-history.png`,
   });

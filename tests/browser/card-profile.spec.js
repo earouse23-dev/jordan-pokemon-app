@@ -2061,7 +2061,7 @@ test("Watch All time preserves full recorded history through a current-price-onl
 test("All time with one observation explains missing history without an empty chart or grading comparison", async ({page},testInfo) => {
   await setup(page);
   await openCard(page);
-  await expect(page.locator("#cardPriceHistory")).toContainText("Only one recorded price is available");
+  await expect(page.locator("#cardPriceHistory")).toContainText("One price recorded");
   await expect(page.locator("#positionChart")).toHaveCount(0);
   await page.locator("#detailMoreToolsButton").click();
   await expect(page.locator('[data-detail-tool="grading-comparison"]')).toHaveCount(0);
