@@ -596,7 +596,7 @@ test("Mica uses one green interface with synchronized light/dark shell assets", 
   assert.match(themes, /--canvas:\s*#f6f7f4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-design-119/);
+  assert.match(serviceWorker, /mica-shell-design-120/);
   assert.match(serviceWorker, /themes\.css\?v=109/);
 });
 

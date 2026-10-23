@@ -2100,6 +2100,7 @@ test('latest slab comp and full-width recorded history stay legible in light and
  expect(dailyPlot.points.map(p=>p.count)).toEqual([2,1]);
  expect(new Set(dailyPlot.points.map(p=>p.x)).size).toBe(2);
  expect(dailyPlot.series).toBe(1);
+ expect(await page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance.data.datasets[0].segment?.borderDash)).toBeUndefined();
  expect(dailyPlot.max).toBeLessThan(5500);expect(dailyPlot.max).toBeGreaterThan(5000);
  expect(dailyPlot.change).toContain('$3,990.00');
  const hover = await page.evaluate(() => {

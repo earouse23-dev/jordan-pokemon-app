@@ -954,14 +954,14 @@ test("saved purchase-price estimates fill early slab history and keep the chart 
     renderCollection();routeTo('dashboard',{focus:false});
   });
   await expect.poll(()=>page.evaluate(()=>!!globalThis.fixtureApp.portfolioChartInstance)).toBe(true);
-  await expect(page.locator('.history-estimate-note')).toHaveText('Dashed line: purchase-price estimates.');
+  await expect(page.locator('.history-estimate-note')).toHaveText('Includes purchase-price estimates.');
   expect(await page.evaluate(()=>{const chart=globalThis.fixtureApp.portfolioChartInstance;return [chart.scales.x.min,chart.scales.y.min,chart.data.datasets[0].data[0]];})).toEqual([Date.parse('2024-11-03T00:00:00Z'),0,400]);
   const metadata=await page.evaluate(()=>{
     const {state,portfolioChartInstance:chart}=globalThis.fixtureApp;
     const history=state.portfolioView.summaries[0].history,index=history.findIndex(p=>p.date==='2026-07-24');
-    return {earlyDash:chart.data.datasets[0].segment.borderDash({p0DataIndex:0,p1DataIndex:1}),marketDash:chart.data.datasets[0].segment.borderDash({p0DataIndex:index,p1DataIndex:index+1}),earlyTooltip:chart.options.plugins.tooltip.callbacks.label({dataIndex:0}),marketValue:chart.data.datasets[0].data[index]};
+    return {earlyDash:chart.data.datasets[0].segment?.borderDash?.({p0DataIndex:0,p1DataIndex:1}),marketDash:chart.data.datasets[0].segment?.borderDash?.({p0DataIndex:index,p1DataIndex:index+1}),earlyTooltip:chart.options.plugins.tooltip.callbacks.label({dataIndex:0}),marketValue:chart.data.datasets[0].data[index]};
   });
-  expect(metadata.earlyDash).toEqual([5,4]);expect(metadata.marketDash).toBeUndefined();expect(metadata.earlyTooltip[1]).toContain('purchase-price estimates');expect(metadata.marketValue).toBe(600);
+  expect(metadata.earlyDash).toBeUndefined();expect(metadata.marketDash).toBeUndefined();expect(metadata.earlyTooltip[1]).toContain('purchase-price estimates');expect(metadata.marketValue).toBe(600);
   expect(await page.evaluate(()=>{const {renderCollection,portfolioChartInstance}=globalThis.fixtureApp;renderCollection();renderCollection();return portfolioChartInstance===globalThis.fixtureApp.portfolioChartInstance;})).toBe(true);
   expect(marketRequests).toBe(0);
   for(const [width,height] of [[375,667],[1440,900]]){await page.setViewportSize({width,height});await assertFits(page);await page.screenshot({path:testInfo.outputPath('estimated-slab-'+width+'.png'),animations:'disabled'});}

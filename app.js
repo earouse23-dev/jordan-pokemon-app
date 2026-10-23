@@ -2795,7 +2795,7 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
     ${points.length ? `<small class="history-coverage">Available from ${esc(new Date(points[0].x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }))}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
     <details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary>
     <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>${dailySales ? "Average daily median" : "Average recorded price"}</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
-    <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. ${dailySales ? "Line: daily median. Individual sales are listed below. Dashed sections connect dates without sales; no price is recorded between them." : "Recorded prices only. The line connects available records."} Dates in UTC.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
+    <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. ${dailySales ? "Line: daily median. Individual sales are listed below. The line connects available dates; no price is recorded between sales." : "Recorded prices only. The line connects available records."} Dates in UTC.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
     <div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : ""}</div>`;
 
 }
@@ -2872,7 +2872,6 @@ async function mountPriceChart(item, history = historyForItem(item)) {
     cubicInterpolationMode: dailySales ? "monotone" : undefined,
     tension: dailySales ? 0.2 : 0,
     spanGaps: false,
-    segment: dailySales ? { borderDash: segment => segment.p1.parsed.x - segment.p0.parsed.x > 86_400_000 ? [4, 4] : undefined } : undefined,
   }];
   const values = model.points.map(point => point.amount);
   const low = Math.min(...values), high = Math.max(...values);
@@ -5369,7 +5368,6 @@ async function mountPortfolioHistoryChart({
       labels: points.map((point) => Date.parse(`${point.date}T00:00:00Z`)),
       datasets: [
         {
-          segment: { borderDash: context => points[context.p0DataIndex]?.estimatedItems || points[context.p1DataIndex]?.estimatedItems ? [5, 4] : points[context.p1DataIndex]?.carriedForward ? [2, 3] : undefined },
           label: pnlMode
             ? "Known unrealized profit or loss"
             : marketMode
@@ -5498,7 +5496,7 @@ function renderPortfolioHistory() {
     const historyStart = allTime ? saved.acquiredAt || points[0]?.date : points[0]?.date;
     const pricedFrom = points.find(point => Number.isFinite(point.total))?.date;
     const missingHistory = (allTime && historyStart && (!pricedFrom || pricedFrom > historyStart)) || points.some(point => point.total === null);
-    const estimateNotice = points.some(point => point.estimatedItems) ? '<small id="portfolioEstimateNote" class="history-coverage history-estimate-note">Dashed line: purchase-price estimates.</small>' : "";
+    const estimateNotice = points.some(point => point.estimatedItems) ? '<small id="portfolioEstimateNote" class="history-coverage history-estimate-note">Includes purchase-price estimates.</small>' : "";
     const historyNotice = missingHistory ? '<p class="history-coverage" role="status">' + (pricedFrom && historyStart && pricedFrom > historyStart ? 'Some historical prices are unavailable before ' + esc(shortPortfolioDate(pricedFrom, true)) + '. Missing values are not counted as zero.' : 'Some historical prices are unavailable. Missing values are not counted as zero.') + '</p>' : '';
     const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, saved, today, state.portfolioHistoryRange, appearance]);
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
