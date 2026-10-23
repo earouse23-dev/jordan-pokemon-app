@@ -1,0 +1,15 @@
+{
+  "databaseReadOnly": true,
+  "card": "Umbreon VMAX · Evolving Skies · 215/203 · PSA 10",
+  "persistedEvidenceStatus": "live",
+  "persistedMatchingSales": 117,
+  "persistedContext": {"finish":"holofoil","edition":"unlimited","promoType":"none","gradeQualifier":"","canonicalValidated":true,"completedSaleValidated":true},
+  "reproducedBeforeFix": "Incomplete in-flight evidence masks the valid saved snapshot: expected $110.00 fixture price, received Estimate unavailable.",
+  "regressions": [
+    "A saved price arriving during an in-flight read renders immediately.",
+    "An invalid delayed response retains saved evidence, chart and portfolio value.",
+    "Reopening after the failed read uses the saved data without another request.",
+    "A saved snapshot one hour old across UTC midnight reopens without card or sales requests.",
+    "Different grade or currency stays isolated from the owned snapshot."
+  ]
+}
