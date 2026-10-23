@@ -358,7 +358,7 @@ test.beforeAll(async () => {
   );
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderCollection, renderDetail, routeTo, bindEvents, catalogItem, openCardDetail, openPurchaseLotSheet, refreshLivePricing, chartInstance };`,
+      contents: `${source}\nexport { state, renderCollection, renderDetail, routeTo, bindEvents, catalogItem, openCardDetail, openPurchaseLotSheet, refreshLivePricing, chartInstance, loadSales, restorePortfolioPricing };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -1458,7 +1458,7 @@ test("exact sold value follows selected copy, currency and grade without invento
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText("$120.00");
   await expect(page.locator(".exact-sold-value")).toContainText(
-    "Couldn’t refresh",
+    "Couldn’t update",
   );
   await openValueContext(page);
   await page.locator("#detailValuationCurrency").selectOption("EUR");
@@ -1497,7 +1497,7 @@ test("exact sold value follows selected copy, currency and grade without invento
   await page.locator("#detailValuationGrade").press("Tab");
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText(
-    "Couldn’t refresh",
+    "Couldn’t update",
   );
   await expect(page.locator(".exact-sold-value")).toContainText(
     "Estimate unavailable",
@@ -1603,7 +1603,7 @@ test("provider exclusions remain traceable through retry and clear with context"
   });
   await page.locator("#checkExactSalesButton").click();
   await expect(page.locator(".exact-sold-value")).toContainText(
-    "Couldn’t refresh",
+    "Couldn’t update",
   );
   await expect(page.locator("#exactSaleEvidence")).toContainText(
     "pkmnprices:9001 (context mismatch)",
@@ -1837,7 +1837,7 @@ test("direct-identity failure stays unavailable without writes or external traff
     "Estimate unavailable",
   );
   await expect(page.locator(".exact-sold-value")).toContainText(
-    "Couldn’t refresh",
+    "Couldn’t update",
   );
   await expect(page.locator("#toggleExactFxButton")).toHaveCount(0);
   expect(salesRequests).toBe(1);
@@ -2241,4 +2241,53 @@ test('retained public Umbreon sales render as a daily trend with every original 
   await page.screenshot({path:testInfo.outputPath('retained-umbreon-daily-trend.png'),animations:'disabled'});
   await page.locator('.history-values > summary').click();
   await expect(page.locator('.history-values tbody tr')).toHaveCount(sales.length);
+});
+
+
+test('delayed invalid sales cannot replace a published daily slab price and history', async ({page}) => {
+  await setup(page);
+  let release;
+  const held = new Promise(resolve => { release = resolve; });
+  let reads=0;
+  await page.route('**/api/sales?*', async route => {
+    reads++;
+    await held;
+    const lookup=JSON.parse(new URL(route.request().url()).searchParams.get('lookup'));
+    await route.fulfill({contentType:'application/json',body:JSON.stringify(soldPayload({...lookup,edition:'unknown'},[]))});
+  });
+  const item=gradedCopy('a');
+  const lookup={clientId:item.id,name:item.name,set:item.set,number:item.number,language:item.language,variant:item.variant,finish:item.finish,edition:item.edition,promoType:item.promoType,grader:item.gradingCompany,grade:item.grade,gradeQualifier:'',currency:item.currency};
+  const evidence={...soldPayload(lookup,soldRows(lookup,[100,110,120],new Date().toISOString().slice(0,10))),salesStatus:'live',retrievedAt:new Date().toISOString()};
+  await page.evaluate(item=>{const app=globalThis.fixtureCopyApp;app.state.session.access_token='fixture';app.state.items=[item];app.openCardDetail(item,true);},item);
+  await expect.poll(()=>reads).toBe(1);
+  await page.evaluate(({item,evidence})=>{const app=globalThis.fixtureCopyApp;app.state.items=[{...item,exactSaleEvidence:evidence}];app.renderDetail();},{item,evidence});
+  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$110.00');
+  await expect(page.locator('#positionChart')).toBeVisible();
+  release();
+  // Complete the original read, then revisit the card as a user would.
+  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureCopyApp.state.detailSales?.salesStatus)).toBe('error');
+  expect(await page.evaluate(()=>globalThis.fixtureCopyApp.state.items[0].exactSaleEvidence.sales.length)).toBe(3);
+  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.renderCollection();app.renderDetail();});
+  await expect(page.locator('#portfolioValue')).toHaveText('$110.00');
+  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.openCardDetail(app.state.items[0],true);});
+  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$110.00');
+  await expect(page.locator('#positionChart')).toBeVisible();
+  expect(reads).toBe(1);
+});
+
+test('saved slab evidence is reused for 24 hours across midnight without card or sales reads', async ({page}) => {
+  await setup(page);
+  await page.clock.install({time:new Date('2026-10-23T00:30:00Z')});
+  let reads=0;
+  page.on('request',request=>{if(/\/api\/(cards|sales)\?/.test(request.url()))reads++;});
+  const item=gradedCopy('a');
+  const lookup={clientId:item.id,name:item.name,set:item.set,number:item.number,language:item.language,variant:item.variant,finish:item.finish,edition:item.edition,promoType:item.promoType,grader:item.gradingCompany,grade:item.grade,gradeQualifier:'',currency:item.currency};
+  const evidence={...soldPayload(lookup,soldRows(lookup,[100,110,120],'2026-10-22'),true),salesStatus:'live',retrievedAt:'2026-10-22T23:30:00Z'};
+  await page.evaluate(({item,evidence})=>{const app=globalThis.fixtureCopyApp;app.state.session.access_token='fixture';app.state.items=[{...item,exactSaleEvidence:evidence}];app.openCardDetail(app.state.items[0],true);},{item,evidence});
+  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$110.00');
+  await expect(page.locator('#positionChart')).toBeVisible();
+  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.state.detailSales=null;app.routeTo('collection');app.openCardDetail(app.state.items[0],true);});
+  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$110.00');
+  await expect(page.locator('#positionChart')).toBeVisible();
+  expect(reads).toBe(0);
 });

@@ -3050,7 +3050,7 @@ function exactSaleContext(item, context) {
 
 function soldValuationForItem(item) {
   const evidence = item.exactSaleEvidence;
-  if (evidence?.salesStatus !== "live") {
+  if (!matchingSaleEvidence(item, valuationContextForItem(item), evidence)) {
     const saved = (item.gradedValuations || [])
       .filter(
         (point) =>
@@ -3100,6 +3100,25 @@ function savedSaleEvidenceForContext(item, context) {
   const savedContextKey =
     saved?.contextKey || detailContextKey(valuationContextForItem(item));
   return saved && savedContextKey === detailContextKey(context) ? saved : null;
+}
+
+function matchingSaleEvidence(item, context, evidence) {
+  if (!evidence?.validatedContext) return false;
+  return ["ready", "stale"].includes(latestEbaySoldValuation(evidence.sales || [], exactSaleContext(item, context), {
+    validatedContext: evidence.validatedContext, retrievedAt: evidence.retrievedAt, hasMore: evidence.hasMore,
+  }).status);
+}
+
+function retainedSaleEvidence(item, context, incoming) {
+  const saved = savedSaleEvidenceForContext(item, context);
+  if (!matchingSaleEvidence(item, context, saved)) return incoming || saved;
+  if (matchingSaleEvidence(item, context, incoming) && Date.parse(incoming.retrievedAt) >= Date.parse(saved.retrievedAt)) return incoming;
+  return { ...saved, ...(["loading", "error"].includes(incoming?.salesStatus) ? { salesStatus: incoming.salesStatus } : {}) };
+}
+
+function freshSaleEvidence(item, context, evidence) {
+  const age = Date.now() - Date.parse(evidence?.retrievedAt);
+  return age >= 0 && age < 86_400_000 && matchingSaleEvidence(item, context, evidence);
 }
 
 function completedSaleHistory(item, context, sales) {
@@ -3884,11 +3903,17 @@ function saleLookupForItem(item) {
 
 async function loadSales(item, force = false) {
   // Opening a graded copy reads comps; only an explicit refresh persists them.
+  const savedCopyAtStart = state.items.find(owned => owned.uid === item.uid);
+  const savedContextMatches = savedCopyAtStart && detailContextKey(valuationContextForItem(savedCopyAtStart)) === detailContextKey(valuationContextForItem(item));
+  // Researching another grade/currency must never refresh the owned copy instead.
+  if (savedCopyAtStart && !savedContextMatches) item = { ...item, uid: null };
   const savedGraded = Boolean(
+    savedCopyAtStart &&
     item.uid &&
     state.session?.access_token &&
     (item.cardState === "graded" || item.gradingCompany),
   );
+  if (savedGraded) item = savedCopyAtStart;
   const owner = state.session?.user?.id || "";
   const sessionVersion = sessionLoadVersion;
   const selectionKey = detailIdentityKey(item);
@@ -3914,8 +3939,8 @@ async function loadSales(item, force = false) {
     detailContextKey(valuationContextForItem(savedCopy)) === contextKey
       ? savedSaleEvidenceForContext(savedCopy, context)
       : null;
-  const previous = currentEvidence || savedEvidence || null;
-  if (!force && previous?.salesStatus === "live" && !previous.hasMore && previous.retrievedAt?.slice(0, 10) === new Date().toISOString().slice(0, 10)) {
+  const previous = retainedSaleEvidence(item, context, currentEvidence || savedEvidence);
+  if (!force && freshSaleEvidence(item, context, previous)) {
     state.detailSales = { ...previous, selectionKey, contextKey, requestId };
     if (state.route === "detail") renderDetail();
     return;
@@ -4041,13 +4066,18 @@ async function loadSales(item, force = false) {
     detailContextKey(state.detailValuationContext) !== contextKey
   )
     return;
+  const owned = state.items.find((row) => row.uid === item.uid);
+  if (owned && (detailIdentityKey(owned) !== selectionKey || detailContextKey(valuationContextForItem(owned)) !== contextKey)) return;
+  // A delayed incomplete response must not erase a newer published snapshot.
+  const retained = retainedSaleEvidence(owned || item, context, result);
+  if (retained !== result && matchingSaleEvidence(owned || item, context, retained))
+    result = { ...retained, salesStatus: matchingSaleEvidence(owned || item, context, result) ? retained.salesStatus : ["error", "unconfigured", "plan_required"].includes(result.salesStatus) ? result.salesStatus : "error" };
   state.detailSales = {
     selectionKey,
     contextKey,
     requestId,
     ...result,
   };
-  const owned = state.items.find((row) => row.uid === item.uid);
   if (owned && (owned.cardState === "graded" || owned.gradingCompany))
     owned.exactSaleEvidence = { ...result, selectionKey, contextKey };
   if (state.route === "detail") renderDetail();
@@ -8099,7 +8129,9 @@ async function loadOwnedDetailPricing(
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
   const historyKey = JSON.stringify([ownerId, loadVersion, guard.selectionKey, guard.contextKey]);
-  const reusable = copy => copy.historyLoadedKey === historyKey && copy.historyStatus === "live" && Date.now() - Date.parse(copy.pricingUpdatedAt) >= 0 && Date.now() - Date.parse(copy.pricingUpdatedAt) < 86_400_000 && quoteStatus(selectPositionQuote(copy.quotes || [], copy)) === "live";
+  const reusable = copy => copy.cardState === "graded" || copy.gradingCompany
+    ? freshSaleEvidence(copy, valuationContextForItem(copy), savedSaleEvidenceForContext(copy, valuationContextForItem(copy)))
+    : copy.historyLoadedKey === historyKey && copy.historyStatus === "live" && Date.now() - Date.parse(copy.pricingUpdatedAt) >= 0 && Date.now() - Date.parse(copy.pricingUpdatedAt) < 86_400_000 && quoteStatus(selectPositionQuote(copy.quotes || [], copy)) === "live";
   if (reusable(item)) return;
   if (portfolioPricingRequest?.owner === ownerId && portfolioPricingRequest.version === loadVersion) {
     await portfolioPricingRequest.promise;
@@ -8568,11 +8600,12 @@ function renderDetail() {
     state.detailPricing?.contextKey === detailContextKey(context)
       ? state.detailPricing
       : null;
-  const sales =
+  const activeSales =
     state.detailSales?.selectionKey === detailIdentityKey(baseItem) &&
     state.detailSales?.contextKey === detailContextKey(context)
       ? state.detailSales
       : null;
+  const sales = retainedSaleEvidence(baseItem, context, activeSales);
   const item = {
     ...baseItem,
     ...(pricing || {}),
@@ -11294,6 +11327,7 @@ async function reloadPortfolio(
     const fields = ["price", "referencePrice", "quotes", "priceCapabilities", "historyStatus", "priceHistory", "pricingStatus", "pricingReason", "pricingUpdatedAt", "historyLoadedAt", "historyLoadedKey", "exactSaleEvidence", "gradedValuations"];
     return { ...item, ...Object.fromEntries(fields.filter(key => previous[key] !== undefined).map(key => [key, previous[key]])) };
   });
+  restorePortfolioPricing(state.portfolioView);
   state.largeInventory = inventory.largeInventory;
   applyLoadedOrganization(organization);
   state.movementStatus = "idle";
