@@ -2092,24 +2092,19 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await expect(page.locator('.copy-navigation.single-copy #nextCopyButton')).toBeHidden();
  const bounds=await page.evaluate(()=>{const {chartInstance:chart}=globalThis.fixtureCopyApp;return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
  expect(bounds).toEqual({min:Date.parse(dates[0]),max:Date.parse(dates[2]),radius:0});
- const dailyPlot=await page.evaluate(()=>{const chart=globalThis.fixtureCopyApp.chartInstance;return {points:chart.data.datasets[0].data.map(p=>({x:p.x,y:p.y,count:p.point.saleCount})),sales:chart.data.datasets[1].data.length,scatter:chart.data.datasets[1].showLine,max:chart.options.scales.y.max,change:document.querySelector('.history-period-change strong').textContent};});
+ const dailyPlot=await page.evaluate(()=>{const chart=globalThis.fixtureCopyApp.chartInstance;return {points:chart.data.datasets[0].data.map(p=>({x:p.x,y:p.y,count:p.point.saleCount})),series:chart.data.datasets.length,max:chart.options.scales.y.max,change:document.querySelector('.history-period-change strong').textContent};});
  expect(dailyPlot.points.map(p=>p.y)).toEqual([1010,5000]);
  expect(dailyPlot.points.map(p=>p.count)).toEqual([2,1]);
  expect(new Set(dailyPlot.points.map(p=>p.x)).size).toBe(2);
- expect(dailyPlot.sales).toBe(3);expect(dailyPlot.scatter).toBe(false);
+ expect(dailyPlot.series).toBe(1);
  expect(dailyPlot.max).toBeLessThan(5500);expect(dailyPlot.max).toBeGreaterThan(5000);
  expect(dailyPlot.change).toContain('$3,990.00');
  const hover = await page.evaluate(() => {
    const chart = globalThis.fixtureCopyApp.chartInstance;
-   const tooltip = chart.options.plugins.tooltip;
-   const trend = { datasetIndex: 0, parsed: chart.data.datasets[0].data[1] };
-   const sale = { datasetIndex: 1, parsed: chart.data.datasets[1].data[2] };
-   const selected = [sale, trend].filter((item, index, items) => tooltip.filter(item, index, items));
-   return { count: selected.length, dataset: selected[0].datasetIndex,
-     title: tooltip.callbacks.title(selected), date: tooltip.callbacks.label(selected[0]),
-     loneSale: tooltip.filter(sale, 0, [sale]) };
+   const point = { parsed: chart.data.datasets[0].data[1] };
+   return {title: chart.options.plugins.tooltip.callbacks.title([point]),date: chart.options.plugins.tooltip.callbacks.label(point)};
  });
- expect(hover).toEqual({count: 1, dataset: 0, title: '$5,000.00', date: 'Aug 31, 2026', loneSale: true});
+ expect(hover).toEqual({title:'$5,000.00',date:'Aug 31, 2026'});
  await expect(page.locator('.exact-sold-value > .sold-summary')).not.toContainText('Unverified');
  await expect(page.locator('.exact-sold-value .inline-source-link')).toHaveText('eBay · Aug 31');
 
@@ -2229,12 +2224,13 @@ test('retained public Umbreon sales render as a daily trend with every original 
   await page.evaluate(item=>{const app=globalThis.fixtureCopyApp;app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'fixture'};app.state.items=[item];document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');app.openCardDetail(item,true);},item);
   await expect(page.locator('.exact-sold-value > strong')).toHaveText(sales.length===113?'$3,750.00':'$3,763.00');
   await expect(page.locator('#positionChart')).toBeVisible();
-  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance?.data.datasets.length)).toBe(2);
-  const plot=await page.evaluate(()=>{const c=globalThis.fixtureCopyApp.chartInstance;return {trend:c.data.datasets[0].data.map(p=>p.y),sales:c.data.datasets[1].data.length,yMax:c.options.scales.y.max, ticks:c.scales.y.ticks.map(t=>t.value), saleTooltip:c.options.plugins.tooltip.callbacks.label({parsed:c.data.datasets[1].data[0],raw:c.data.datasets[1].data[0]})};});
-  expect(plot.trend).toHaveLength(sales.length===113?49:51);expect(plot.sales).toBe(sales.length);
+  await expect.poll(()=>page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance?.data.datasets.length)).toBe(1);
+  const plot=await page.evaluate(()=>{const c=globalThis.fixtureCopyApp.chartInstance;return {trend:c.data.datasets[0].data.map(p=>p.y),series:c.data.datasets.length,yMin:c.options.scales.y.min,yMax:c.options.scales.y.max, ticks:c.scales.y.ticks.map(t=>t.value), saleTooltip:c.options.plugins.tooltip.callbacks.label({parsed:c.data.datasets[0].data[0]})};});
+  expect(plot.trend).toHaveLength(sales.length===113?49:51);expect(plot.series).toBe(1);
   expect(typeof plot.saleTooltip).toBe('string');
   expect(plot.saleTooltip).not.toContain('unverified');
-  expect(plot.ticks).toEqual([3000,4000,5000]);
+  expect(plot.ticks.length).toBeGreaterThan(1);
+  expect(plot.yMin).toBeGreaterThan(Math.min(...sales.map(row => row.amount)));
   expect(plot.trend[0]).toBe(4750);expect(plot.trend.at(-1)).toBe(sales.length===113?3825:3763);expect(plot.yMax).toBeLessThan(5500);
   await expect(page.locator('.history-period-change strong')).toHaveText(sales.length===113?'−$925.00 (-19.5%)':'−$987.00 (-20.8%)');
   await page.locator('#positionChart').scrollIntoViewIfNeeded();

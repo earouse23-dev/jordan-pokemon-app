@@ -2795,7 +2795,7 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
     ${points.length ? `<small class="history-coverage">Available from ${esc(new Date(points[0].x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }))}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
     <details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary>
     <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>${dailySales ? "Average daily median" : "Average recorded price"}</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
-    <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. ${dailySales ? "Line: daily median. Dots: individual reported sales. Dashed sections connect dates without sales; no price is recorded between them." : "Recorded prices only. The line connects available records."} Dates in UTC.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
+    <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. ${dailySales ? "Line: daily median. Individual sales are listed below. Dashed sections connect dates without sales; no price is recorded between them." : "Recorded prices only. The line connects available records."} Dates in UTC.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
     <div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : ""}</div>`;
 
 }
@@ -2874,13 +2874,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
     spanGaps: false,
     segment: dailySales ? { borderDash: segment => segment.p1.parsed.x - segment.p0.parsed.x > 86_400_000 ? [4, 4] : undefined } : undefined,
   }];
-  if (dailySales) datasets.push({
-    type: "scatter", label: "Individual sale", showLine: false,
-    data: model.observations.map(point => ({ x: point.x, y: point.amount, point })),
-    pointRadius: 2, pointHoverRadius: 5, pointHitRadius: 7,
-    backgroundColor: `${accent}70`, borderColor: accent, borderWidth: 0,
-  });
-  const values = [...model.points, ...model.observations].map(point => point.amount);
+  const values = model.points.map(point => point.amount);
   const low = Math.min(...values), high = Math.max(...values);
   const padding = Math.max((high - low) * 0.06, high * 0.01, 0.01);
   let Chart;
@@ -2917,7 +2911,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
       maintainAspectRatio: false,
       parsing: false,
       animation: false,
-      interaction: { mode: "nearest", axis: dailySales ? "xy" : "x", intersect: false },
+      interaction: { mode: "nearest", axis: "x", intersect: false },
       plugins: {
         legend: {
           display: false,
@@ -2933,8 +2927,6 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           bodyColor: muted,
           bodyFont: { size: 12 },
           padding: 12,
-          // Overlapping sale dots and trend points describe one hover, not two tooltips.
-          filter: (item, _index, items) => item === (items.find(row => row.datasetIndex === 0) || items[0]),
           callbacks: {
             title: items => items.length ? money(items[0].parsed.y, model.currency) : "",
             label: context => shortPortfolioDate(new Date(context.parsed.x).toISOString().slice(0, 10), true),
