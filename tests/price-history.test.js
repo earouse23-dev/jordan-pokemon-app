@@ -110,3 +110,19 @@ test("daily sale history is order-independent, revision-aware and preserves ever
  const sparse=cardPriceHistoryWindow({currency:'USD'},derived.points,'1m',Date.parse('2026-10-22'));
  assert.equal(sparse.points.length,1);assert.equal(sparse.summary.change,null);assert.equal(sparse.points[0].saleCount,4);
 });
+
+test("card ranges fit available history without inventing a year of prices", () => {
+ const now=Date.parse('2026-10-23T00:00:00Z');
+ const rows=['2026-07-20','2026-10-21'].map(recordedAt=>({recordedAt,amount:100,currency:'USD'}));
+ const year=cardPriceHistoryWindow({currency:'USD'},rows,'1y',now);
+ const all=cardPriceHistoryWindow({currency:'USD'},rows,'all',now);
+ assert.equal(year.start,Date.parse('2026-07-20'));
+ assert.equal(year.start,all.start);
+ assert.equal(year.end,now);
+ const older={recordedAt:'2024-01-01',amount:90,currency:'USD'};
+ assert.equal(cardPriceHistoryWindow({currency:'USD'},[older,...rows],'all',now).start,Date.parse(older.recordedAt));
+ assert.equal(cardPriceHistoryWindow({currency:'USD'},[older,...rows],'1y',now).points.length,2);
+ const single=cardPriceHistoryWindow({currency:'USD'},[{...rows[0],recordedAt:'2026-10-23'}],'1y',now);
+ assert.equal(single.end-single.start,86400000);
+ assert.equal(cardPriceHistoryWindow({currency:'USD'},[],'1y',now).points.length,0);
+});
