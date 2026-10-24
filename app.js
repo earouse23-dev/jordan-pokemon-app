@@ -2762,7 +2762,9 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
       ? "—"
       : `${summary.change >= 0 ? "+" : "−"}${money(Math.abs(summary.change), currency)}${summary.changePercent === null ? "" : ` (${summary.changePercent >= 0 ? "+" : ""}${summary.changePercent.toFixed(1)}%)`}`;
   const emptyCopy =
-    model.conversionUnavailable
+    item.uid && portfolioPricingRequest?.owner === state.session?.user?.id && portfolioPricingRequest?.version === sessionLoadVersion
+      ? "Loading history…"
+      : model.conversionUnavailable
       ? !supportedCurrency ? "Currency conversion is not available for this record's currency." : state.displayFxStatus === "loading" ? "Loading currency conversion…" : 'Currency conversion unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>'
       : model.range !== "all"
       ? "No prices in this period. Try All time."
@@ -3142,10 +3144,11 @@ function renderExactSoldValue(item, context, sales) {
         : sales?.salesStatus,
     },
   );
+  const restoring = Boolean(item.uid && portfolioPricingRequest?.owner === state.session?.user?.id && portfolioPricingRequest?.version === sessionLoadVersion);
   const checked = Boolean(sales?.salesStatus);
   const value =
     result.estimate === null
-      ? "Estimate unavailable"
+      ? restoring ? "Loading price…" : "Estimate unavailable"
       : displayCurrencyMoney(result.estimate, result.currency);
   const status = !checked
     ? ""
@@ -3163,7 +3166,7 @@ function renderExactSoldValue(item, context, sales) {
                 ? "Older completed sales · refresh before relying on this estimate."
                 : `${result.amountVerified ? "Last matching eBay sale" : "Reported eBay comp · sale amount unverified"} · ${result.newestSoldAt?.slice(0, 10)}.`;
   const button =
-    sales?.salesStatus === "loading"
+    restoring || sales?.salesStatus === "loading"
       ? ""
       : `<button class="inline-retry" id="checkExactSalesButton" type="button">${!checked ? "Check sales" : ["error", "unconfigured", "plan_required"].includes(sales.salesStatus) ? "Try sales again" : "Refresh sales"}</button>`;
   const otherCurrencies = new Set(
@@ -3897,8 +3900,17 @@ function saleLookupForItem(item) {
 
 async function loadSales(item, force = false) {
   // Opening a graded copy reads comps; only an explicit refresh persists them.
-  const savedCopyAtStart = state.items.find(owned => owned.uid === item.uid);
-  const savedContextMatches = savedCopyAtStart && detailContextKey(valuationContextForItem(savedCopyAtStart)) === detailContextKey(valuationContextForItem(item));
+  let savedCopyAtStart = state.items.find(owned => owned.uid === item.uid);
+  let savedContextMatches = savedCopyAtStart && detailContextKey(valuationContextForItem(savedCopyAtStart)) === detailContextKey(valuationContextForItem(item));
+  if (!force && savedContextMatches && portfolioPricingRequest?.owner === state.session?.user?.id && portfolioPricingRequest?.version === sessionLoadVersion) {
+    const owner = state.session.user.id, version = sessionLoadVersion, selected = state.detailId, context = detailContextKey(state.detailValuationContext);
+    await portfolioPricingRequest.promise;
+    if (!accountRequestIsCurrent(owner, version) || state.detailId !== selected || detailContextKey(state.detailValuationContext) !== context) return;
+    savedCopyAtStart = state.items.find(owned => owned.uid === item.uid);
+    if (!savedCopyAtStart) return;
+    item = savedCopyAtStart;
+    savedContextMatches = true;
+  }
   // Researching another grade/currency must never refresh the owned copy instead.
   if (savedCopyAtStart && !savedContextMatches) item = { ...item, uid: null };
   const savedGraded = Boolean(
@@ -17257,7 +17269,12 @@ async function refreshLivePricing(positionIds = null) {
   }
   const request = { owner, version, promise: refreshSavedPortfolio(owner, version).then(handled => handled ? undefined : updateLivePricing(positionIds)) };
   portfolioPricingRequest = request;
-  try { await request.promise; } finally { if (portfolioPricingRequest === request) portfolioPricingRequest = null; }
+  try { await request.promise; } finally {
+    if (portfolioPricingRequest === request) {
+      portfolioPricingRequest = null;
+      if (accountRequestIsCurrent(owner, version) && state.route === "detail") renderDetailPreservingValuationFocus();
+    }
+  }
 }
 
 function restorePortfolioPricing(view) {

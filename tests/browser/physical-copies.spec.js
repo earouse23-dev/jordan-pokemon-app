@@ -2321,11 +2321,12 @@ test('saved slab pricing survives partial metadata enrichment during a backgroun
  const evidence={...soldPayload(lookup,soldRows(lookup,[100,110,120])),salesStatus:'live'};
  const saved={...resolved,key:portfolioPricingKey(legacy),resolvedKey:portfolioPricingKey(resolved),price:110,exactSaleEvidence:evidence};
  const view={version:4,updatedAt:'2026-09-24T12:00:00Z',checkedDay:'2026-09-24',complete:true,pricing:[saved],summaries:[{currency:'USD',total:110,knownTotal:110,missingUnits:0,history:[]}]};
- let release;
+ let release,salesRequests=0;
  await page.route('**/api/capabilities?surface=portfolio',async route=>{await new Promise(resolve=>{release=resolve;});await route.fulfill({contentType:'application/json',body:JSON.stringify({view})});});
- await page.route('**/api/sales?*',route=>route.abort());
- await page.evaluate(({legacy})=>{const a=globalThis.fixtureCopyApp;a.state.items=[legacy];a.openCardDetail(legacy,true);window.fixtureEnrichmentRefresh=a.refreshSavedPortfolio(a.state.session.user.id,a.sessionLoadVersion);},{legacy});
+ await page.route('**/api/sales?*',route=>{salesRequests++;return route.abort();});
+ await page.evaluate(({legacy})=>{const a=globalThis.fixtureCopyApp;a.state.items=[legacy];window.fixtureEnrichmentRefresh=a.refreshLivePricing();a.openCardDetail(legacy,true);},{legacy});
  await expect.poll(()=>Boolean(release)).toBe(true);
+ await expect(page.locator('.exact-sold-value > strong')).toHaveText('Loading price…');
  await page.evaluate(()=>{const a=globalThis.fixtureCopyApp;a.state.items=a.state.items.map(item=>({...item,externalIds:{...item.externalIds,pkmnprices:'17262'}}));});
  release();await page.evaluate(()=>window.fixtureEnrichmentRefresh);
  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$110.00');
@@ -2333,4 +2334,5 @@ test('saved slab pricing survives partial metadata enrichment during a backgroun
  await expect(page.locator('#positionChart')).toBeVisible();
  await page.evaluate(()=>globalThis.fixtureCopyApp.renderDetail());
  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$110.00');
+ expect(salesRequests).toBe(0);
 });
