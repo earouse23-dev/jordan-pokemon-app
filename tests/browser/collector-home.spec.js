@@ -978,3 +978,18 @@ test("an app update waits for explicit reload and preserves unfinished work", as
   await page.getByRole('button',{name:'Update later',exact:true}).click();
   await expect(page.locator('#appUpdateNotice')).toHaveCount(0);
 });
+
+test('delayed sheet autofocus cannot steal focus after an explicitly focused search control is replaced',async({page})=>{
+ await openCollection(page);
+ const stayedNeutral=await page.evaluate(()=>{
+  const original=window.requestAnimationFrame;let pending;
+  window.requestAnimationFrame=callback=>{pending=callback;return 1;};
+  try{
+   globalThis.fixtureApp.openSheet('<button class="sheet-close">Close</button><button id="fixtureSearchFilter">Set filter</button>');
+   const filter=document.querySelector('#fixtureSearchFilter');filter.focus();filter.remove();
+  }finally{window.requestAnimationFrame=original;}
+  pending(performance.now());
+  return document.activeElement===document.body;
+ });
+ expect(stayedNeutral).toBe(true);
+});

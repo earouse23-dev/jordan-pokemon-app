@@ -11632,9 +11632,14 @@ function openSheet(content, trigger = document.activeElement) {
   $("#appShell").inert = true;
   $("#appShell").setAttribute("aria-hidden", "true");
   document.body.style.overflow = "hidden";
-  const initialFocus = $(".sheet-close, input, button", $("#sheetContent"));
+  const sheetContent = $("#sheetContent");
+  const initialFocus = $(".sheet-close, input, button", sheetContent);
+  let focusWasSet = false;
+  const rememberFocus = () => { focusWasSet = true; };
+  sheetContent.addEventListener("focusin", rememberFocus, { once: true });
   requestAnimationFrame(() => {
-    if (initialFocus?.isConnected && !$("#bottomSheet").hidden &&
+    sheetContent.removeEventListener("focusin", rememberFocus);
+    if (!focusWasSet && initialFocus?.isConnected && !$("#bottomSheet").hidden &&
       !$("#sheetContent").contains(document.activeElement)) initialFocus.focus();
   });
   $$(".sheet-close").forEach((button) =>
