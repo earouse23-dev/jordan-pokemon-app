@@ -1,0 +1,21 @@
+{
+  "source": "63571afcf89508fc1df38e46d12aee0d38a122d0",
+  "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40068339091",
+  "status": "completed",
+  "conclusion": "success",
+  "unit": {
+    "passed": 595,
+    "skipped": 3,
+    "failed": 0
+  },
+  "coreBrowser": {
+    "passed": 397,
+    "skipped": 11,
+    "failed": 0,
+    "flaky": 0
+  },
+  "largeInventory": {
+    "passed": 3,
+    "failed": 0
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "source": "63571afcf89508fc1df38e46d12aee0d38a122d0",
+  "frontendSource": "63571afcf89508fc1df38e46d12aee0d38a122d0",
+  "unit": {
+    "passed": 595,
+    "skipped": 3,
+    "failed": 0
+  },
+  "coreBrowser": {
+    "passed": 394,
+    "skipped": 11,
+    "failed": 0,
+    "source": "32173fe9a706cc29873240274caff25d7ac1b8d0"
+  },
+  "largeInventory": {
+    "passed": 3,
+    "failed": 0
+  },
+  "expandedWorkflow": {
+    "passed": 280,
+    "skipped": 1,
+    "failed": 0,
+    "source": "63571afcf89508fc1df38e46d12aee0d38a122d0"
+  },
+  "repeatedResponsiveRetry": {
+    "passed": 42,
+    "failed": 0
+  },
+  "focusRegression": {
+    "passed": 27,
+    "failed": 0
+  },
+  "withdrawalRegression": {
+    "beforeFix": "failed: saved 500 remained in portfolio total",
+    "afterFix": "passed: withdrawn total removed"
+  },
+  "lint": "passed",
+  "syntax": "passed",
+  "schema": "passed",
+  "migrationBaseline": "passed",
+  "servedAppSha256": "bf82812c8abff686962a88ae5086c3280dd07f9dce34d62d7ac35f023d3822f8",
+  "interruptedWithdrawalRegression": {
+    "beforeFix": "failed: untouched saved price dropped",
+    "afterFix": "passed: untouched 500 retained, withdrawn prices removed",
+    "focusedPassed": 6
+  },
+  "enrichmentRegression": {
+    "beforeFix": "failed: matching saved pricing ignored",
+    "afterFix": "passed: price and chart restored; zero sales requests",
+    "finalTargetedPassed": 24
+  },
+  "independentGate": {
+    "source": "63571afcf89508fc1df38e46d12aee0d38a122d0",
+    "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40068339091",
+    "unitPassed": 595,
+    "browserPassed": 397,
+    "largeInventoryPassed": 3,
+    "retries": 0
+  }
+}

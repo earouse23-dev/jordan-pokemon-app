@@ -1,0 +1,17 @@
+{
+  "target": "https://jordan-pokemon-a7x4fi3t0-earouse23-devs-projects.vercel.app",
+  "version": 4,
+  "holdings": 5,
+  "sourceCurrencies": 1,
+  "historyPoints": 20,
+  "refreshIncomplete": false,
+  "checkedDay": "2026-10-24",
+  "priorVersion": 4,
+  "sameDayReused": true,
+  "elapsedMs": {
+    "first": 3073,
+    "second": 2745,
+    "summary": 2618
+  },
+  "inventoryWrites": 0
+}

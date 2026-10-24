@@ -1,0 +1,12 @@
+{
+  "source": "63571afcf89508fc1df38e46d12aee0d38a122d0",
+  "scope": "Final published reload and read-only demo navigation; ordinary request logs only",
+  "observedRequests": 16,
+  "salesRequests": 0,
+  "failedRequests": 0,
+  "customerInventoryWrites": 0,
+  "visiblePrice": 3400,
+  "grade": "PSA 10",
+  "edition": "Unlimited",
+  "chartVisible": true
+}

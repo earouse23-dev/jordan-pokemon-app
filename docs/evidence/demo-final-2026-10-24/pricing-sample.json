@@ -1,0 +1,55 @@
+{
+  "target": "https://jordan-pokemon-rlr9hksbs-earouse23-devs-projects.vercel.app",
+  "checkedAt": "2026-10-24T05:25:46.288Z",
+  "cases": [
+    {
+      "name": "Umbreon VMAX",
+      "grader": "PSA",
+      "grade": "10",
+      "accepted": 119,
+      "hasMore": false,
+      "oldest": "2026-07-20",
+      "status": "ready",
+      "amount": 3400,
+      "soldAt": "2026-10-22",
+      "correctionsChecked": true
+    },
+    {
+      "name": "Espeon",
+      "grader": "CGC",
+      "grade": "8.5",
+      "accepted": 4,
+      "hasMore": false,
+      "oldest": "2026-05-13",
+      "status": "stale",
+      "amount": 291,
+      "soldAt": "2026-08-17",
+      "correctionsChecked": true
+    },
+    {
+      "name": "Blastoise",
+      "grader": "PSA",
+      "grade": "9",
+      "accepted": 29,
+      "hasMore": false,
+      "oldest": "2026-06-25",
+      "status": "ready",
+      "amount": 990,
+      "soldAt": "2026-10-22",
+      "correctionsChecked": true
+    },
+    {
+      "name": "Blastoise",
+      "grader": "BGS",
+      "grade": "9.5",
+      "accepted": 6,
+      "hasMore": false,
+      "oldest": "2025-01-03",
+      "status": "stale",
+      "amount": 2900,
+      "soldAt": "2026-08-12",
+      "correctionsChecked": true
+    }
+  ],
+  "customerWrites": 0
+}
