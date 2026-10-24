@@ -2202,17 +2202,18 @@ test("full interface uses artwork-first browsing and purchase-first editing", as
 test("complete screen review covers settings, capture, detail and both appearances", async ({ page }, testInfo) => {
   await page.setViewportSize({width:375,height:667});
   await setup(page);
-  for (const appearance of ["light","dark"]) {
+  for (const [width,height] of [[320,640],[390,844],[768,1024],[1024,768],[1440,900],[1920,1080]]) for (const appearance of ["light","dark"]) {
+    await page.setViewportSize({width,height});
     await page.evaluate(value => {document.body.dataset.appearance=value;},appearance);
     for(const route of ["collection","scan","profile"]) {
       await page.evaluate(route => globalThis.fixtureCopyApp.routeTo(route),route);
       await expect(page.locator("#view-"+route)).toBeVisible();
       expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
-      await page.screenshot({path:testInfo.outputPath(appearance+"-"+route+".png"),fullPage:true,animations:"disabled"});
+      await page.screenshot({path:testInfo.outputPath(appearance+"-"+width+"-"+route+".png"),fullPage:true,animations:"disabled"});
     }
     await page.evaluate(()=>globalThis.fixtureCopyApp.openCardDetail(globalThis.fixtureCopyApp.state.items[0],true));
     await expect(page.locator("#detailTitle")).toContainText("PSA 10");
-    await page.screenshot({path:testInfo.outputPath(appearance+"-detail.png"),fullPage:true,animations:"disabled"});
+    await page.screenshot({path:testInfo.outputPath(appearance+"-"+width+"-detail.png"),fullPage:true,animations:"disabled"});
   }
 });
 
