@@ -305,10 +305,12 @@ test('a confirmed regrade clears the published slab value instead of preserving 
  });
  const db=createClient('https://portfolio-correction-fixture.supabase.co','fixture',{auth:{persistSession:false}});
  const [base]=await loadPortfolio(db,owner,{serverOwnerRead:true});
- const prior={uid,key:portfolioPricingKey(base),checkedDay:'2026-01-01',price:500,pricingStatus:'live',historyStatus:'live',soldValuation:{estimate:500,status:'ready',currency:'USD',contextValidated:true},exactSaleEvidence:{sales:[{providerSaleId:'sale-1'}]},matchedHistory:[{recordedAt:day+'T00:00:00Z',amount:500,currency:'USD',contextValidated:true,verifiedExactSold:true}]};
+ const prior={uid,key:portfolioPricingKey(base),checkedDay:'2026-01-01',price:500,pricingStatus:'live',historyStatus:'live',soldValuation:{estimate:500,status:'ready',ruleVersion:'mica-last-ebay-sale-v1',currency:'USD',contextValidated:true},exactSaleEvidence:{sales:[{providerSaleId:'sale-1'}]},matchedHistory:[{recordedAt:day+'T00:00:00Z',amount:500,currency:'USD',contextValidated:true,verifiedExactSold:true}]};
  prior.checkedDay=day;prior.exactSaleEvidence.hasMore=true;
  stored={...buildPortfolioView([{...base,...prior}],now),pricing:[prior],dailyVersion:1,checkedDay:day,inventoryRevision:0,historyBackfillPending:true};
+ assert.equal(stored.summaries[0].total,500,'the saved comp was actually included in the old total');
  const result=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'correction-server-fixture'},{now});
+ assert.equal(result.summaries[0].knownTotal,null,'a withdrawn comp cannot remain in the published total');
  assert.equal(result.pricing[0].pricingReason,'matching_sold_price_unavailable');
  assert.equal(result.pricing[0].price,null);
  assert.equal(result.pricing[0].soldValuation.estimate,null);
