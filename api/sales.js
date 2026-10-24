@@ -113,6 +113,8 @@ async function handler(request, response) {
         clientId: lookup.clientId,
         providerCardId: result.cardId,
         sales,
+        correctedSaleIds: result.correctedSaleIds || [],
+        correctionsThrough: result.correctionsThrough || null,
         receivedCount: result.receivedCount ?? 0,
         acceptedCount: result.acceptedCount ?? sales.length,
         excludedCount: result.excludedCount || 0,

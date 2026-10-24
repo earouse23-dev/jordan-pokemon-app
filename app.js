@@ -3046,6 +3046,7 @@ function soldValuationForItem(item) {
       .filter(
         (point) =>
           point.contextValidated &&
+          !evidence?.correctedSaleIds?.some(id => point.saleEvidence?.sales?.some(sale => sale.providerSaleId === id)) &&
           point.current &&
           Date.now() <= point.currentUntil,
       )
@@ -3103,7 +3104,9 @@ function matchingSaleEvidence(item, context, evidence) {
 function retainedSaleEvidence(item, context, incoming) {
   const saved = savedSaleEvidenceForContext(item, context);
   if (!matchingSaleEvidence(item, context, saved)) return incoming || saved;
-  if (matchingSaleEvidence(item, context, incoming) && Date.parse(incoming.retrievedAt) >= Date.parse(saved.retrievedAt)) return incoming;
+  const corrected = incoming?.salesStatus === "live" && Number.isFinite(Date.parse(incoming.correctionsThrough)) && incoming.correctedSaleIds?.some(id => saved.sales?.some(sale => sale.providerSaleId === id));
+  const contextValid = corrected && latestEbaySoldValuation(incoming.sales || [], exactSaleContext(item, context), { validatedContext: incoming.validatedContext }).status !== "unresolved_context";
+  if ((matchingSaleEvidence(item, context, incoming) || contextValid) && Date.parse(incoming.retrievedAt) >= Date.parse(saved.retrievedAt)) return incoming;
   return { ...saved, ...(["loading", "error"].includes(incoming?.salesStatus) ? { salesStatus: incoming.salesStatus } : {}) };
 }
 
@@ -4024,6 +4027,8 @@ async function loadSales(item, force = false) {
             : {
                 salesStatus: "live",
                 sales: Array.isArray(payload.sales) ? payload.sales : [],
+                correctedSaleIds: Array.isArray(payload.correctedSaleIds) ? payload.correctedSaleIds : [],
+                correctionsThrough: payload.correctionsThrough || null,
                 chartHistory: payload.chartHistory || null,
                 validatedContext: payload.validatedContext || null,
                 retrievedAt: payload.retrievedAt || null,

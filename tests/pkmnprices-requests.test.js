@@ -542,6 +542,7 @@ test("shared slab archive follows short cursor pages once, then polls only new i
   );
   t.mock.method(globalThis, "fetch", async (input) => {
     const url = new URL(input);
+    if (url.searchParams.has("updated_since")) return Response.json({data:[],pagination:{has_more:false}});
     urls.push(url);
     if (!url.pathname.endsWith("/listings/ebay"))
       return Response.json({
@@ -741,6 +742,7 @@ test('slab archive checkpoints each cursor and preserves conflicting transaction
   t.mock.method(globalThis, 'fetch', async input => {
     const url = new URL(input);
     if (!url.pathname.endsWith('/listings/ebay')) return Response.json({id: 22719, name: 'Espeon', number: '1', total_set_number: '75', set: {name: 'Neo Discovery'}, language: 'en'});
+    if (url.searchParams.has('updated_since')) return Response.json({data:[],pagination:{has_more:false}});
     const cursor = url.searchParams.get('cursor'); cursors.push(cursor);
     if (cursor && interrupt) {interrupt = false; return Response.json({error: {code: 'quota_exceeded'}}, {status: 429});}
     const row = {ebay_listing_id: 'same-transaction', title: 'Espeon Neo Discovery 1/75 CGC 8.5 Unlimited Holo', price: cursor ? 632 : 260, currency: 'USD', grader: 'CGC', grade: '8.5', variant: 'Unlimited Holofoil', language: 'English', attribution: 'exact', sold_at: '2026-08-01', ingested_at: '2026-10-09T00:00:00Z', listing_url: 'https://www.ebay.com/itm/123456789012'};
@@ -817,6 +819,7 @@ test("normalization upgrades reuse expired raw sale pages and poll only new inge
         set: { name: "Neo Discovery" },
         language: "en",
       });
+    if (u.searchParams.has("updated_since")) return Response.json({data:[],pagination:{has_more:false}});
     queries.push(u);
     assert.equal(u.searchParams.get("since"), "2026-10-09T00:00:00Z");
     return Response.json({
@@ -861,4 +864,50 @@ test('current response freshness lasts 24 hours across midnight without deleting
   await pkmnPricesRequests.saveCache('fixture',body,'lease',{pending:true});
   assert.equal(Date.parse(writes[1].expires_at),now);
   assert.deepEqual(writes[1].body,body);
+});
+
+test('daily corrections replace all prior prices, remove regrades, resume short pages and keep retained backfill from restoring them', async t => {
+  const {fetchPkmnPricesSalesHistory,normalizePkmnPricesSale}=await import('../lib/providers/pkmnprices.js');
+  pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
+  const today=new Date().toISOString().slice(0,10),saved=new Map(),queries=[];
+  const raw=(id,price,grade='10')=>({id,title:`Umbreon VMAX Evolving Skies 215/203 PSA ${grade} Holo`,price,currency:'USD',grader:'PSA',grade,variant:'Holofoil',attribution:'exact',sold_at:'2026-08-01',ingested_at:'2026-10-01T00:00:00Z',listing_url:`https://www.ebay.com/itm/${id}`});
+  const initial={initialized:true,cardId:'17262',checkedDay:today,syncedThrough:'2026-10-01T00:00:00Z',sales:[normalizePkmnPricesSale(raw('123456789011',500)),normalizePkmnPricesSale(raw('123456789011',550)),normalizePkmnPricesSale(raw('123456789012',1000))],backfillCursor:'retained-old'};
+  let interrupt=true;
+  t.mock.method(pkmnPricesRequests,'claim',async()=>{});
+  t.mock.method(pkmnPricesRequests,'claimCache',async()=>true);
+  t.mock.method(pkmnPricesRequests,'readCache',async key=>{
+    if(key.includes('ebay-archive')&&!saved.has(key))saved.set(key,{body:structuredClone(initial),expires:0});
+    return saved.get(key)||null;
+  });
+  t.mock.method(pkmnPricesRequests,'saveCache',async(key,body,token,{pending=false}={})=>saved.set(key,{body:structuredClone(body),expires:pending?0:Date.now()+86400000}));
+  t.mock.method(globalThis,'fetch',async input=>{
+    const u=new URL(input);
+    if(!u.pathname.endsWith('/ebay'))return Response.json({id:17262,name:'Umbreon VMAX',number:'215',total_set_number:'203',set:{name:'Evolving Skies'},language:'en'});
+    queries.push(u);
+    if(u.searchParams.has('updated_since')){
+      for(const field of ['since','graded','grader','grade','variant'])assert.equal(u.searchParams.get(field),null,`corrections must include sales moved out of ${field}`);
+      assert.equal(u.searchParams.get('updated_since'),'2026-10-19T00:00:00Z');
+      if(u.searchParams.get('cursor')==='correction-2'){
+        if(interrupt){interrupt=false;return Response.json({error:{code:'quota_exceeded'}},{status:429});}
+        return Response.json({data:[{...raw('123456789012',800,'9'),updated_at:'2026-10-21T00:00:00Z'}],pagination:{has_more:false}});
+      }
+      return Response.json({data:[{...raw('123456789011',400),sale_type:'best_offer_accepted',updated_at:'2026-10-20T00:00:00Z'}],pagination:{has_more:true,next_cursor:'correction-2'}});
+    }
+    assert.equal(u.searchParams.get('cursor'),'retained-old');
+    return Response.json({data:[raw('123456789011',500),raw('123456789012',1000)],pagination:{has_more:false}});
+  });
+  const lookup={pkmnpricesId:'17262',name:'Umbreon VMAX',set:'Evolving Skies',number:'215/203',language:'en',variant:'Holofoil',finish:'holofoil',edition:'unlimited',grader:'PSA',grade:'10',currency:'USD'};
+  await assert.rejects(fetchPkmnPricesSalesHistory('corrections-fixture',lookup),e=>e.status===429);
+  const checkpoint=[...saved.entries()].find(([key])=>key.includes('ebay-archive'))[1].body;
+  assert.equal(checkpoint.correctionCursor,'correction-2');assert.equal(checkpoint.sales.filter(s=>s.providerSaleId==='123456789011').length,1);
+  pkmnPricesRequests.cache.clear();
+  const result=await fetchPkmnPricesSalesHistory('corrections-fixture',lookup);
+  assert.equal(result.hasMore,false);assert.equal(result.sales.length,1);
+  assert.equal(result.sales[0].amount,400);assert.equal(result.sales[0].saleType,'best_offer_accepted');
+  assert.equal(result.sales[0].updatedAt,'2026-10-20T00:00:00Z');
+  assert.equal(result.correctionsCheckedDay,today);assert.ok(Date.parse(result.correctionsThrough));
+  assert.deepEqual(queries.map(u=>u.searchParams.get('cursor')),[null,'correction-2','correction-2','retained-old']);
+  pkmnPricesRequests.cache.clear();
+  await fetchPkmnPricesSalesHistory('corrections-fixture',{...lookup,clientId:'another-user'});
+  assert.equal(queries.length,4,'same-day reopen and another account reuse corrected archive');
 });

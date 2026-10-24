@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { serverEnvironment } from "../lib/env.js";
 import { exactSoldValuation } from "../lib/pricing.js";
-import { fetchPkmnPricesSales } from "../lib/providers/pkmnprices.js";
+import { fetchPkmnPricesSalesHistory } from "../lib/providers/pkmnprices.js";
 import {
   exactSoldObservation,
   gradedLookup,
@@ -52,7 +52,7 @@ export function observationId(row) {
 
 export function createGradedValuationHandler({
   createClientImpl = createClient,
-  fetchSales = fetchPkmnPricesSales,
+  fetchSales = fetchPkmnPricesSalesHistory,
   environment = serverEnvironment,
   now = () => Date.now(),
 } = {}) {
@@ -185,6 +185,8 @@ export function createGradedValuationHandler({
         status: result.status,
         valuation: null,
         sales: provider.sales,
+        correctedSaleIds: provider.correctedSaleIds || [],
+        correctionsThrough: provider.correctionsThrough || null,
         validatedContext: provider.cardId
           ? {
               ...gradedLookup(context, position),

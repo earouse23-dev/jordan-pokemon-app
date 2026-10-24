@@ -2291,3 +2291,22 @@ test('saved slab evidence is reused for 24 hours across midnight without card or
   await expect(page.locator('#positionChart')).toBeVisible();
   expect(reads).toBe(0);
 });
+
+test('verified provider corrections can withdraw a saved slab comp without restoring a superseded fallback',async({page})=>{
+ await setup(page);
+ const item=gradedCopy('a');
+ const lookup={clientId:item.id,name:item.name,set:item.set,number:item.number,language:item.language,variant:item.variant,finish:item.finish,edition:item.edition,promoType:item.promoType,grader:item.gradingCompany,grade:item.grade,gradeQualifier:'',currency:item.currency};
+ const rows=soldRows(lookup,[100,110,120],new Date().toISOString().slice(0,10));
+ const evidence={...soldPayload(lookup,rows),salesStatus:'live',retrievedAt:new Date(Date.now()-1000).toISOString()};
+ const corrected={...soldPayload(lookup,[]),correctedSaleIds:rows.map(s=>s.providerSaleId),correctionsThrough:new Date().toISOString(),retrievedAt:new Date().toISOString()};
+ let reads=0;
+ await page.route('**/api/graded-valuation',route=>{reads++;return route.fulfill({contentType:'application/json',body:JSON.stringify(corrected)});});
+ await page.evaluate(({item,evidence})=>{const app=globalThis.fixtureCopyApp;app.state.session.access_token='fixture';app.state.items=[{...item,exactSaleEvidence:evidence,gradedValuations:[{contextValidated:true,current:true,currentUntil:Date.now()+86400000,recordedAt:evidence.retrievedAt,amount:110,currency:"USD",contributingEvidenceIds:["ebay:11001"],saleEvidence:evidence}]}];app.openCardDetail(app.state.items[0],true);},{item,evidence});
+ await expect(page.locator('.exact-sold-value > strong')).toHaveText('$110.00');
+ await page.evaluate(async()=>{const app=globalThis.fixtureCopyApp;await app.loadSales(app.state.items[0],true);app.renderCollection();app.renderDetail();});
+ await expect(page.locator('.exact-sold-value > strong')).toHaveText('Estimate unavailable');
+ await expect(page.locator('#positionChart')).toHaveCount(0);
+ expect(await page.evaluate(()=>globalThis.fixtureCopyApp.state.items[0].exactSaleEvidence.sales)).toEqual([]);
+ await expect(page.locator('#portfolioValue')).not.toHaveText('$110.00');
+ expect(reads).toBe(1);
+});
