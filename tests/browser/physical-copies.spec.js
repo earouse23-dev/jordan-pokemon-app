@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeTcgdexCard } from "../../lib/providers/tcgdex.js";
+import { portfolioPricingKey } from "../../lib/portfolio-view.js";
 import { collectibleIdentitySnapshot } from "../../lib/identity.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
@@ -358,7 +359,7 @@ test.beforeAll(async () => {
   );
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderCollection, renderDetail, routeTo, bindEvents, catalogItem, openCardDetail, openPurchaseLotSheet, refreshLivePricing, chartInstance, loadSales, restorePortfolioPricing };`,
+      contents: `${source}\nexport { state, renderCollection, renderDetail, routeTo, bindEvents, catalogItem, openCardDetail, openPurchaseLotSheet, refreshLivePricing, chartInstance, loadSales, restorePortfolioPricing, refreshSavedPortfolio, sessionLoadVersion };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -2309,4 +2310,27 @@ test('verified provider corrections can withdraw a saved slab comp without resto
  expect(await page.evaluate(()=>globalThis.fixtureCopyApp.state.items[0].exactSaleEvidence.sales)).toEqual([]);
  await expect(page.locator('#portfolioValue')).not.toHaveText('$110.00');
  expect(reads).toBe(1);
+});
+
+
+test('saved slab pricing survives partial metadata enrichment during a background refresh',async({page})=>{
+ await setup(page);await page.clock.install({time:new Date('2026-09-24T12:00:00Z')});
+ const legacy={...gradedCopy('a'),edition:'unknown',promoType:'unknown'};
+ const resolved={...legacy,edition:'unlimited',promoType:'none',externalIds:{...legacy.externalIds,pkmnprices:17262}};
+ const lookup={clientId:resolved.id,name:resolved.name,set:resolved.set,number:resolved.number,language:resolved.language,variant:resolved.variant,finish:resolved.finish,edition:resolved.edition,promoType:resolved.promoType,grader:resolved.gradingCompany,grade:resolved.grade,gradeQualifier:'',currency:resolved.currency};
+ const evidence={...soldPayload(lookup,soldRows(lookup,[100,110,120])),salesStatus:'live'};
+ const saved={...resolved,key:portfolioPricingKey(legacy),resolvedKey:portfolioPricingKey(resolved),price:110,exactSaleEvidence:evidence};
+ const view={version:4,updatedAt:'2026-09-24T12:00:00Z',checkedDay:'2026-09-24',complete:true,pricing:[saved],summaries:[{currency:'USD',total:110,knownTotal:110,missingUnits:0,history:[]}]};
+ let release;
+ await page.route('**/api/capabilities?surface=portfolio',async route=>{await new Promise(resolve=>{release=resolve;});await route.fulfill({contentType:'application/json',body:JSON.stringify({view})});});
+ await page.route('**/api/sales?*',route=>route.abort());
+ await page.evaluate(({legacy})=>{const a=globalThis.fixtureCopyApp;a.state.items=[legacy];a.openCardDetail(legacy,true);window.fixtureEnrichmentRefresh=a.refreshSavedPortfolio(a.state.session.user.id,a.sessionLoadVersion);},{legacy});
+ await expect.poll(()=>Boolean(release)).toBe(true);
+ await page.evaluate(()=>{const a=globalThis.fixtureCopyApp;a.state.items=a.state.items.map(item=>({...item,externalIds:{...item.externalIds,pkmnprices:'17262'}}));});
+ release();await page.evaluate(()=>window.fixtureEnrichmentRefresh);
+ await expect(page.locator('.exact-sold-value > strong')).toHaveText('$110.00');
+ await expect(page.locator('#detailTitle')).toContainText('Unlimited');
+ await expect(page.locator('#positionChart')).toBeVisible();
+ await page.evaluate(()=>globalThis.fixtureCopyApp.renderDetail());
+ await expect(page.locator('.exact-sold-value > strong')).toHaveText('$110.00');
 });

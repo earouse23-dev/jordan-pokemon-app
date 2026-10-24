@@ -326,3 +326,13 @@ test("purchase-price history estimates respect lots, partial sales, zero cost an
   assert.equal(backfilled.summaries[0].history.find(p=>p.date==='2026-06-01').total,500);
   assert.equal(backfilled.summaries[0].history.find(p=>p.date==='2026-06-01').estimatedItems,0);
 });
+
+test('saved pricing accepts partial validated enrichment but rejects a different exact context',async()=>{
+ const {portfolioPricingKey,portfolioPricingKeyMatches}=await import('../lib/portfolio-view.js');
+ const input={id:'card',variant:'Holofoil',currency:'USD',cardState:'graded',gradingCompany:'PSA',grade:'10',finish:'holofoil',edition:'unknown',promoType:'unknown'};
+ const resolved={...input,externalIds:{pkmnprices:17262},edition:'unlimited',promoType:'none'};
+ const saved={key:portfolioPricingKey(input),resolvedKey:portfolioPricingKey(resolved)};
+ assert.equal(portfolioPricingKeyMatches(portfolioPricingKey({...input,externalIds:{pkmnprices:'17262'}}),saved),true);
+ for(const patch of [{id:'another'},{grade:'9'},{gradingCompany:'CGC'},{edition:'first_edition'},{currency:'EUR'},{externalIds:{pkmnprices:999}}])assert.equal(portfolioPricingKeyMatches(portfolioPricingKey({...resolved,...patch}),saved),false);
+ assert.equal(portfolioPricingKeyMatches(undefined,undefined),false);
+});

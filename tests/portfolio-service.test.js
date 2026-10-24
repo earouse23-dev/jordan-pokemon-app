@@ -281,17 +281,23 @@ test('a partial refresh keeps useful progress and does not exhaust continuation 
   assert.equal(result.attemptCount,0,'Useful saved progress permits another bounded continuation');
 });
 
-test('a confirmed regrade clears the published slab value instead of preserving a revoked price',async t=>{
+for (const interrupted of [false, true]) test('a confirmed regrade clears the published slab value' + (interrupted ? ' while interrupted work preserves untouched prices' : ''),async t=>{
  const {createClient}=await import('@supabase/supabase-js');
  const {refreshPortfolioView}=await import('../lib/portfolio-service.js');
  const {loadPortfolio}=await import('../lib/supabase-data.js');
  const {buildPortfolioView,portfolioPricingKey}=await import('../lib/portfolio-view.js');
  const {pkmnPricesRequests}=await import('../lib/pkmnprices-requests.js');
  const uid='33333333-3333-4333-8333-333333333333',day=new Date().toISOString().slice(0,10),now=day+'T12:00:00Z';
+ const ids=interrupted?[uid,'33333333-3333-4333-8333-333333333334','33333333-3333-4333-8333-333333333335','33333333-3333-4333-8333-333333333336']:[uid];
+ const controller=new AbortController();let cacheReads=0,release;const barrier=new Promise(resolve=>{release=resolve;});
  let stored;
  pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
  t.mock.method(pkmnPricesRequests,'claim',async()=>{});
- t.mock.method(pkmnPricesRequests,'readCache',async key=>key.includes('ebay-archive')?{expires:Date.now()+86400000,body:{cardId:'17262',sales:[],hasMore:false,correctedSaleIds:['sale-1'],correctionsThrough:now}}:null);
+ t.mock.method(pkmnPricesRequests,'readCache',async key=>{
+  if(!key.includes('ebay-archive'))return null;
+  if(interrupted){if(++cacheReads===3){controller.abort();release();}await barrier;}
+  return {expires:Date.now()+86400000,body:{cardId:'17262',sales:[],hasMore:false,correctedSaleIds:['sale-1'],correctionsThrough:now}};
+ });
  t.mock.method(globalThis,'fetch',async(input,init={})=>{
   const u=new URL(typeof input==='string'?input:input.url||input),table=u.pathname.split('/').at(-1);
   if(u.hostname==='api.pkmnprices.com')return Response.json({id:17262,name:'Umbreon VMAX',number:'215',total_set_number:'203',language:'en',set:{name:'Evolving Skies'},prices:[{source:'tcgplayer',currency:'USD',variant:'Holofoil',condition:'Near Mint',market_price:100}]});
@@ -299,18 +305,20 @@ test('a confirmed regrade clears the published slab value instead of preserving 
   if(table==='portfolio_views')return Response.json({view:stored,inventory_revision:0});
   if(table==='claim_portfolio_refresh')return Response.json(true);
   if(table==='publish_saved_portfolio'){stored=JSON.parse(init.body).p_view;return Response.json(true);}
-  if(table==='collection_items')return Response.json([{id:uid,user_id:owner,quantity:1,currency:'USD',card_state:'graded',status:'owned',grader:'PSA',grade:10,identity_snapshot:{id:'tcgdex:en:swsh7-215',name:'Umbreon VMAX',set:'Evolving Skies',number:'215/203',language:'en',variant:'Holofoil',finish:'holofoil',edition:'unlimited',promoType:'none',gradeQualifier:'',externalIds:{pkmnprices:'17262'}}}]);
-  if(table==='purchase_lots')return Response.json([{id:uid,user_id:owner,collection_item_id:uid,acquired_at:day,quantity_acquired:1,quantity_remaining:1,currency:'USD',total_cost:100}]);
+  if(table==='collection_items')return Response.json(ids.map((id,index)=>({id,user_id:owner,quantity:1,currency:'USD',card_state:'graded',status:'owned',grader:'PSA',grade:10-index,identity_snapshot:{id:'tcgdex:en:swsh7-215',name:'Umbreon VMAX',set:'Evolving Skies',number:'215/203',language:'en',variant:'Holofoil',finish:'holofoil',edition:'unlimited',promoType:'none',gradeQualifier:'',externalIds:{pkmnprices:'17262'}}}))); 
+  if(table==='purchase_lots')return Response.json(ids.map(id=>({id,user_id:owner,collection_item_id:id,acquired_at:day,quantity_acquired:1,quantity_remaining:1,currency:'USD',total_cost:100})));
   return Response.json([]);
  });
  const db=createClient('https://portfolio-correction-fixture.supabase.co','fixture',{auth:{persistSession:false}});
- const [base]=await loadPortfolio(db,owner,{serverOwnerRead:true});
+ const bases=await loadPortfolio(db,owner,{serverOwnerRead:true}),base=bases[0];
  const prior={uid,key:portfolioPricingKey(base),checkedDay:'2026-01-01',price:500,pricingStatus:'live',historyStatus:'live',soldValuation:{estimate:500,status:'ready',ruleVersion:'mica-last-ebay-sale-v1',currency:'USD',contextValidated:true},exactSaleEvidence:{sales:[{providerSaleId:'sale-1'}]},matchedHistory:[{recordedAt:day+'T00:00:00Z',amount:500,currency:'USD',contextValidated:true,verifiedExactSold:true}]};
  prior.checkedDay=day;prior.exactSaleEvidence.hasMore=true;
- stored={...buildPortfolioView([{...base,...prior}],now),pricing:[prior],dailyVersion:1,checkedDay:day,inventoryRevision:0,historyBackfillPending:true};
- assert.equal(stored.summaries[0].total,500,'the saved comp was actually included in the old total');
- const result=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'correction-server-fixture'},{now});
- assert.equal(result.summaries[0].knownTotal,null,'a withdrawn comp cannot remain in the published total');
+ const priors=bases.map(item=>({...prior,uid:item.uid,key:portfolioPricingKey(item)}));
+ stored={...buildPortfolioView(bases.map((item,index)=>({...item,...priors[index]})),now),pricing:priors,dailyVersion:1,checkedDay:day,inventoryRevision:0,historyBackfillPending:true};
+ assert.equal(stored.summaries[0].total,500*ids.length,'the saved comp was actually included in the old total');
+ const result=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'correction-server-fixture'},{now,signal:controller.signal});
+ assert.equal(result.summaries[0].knownTotal,interrupted?500:null,'a withdrawn comp cannot remain in the published total');
+ if(interrupted){assert.equal(cacheReads,3);assert.equal(result.pricing[3].price,500,'unvisited pricing survives the interrupted pass');}
  assert.equal(result.pricing[0].pricingReason,'matching_sold_price_unavailable');
  assert.equal(result.pricing[0].price,null);
  assert.equal(result.pricing[0].soldValuation.estimate,null);

@@ -1,4 +1,4 @@
-import { portfolioPricingKey, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
+import { portfolioPricingKeyMatches, portfolioPricingKey, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -17265,7 +17265,11 @@ function restorePortfolioPricing(view) {
   state.items = state.items.map(item => {
     const saved = pricing.get(item.uid);
     if (view?.refreshIncomplete && saved?.price == null && item.price != null) return item;
-    return saved && [saved.key, saved.resolvedKey].includes(portfolioPricingKey(item)) ? { ...item, ...saved, quantity:item.quantity, lots:item.lots, transactions:item.transactions } : item;
+    if (!saved || !portfolioPricingKeyMatches(portfolioPricingKey(item), saved)) return item;
+    const restored = { ...item, ...saved, quantity:item.quantity, lots:item.lots, transactions:item.transactions };
+    if (state.detailId === item.uid && state.detailSelectionKey === detailIdentityKey(item))
+      state.detailSelectionKey = detailIdentityKey(restored);
+    return restored;
   });
 }
 
@@ -17332,7 +17336,14 @@ async function refreshSavedPortfolio(owner, version) {
     if (response.status === 404) return false;
     if (!response.ok) return true;
     const { view } = await response.json();
-    if (!accountRequestIsCurrent(owner, version) || !view?.summaries || inventoryAtStart !== JSON.stringify(state.items.map(item => [item.uid, portfolioPricingKey(item), item.quantity, item.lots, item.transactions]))) return true;
+    if (!accountRequestIsCurrent(owner, version) || !view?.summaries) return true;
+    const originalKeys = new Map(JSON.parse(inventoryAtStart).map(row => [row[0], row[1]]));
+    const savedPricing = new Map((view.pricing || []).map(pricing => [pricing.uid, pricing]));
+    const currentInventory = JSON.stringify(state.items.map(item => {
+      const key = portfolioPricingKey(item), original = originalKeys.get(item.uid), saved = savedPricing.get(item.uid);
+      return [item.uid, portfolioPricingKeyMatches(original, saved) && portfolioPricingKeyMatches(key, saved) ? original : key, item.quantity, item.lots, item.transactions];
+    }));
+    if (inventoryAtStart !== currentInventory) return true;
     if (attempt === 0 && view?.refreshIncomplete && view.refreshReason !== "provider_daily_budget_reached" && view.pendingPricing?.some(p => p.price != null)) continue;
     if (!hasPortfolioValue(view)) return true;
     state.portfolioView = view;
