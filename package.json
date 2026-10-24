@@ -62,5 +62,8 @@
     "@playwright/test": "^1.58.2",
     "esbuild": "0.28.1",
     "prettier": "3.9.5"
+  },
+  "overrides": {
+    "zod": "4.6.6"
   }
 }
