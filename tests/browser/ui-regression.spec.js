@@ -224,7 +224,7 @@ test("digital grading lives in Collection while Add Cards stays focused", async 
     "Take a photo",
   );
   await expect(page.locator("#receiptCameraButton")).toHaveCount(0);
-  await expect(page.locator("#view-scan .simple-privacy")).toBeVisible();
+  await expect(page.locator("#view-scan")).not.toContainText("Photos aren’t saved");
   await expect(page.locator("#autoCaptureButton")).toHaveAttribute(
     "type",
     "button",

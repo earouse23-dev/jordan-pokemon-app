@@ -134,6 +134,7 @@ test("card details preserve uncertainty and keyboard-open tools across refreshes
     path: screenshotPath,
     contentType: "image/png",
   });
+  await page.getByRole("button", {name:"More options",exact:true}).click();
   const prices = page.locator('[data-detail-tool="prices"]');
   await prices.locator(":scope > summary").focus();
   await page.keyboard.press("Enter");
@@ -209,7 +210,7 @@ test("price retry and active grading controls stay reachable outside collapsed t
     "provider-secret-diagnostic",
   );
   await page.locator('[data-detail-tool="purchases"] > summary').click();
-  await expect(page.locator("#recordSaleButton")).toBeDisabled();
+  await expect(page.locator("#recordSaleButton")).toHaveCount(0);
   await expect(page.locator("#recordPurchaseButton")).toBeDisabled();
   await expect(page.locator("#gradingInventoryLock")).toBeVisible();
   await assertFits(page);
@@ -220,7 +221,8 @@ test("attachment upload recovers from an asynchronous failure and accepts the sa
 }) => {
   await openDetail(page);
   await page.evaluate(async (url) => {
-    const { testSupabase } = await import(url);
+    const { testSupabase, state } = await import(url);
+    state.session = {user:{id:"33333333-3333-4333-8333-333333333333"}};
     testSupabase.auth.getUser = async () => ({
       data: { user: { id: "33333333-3333-4333-8333-333333333333" } },
       error: null,
@@ -260,6 +262,7 @@ test("attachment upload recovers from an asynchronous failure and accepts the sa
         ),
       }),
   );
+  await page.getByRole("button", {name:"More options",exact:true}).click();
   const attachments = page.locator('[data-detail-tool="attachments"]');
   await attachments.locator("summary").click();
   const input = page.locator("#collectionAttachmentInput");
