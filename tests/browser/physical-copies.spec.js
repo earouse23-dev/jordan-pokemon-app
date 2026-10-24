@@ -2199,11 +2199,10 @@ test("full interface uses artwork-first browsing and purchase-first editing", as
 });
 
 
-test("complete screen review covers settings, capture, detail and both appearances", async ({ page }, testInfo) => {
-  await page.setViewportSize({width:375,height:667});
+for (const [width,height] of [[320,640],[390,844],[768,1024],[1024,768],[1440,900],[1920,1080]]) test(`complete screen review covers settings, capture, detail and both appearances at ${width}px`, async ({ page }, testInfo) => {
+  await page.setViewportSize({width,height});
   await setup(page);
-  for (const [width,height] of [[320,640],[390,844],[768,1024],[1024,768],[1440,900],[1920,1080]]) for (const appearance of ["light","dark"]) {
-    await page.setViewportSize({width,height});
+  for (const appearance of ["light","dark"]) {
     await page.evaluate(value => {document.body.dataset.appearance=value;},appearance);
     for(const route of ["collection","scan","profile"]) {
       await page.evaluate(route => globalThis.fixtureCopyApp.routeTo(route),route);

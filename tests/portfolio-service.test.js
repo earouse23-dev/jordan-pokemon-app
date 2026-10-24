@@ -306,7 +306,8 @@ test('a confirmed regrade clears the published slab value instead of preserving 
  const db=createClient('https://portfolio-correction-fixture.supabase.co','fixture',{auth:{persistSession:false}});
  const [base]=await loadPortfolio(db,owner,{serverOwnerRead:true});
  const prior={uid,key:portfolioPricingKey(base),checkedDay:'2026-01-01',price:500,pricingStatus:'live',historyStatus:'live',soldValuation:{estimate:500,status:'ready',currency:'USD',contextValidated:true},exactSaleEvidence:{sales:[{providerSaleId:'sale-1'}]},matchedHistory:[{recordedAt:day+'T00:00:00Z',amount:500,currency:'USD',contextValidated:true,verifiedExactSold:true}]};
- stored={...buildPortfolioView([{...base,...prior}],now),pricing:[prior],dailyVersion:1,checkedDay:'2026-01-01',inventoryRevision:0};
+ prior.checkedDay=day;prior.exactSaleEvidence.hasMore=true;
+ stored={...buildPortfolioView([{...base,...prior}],now),pricing:[prior],dailyVersion:1,checkedDay:day,inventoryRevision:0,historyBackfillPending:true};
  const result=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'correction-server-fixture'},{now});
  assert.equal(result.pricing[0].pricingReason,'matching_sold_price_unavailable');
  assert.equal(result.pricing[0].price,null);
