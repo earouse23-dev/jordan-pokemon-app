@@ -1,0 +1,17 @@
+{
+  "target": "https://jordan-pokemon-rdi034naq-earouse23-devs-projects.vercel.app",
+  "version": 4,
+  "holdings": 5,
+  "sourceCurrencies": 1,
+  "historyPoints": 21,
+  "refreshIncomplete": false,
+  "checkedDay": "2026-10-25",
+  "priorVersion": 4,
+  "sameDayReused": true,
+  "elapsedMs": {
+    "first": 17598,
+    "second": 4166,
+    "summary": 2854
+  },
+  "inventoryWrites": 0
+}

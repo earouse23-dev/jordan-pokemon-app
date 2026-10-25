@@ -1,0 +1,84 @@
+{
+  "sourceCommit": "b2db88bbcb3e9325fe5cccea68c38838fed1b227",
+  "checkedAt": "2026-10-25T22:42:28.462Z",
+  "localRelease": {
+    "exitCode": 0,
+    "unit": {
+      "passed": 595,
+      "skipped": 3,
+      "failed": 0
+    },
+    "coreBrowser": {
+      "passed": 406,
+      "skipped": 11,
+      "failed": 0
+    },
+    "largeInventory": {
+      "passed": 3,
+      "failed": 0
+    },
+    "lint": true,
+    "syntax": true,
+    "schema": true,
+    "migrationBaseline": true,
+    "reproducibleBuild": true,
+    "routing": true
+  },
+  "focusedOwnerIsolation": {
+    "startTime": "2026-10-25T22:21:49.722Z",
+    "duration": 14411.481000000002,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "focusedNotifications": {
+    "startTime": "2026-10-25T22:20:19.757Z",
+    "duration": 28540.629,
+    "expected": 6,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "independentGate": {
+    "runId": 40240084587,
+    "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40240084587",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "stagedDeployment": {
+    "id": "dpl_3sTAT8svv6BJrNgdMGg8Gw5VDays",
+    "url": "https://jordan-pokemon-rdi034naq-earouse23-devs-projects.vercel.app"
+  },
+  "canonicalPromoted": true,
+  "customerInventoryWrites": 0,
+  "customerPreferenceWrites": 0,
+  "dependenciesAdded": 0,
+  "productionSchemaChanges": 0,
+  "expandedBrowser": {
+    "passed": 437,
+    "skipped": 10,
+    "failed": 0,
+    "flaky": 0,
+    "durationMs": 340033.165
+  },
+  "canonicalUrl": "https://jordan-pokemon-app.vercel.app/",
+  "publishedRelease": "b2db88bbcb3e",
+  "liveReadOnlyAcceptance": {
+    "searchPrintingResults": 3,
+    "photoChooserNativeButton": true,
+    "mobileViewport": 390,
+    "mobileDocumentWidth": 390,
+    "restoredViewport": 1710,
+    "restoredDocumentWidth": 1710,
+    "libraryShortGradeAndGainLabels": true,
+    "stalePriceNoticeRetained": true,
+    "advancedFiltersExpand": true,
+    "gradingLaunchDisabled": true,
+    "savedReportsAccessible": true,
+    "visibleNotificationCheckboxes": 1,
+    "notificationLabel": "In-app alerts",
+    "customerInventoryWrites": 0,
+    "customerPreferenceWrites": 0
+  }
+}
