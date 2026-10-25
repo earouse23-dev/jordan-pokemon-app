@@ -1,0 +1,88 @@
+{
+  "checkedAt": "2026-10-25T21:57:49.799Z",
+  "environment": "canonical signed-in Chrome, read-only customer navigation",
+  "layouts": [
+    {
+      "bottomNavigation": false,
+      "chart": {
+        "height": 262.3984375,
+        "left": 8,
+        "right": 312,
+        "width": 304
+      },
+      "overflow": 0,
+      "sidebar": false,
+      "stickyAction": false,
+      "width": 320
+    },
+    {
+      "bottomNavigation": false,
+      "chart": {
+        "height": 352.59375,
+        "left": 8,
+        "right": 422,
+        "width": 414
+      },
+      "overflow": 0,
+      "sidebar": false,
+      "stickyAction": false,
+      "width": 430
+    },
+    {
+      "bottomNavigation": false,
+      "chart": {
+        "height": 430.078125,
+        "left": 24,
+        "right": 744,
+        "width": 720
+      },
+      "overflow": 0,
+      "sidebar": false,
+      "stickyAction": false,
+      "width": 768
+    },
+    {
+      "bottomNavigation": false,
+      "chart": {
+        "height": 322.5546875,
+        "left": 244,
+        "right": 1000,
+        "width": 756
+      },
+      "overflow": 0,
+      "sidebar": true,
+      "stickyAction": false,
+      "width": 1024
+    },
+    {
+      "bottomNavigation": false,
+      "chart": {
+        "height": 378,
+        "left": 244,
+        "right": 1416,
+        "width": 1172
+      },
+      "overflow": 0,
+      "sidebar": true,
+      "stickyAction": false,
+      "width": 1440
+    },
+    {
+      "bottomNavigation": false,
+      "chart": {
+        "height": 453.59375,
+        "left": 244,
+        "right": 1896,
+        "width": 1652
+      },
+      "overflow": 0,
+      "sidebar": true,
+      "stickyAction": false,
+      "width": 1920
+    }
+  ],
+  "notes": [
+    "Card details substitute owned-copy actions for bottom navigation on phones.",
+    "Measurements establish canvas reflow and no horizontal overflow, not physical-device acceptance."
+  ]
+}

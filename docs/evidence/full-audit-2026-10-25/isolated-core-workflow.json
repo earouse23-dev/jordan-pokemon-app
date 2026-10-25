@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-10-25T21:49:57.680Z",
+  "environment": "approved isolated demo account on existing backend",
+  "createdTestCopies": 2,
+  "addRetryIdempotent": true,
+  "editPersisted": true,
+  "selectedCopySale": true,
+  "saleRetryIdempotent": true,
+  "siblingPreserved": true,
+  "freshSessionReopen": true,
+  "anonymousIsolation": true,
+  "providerRequests": 0,
+  "customerWrites": 0,
+  "elapsedMs": 6452
+}

@@ -1,0 +1,62 @@
+{
+  "checkedAt": "2026-10-25T22:01:32.553Z",
+  "grading": {
+    "liveLauncherVisible": true,
+    "liveLauncherEnabled": true,
+    "deployedVision": {
+      "status": "identification_only",
+      "identification": "configured_unverified",
+      "grading": "release_hold",
+      "verification": "requires_authenticated_acceptance"
+    },
+    "gradeModeProbe": {
+      "status": 503,
+      "code": "release_hold",
+      "imagesSent": 0,
+      "authenticated": false
+    }
+  },
+  "quickSearch": {
+    "sameNamePrintingButtonsHaveDuplicateAccessibleNames": true,
+    "manualSearchVariantNamesDistinct": true,
+    "backgroundGradientEndpoints": [
+      "#fffdf8",
+      "#f1ecdf"
+    ],
+    "titleColor": "#edf2eb",
+    "subtitleColor": "#b4bcb2",
+    "variantColor": "#92b998",
+    "contrastAgainstGradientEndpoints": {
+      "title": [
+        1.117,
+        1.039
+      ],
+      "subtitle": [
+        1.917,
+        1.652
+      ],
+      "variant": [
+        2.148,
+        1.852
+      ]
+    }
+  },
+  "photoLibrary": {
+    "inputHidden": true,
+    "labelTabIndex": -1,
+    "labelRole": null,
+    "nextFocusAfterTakePhoto": "Add unopened products",
+    "keyboardSkipsPhotoLibrary": true
+  },
+  "currentDayRefresh": {
+    "savedViewVisibleDuringRefresh": true,
+    "eventuallyCompleted": true,
+    "holdingAndTotalConsistencyObserved": true
+  },
+  "labStaticAssetProbe": {
+    "appDownloadBytes": 303767,
+    "ttfbSeconds": 0.122957,
+    "totalSeconds": 0.162115,
+    "note": "One unthrottled command-line static-asset request; not app startup, iPhone performance or field Web Vitals."
+  }
+}

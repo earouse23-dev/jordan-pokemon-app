@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-25T22:01:32.552Z",
+  "ordinaryPublicTablesWithoutRls": 0,
+  "publicStorageBuckets": 0,
+  "privateStorageBuckets": 4,
+  "databaseSize": "331 MB",
+  "authenticatedExecutableDefinerFunctions": 14,
+  "definerFunctionsWithEmptySearchPath": 14,
+  "definerFunctionsWithOwnerOrAdminGuardReference": 14,
+  "limitations": "Guard/search-path inspection is not full per-statement authorization proof or a penetration test.",
+  "advisorCounts": {
+    "rlsEnabledNoPolicyInfo": 21,
+    "authenticatedSecurityDefinerWarning": 14,
+    "leakedPasswordProtectionDisabled": 1
+  },
+  "productionDependencyAudit": {
+    "knownVulnerabilities": 0,
+    "productionDependencies": 63
+  },
+  "background": {
+    "databaseContinuationCronActive": false,
+    "savedViews": 2,
+    "checkedToday": 1,
+    "incomplete": 1,
+    "historyBackfillPending": 0,
+    "note": "Aggregate status includes the isolated test account; it does not identify a customer failure. The separate Vercel daily cron remains configured."
+  }
+}

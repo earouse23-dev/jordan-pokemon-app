@@ -1,0 +1,55 @@
+{
+  "checkedAt": "2026-10-25T22:01:32.551Z",
+  "sourceRelease": "63571afcf89508fc1df38e46d12aee0d38a122d0",
+  "workingTreeHead": "a4b7c9c",
+  "appSourceChanged": false,
+  "publicationPerformed": false,
+  "betaGate": {
+    "exitCode": 0,
+    "lint": true,
+    "syntaxChecks": true,
+    "unit": {
+      "passed": 595,
+      "skipped": 3,
+      "failed": 0
+    },
+    "schema": true,
+    "migrationBaseline": true,
+    "releaseBuild": true,
+    "releaseRouting": true,
+    "coreBrowser": {
+      "passed": 397,
+      "skipped": 11,
+      "failed": 0
+    },
+    "largeInventory": {
+      "passed": 3,
+      "failed": 0
+    }
+  },
+  "expandedUi": {
+    "passed": 201,
+    "skipped": 10,
+    "failed": 2,
+    "flaky": 0,
+    "failures": [
+      {
+        "file": "mobile-workspaces.spec.js",
+        "title": "populated mobile workspaces stay readable and contained",
+        "projects": [
+          "mobile-chromium"
+        ],
+        "reason": "Outdated assertion expects the full identity inside the name-only span; test stops before its responsive sweep."
+      },
+      {
+        "file": "mobile-workspaces.spec.js",
+        "title": "populated mobile workspaces stay readable and contained",
+        "projects": [
+          "mobile-webkit"
+        ],
+        "reason": "Outdated assertion expects the full identity inside the name-only span; test stops before its responsive sweep."
+      }
+    ]
+  },
+  "runtimeWarningsObserved": 0
+}
