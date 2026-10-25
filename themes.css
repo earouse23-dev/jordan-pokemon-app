@@ -5271,18 +5271,18 @@ body[data-ui-theme="mica"] #view-scan .find-action.primary-find svg {
 }
 
 body[data-ui-theme="mica"] #view-scan .quick-card-result {
-  border-color: rgba(102, 120, 93, 0.26);
+  border-color: var(--line);
   border-radius: 15px;
-  background: linear-gradient(145deg, #fffdf8, #f1ecdf);
-  box-shadow:
-    0 10px 22px rgba(48, 56, 45, 0.09),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: none;
 }
 
 body[data-ui-theme="mica"] #view-scan .quick-card-result:hover {
-  border-color: #84957a;
-  transform: translateY(-2px);
-  box-shadow: 0 16px 28px rgba(48, 56, 45, 0.12);
+  border-color: var(--line-dark);
+  background: var(--paper);
+  transform: none;
+  box-shadow: none;
 }
 
 @media (max-width: 759px) {
@@ -6861,3 +6861,12 @@ body[data-ui-theme="mica"] #appShell #view-profile .settings-fees input { width:
 
 /* Keep the sale-chart method visible on narrow screens. */
 body[data-ui-theme="mica"] #appShell #detailContent .detail-section-head > .daily-sale-history-label { display: block; }
+
+/* Compact results share the same surfaces and secondary-action hierarchy. */
+body[data-ui-theme="mica"] .quick-card-actions button:last-child { background: transparent; color: var(--muted); border-color: transparent; box-shadow: none; }
+body[data-ui-theme="mica"] .collection-advanced-filters { margin-block: 12px; padding: 0 12px 12px; border: 1px solid var(--line); border-radius: 12px; }
+body[data-ui-theme="mica"] .collection-advanced-filters > summary { min-height: 48px; display: flex; align-items: center; cursor: pointer; color: var(--pine-2); }
+body[data-ui-theme="mica"] #appShell .ledger-row .position-price-grid.compact > span { align-items: baseline; gap: 6px; }
+body[data-ui-theme="mica"] #appShell .ledger-row .price-cell { gap: 4px; }
+body[data-ui-theme="mica"] #appShell .ledger-row .row-move { font-variant-numeric: tabular-nums; }
+body[data-ui-theme="mica"] #appShell .digital-grader-launch:disabled { opacity: 1; color: var(--muted); background: var(--paper); box-shadow: none; cursor: default; }

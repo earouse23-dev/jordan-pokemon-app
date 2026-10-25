@@ -2007,15 +2007,15 @@ h1 {
   margin-top: 6px;
   padding: 3px 6px;
   border-radius: 3px;
-  background: #e1eee4;
-  color: var(--pine);
+  background: var(--mint);
+  color: var(--ink);
   font-size: 12px;
   line-height: 1.35;
 }
 .quick-card-result .owned-search-status strong,
 .catalog-result .owned-search-status strong {
   display: inline;
-  color: var(--pine);
+  color: inherit;
   font-size: inherit;
 }
 .result-filters {

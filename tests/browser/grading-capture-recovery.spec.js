@@ -9,7 +9,7 @@ let handlers, resume, camera, report, helperBundle;
 test.beforeAll(async () => {
   const source = await readFile(new URL("../../app.js", import.meta.url), "utf8");
   handlers = source.slice(source.indexOf("const fullDigitalGradeCaptureSteps"), source.indexOf("async function beginDigitalGrading("));
-  resume = source.slice(source.indexOf("function continueGradingActivity("), source.indexOf("async function refreshGradingActivity("));
+  resume = source.slice(source.indexOf("async function continueGradingActivity("), source.indexOf("async function refreshGradingActivity("));
   camera = source.slice(source.indexOf("async function openDeviceCamera("), source.indexOf("function openAutoCapture("));
   report = source.slice(source.indexOf("function renderVisionResult("), source.indexOf("async function analyzeCardImages("));
   const built = await build({ stdin: { contents: 'export * from "./lib/grading-capture.js"; export { compareGradeIdentity, compareDigitalGradeStability } from "./lib/grading.js";', resolveDir: fileURLToPath(new URL("../../", import.meta.url)) }, bundle: true, format: "iife", globalName: "CaptureHelpers", write: false });
@@ -30,6 +30,8 @@ async function fixture(page) {
     window.accountRequestIsCurrent = (owner, version) => state.session?.user?.id === owner && sessionLoadVersion === version;
     window.GRADING_MODES = { full: { name: "Digital grading" } };
     window.supabase = {};
+    window.nativeBuild = false;
+    window.requireDigitalGrading = async () => true;
     window.toast = () => {};
     window.updateGradingSessionCaptureProgress = async () => {};
     window.openSheet = html => { $("#sheetContent").innerHTML = html; $("#bottomSheet").hidden = false; };

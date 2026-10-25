@@ -1666,7 +1666,7 @@ test("grouped inventory reopens all copies and keeps the sold copy's history", a
   await setup(page, { soldB: true });
   await expect(page.locator(".ledger-row")).toHaveCount(1);
   await expect(page.locator(".ledger-row")).toContainText("2 active/1 sold");
-  await expect(page.locator(".ledger-row")).toContainText("Price each");
+  await expect(page.locator(".ledger-row")).toContainText("Each");
   await capture(page, testInfo, "grouped-inventory");
 
   await page.locator("[data-open-position]").click();

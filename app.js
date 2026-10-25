@@ -522,6 +522,7 @@ const state = {
   gradingActivity: [],
   gradingActivityPreviews: new Map(),
   gradingCaptureDrafts: new Map(),
+  gradingCapability: null,
   gradingActivityStatus: "idle",
   gradingCalibration: [],
   gradingCalibrationStatus: "idle",
@@ -991,6 +992,7 @@ function renderGradingActivity() {
       return `<article class="grading-activity-row"><span class="grading-activity-score">${identity.image ? `<img src="${esc(identity.image)}" alt="${esc(identity.title)}">` : ""}<b>${Number.isFinite(grade) ? esc(grade.toFixed(1)) : "DG"}</b></span><div><strong>${esc(identity.title)}</strong><small>${esc(identity.details || `Report ${session.id.slice(0, 8).toUpperCase()}`)} · ${esc(date)}</small></div><em class="${esc(statusClass)}">${esc(statusLabel)}</em>${action}</article>`;
     })
     .join("");
+  renderGradingAvailability();
 }
 
 function savedSubscoreRange(entry = {}) {
@@ -1609,7 +1611,8 @@ function openGradingCorrectionSheet(session, item, selectedEvidenceId = null) {
   });
 }
 
-function continueGradingActivity(sessionId) {
+async function continueGradingActivity(sessionId) {
+  if (!(await requireDigitalGrading(true))) return;
   const session = state.gradingActivity.find(
     (candidate) => candidate.id === sessionId,
   );
@@ -4731,6 +4734,7 @@ function renderWatchlistRows() {
     })
     .join("");
   const trulyEmpty = state.watchlist.length === 0;
+  renderGradingAvailability();
   $("#collectionEmpty").classList.toggle("hidden", visible.length > 0);
   $("#collectionEmptyTitle").textContent = trulyEmpty
     ? "You are not watching any cards yet"
@@ -7235,10 +7239,10 @@ function renderCollection() {
           : "none"
       : "none";
     const movementLabel = purchasePerformance
-      ? `${purchasePerformance.change >= 0 ? "Up" : "Down"} ${displayCurrencyMoney(Math.abs(purchasePerformance.change), item.currency)}${purchasePerformance.percent === null ? "" : ` (${purchasePerformance.percent >= 0 ? "+" : ""}${purchasePerformance.percent.toFixed(1)}%)`} since purchase`
+      ? `${purchasePerformance.change >= 0 ? "+" : "−"}${displayCurrencyMoney(Math.abs(purchasePerformance.change), item.currency)}${purchasePerformance.percent === null ? "" : ` (${purchasePerformance.percent >= 0 ? "+" : ""}${purchasePerformance.percent.toFixed(1)}%)`}`
       : total == null
         ? ""
-        : "Add what you paid to see profit";
+        : "Cost not recorded";
     const listing = listingReadiness([item]);
     const listingTag =
       item.status === "listed"
@@ -7257,7 +7261,7 @@ function renderCollection() {
       item.cardState === "sealed"
         ? "Unopened"
         : item.gradingCompany
-          ? `${item.gradingCompany} grade ${item.grade}`
+          ? `${item.gradingCompany} ${item.grade}`
           : item.digitalGrade
             ? `DG ${dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`}`
             : "Ungraded",
@@ -7265,10 +7269,6 @@ function renderCollection() {
         ? `${activeCopies} active${soldCopies ? `/${soldCopies} sold` : ""}`
         : null,
       listingTag || statusTag,
-      ...(item.tags || []).slice(
-        0,
-        listingTag || statusTag ? 0 : 1,
-      ),
     ].filter(Boolean);
     const selected = state.bulkSelected.has(item.uid);
     const favorite = (item.tags || []).some(
@@ -7280,8 +7280,8 @@ function renderCollection() {
       ${state.bulkMode ? "" : `<button class="ledger-favorite${favorite ? " selected" : ""}" type="button" data-toggle-favorite="${esc(item.uid)}" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button>`}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${activeCopies > 1 ? `<span class="quantity">×${activeCopies}</span>` : ""}</div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="position-price-grid compact" aria-label="Card value"><span><small>${copyGroup?.copies.length > 1 ? "Price each" : "Position value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span></div>
-      <div class="price-cell"><span class="row-unit price-provenance">${esc(item.pricingStatus === "stale" ? "Older price · view details" : total == null ? (item.gradingCompany ? "Matching sales unavailable" : "Price unavailable") : `${item.gradingCompany ? "Reported sold estimate" : "Market estimate"}${item.pricingUpdatedAt ? ` · Updated ${shortPortfolioDate(item.pricingUpdatedAt)}` : ""}`)}</span>${movementLabel ? `<span class="row-move ${moveClass}">${esc(movementLabel)}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}">${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
+      <div class="position-price-grid compact" aria-label="Card value"><span><small class="${copyGroup?.copies.length > 1 ? "" : "sr-only"}">${copyGroup?.copies.length > 1 ? "Each" : "Position value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span></div>
+      <div class="price-cell">${item.pricingStatus === "stale" || total == null ? `<span class="row-unit price-provenance">${item.pricingStatus === "stale" ? "Older price" : "Price unavailable"}</span>` : ""}${movementLabel ? `<span class="row-move ${moveClass}">${esc(movementLabel)}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}">${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
     </article>`;
   };
   const groups = groupCollectionOrganization(displayedRows, state.groupBy);
@@ -7291,6 +7291,7 @@ function renderCollection() {
         `${state.groupBy === "none" ? "" : `<h3 class="collection-group-heading"><span>${esc(group.label)}</span><small>${group.items.length.toLocaleString()} saved entr${group.items.length === 1 ? "y" : "ies"}</small></h3>`}${group.items.map(itemMarkup).join("")}`,
     )
     .join("");
+  renderGradingAvailability();
   $("#collectionEmpty").classList.toggle("hidden", visible.length > 0);
   const trulyEmpty = state.largeInventory.active
     ? Number(state.organization.summary?.positionCount || 0) === 0
@@ -8499,7 +8500,7 @@ function detailValuationMarkup(item, owned, watched, context) {
     ["Heavily Played", "Heavy wear (Heavily Played)"],
     ["Damaged", "Damaged"],
   ];
-  return `<details data-detail-tool="valuation-context"><summary>Value context · ${esc(valuationContextLabel(context))}</summary><section class="valuation-context" aria-labelledby="valuationContextTitle"><div><span>Value context</span><strong id="valuationContextTitle">${esc(valuationContextLabel(context))}</strong>${savedContext}</div><div class="valuation-context-controls"><label>State<select id="detailValuationState"><option value="raw" ${raw ? "selected" : ""}>Raw · ungraded</option><option value="graded" ${raw ? "" : "selected"}>Professionally graded</option></select></label><label class="raw-valuation-context" ${raw ? "" : "hidden"}>Condition<select id="detailValuationCondition">${conditions.map(([value, label]) => `<option value="${esc(value)}" ${value === context.condition ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label><label class="graded-valuation-context" ${raw ? "hidden" : ""}>Company<select id="detailValuationGrader"><option value="">Choose company</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((grader) => `<option ${grader === context.gradingCompany ? "selected" : ""}>${grader}</option>`).join("")}</select></label><label class="graded-valuation-context" ${raw ? "hidden" : ""}>Grade<input id="detailValuationGrade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(context.grade || "")}" placeholder="10"></label><label class="graded-valuation-context" ${raw ? "hidden" : ""}>Label / qualifier<input id="detailValuationQualifier" type="text" value="${esc(context.gradeQualifier ?? "")}" placeholder="None"></label><label>Currency<select id="detailValuationCurrency"><option value="USD" ${context.currency === "USD" ? "selected" : ""}>USD</option><option value="EUR" ${context.currency === "EUR" ? "selected" : ""}>EUR</option></select></label></div></section></details>`;
+  return `<details data-detail-tool="valuation-context"><summary>Price options · ${esc(valuationContextLabel(context))}</summary><section class="valuation-context" aria-labelledby="valuationContextTitle"><div><span>Price options</span><strong id="valuationContextTitle">${esc(valuationContextLabel(context))}</strong>${savedContext}</div><div class="valuation-context-controls"><label>State<select id="detailValuationState"><option value="raw" ${raw ? "selected" : ""}>Raw · ungraded</option><option value="graded" ${raw ? "" : "selected"}>Professionally graded</option></select></label><label class="raw-valuation-context" ${raw ? "" : "hidden"}>Condition<select id="detailValuationCondition">${conditions.map(([value, label]) => `<option value="${esc(value)}" ${value === context.condition ? "selected" : ""}>${esc(label)}</option>`).join("")}</select></label><label class="graded-valuation-context" ${raw ? "hidden" : ""}>Company<select id="detailValuationGrader"><option value="">Choose company</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((grader) => `<option ${grader === context.gradingCompany ? "selected" : ""}>${grader}</option>`).join("")}</select></label><label class="graded-valuation-context" ${raw ? "hidden" : ""}>Grade<input id="detailValuationGrade" type="number" inputmode="decimal" min="1" max="10" step="0.5" value="${esc(context.grade || "")}" placeholder="10"></label><label class="graded-valuation-context" ${raw ? "hidden" : ""}>Label / qualifier<input id="detailValuationQualifier" type="text" value="${esc(context.gradeQualifier ?? "")}" placeholder="None"></label><label>Currency<select id="detailValuationCurrency"><option value="USD" ${context.currency === "USD" ? "selected" : ""}>USD</option><option value="EUR" ${context.currency === "EUR" ? "selected" : ""}>EUR</option></select></label></div></section></details>`;
 }
 
 function bindDetailValuationControls(item) {
@@ -8901,7 +8902,7 @@ function renderDetail() {
     <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
-    ${context.cardState === "graded" ? `<details class="provider-index-details" data-detail-tool="provider-index"><summary>Provider reference index</summary>${marketHero}</details>` : ""}
+    ${context.cardState === "graded" ? `<details class="provider-index-details" data-detail-tool="provider-index"><summary>Market reference</summary>${marketHero}</details>` : ""}
     ${detailValuationMarkup(item, owned, watched, context)}
     <section class="detail-secondary">${identityDetails}</section>
     ${watchedSection}
@@ -10656,9 +10657,11 @@ export function openPositionSheet(card, options = {}) {
       if (form.isConnected) {
         submits.forEach((button) => (button.disabled = false));
         submit.textContent = submitLabel;
+        renderGradingAvailability();
       }
     }
   });
+  renderGradingAvailability();
 }
 
 async function finishSavedCollectionChange(focusId, successMessage) {
@@ -11748,7 +11751,7 @@ function openFilterSheet() {
         .map(String),
     ),
   ].sort((left, right) => Number(right) - Number(left));
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2><p>Choose which cards you want to see.</p></div><button class="sheet-close" aria-label="Close">×</button></div>
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2></div><button class="sheet-close" aria-label="Close">×</button></div>
     <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All items</option><option value="favorites">Favorites only</option><option value="graded">Professionally graded only</option><option value="unpriced">Missing a matching price</option><option value="for-sale">For sale</option><option value="watchlist">Cards I’m watching</option><option value="sets">Set progress</option></select></div>
     <div class="field"><label for="sheetSet">Set</label><select id="sheetSet"><option value="">Every set</option>${sets.map((set) => `<option value="${esc(set)}">${esc(set)}</option>`).join("")}</select></div>
     <div class="field"><label for="sheetCondition">Card type or wear</label><select id="sheetCondition"><option value="">Every type and condition</option><option value="Raw">Ungraded cards</option><option value="Graded">Professionally graded cards</option><option value="Sealed">Unopened products</option><option value="Near Mint">Like new</option><option value="Lightly Played">Light wear</option><option value="Moderately Played">Noticeable wear</option><option value="Heavily Played">Heavy wear</option><option value="Damaged">Damaged</option></select></div>
@@ -11765,6 +11768,12 @@ function openFilterSheet() {
     <div class="field"><label for="sheetGroup">Group rows by</label><select id="sheetGroup"><option value="none">No grouping</option><option value="set">Set</option><option value="language">Language</option><option value="condition">Condition or grade</option></select></div>
     <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Most valuable first</option><option value="name">Name, A to Z</option><option value="updated-desc">Recently updated</option></select></div>
     <div class="sheet-actions"><button class="secondary" id="resetSheet">Reset</button><button class="primary" id="applySheet">Apply filters</button></div>`);
+  const advancedFilters = document.createElement("details");
+  advancedFilters.className = "intake-more collection-advanced-filters";
+  advancedFilters.innerHTML = '<summary>More filters</summary>';
+  $("#sheetPerformance").closest(".field").before(advancedFilters);
+  for (const id of ["sheetPerformance", "sheetMovement", "sheetCoverage", "sheetAcquisition", "sheetMinimumValue", "sheetMinimumProfitLoss", "sheetPurchaseDateFrom", "sheetGroup"])
+    advancedFilters.append($("#" + id).closest(".field"));
   $("#sheetView").value = state.ledgerView;
   $("#sheetSet").value = state.setFilter;
   $("#sheetCondition").value = state.conditionFilter;
@@ -11783,6 +11792,7 @@ function openFilterSheet() {
   $("#sheetPurchaseDateTo").value = state.purchaseDateTo;
   $("#sheetGroup").value = state.groupBy;
   $("#sheetSort").value = state.sort;
+  advancedFilters.open = [state.performanceFilter, state.movementFilter, state.coverageFilter, state.acquisitionFilter, state.minimumValue, state.maximumValue, state.minimumProfitLoss, state.maximumProfitLoss, state.purchaseDateFrom, state.purchaseDateTo].some(value => value !== "") || state.groupBy !== "none";
   if (state.largeInventory.active) {
     ["unpriced", "sets"].forEach((value) => {
       const option = $("#sheetView").querySelector(`option[value="${value}"]`);
@@ -13079,7 +13089,8 @@ function openGradingCaptureCoach(onContinue) {
   render();
 }
 
-function openDigitalGradeCaptureStep(index = 0, captures = [], context = {}) {
+async function openDigitalGradeCaptureStep(index = 0, captures = [], context = {}) {
+  if (!(await requireDigitalGrading())) return;
   const ownerId = context.ownerId ?? state.session?.user?.id;
   const loadVersion = context.loadVersion ?? sessionLoadVersion;
   context = { ...context, ownerId, loadVersion };
@@ -13247,6 +13258,7 @@ async function showPrecisionGradingProcessing(captures, context = {}) {
 async function beginDigitalGrading(item = null, gradingMode = "full") {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
+  if (!(await requireDigitalGrading(true))) return;
   if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
   if (item) {
     const eligible =
@@ -14658,12 +14670,13 @@ function bindDefectEvidenceDialog(condition, preparedImages) {
   });
 }
 
-function captureSupplementalEvidence(
+async function captureSupplementalEvidence(
   request,
   payload,
   preparedImages,
   trigger,
 ) {
+  if (!(await requireDigitalGrading(true))) return;
   const isFullCard = request.type.startsWith("alternate_");
   void openDeviceCamera({
     kind: "supplemental",
@@ -14864,6 +14877,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
       !accountRequestIsCurrent(reportOwnerId, reportLoadVersion)
     )
       return;
+    if (!(await requireDigitalGrading(true)) || !accountRequestIsCurrent(reportOwnerId, reportLoadVersion)) return;
     button.disabled = true;
     try {
       const scanSessionId = await createGradingScanSession(supabase, {
@@ -15307,6 +15321,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
 }
 
 async function analyzeCardImages(mode, preparedImages, options = {}) {
+  if (mode === "grade" && !(await requireDigitalGrading(true))) return;
   $("#bottomSheet").dataset.lockClose = "true";
   openSheet(
     `<div class="sheet-heading grading-process-heading ${mode === "identify" ? "identification-processing-heading" : ""}"><div><span>${mode === "grade" ? esc(GRADING_MODES[options.gradingMode]?.name || "Digital grading") : "Card identification"}</span><h2 id="sheetTitle">${mode === "grade" ? "Grade processing" : "Checking your card"}</h2><p>${mode === "grade" ? `${preparedImages.length} real captures · identity, match, and grade` : "Reading the name and bottom number"}</p></div></div>${mode === "grade" ? '<div class="grade-processing" role="status" aria-live="polite"><div data-process-stage="normalize" data-state="complete"><span>Photo normalization</span><small>Device, light, and perspective checks</small><i></i><b>Complete</b></div><div data-process-stage="identity" data-state="active"><span>Card identity + Collection match</span><small>Name, set, collector number, and language</small><i></i><b>In progress</b></div><div data-process-stage="centering" data-state="waiting"><span>Centering model</span><small>Front and back printed-border geometry</small><i></i><b>Waiting</b></div><div data-process-stage="edges" data-state="waiting"><span>Corner + edge models</span><small>Independent localized evidence</small><i></i><b>Waiting</b></div><div data-process-stage="surface" data-state="waiting"><span>Surface + structure models</span><small>Cross-view evidence comparison</small><i></i><b>Waiting</b></div><div class="grade-processing-overall" data-process-stage="overall" data-state="waiting"><span>Overall grade + automatic attachment</span><i></i><b>Waiting</b></div><strong>Identifying, matching, and grading your card…</strong><small>Mica only changes an eligible Collection card when its printed identity is verified.</small></div>' : '<button class="identification-back" id="cancelIdentification" type="button" aria-label="Back">‹</button><div class="card-loading-skeleton" role="status" aria-live="polite" aria-label="Loading your card"><span class="sr-only">Checking your card</span><div class="skeleton-card" aria-hidden="true"></div><div class="skeleton-copy" aria-hidden="true"><i></i><i></i><i></i></div><div class="skeleton-chart" aria-hidden="true"></div></div>'}`,
@@ -15944,7 +15959,34 @@ function openInfo(kind) {
   );
 }
 
+function renderGradingAvailability() {
+  const held = state.gradingCapability && state.gradingCapability !== "active";
+  const launch = $("#digitalGraderButton");
+  if (launch) {
+    launch.disabled = Boolean(held);
+    $("strong", launch).textContent = held ? "Currently unavailable" : "Open the camera";
+    $("em", launch).textContent = held ? "Your saved reports are still available" : "Photo estimate · not a professional grade";
+    $("b", launch).textContent = held ? "" : "Start scan →";
+  }
+  $$("[data-digital-grade], [data-continue-grading], #positionGradeFirst").forEach(button => {
+    button.disabled = Boolean(held);
+    if (held) button.title = "Digital grading is currently unavailable";
+    else button.removeAttribute("title");
+  });
+}
+
+async function requireDigitalGrading(refresh = false) {
+  const owner = state.session?.user?.id, version = sessionLoadVersion;
+  if (!accountRequestIsCurrent(owner, version)) return false;
+  if (refresh || !state.gradingCapability) await refreshCapabilityStatus();
+  if (!accountRequestIsCurrent(owner, version)) return false;
+  if (state.gradingCapability === "active") return true;
+  toast("Digital grading is currently unavailable");
+  return false;
+}
+
 async function refreshCapabilityStatus() {
+  const owner = state.session?.user?.id, version = sessionLoadVersion;
   const setStatus = (id, copy, stateName) => {
     const node = $(`#${id}`);
     if (!node) return;
@@ -15953,11 +15995,15 @@ async function refreshCapabilityStatus() {
   };
   try {
     const response = await fetch("/api/capabilities", {
+      signal: AbortSignal.timeout(5000),
       headers: { Accept: "application/json" },
       cache: "no-store",
     });
     const capabilities = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error("Connection check unavailable");
+    if (!accountRequestIsCurrent(owner, version)) return;
+    state.gradingCapability = capabilities.vision?.grading || "unavailable";
+    renderGradingAvailability();
     state.actionCenter.capabilities = {
       ...state.actionCenter.capabilities,
       ...(capabilities.notifications || {}),
@@ -15990,6 +16036,9 @@ async function refreshCapabilityStatus() {
       $("#connectionStatusNote").textContent =
         "A tool that still needs a connection will explain what is missing when you open it.";
   } catch {
+    if (!accountRequestIsCurrent(owner, version)) return;
+    state.gradingCapability = null;
+    renderGradingAvailability();
     [
       "catalogConnectionState",
       "pricingConnectionState",
@@ -16332,6 +16381,7 @@ function openNotificationPreferencesSheet() {
   const capabilities = state.actionCenter.capabilities;
   const emailAvailable = capabilities.email === "configured_unverified";
   const pushAvailable = capabilities.webPush === "configured_unverified";
+  const optionalEnabled = preferences.channels.email || preferences.channels.webPush;
   const kindControls = actionRuleKinds()
     .map(
       (kind) =>
@@ -16339,10 +16389,15 @@ function openNotificationPreferencesSheet() {
     )
     .join("");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Notifications</h2></div><button class="sheet-close" aria-label="Close">×</button></div><form id="notificationPreferencesForm"><div class="settings-form"><label class="toggle-field"><input type="checkbox" name="enabled" ${preferences.enabled ? "checked" : ""}><span><strong>Enable alerts</strong></span></label><label class="toggle-field"><input type="checkbox" name="inApp" ${preferences.channels.inApp ? "checked" : ""}><span><strong>In Mica</strong></span></label><details class="notification-advanced"><summary>More options</summary><label class="toggle-field"><input type="checkbox" name="email" ${preferences.channels.email ? "checked" : ""} ${!emailAvailable && !preferences.channels.email ? "disabled" : ""}><span><strong>Email</strong><small>${emailAvailable ? "Delivery hasn’t been verified yet." : "Email alerts aren’t available yet."}</small></span></label><label class="toggle-field"><input type="checkbox" name="webPush" ${preferences.channels.webPush ? "checked" : ""} ${!pushAvailable && !preferences.channels.webPush ? "disabled" : ""}><span><strong>Web push</strong><small>${pushAvailable ? "This device needs notification permission." : "Push notifications aren’t available yet."}</small></span></label><section class="device-notification-settings"><strong>This device</strong><p id="devicePushStatus" role="status">Checking notification support…</p><button id="enableDevicePush" class="secondary" type="button" ${pushAvailable ? "" : "disabled"}>Enable on this device</button><button id="disableDevicePush" class="secondary" type="button">Disable on this device</button><small>Device permission is separate from your account’s Web push setting.</small></section><label class="toggle-field"><input type="checkbox" name="quietEnabled" ${preferences.quietHours.enabled ? "checked" : ""}><span><strong>Quiet hours</strong><small>Pause email and push during these hours.</small></span></label><div class="form-grid"><div class="field"><label for="quietStart">Start</label><input id="quietStart" name="quietStart" type="time" value="${esc(preferences.quietHours.start)}"></div><div class="field"><label for="quietEnd">End</label><input id="quietEnd" name="quietEnd" type="time" value="${esc(preferences.quietHours.end)}"></div><div class="field full"><label for="dailyAlertCap">Daily alert limit</label><input id="dailyAlertCap" name="dailyCap" type="number" min="1" max="50" step="1" value="${preferences.dailyCap}"><small>Maximum alerts each for email, push, and in Mica.</small></div><div class="field full"><label for="notificationTimeZone">Timezone</label><input id="notificationTimeZone" name="timeZone" value="${esc(preferences.timeZone)}" placeholder="America/Chicago" required><small>Used for quiet hours and daily limits.</small></div></div><fieldset class="notification-kinds"><legend>Actions to include</legend>${kindControls}</fieldset></details></div><p class="form-error" id="notificationPreferencesError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="disableOptionalAlerts" type="button">Turn off email &amp; push</button><button class="primary" type="submit">Save alert settings</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Notifications</h2></div><button class="sheet-close" aria-label="Close">×</button></div><form id="notificationPreferencesForm"><div class="settings-form"><label class="toggle-field"><input type="checkbox" name="enabled" ${preferences.enabled ? "checked" : ""}><span><strong>Enable alerts</strong></span></label><label class="toggle-field"><input type="checkbox" name="inApp" ${preferences.channels.inApp ? "checked" : ""}><span><strong>In-app alerts</strong></span></label><details class="notification-advanced"><summary>More options</summary><label class="toggle-field"><input type="checkbox" name="email" ${preferences.channels.email ? "checked" : ""} ${!emailAvailable && !preferences.channels.email ? "disabled" : ""}><span><strong>Email</strong><small>${emailAvailable ? "Delivery hasn’t been verified yet." : "Email alerts aren’t available yet."}</small></span></label><label class="toggle-field"><input type="checkbox" name="webPush" ${preferences.channels.webPush ? "checked" : ""} ${!pushAvailable && !preferences.channels.webPush ? "disabled" : ""}><span><strong>Web push</strong><small>${pushAvailable ? "This device needs notification permission." : "Push notifications aren’t available yet."}</small></span></label><section class="device-notification-settings"><strong>This device</strong><p id="devicePushStatus" role="status">Checking notification support…</p><button id="enableDevicePush" class="secondary" type="button" ${pushAvailable ? "" : "disabled"}>Enable on this device</button><button id="disableDevicePush" class="secondary" type="button">Disable on this device</button><small>Device permission is separate from your account’s Web push setting.</small></section><label class="toggle-field"><input type="checkbox" name="quietEnabled" ${preferences.quietHours.enabled ? "checked" : ""}><span><strong>Quiet hours</strong><small>Pause email and push during these hours.</small></span></label><div class="form-grid"><div class="field"><label for="quietStart">Start</label><input id="quietStart" name="quietStart" type="time" value="${esc(preferences.quietHours.start)}"></div><div class="field"><label for="quietEnd">End</label><input id="quietEnd" name="quietEnd" type="time" value="${esc(preferences.quietHours.end)}"></div><div class="field full"><label for="dailyAlertCap">Daily alert limit</label><input id="dailyAlertCap" name="dailyCap" type="number" min="1" max="50" step="1" value="${preferences.dailyCap}"><small>Maximum alerts in each enabled channel.</small></div><div class="field full"><label for="notificationTimeZone">Timezone</label><input id="notificationTimeZone" name="timeZone" value="${esc(preferences.timeZone)}" placeholder="America/Chicago" required><small>Used for quiet hours and daily limits.</small></div></div><fieldset class="notification-kinds"><legend>Actions to include</legend>${kindControls}</fieldset></details></div><p class="form-error" id="notificationPreferencesError" role="alert"></p><div class="sheet-actions"><button class="secondary" id="disableOptionalAlerts" type="button">Turn off email &amp; push</button><button class="primary" type="submit">Save alert settings</button></div></form>`,
   );
   const form = $("#notificationPreferencesForm");
   const errorNode = $("#notificationPreferencesError");
+  form.querySelector('[name="enabled"]').closest("label").hidden = true;
+  form.querySelector('[name="inApp"]').checked = preferences.enabled && preferences.channels.inApp;
+  form.querySelector(".notification-advanced").hidden = !emailAvailable && !pushAvailable && !optionalEnabled;
+  form.querySelector(".device-notification-settings").hidden = !pushAvailable && !preferences.channels.webPush;
+  $("#disableOptionalAlerts").hidden = !optionalEnabled;
   const current = () =>
     form.isConnected &&
     state.session?.user?.id === owner &&
@@ -16454,7 +16509,7 @@ function openNotificationPreferencesSheet() {
       return;
     }
     const next = normalizeNotificationPreferences({
-      enabled: data.get("enabled") === "on",
+      enabled: data.get("inApp") === "on" || (preferences.enabled && (data.get("email") === "on" || data.get("webPush") === "on")),
       channels: {
         inApp: data.get("inApp") === "on",
         email: data.get("email") === "on",
@@ -19424,7 +19479,8 @@ function bindQuickCardSearch() {
             const owned = ownedCardSummary(item, state.items, {
               exactPrinting: true,
             });
-            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Version unknown")}</em>${ownedSearchStatus(item)}</span></button><div class="quick-card-actions"><button type="button" data-add-search-card="${esc(item.id)}" aria-label="${owned.quantity ? "Add another" : "Add"} ${esc(item.name)} card">${owned.quantity ? "Add another" : "Add"}</button><button type="button" data-queue-search-card="${esc(item.id)}" aria-label="Queue ${esc(item.name)} for batch review">Queue</button></div></div>`;
+            const identityLabel = `${item.name} from ${item.set}, number ${item.number}, ${languageName(item.language || language.value)}, ${item.variant || "Version unknown"}`;
+            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(identityLabel)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Version unknown")}</em>${ownedSearchStatus(item)}</span></button><div class="quick-card-actions"><button type="button" data-add-search-card="${esc(item.id)}" aria-label="${owned.quantity ? "Add another" : "Add"} ${esc(identityLabel)}">${owned.quantity ? "Add another" : "Add"}</button><button type="button" data-queue-search-card="${esc(item.id)}" aria-label="Queue ${esc(identityLabel)} for batch review">Queue</button></div></div>`;
           })
           .join("")}`
       : '<div class="find-empty"><strong>No matching cards</strong><span>Try a name, set or collector number.</span></div>';
@@ -19923,6 +19979,7 @@ function bindEvents() {
     () => void openCardCamera(),
   );
   $("#sealedSearchButton").addEventListener("click", openSealedSearch);
+  $("#chooseCardPhoto").addEventListener("click", () => $("#galleryInput").click());
   $("#galleryInput").addEventListener("change", (event) => {
     const file = event.target.files[0];
     event.target.value = "";
@@ -21139,6 +21196,8 @@ async function applySession(session) {
       attachments: new Map(),
     };
     state.actionCenter = emptyActionCenter(session ? "idle" : "local");
+    state.gradingCapability = null;
+    if (session) void refreshCapabilityStatus();
     state.largeInventory = {
       active: false,
       totalCount: 0,

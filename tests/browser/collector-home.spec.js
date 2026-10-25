@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet, watchAppUpdates }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet, watchAppUpdates, beginDigitalGrading, continueGradingActivity, analyzeCardImages, renderGradingActivity, openFilterSheet }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -174,7 +174,7 @@ async function openCollection(page) {
     });
     state.gradingActivityStatus = "ready";
     bindEvents();
-    routeTo("collection", { focus: false });
+    routeTo("collection", { focus: false, history: "replace" });
     renderCollection();
   }, appUrl);
   await expect(page.locator(".ledger-row")).toHaveCount(2);
@@ -248,6 +248,7 @@ test("inventory filters keep client fields and omit organization prompts", async
   await page.screenshot({path:testInfo.outputPath("inventory-viewport-fixture.png"),animations:"disabled"});
   await page.locator("#filterButton").click();
   await expect(page.locator("#sheetCollectionFolder, #sheetLocation, #sheetLabel")).toHaveCount(0);
+  await page.getByText("More filters", {exact:true}).click();
   for (const id of ["sheetSet", "sheetLanguage", "sheetGrader", "sheetGrade", "sheetPerformance", "sheetMovement", "sheetCoverage", "sheetMinimumValue", "sheetMinimumProfitLoss", "sheetPurchaseDateFrom"]) {
     await expect(page.locator(`#${id}`)).toBeVisible();
   }
@@ -683,12 +684,13 @@ test("private deletion cannot continue or show success under a switched account"
     await expect(row.locator(".price-provenance")).not.toBeEmpty();
     await expect(row.locator(".row-move")).toHaveCount(0);
     await expect(row.locator(".position-price-grid strong").first()).toHaveText("—");
-    if(status==="stale") {expect((await row.innerText()).match(/Older price · view details/g)).toHaveLength(1);await page.screenshot({path:testInfo.outputPath("inventory-single-freshness-fixture.png"),animations:"disabled"});}
+    if(status==="stale") {expect((await row.innerText()).match(/Older price/g)).toHaveLength(1);await page.screenshot({path:testInfo.outputPath("inventory-single-freshness-fixture.png"),animations:"disabled"});}
   }
   await page.evaluate(async url=>{const {state,renderCollection}=await import(url);Object.assign(state.items[0],{price:100,pricingStatus:"live",pricingUpdatedAt:new Date().toISOString(),costBasis:60,marketPriceAtPurchase:60});renderCollection();},appUrl);
   const live=page.locator(".ledger-row").filter({hasText:"Charizard"});
-  await expect(live.locator(".price-provenance")).toContainText("Updated");
-  await expect(live.locator(".row-move")).toContainText("since purchase");
+  await expect(live.locator(".price-provenance")).toHaveCount(0);
+  await expect(live.locator(".row-move")).toContainText("+");
+  await expect(live.locator(".row-move")).not.toContainText("since purchase");
  });
 
 test("dialog keyboard loop includes native disclosures and excludes their closed inputs",async({page})=>{
@@ -992,4 +994,62 @@ test('delayed sheet autofocus cannot steal focus after an explicitly focused sea
   return document.activeElement===document.body;
  });
  expect(stayedNeutral).toBe(true);
+});
+
+test('held grading blocks new and resumed scans before any write while saved reports remain accessible',async({page})=>{
+  await openCollection(page);
+  let writes=0,analyses=0;
+  await page.route('**/api/capabilities',route=>route.fulfill({json:{vision:{grading:'release_hold'},notifications:{inApp:'active',email:'release_hold',webPush:'release_hold'}}}));
+  await page.route('https://mica-detail-test.supabase.co/rest/v1/rpc/**',route=>{writes++;return route.fulfill({json:null});});
+  await page.route('**/api/vision',route=>{analyses++;return route.fulfill({status:503,json:{code:'release_hold'}});});
+  await page.locator('.collection-grading-workspace>summary').click();
+  await page.locator('#digitalGraderButton').click();
+  await expect(page.locator('#digitalGraderButton')).toBeDisabled();
+  await expect(page.locator('#digitalGraderButton')).toContainText('Currently unavailable');
+  await page.evaluate(async url=>{
+    const app=await import(url);
+    app.state.gradingActivityStatus='ready';
+    app.state.gradingActivity=[{id:'unfinished',workflow_status:'capturing',identity_snapshot:{name:'Pikachu'}},{id:'saved-report',workflow_status:'completed',identity_snapshot:{name:'Blastoise'}}];
+    app.renderGradingActivity();
+    await app.beginDigitalGrading();
+    await app.continueGradingActivity('unfinished');
+    await app.analyzeCardImages('grade',[]);
+  },appUrl);
+  await expect(page.locator('[data-continue-grading="unfinished"]')).toBeDisabled();
+  await expect(page.locator('[data-open-grading-report="saved-report"]')).toBeEnabled();
+  expect(writes).toBe(0);expect(analyses).toBe(0);
+  await expect(page.locator('#bottomSheet')).toBeHidden();
+});
+
+test('advanced collection filters preserve values and reopen when active',async({page})=>{
+  await openCollection(page);
+  await page.locator('#filterButton').click();
+  await expect(page.locator('#sheetGrader')).toBeVisible();
+  await expect(page.locator('#sheetMinimumValue')).toBeHidden();
+  await page.getByText('More filters',{exact:true}).click();
+  await page.locator('#sheetMinimumValue').fill('25');
+  await page.locator('#applySheet').click();
+  await page.locator('#filterButton').click();
+  await expect(page.locator('#sheetMinimumValue')).toBeVisible();
+  await expect(page.locator('#sheetMinimumValue')).toHaveValue('25');
+  await page.locator('#resetSheet').click();
+  expect(await page.evaluate(async url=>(await import(url)).state.minimumValue,appUrl)).toBe('');
+});
+
+test('grading availability fails closed on account changes and connection failures',async({page})=>{
+  await openCollection(page);
+  let pending,writes=0;
+  await page.route('https://mica-detail-test.supabase.co/rest/v1/rpc/**',route=>{writes++;return route.fulfill({json:null});});
+  await page.route('**/api/capabilities',route=>{pending=route;});
+  await page.evaluate(async url=>{const app=await import(url);globalThis.gradingAttempt=app.beginDigitalGrading();},appUrl);
+  await expect.poll(()=>Boolean(pending)).toBe(true);
+  await page.evaluate(async url=>{(await import(url)).state.session={user:{id:'different-owner'}};},appUrl);
+  await pending.fulfill({json:{vision:{grading:'active'}}});
+  await page.evaluate(()=>globalThis.gradingAttempt);
+  expect(await page.evaluate(async url=>(await import(url)).state.gradingCapability,appUrl)).toBeNull();
+  await page.unroute('**/api/capabilities');
+  await page.route('**/api/capabilities',route=>route.fulfill({status:503,json:{}}));
+  await page.evaluate(async url=>(await import(url)).beginDigitalGrading(),appUrl);
+  expect(writes).toBe(0);
+  await expect(page.locator('#bottomSheet')).toBeHidden();
 });

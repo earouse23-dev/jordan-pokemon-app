@@ -9,10 +9,10 @@ const start = source.indexOf("function openNotificationPreferencesSheet()");
 const end = source.indexOf("\nasync function openInstallExperience()", start);
 const handler = source.slice(start, end);
 
-async function openPreferences(page) {
+async function openPreferences(page, overrides = {}, held = false) {
   await page.setContent('<main id="fixture"></main>');
   await page.evaluate(
-    ({ handler, preferences }) => {
+    ({ handler, preferences, held }) => {
       window.$ = (selector) => document.querySelector(selector);
       window.esc = (value) => String(value);
       window.sessionLoadVersion = 1;
@@ -24,8 +24,8 @@ async function openPreferences(page) {
           status: "ready",
           preferences,
           capabilities: {
-            email: "configured_unverified",
-            webPush: "configured_unverified",
+            email: held ? "release_hold" : "configured_unverified",
+            webPush: held ? "release_hold" : "configured_unverified",
           },
         },
       };
@@ -56,8 +56,10 @@ async function openPreferences(page) {
     },
     {
       handler,
+      held,
       preferences: normalizeNotificationPreferences({
         channels: { inApp: true, email: true, webPush: true },
+        ...overrides,
       }),
     },
   );
@@ -112,4 +114,18 @@ test("alert settings retain choices and hide server detail through retry", async
   const requests = await page.evaluate(() => window.saveRequests);
   expect(requests).toHaveLength(2);
   expect(requests[1]).toEqual(requests[0]);
+});
+
+test('in-app-only settings stay simple and retain hidden limits through retry',async({page})=>{
+  await openPreferences(page,{channels:{inApp:true,email:false,webPush:false},dailyCap:9},true);
+  await expect(page.getByLabel('In-app alerts',{exact:true})).toBeVisible();
+  await expect(page.locator('.notification-advanced')).toBeHidden();
+  await expect(page.locator('#disableOptionalAlerts')).toBeHidden();
+  await page.getByLabel('In-app alerts',{exact:true}).uncheck();
+  await page.getByRole('button',{name:'Save alert settings'}).click();
+  await expect(page.locator('#notificationPreferencesError')).toContainText(/please try again/i);
+  await page.getByRole('button',{name:'Save alert settings'}).click();
+  const saved=await page.evaluate(()=>saveRequests[1]);
+  expect(saved.channels).toEqual({inApp:false,email:false,webPush:false});
+  expect(saved.enabled).toBe(false);expect(Number(saved.dailyCap)).toBe(9);
 });

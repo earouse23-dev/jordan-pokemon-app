@@ -659,3 +659,40 @@ test('manual printing choices have distinct accessible names with edition, finis
   await expect(page.getByRole('button',{name:/English, 1st Edition.*Holofoil/})).toBeVisible();
   await expect(page.getByRole('button',{name:/English, Non-holo/})).toBeVisible();
 });
+
+for (const appearance of ['light', 'dark']) test(`quick printing choices stay distinct and readable in ${appearance}`, async ({page},testInfo)=>{
+  const variants=['Unlimited Holofoil','1st Edition Holofoil','Non-holo'];
+  await page.route('**/api/catalog?**',route=>fulfillCards(route,variants.map((variant,index)=>({...card('Blastoise'),id:`en:blastoise-${index}`,set:'Base Set',number:'2/102',variant,variants:[variant]}))));
+  await setup(page);
+  await page.evaluate(value=>{document.body.dataset.appearance=value;},appearance);
+  await page.locator('#quickCardSearch').fill('Blastoise Base Set');
+  await expect(page.locator('[data-quick-card]')).toHaveCount(3);
+  for(const selector of ['[data-quick-card]','[data-add-search-card]','[data-queue-search-card]']) {
+    const names=await page.locator(selector).evaluateAll(els=>els.map(e=>e.getAttribute('aria-label')));
+    expect(new Set(names).size).toBe(3);
+    for(const [index,name] of names.entries()) {expect(name).toContain('English');expect(name.replaceAll(' · ',' ')).toContain(variants[index]);}
+  }
+  const button=page.locator('[data-quick-card]').first();
+  for(const interaction of ['rest','hover','focus']) {
+    if(interaction==='hover') await button.hover();
+    if(interaction==='focus') await button.focus();
+    const ratios=await button.evaluate(el=>{
+      const rgb=v=>v.match(/[\d.]+/g).slice(0,3).map(Number);
+      const lum=c=>{const v=c.map(n=>{n/=255;return n<=.04045?n/12.92:((n+.055)/1.055)**2.4;});return v[0]*.2126+v[1]*.7152+v[2]*.0722;};
+      const bg=lum(rgb(getComputedStyle(el).backgroundColor));
+      return [...el.querySelectorAll('strong,small,em')].map(e=>{const fg=lum(rgb(getComputedStyle(e).color));return (Math.max(fg,bg)+.05)/(Math.min(fg,bg)+.05);});
+    });
+    for(const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
+  }
+  await page.screenshot({path:testInfo.outputPath(`quick-search-${appearance}.png`),animations:'disabled'});
+});
+
+test('photo-library selection is a keyboard button that opens the existing file input',async({page,browserName})=>{
+  await setup(page);
+  await page.locator('#autoCaptureButton').focus();
+  await page.keyboard.press(browserName === 'webkit' ? 'Alt+Tab' : 'Tab');
+  await expect(page.getByRole('button',{name:'Choose a photo',exact:true})).toBeFocused();
+  const chooser=page.waitForEvent('filechooser');
+  await page.keyboard.press('Enter');
+  expect((await chooser).isMultiple()).toBe(false);
+});
