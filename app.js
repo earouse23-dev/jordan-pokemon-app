@@ -2805,7 +2805,43 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
 
 }
 
-// Shared inspection and fill keep card and portfolio histories visually consistent.
+// Reveal only the plotted data; keep axes fixed and avoid Chart.js value tweening.
+const historyChartReveal = {
+  id: "historyReveal",
+  beforeInit(chart) {
+    if (motionPreference !== "reduce" && !matchMedia("(prefers-reduced-motion: reduce)").matches)
+      chart.$historyReveal = { startedAt: null, progress: 0, frame: null };
+  },
+  beforeDatasetsDraw(chart) {
+    const reveal = chart.$historyReveal;
+    if (!reveal || reveal.progress === 1) return;
+    reveal.startedAt ??= performance.now();
+    reveal.progress = motionPreference === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? 1 : Math.min(1, (performance.now() - reveal.startedAt) / 850);
+    if (reveal.progress === 1) return;
+    const { left, top, width, height } = chart.chartArea;
+    chart.ctx.save();
+    chart.ctx.beginPath();
+    chart.ctx.rect(left, top, width * reveal.progress, height);
+    chart.ctx.clip();
+    reveal.clipped = true;
+  },
+  afterDatasetsDraw(chart) {
+    const reveal = chart.$historyReveal;
+    if (!reveal?.clipped) return;
+    chart.ctx.restore();
+    reveal.clipped = false;
+    if (reveal.progress < 1 && reveal.frame === null)
+      reveal.frame = requestAnimationFrame(() => {
+        reveal.frame = null;
+        chart.draw();
+      });
+  },
+  afterDestroy(chart) {
+    if (chart.$historyReveal?.frame != null)
+      cancelAnimationFrame(chart.$historyReveal?.frame);
+  },
+};
 const historyChartCursor = {
   id: "historyCursor",
   afterDatasetsDraw(chart) {
@@ -2908,7 +2944,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
     });
   chartInstance = new Chart(canvas, {
     type: "line",
-    plugins: [historyChartCursor],
+    plugins: [historyChartReveal, historyChartCursor],
     data: { datasets },
     options: {
       responsive: true,
@@ -5384,7 +5420,7 @@ async function mountPortfolioHistoryChart({
   });
   portfolioChartInstance = new Chart(canvas, {
     type: "line",
-    plugins: [historyChartCursor],
+    plugins: [historyChartReveal, historyChartCursor],
     data: {
       labels: points.map((point) => Date.parse(`${point.date}T00:00:00Z`)),
       datasets: [

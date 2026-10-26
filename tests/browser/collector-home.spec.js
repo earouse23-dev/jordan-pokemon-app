@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet, watchAppUpdates, beginDigitalGrading, continueGradingActivity, analyzeCardImages, renderGradingActivity, openFilterSheet }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, chartInstance, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet, watchAppUpdates, beginDigitalGrading, continueGradingActivity, analyzeCardImages, renderGradingActivity, openFilterSheet }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -459,6 +459,7 @@ test("secondary insights use native sealed values and exact-sold graded evidence
 });
 
 test("owner dashboard defaults to an all-time dominant graph and independent P/L timeframe", async ({ page }, testInfo) => {
+  await page.addInitScript(() => { globalThis.revealTestTime = 0; performance.now = () => globalThis.revealTestTime; });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await openCollection(page);
   await page.evaluate(() => {
@@ -475,6 +476,9 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
     expect(parseFloat(await page.locator(selector).evaluate(element => getComputedStyle(element).borderTopLeftRadius))).toBeGreaterThanOrEqual(12);
   await expect.poll(() => page.evaluate(() => Boolean(globalThis.fixtureApp.portfolioChartInstance))).toBe(true);
   expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.options.animation)).toBe(false);
+  expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.$historyReveal?.progress)).toBeLessThan(1);
+  await page.evaluate(() => { globalThis.revealTestTime = 1000; });
+  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.$historyReveal?.progress)).toBe(1);
   expect(await page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance.data.datasets[0].tension)).toBe(0);
   expect(await page.locator(".app-header").evaluate(el => getComputedStyle(el).position)).toBe("fixed");
   const headerTop = (await page.locator(".app-header").boundingBox()).y;
@@ -1052,4 +1056,27 @@ test('grading availability fails closed on account changes and connection failur
   await page.evaluate(async url=>(await import(url)).beginDigitalGrading(),appUrl);
   expect(writes).toBe(0);
   await expect(page.locator('#bottomSheet')).toBeHidden();
+});
+
+test("price history draws from left to right and respects reduced motion", async ({ page }, testInfo) => {
+  await page.addInitScript(() => { globalThis.revealTestTime = 0; performance.now = () => globalThis.revealTestTime; });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openDetail(page, { condition: "Near Mint", priceHistory: [
+    { recordedAt: "2026-09-01", amount: 100, currency: "USD", finish: "holofoil", condition: "Near Mint", provider: "synthetic" },
+    { recordedAt: "2026-09-02", amount: 110, currency: "USD", finish: "holofoil", condition: "Near Mint", provider: "synthetic" },
+    { recordedAt: "2026-09-03", amount: 105, currency: "USD", finish: "holofoil", condition: "Near Mint", provider: "synthetic" },
+  ] });
+  await expect.poll(() => page.evaluate(() => !!globalThis.fixtureApp.chartInstance)).toBe(true);
+  expect(await page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal?.progress)).toBeLessThan(1);
+  await page.evaluate(() => { globalThis.revealTestTime = 425; });
+  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal?.progress)).toBe(0.5);
+  await page.evaluate(() => { globalThis.revealTestTime = 1000; });
+  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal?.progress)).toBe(1);
+  await page.locator("#positionChart").scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("price-reveal-complete-synthetic.png") });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.evaluate(() => globalThis.fixtureApp.renderDetail());
+  await expect.poll(() => page.evaluate(() => !!globalThis.fixtureApp.chartInstance)).toBe(true);
+  expect(await page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal)).toBeUndefined();
+  expect(await page.evaluate(() => globalThis.fixtureApp.chartInstance.data.datasets[0].data.length)).toBe(3);
 });
