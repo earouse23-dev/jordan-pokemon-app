@@ -1,0 +1,42 @@
+{
+  "standard": "https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html",
+  "threshold": 4.5,
+  "confirmed": [
+    {
+      "appearance": "light",
+      "selector": "#resultCount",
+      "ratio": 4.09
+    },
+    {
+      "appearance": "light",
+      "selector": ".row-unit.price-provenance",
+      "ratio": 4.4
+    },
+    {
+      "appearance": "light",
+      "selector": "#allCount, #sealedCount, #watchlistCount",
+      "ratio": 4.46
+    },
+    {
+      "appearance": "light",
+      "selector": ".legal-copy",
+      "ratio": 4.09
+    },
+    {
+      "appearance": "dark",
+      "selector": "#dashboardMoneyDetails>summary",
+      "ratio": 3.79
+    },
+    {
+      "appearance": "light",
+      "selector": "#dashboardMoneyDetails>summary",
+      "ratio": 4.43
+    }
+  ],
+  "excludedCandidates": [
+    "Decorative arrow in unopened-products button",
+    "Hidden action-center controls",
+    "P/L timeframe summary (actual dark text is #edf2eb and passes)"
+  ],
+  "note": "Other raw contrast candidates are triage data, not a blanket compliance verdict."
+}

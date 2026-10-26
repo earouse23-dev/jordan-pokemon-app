@@ -1,0 +1,21 @@
+{
+  "actionBar": {
+    "bottom": 836,
+    "left": 12,
+    "right": 378,
+    "top": 774
+  },
+  "control": {
+    "bottom": 800.078125,
+    "left": 279.5,
+    "right": 374,
+    "top": 752.078125
+  },
+  "controlReceivesCenter": false,
+  "hitElement": "owned-actions",
+  "selector": "#cardHistoryRange",
+  "viewport": {
+    "height": 844,
+    "width": 390
+  }
+}

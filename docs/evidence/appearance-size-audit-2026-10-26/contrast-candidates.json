@@ -1,0 +1,234 @@
+[
+  {
+    "surface": "search",
+    "appearance": "light",
+    "width": 390,
+    "tested": 24,
+    "failures": []
+  },
+  {
+    "surface": "library",
+    "appearance": "light",
+    "width": 1920,
+    "tested": 48,
+    "failures": [
+      {
+        "background": [
+          228,
+          234,
+          223
+        ],
+        "element": "span#allCount ",
+        "fontSize": 12,
+        "foreground": "rgb(98, 108, 99)",
+        "ratio": 4.46,
+        "required": 4.5
+      },
+      {
+        "background": [
+          228,
+          234,
+          223
+        ],
+        "element": "span#sealedCount ",
+        "fontSize": 12,
+        "foreground": "rgb(98, 108, 99)",
+        "ratio": 4.46,
+        "required": 4.5
+      },
+      {
+        "background": [
+          228,
+          234,
+          223
+        ],
+        "element": "span#watchlistCount ",
+        "fontSize": 12,
+        "foreground": "rgb(98, 108, 99)",
+        "ratio": 4.46,
+        "required": 4.5
+      },
+      {
+        "background": [
+          246,
+          247,
+          244
+        ],
+        "element": "span#resultCount ",
+        "fontSize": 12,
+        "foreground": "rgb(113, 123, 113)",
+        "ratio": 4.09,
+        "required": 4.5
+      },
+      {
+        "background": [
+          255,
+          255,
+          255
+        ],
+        "element": "span.row-unit.price-provenance",
+        "fontSize": 12,
+        "foreground": "rgb(113, 123, 113)",
+        "ratio": 4.4,
+        "required": 4.5
+      }
+    ]
+  },
+  {
+    "surface": "detail",
+    "appearance": "light",
+    "width": 1920,
+    "tested": 30,
+    "failures": [
+      {
+        "background": [
+          246,
+          247,
+          244
+        ],
+        "element": "p.legal-copy",
+        "fontSize": 12,
+        "foreground": "rgb(113, 123, 113)",
+        "ratio": 4.09,
+        "required": 4.5
+      }
+    ]
+  },
+  {
+    "surface": "settings",
+    "appearance": "light",
+    "width": 390,
+    "tested": 19,
+    "failures": [
+      {
+        "background": [
+          228,
+          234,
+          223
+        ],
+        "element": "span ",
+        "fontSize": 13,
+        "foreground": "rgb(98, 108, 99)",
+        "ratio": 4.46,
+        "required": 4.5
+      }
+    ]
+  },
+  {
+    "surface": "settings",
+    "appearance": "dark",
+    "width": 1920,
+    "tested": 19,
+    "failures": []
+  },
+  {
+    "surface": "portfolio",
+    "appearance": "dark",
+    "width": 1920,
+    "tested": 51,
+    "failures": [
+      {
+        "background": [
+          17,
+          24,
+          20
+        ],
+        "element": "summary ",
+        "fontSize": 15,
+        "foreground": "rgb(102, 120, 93)",
+        "ratio": 3.79,
+        "required": 4.5
+      }
+    ]
+  },
+  {
+    "surface": "search",
+    "appearance": "dark",
+    "width": 1920,
+    "tested": 26,
+    "failures": [
+      {
+        "background": [
+          25,
+          35,
+          29
+        ],
+        "element": "b ",
+        "fontSize": 12,
+        "foreground": "rgb(102, 120, 93)",
+        "ratio": 3.39,
+        "required": 4.5
+      },
+      {
+        "background": [
+          237,
+          244,
+          232
+        ],
+        "element": "button ",
+        "fontSize": 12,
+        "foreground": "rgb(102, 120, 93)",
+        "ratio": 4.24,
+        "required": 4.5
+      },
+      {
+        "background": [
+          237,
+          244,
+          232
+        ],
+        "element": "button ",
+        "fontSize": 12,
+        "foreground": "rgb(102, 120, 93)",
+        "ratio": 4.24,
+        "required": 4.5
+      },
+      {
+        "background": [
+          237,
+          244,
+          232
+        ],
+        "element": "button ",
+        "fontSize": 12,
+        "foreground": "rgb(102, 120, 93)",
+        "ratio": 4.24,
+        "required": 4.5
+      }
+    ]
+  },
+  {
+    "surface": "library",
+    "appearance": "dark",
+    "width": 1920,
+    "tested": 48,
+    "failures": []
+  },
+  {
+    "surface": "detail",
+    "appearance": "dark",
+    "width": 1920,
+    "tested": 30,
+    "failures": []
+  },
+  {
+    "surface": "portfolio",
+    "appearance": "light",
+    "width": 667,
+    "tested": 49,
+    "failures": [
+      {
+        "background": [
+          246,
+          247,
+          244
+        ],
+        "element": "summary ",
+        "fontSize": 15,
+        "foreground": "rgb(102, 120, 93)",
+        "ratio": 4.43,
+        "required": 4.5
+      }
+    ]
+  }
+]

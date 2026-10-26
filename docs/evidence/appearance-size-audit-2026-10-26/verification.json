@@ -1,0 +1,167 @@
+{
+  "checkedAt": "2026-10-26T23:53:01.793Z",
+  "sourceRelease": "64c9d2a670aa",
+  "repositoryHead": "fcb2e36",
+  "applicationSourceChanged": false,
+  "productionConfigChanged": false,
+  "customerInventoryWrites": 0,
+  "customerPreferenceDatabaseWrites": 0,
+  "browserAppearanceRestored": "auto (System), verified through Theme control",
+  "viewportRestored": true,
+  "unit": {
+    "passed": 595,
+    "skipped": 3,
+    "failed": 0
+  },
+  "lintPassed": true,
+  "expandedBrowser": {
+    "startTime": "2026-10-26T23:32:03.646Z",
+    "duration": 204759.072,
+    "expected": 440,
+    "skipped": 10,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "coreBrowser": {
+    "startTime": "2026-10-26T23:42:29.437Z",
+    "duration": 242969.23299999998,
+    "expected": 334,
+    "skipped": 11,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "liveMatrix": {
+    "appearances": [
+      "light",
+      "dark"
+    ],
+    "sizes": [
+      [
+        320,
+        568
+      ],
+      [
+        360,
+        800
+      ],
+      [
+        375,
+        667
+      ],
+      [
+        390,
+        844
+      ],
+      [
+        430,
+        932
+      ],
+      [
+        667,
+        375
+      ],
+      [
+        759,
+        900
+      ],
+      [
+        760,
+        900
+      ],
+      [
+        768,
+        1024
+      ],
+      [
+        820,
+        1180
+      ],
+      [
+        1023,
+        900
+      ],
+      [
+        1024,
+        768
+      ],
+      [
+        1280,
+        800
+      ],
+      [
+        1440,
+        900
+      ],
+      [
+        1920,
+        1080
+      ]
+    ],
+    "states": [
+      "settings",
+      "notifications",
+      "portfolio",
+      "search",
+      "library",
+      "filters",
+      "filters-expanded",
+      "detail",
+      "add-copy",
+      "edit-copy"
+    ],
+    "combinations": 300,
+    "horizontalOverflow": 0,
+    "canvasSizeMismatches": 0
+  },
+  "security": {
+    "ordinaryPublicTablesWithoutRls": 0,
+    "publicStorageBuckets": 0,
+    "privateStorageBuckets": 4,
+    "databaseBytes": 347466899,
+    "authenticatedDefiners": 14,
+    "emptySearchPaths": 14,
+    "ownerOrAdminReferences": 14,
+    "limitation": "Metadata and guard-reference inspection is not full function authorization proof or a penetration test.",
+    "advisors": {
+      "rlsNoPolicyInfo": 21,
+      "authenticatedDefinerWarnings": 14,
+      "leakedPasswordProtectionDisabled": 1
+    },
+    "productionDependencyVulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "headers": {
+      "contentSecurityPolicy": true,
+      "strictTransportSecurity": true,
+      "nosniff": true,
+      "frameProtection": true,
+      "permissionsPolicy": true
+    }
+  },
+  "savedViews": {
+    "count": 2,
+    "currentDay": 2,
+    "incomplete": 0
+  },
+  "providerLedger": {
+    "since": "2026-10-26T23:32:03Z",
+    "recordedRequests": 0,
+    "reservedCredits": 0,
+    "returnedItems": 0,
+    "limitation": "Account-wide recorded provider usage within this bounded window; not a claim of zero ordinary HTTP requests or an unattended 24-hour proof."
+  },
+  "limitations": [
+    "Representative viewport coverage, not every possible viewport/device/browser setting.",
+    "Physical iPhone camera, keyboard, safe-area, offline/resume acceptance remains separate.",
+    "No new production inventory writes, load test, destructive account deletion, provider coverage parity or public/store readiness certification."
+  ],
+  "liveGradingAcceptance": {
+    "launchEnabled": false,
+    "savedReportButtons": 1
+  }
+}

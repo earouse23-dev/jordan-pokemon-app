@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-26T23:44:07.876Z",
+  "results": [
+    {
+      "surface": "saved portfolio",
+      "method": "GET",
+      "status": 401,
+      "cacheControl": "private, no-store"
+    },
+    {
+      "surface": "account deletion",
+      "method": "DELETE",
+      "status": 401,
+      "cacheControl": "no-store"
+    },
+    {
+      "surface": "identification",
+      "method": "POST",
+      "status": 401,
+      "cacheControl": "no-store"
+    }
+  ],
+  "authenticatedDeletionAttempted": false
+}

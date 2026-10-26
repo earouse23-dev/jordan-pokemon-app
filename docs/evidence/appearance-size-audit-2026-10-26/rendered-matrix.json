@@ -1,0 +1,5783 @@
+{
+  "sizes": [
+    [
+      320,
+      568
+    ],
+    [
+      360,
+      800
+    ],
+    [
+      375,
+      667
+    ],
+    [
+      390,
+      844
+    ],
+    [
+      430,
+      932
+    ],
+    [
+      667,
+      375
+    ],
+    [
+      759,
+      900
+    ],
+    [
+      760,
+      900
+    ],
+    [
+      768,
+      1024
+    ],
+    [
+      820,
+      1180
+    ],
+    [
+      1023,
+      900
+    ],
+    [
+      1024,
+      768
+    ],
+    [
+      1280,
+      800
+    ],
+    [
+      1440,
+      900
+    ],
+    [
+      1920,
+      1080
+    ]
+  ],
+  "method": "Live CUA DOM reads during viewport changes. Latest observation retained per state/appearance/size; canvas dimensions polled until matching CSS dimensions. Occlusions and target measurements are candidates requiring contextual visual validation.",
+  "rawObservationCount": 448,
+  "mainCombinations": 300,
+  "observations": [
+    {
+      "appearance": "light",
+      "blocked": [
+        "button#targetAlertButton"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button"
+      ],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1024,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1280,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1440,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1920,
+      "surface": "settings"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 320,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 360,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 375,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 390,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 430,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 667,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 759,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 760,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 768,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 820,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1023,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1024,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1280,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1440,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1920,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#portfolioChartRange"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 261,
+          "bitmapWidth": 304,
+          "height": 261.2734375,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 312,
+          "width": 304
+        }
+      ],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 295,
+          "bitmapWidth": 344,
+          "height": 295.1953125,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 352,
+          "width": 344
+        }
+      ],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 359,
+          "height": 306.8125,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 367,
+          "width": 359
+        }
+      ],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 319,
+          "bitmapWidth": 374,
+          "height": 319.796875,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 382,
+          "width": 374
+        }
+      ],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 352,
+          "bitmapWidth": 414,
+          "height": 352.59375,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 422,
+          "width": 414
+        }
+      ],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 240,
+          "bitmapWidth": 651,
+          "height": 240,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 659,
+          "width": 651
+        }
+      ],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 414,
+          "bitmapWidth": 743,
+          "height": 414,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 751,
+          "width": 743
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button#moreButton.icon-button",
+        "button.activity-row"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 712,
+          "height": 306,
+          "id": "portfolioHistoryChart",
+          "left": 24,
+          "right": 736,
+          "width": 712
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button#moreButton.icon-button",
+        "button.activity-row"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 348,
+          "bitmapWidth": 720,
+          "height": 348.15625,
+          "id": "portfolioHistoryChart",
+          "left": 24,
+          "right": 744,
+          "width": 720
+        }
+      ],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button#moreButton.icon-button",
+        "button.dashboard-card-row"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 400,
+          "bitmapWidth": 772,
+          "height": 400,
+          "id": "portfolioHistoryChart",
+          "left": 24,
+          "right": 796,
+          "width": 772
+        }
+      ],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button#moreButton.icon-button"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 975,
+          "height": 306,
+          "id": "portfolioHistoryChart",
+          "left": 24,
+          "right": 999,
+          "width": 975
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 300,
+          "bitmapWidth": 756,
+          "height": 300,
+          "id": "portfolioHistoryChart",
+          "left": 244,
+          "right": 1000,
+          "width": 756
+        }
+      ],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1024,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 300,
+          "bitmapWidth": 1012,
+          "height": 300,
+          "id": "portfolioHistoryChart",
+          "left": 244,
+          "right": 1256,
+          "width": 1012
+        }
+      ],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1280,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 1172,
+          "height": 306,
+          "id": "portfolioHistoryChart",
+          "left": 244,
+          "right": 1416,
+          "width": 1172
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1440,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 367,
+          "bitmapWidth": 1652,
+          "height": 367.1953125,
+          "id": "portfolioHistoryChart",
+          "left": 244,
+          "right": 1896,
+          "width": 1652
+        }
+      ],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1920,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#quickSearchLanguage"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#quickSearchLanguage"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button",
+        "button"
+      ],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button",
+        "button"
+      ],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1024,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1280,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1440,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1920,
+      "surface": "search"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-quick-add",
+        "button.ledger-favorite",
+        "button.ledger-quick-add"
+      ],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 759,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 760,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 768,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 820,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1023,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1024,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1280,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1440,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1920,
+      "surface": "library"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetGrader"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetGrader"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetGrade",
+        "summary"
+      ],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetGrade",
+        "summary"
+      ],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetSort"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetSort"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetSort"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1024,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1280,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetSort"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1440,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1920,
+      "surface": "filters"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetGrader"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetGrade",
+        "summary"
+      ],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetCoverage"
+      ],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetCondition"
+      ],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetCoverage"
+      ],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetAcquisition"
+      ],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1024,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1280,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1440,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#sheetCoverage"
+      ],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1920,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 261,
+          "bitmapWidth": 304,
+          "height": 261.2734375,
+          "id": "positionChart",
+          "left": 8,
+          "right": 312,
+          "width": 304
+        }
+      ],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 288
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 288
+        }
+      ],
+      "width": 320,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 295,
+          "bitmapWidth": 344,
+          "height": 295.1953125,
+          "id": "positionChart",
+          "left": 8,
+          "right": 352,
+          "width": 344
+        }
+      ],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 328
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 328
+        }
+      ],
+      "width": 360,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 359,
+          "height": 306.8125,
+          "id": "positionChart",
+          "left": 8,
+          "right": 367,
+          "width": 359
+        }
+      ],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 343
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 343
+        }
+      ],
+      "width": 375,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "select#cardHistoryRange"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 319,
+          "bitmapWidth": 374,
+          "height": 319.796875,
+          "id": "positionChart",
+          "left": 8,
+          "right": 382,
+          "width": 374
+        }
+      ],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 358
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 358
+        }
+      ],
+      "width": 390,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 352,
+          "bitmapWidth": 414,
+          "height": 352.59375,
+          "id": "positionChart",
+          "left": 8,
+          "right": 422,
+          "width": 414
+        }
+      ],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 398
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 398
+        }
+      ],
+      "width": 430,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "a.inline-source-link",
+        "summary"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 240,
+          "bitmapWidth": 651,
+          "height": 240,
+          "id": "positionChart",
+          "left": 8,
+          "right": 659,
+          "width": 651
+        }
+      ],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 635
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 635
+        }
+      ],
+      "width": 667,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 414,
+          "bitmapWidth": 743,
+          "height": 414,
+          "id": "positionChart",
+          "left": 8,
+          "right": 751,
+          "width": 743
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 727
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 727
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 759,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 378,
+          "bitmapWidth": 712,
+          "height": 378,
+          "id": "positionChart",
+          "left": 24,
+          "right": 736,
+          "width": 712
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 712
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 712
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 760,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 430,
+          "bitmapWidth": 720,
+          "height": 430.078125,
+          "id": "positionChart",
+          "left": 24,
+          "right": 744,
+          "width": 720
+        }
+      ],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 720
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 720
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 768,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 495,
+          "bitmapWidth": 772,
+          "height": 495.59375,
+          "id": "positionChart",
+          "left": 24,
+          "right": 796,
+          "width": 772
+        }
+      ],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 772
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 772
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 820,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 378,
+          "bitmapWidth": 975,
+          "height": 378,
+          "id": "positionChart",
+          "left": 24,
+          "right": 999,
+          "width": 975
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 975
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 975
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1023,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 322,
+          "bitmapWidth": 756,
+          "height": 322.5546875,
+          "id": "positionChart",
+          "left": 244,
+          "right": 1000,
+          "width": 756
+        }
+      ],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 756
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 756
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1024,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 336,
+          "bitmapWidth": 1012,
+          "height": 336,
+          "id": "positionChart",
+          "left": 244,
+          "right": 1256,
+          "width": 1012
+        }
+      ],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1012
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1012
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1280,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 378,
+          "bitmapWidth": 1172,
+          "height": 378,
+          "id": "positionChart",
+          "left": 244,
+          "right": 1416,
+          "width": 1172
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1172
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1172
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1440,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 453,
+          "bitmapWidth": 1652,
+          "height": 453.59375,
+          "id": "positionChart",
+          "left": 244,
+          "right": 1896,
+          "width": 1652
+        }
+      ],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1652
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1652
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1920,
+      "surface": "detail"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "summary#positionMoreSummary"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 320,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 360,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 375,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 390,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 430,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "input#positionDate"
+      ],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 667,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 759,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 760,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 768,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 820,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1023,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1024,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1280,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1440,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1920,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button#targetAlertButton"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button"
+      ],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1024,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1280,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1440,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1920,
+      "surface": "settings"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48.000030517578125,
+          "width": 20
+        }
+      ],
+      "width": 320,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 360,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 375,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 390,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 430,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 667,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 759,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 760,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 768,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 820,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1023,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1024,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1280,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1440,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input",
+          "height": 48,
+          "width": 20
+        }
+      ],
+      "width": 1920,
+      "surface": "notifications"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#portfolioChartRange"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 261,
+          "bitmapWidth": 304,
+          "height": 261.2734375,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 312,
+          "width": 304
+        }
+      ],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 295,
+          "bitmapWidth": 344,
+          "height": 295.1953125,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 352,
+          "width": 344
+        }
+      ],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 359,
+          "height": 306.8125,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 367,
+          "width": 359
+        }
+      ],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 319,
+          "bitmapWidth": 374,
+          "height": 319.796875,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 382,
+          "width": 374
+        }
+      ],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 352,
+          "bitmapWidth": 414,
+          "height": 352.59375,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 422,
+          "width": 414
+        }
+      ],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 240,
+          "bitmapWidth": 651,
+          "height": 240,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 659,
+          "width": 651
+        }
+      ],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 414,
+          "bitmapWidth": 743,
+          "height": 414,
+          "id": "portfolioHistoryChart",
+          "left": 8,
+          "right": 751,
+          "width": 743
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button#moreButton.icon-button",
+        "button.activity-row"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 712,
+          "height": 306,
+          "id": "portfolioHistoryChart",
+          "left": 24,
+          "right": 736,
+          "width": 712
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button#moreButton.icon-button",
+        "button.activity-row"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 348,
+          "bitmapWidth": 720,
+          "height": 348.15625,
+          "id": "portfolioHistoryChart",
+          "left": 24,
+          "right": 744,
+          "width": 720
+        }
+      ],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button#moreButton.icon-button",
+        "button.dashboard-card-row"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 400,
+          "bitmapWidth": 772,
+          "height": 400,
+          "id": "portfolioHistoryChart",
+          "left": 24,
+          "right": 796,
+          "width": 772
+        }
+      ],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button#moreButton.icon-button"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 975,
+          "height": 306,
+          "id": "portfolioHistoryChart",
+          "left": 24,
+          "right": 999,
+          "width": 975
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 300,
+          "bitmapWidth": 756,
+          "height": 300,
+          "id": "portfolioHistoryChart",
+          "left": 244,
+          "right": 1000,
+          "width": 756
+        }
+      ],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1024,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 300,
+          "bitmapWidth": 1012,
+          "height": 300,
+          "id": "portfolioHistoryChart",
+          "left": 244,
+          "right": 1256,
+          "width": 1012
+        }
+      ],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1280,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 1172,
+          "height": 306,
+          "id": "portfolioHistoryChart",
+          "left": 244,
+          "right": 1416,
+          "width": 1172
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1440,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 367,
+          "bitmapWidth": 1652,
+          "height": 367.1953125,
+          "id": "portfolioHistoryChart",
+          "left": 244,
+          "right": 1896,
+          "width": 1652
+        }
+      ],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1920,
+      "surface": "portfolio"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#quickSearchLanguage"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#quickSearchLanguage"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button",
+        "button"
+      ],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button",
+        "button"
+      ],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1024,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1280,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1440,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.active",
+          "height": 42,
+          "width": 197
+        }
+      ],
+      "width": 1920,
+      "surface": "search"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 759,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-quick-add"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 760,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 768,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 820,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1023,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite"
+      ],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1024,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite",
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1280,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1440,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "button.ledger-favorite.selected"
+      ],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 44,
+          "width": 39.0625
+        }
+      ],
+      "width": 1920,
+      "surface": "library"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button#resetSheet.secondary",
+          "height": 43.99993896484375,
+          "width": 170
+        },
+        {
+          "element": "button#applySheet.primary",
+          "height": 43.99993896484375,
+          "width": 170
+        }
+      ],
+      "width": 390,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetCondition"
+      ],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetSort"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetSort"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetSort"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1024,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1280,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetSort"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1440,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1920,
+      "surface": "filters"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetGrader"
+      ],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetGrade",
+        "summary"
+      ],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetMovement"
+      ],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetCoverage"
+      ],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetCondition"
+      ],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetCoverage"
+      ],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetAcquisition"
+      ],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1024,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1280,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetPerformance"
+      ],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1440,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#sheetCoverage"
+      ],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1920,
+      "surface": "filters-expanded"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 261,
+          "bitmapWidth": 304,
+          "height": 261.2734375,
+          "id": "positionChart",
+          "left": 8,
+          "right": 312,
+          "width": 304
+        }
+      ],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 288
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 288
+        }
+      ],
+      "width": 320,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 295,
+          "bitmapWidth": 344,
+          "height": 295.1953125,
+          "id": "positionChart",
+          "left": 8,
+          "right": 352,
+          "width": 344
+        }
+      ],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 328
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 328
+        }
+      ],
+      "width": 360,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 306,
+          "bitmapWidth": 359,
+          "height": 306.8125,
+          "id": "positionChart",
+          "left": 8,
+          "right": 367,
+          "width": 359
+        }
+      ],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 343
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 343
+        }
+      ],
+      "width": 375,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "select#cardHistoryRange"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 319,
+          "bitmapWidth": 374,
+          "height": 319.796875,
+          "id": "positionChart",
+          "left": 8,
+          "right": 382,
+          "width": 374
+        }
+      ],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 358
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 358
+        }
+      ],
+      "width": 390,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "summary"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 352,
+          "bitmapWidth": 414,
+          "height": 352.59375,
+          "id": "positionChart",
+          "left": 8,
+          "right": 422,
+          "width": 414
+        }
+      ],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 398
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 398
+        }
+      ],
+      "width": 430,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "a.inline-source-link",
+        "summary"
+      ],
+      "chart": [
+        {
+          "bitmapHeight": 240,
+          "bitmapWidth": 651,
+          "height": 240,
+          "id": "positionChart",
+          "left": 8,
+          "right": 659,
+          "width": 651
+        }
+      ],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 635
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 635
+        }
+      ],
+      "width": 667,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 414,
+          "bitmapWidth": 743,
+          "height": 414,
+          "id": "positionChart",
+          "left": 8,
+          "right": 751,
+          "width": 743
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 727
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 727
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 759,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 378,
+          "bitmapWidth": 712,
+          "height": 378,
+          "id": "positionChart",
+          "left": 24,
+          "right": 736,
+          "width": 712
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 712
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 712
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 760,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 430,
+          "bitmapWidth": 720,
+          "height": 430.078125,
+          "id": "positionChart",
+          "left": 24,
+          "right": 744,
+          "width": 720
+        }
+      ],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 720
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 720
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 768,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 495,
+          "bitmapWidth": 772,
+          "height": 495.59375,
+          "id": "positionChart",
+          "left": 24,
+          "right": 796,
+          "width": 772
+        }
+      ],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 772
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 772
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 820,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 378,
+          "bitmapWidth": 975,
+          "height": 378,
+          "id": "positionChart",
+          "left": 24,
+          "right": 999,
+          "width": 975
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 975
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 975
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1023,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 322,
+          "bitmapWidth": 756,
+          "height": 322.5546875,
+          "id": "positionChart",
+          "left": 244,
+          "right": 1000,
+          "width": 756
+        }
+      ],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 756
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 756
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1024,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 336,
+          "bitmapWidth": 1012,
+          "height": 336,
+          "id": "positionChart",
+          "left": 244,
+          "right": 1256,
+          "width": 1012
+        }
+      ],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1012
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1012
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1280,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 378,
+          "bitmapWidth": 1172,
+          "height": 378,
+          "id": "positionChart",
+          "left": 244,
+          "right": 1416,
+          "width": 1172
+        }
+      ],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1172
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1172
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1440,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [
+        {
+          "bitmapHeight": 453,
+          "bitmapWidth": 1652,
+          "height": 453.59375,
+          "id": "positionChart",
+          "left": 244,
+          "right": 1896,
+          "width": 1652
+        }
+      ],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item.mode-emphasis",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "button.sidebar-item",
+          "height": 42,
+          "width": 197
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1652
+        },
+        {
+          "element": "summary",
+          "height": 22.5,
+          "width": 1652
+        },
+        {
+          "element": "button#editCopyButton",
+          "height": 44,
+          "width": 41.84375
+        }
+      ],
+      "width": 1920,
+      "surface": "detail"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 320,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 360,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 375,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 390,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 430,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 13
+        }
+      ],
+      "width": 667,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 47.999969482421875,
+          "width": 13
+        }
+      ],
+      "width": 759,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 760,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 768,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 820,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1023,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1024,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1280,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1440,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [
+        {
+          "element": "input#positionFree",
+          "height": 48,
+          "width": 18
+        }
+      ],
+      "width": 1920,
+      "surface": "add-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [
+        "textarea#editNotes"
+      ],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1024,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1280,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1440,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "dark",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1920,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 568,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 320,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 360,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 667,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 375,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 844,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 390,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 932,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 430,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [
+        "textarea#editNotes"
+      ],
+      "chart": [],
+      "height": 375,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 667,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 759,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 760,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1024,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 768,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1180,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 820,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1023,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 768,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1024,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 800,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1280,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 900,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1440,
+      "surface": "edit-copy"
+    },
+    {
+      "appearance": "light",
+      "blocked": [],
+      "chart": [],
+      "height": 1080,
+      "outside": [],
+      "overflow": 0,
+      "tiny": [],
+      "width": 1920,
+      "surface": "edit-copy"
+    }
+  ]
+}
