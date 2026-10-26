@@ -16,6 +16,11 @@ async function chooseChartMode(page, mode) {
   if (!(await details.evaluate(element => element.open))) await details.locator(":scope > summary").click();
   await page.locator(`#portfolioHistory [data-portfolio-history-mode='${mode}']`).click();
 }
+async function openAdvancedFilters(page) {
+  await page.locator("#filterButton").click();
+  if (!(await page.locator(".collection-advanced-filters").evaluate(element => element.open)))
+    await page.locator(".collection-advanced-filters > summary").click();
+}
 let instrumentedApp, instrumentedSavedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -216,34 +221,34 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
       (await import(appUrl)).routeTo("collection", { focus: false }),
     appUrl,
   );
-  await page.locator("#filterButton").click();
+  await openAdvancedFilters(page);
   await page.locator("#sheetMovement").selectOption("rising");
   await page.locator("#applySheet").click();
   await expect(page.locator("#resultCount")).toContainText("1");
-  await page.locator("#filterButton").click();
+  await openAdvancedFilters(page);
   await expect(page.locator("#sheetMovement")).toHaveValue("rising");
   await page.locator("#sheetCoverage").selectOption("missing");
   await page.locator("#applySheet").click();
   await expect(page.locator("#resultCount")).toContainText("0");
   await page.locator("#clearFilters").click();
   await expect(page.locator("#resultCount")).toContainText("3");
-  await page.locator("#filterButton").click();
+  await openAdvancedFilters(page);
   await page.locator("#sheetPerformance").selectOption("unknown");
   await page.locator("#applySheet").click();
   await expect(page.locator("#resultCount")).toContainText("1 saved entry");
-  await page.locator("#filterButton").click();
+  await openAdvancedFilters(page);
   await page.locator("#resetSheet").click();
-  await page.locator("#filterButton").click();
+  await openAdvancedFilters(page);
   await page.locator("#sheetMinimumProfitLoss").fill("30");
   await page.locator("#applySheet").click();
   await expect(page.locator("#resultCount")).toContainText("1 saved entry");
-  await page.locator("#filterButton").click();
+  await openAdvancedFilters(page);
   await page.locator("#resetSheet").click();
-  await page.locator("#filterButton").click();
+  await openAdvancedFilters(page);
   await page.locator("#sheetPurchaseDateFrom").fill("2026-09-20");
   await page.locator("#applySheet").click();
   await expect(page.locator("#resultCount")).toContainText("2 saved entries");
-  await page.locator("#filterButton").click();
+  await openAdvancedFilters(page);
   await page.locator("#resetSheet").click();
   await page.evaluate(async (url) => {
     const { state, renderPortfolioHistory, routeTo } = await import(url);

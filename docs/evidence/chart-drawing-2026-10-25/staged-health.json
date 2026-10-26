@@ -1,0 +1,16 @@
+{
+  "status": "healthy",
+  "checkedAt": "2026-10-26T03:48:26.507Z",
+  "release": "64c9d2a670aa",
+  "services": {
+    "database": "healthy",
+    "auth": "healthy",
+    "appSchema": "access_restricted",
+    "schemaVerification": "requires_authenticated_acceptance",
+    "catalog": "configured",
+    "pricingProvider": "healthy",
+    "paidPricing": "configured_unverified",
+    "vision": "identification_configured_unverified",
+    "grading": "release_hold"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "sourceCommit": "64c9d2a670aa48cfdf5c927e35aa5e0ecc259a79",
+  "focusedAnimation": {
+    "passed": 6,
+    "failed": 0,
+    "browsers": [
+      "desktop Chromium",
+      "mobile Chromium",
+      "mobile WebKit"
+    ],
+    "checks": [
+      "intermediate reveal",
+      "completed reveal",
+      "reduced motion"
+    ]
+  },
+  "unit": {
+    "passed": 595,
+    "skipped": 3,
+    "failed": 0
+  },
+  "regressionInitial": {
+    "startTime": "2026-10-26T03:45:29.558Z",
+    "duration": 366881.67,
+    "expected": 276,
+    "skipped": 9,
+    "unexpected": 3,
+    "flaky": 0
+  },
+  "regressionCorrection": {
+    "reason": "Existing filter workflow must open More filters before interacting with advanced fields.",
+    "stats": {
+      "startTime": "2026-10-26T03:53:04.311Z",
+      "duration": 12995.916,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "finalStats": {
+      "startTime": "2026-10-26T04:02:17.687Z",
+      "duration": 14813.798,
+      "expected": 3,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    }
+  },
+  "stagedDeployment": {
+    "id": "dpl_52DHn9Q4C4PXtd738LXAkSdQ4Br4",
+    "url": "https://jordan-pokemon-i22gf2tty-earouse23-devs-projects.vercel.app"
+  },
+  "independentGate": {
+    "runId": 40265783522,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40265783522"
+  },
+  "published": true,
+  "dependenciesAdded": 0,
+  "providerBudgetChanges": 0,
+  "databaseChanges": 0,
+  "canonicalUrl": "https://jordan-pokemon-app.vercel.app/",
+  "checkedAt": "2026-10-26T04:02:17.907Z",
+  "liveVisualAcceptance": {
+    "portfolioPartialAndCompletedReveal": true,
+    "cardPartialAndCompletedReveal": true,
+    "rangeChangesRender": true,
+    "restoredDashboardAllTime": true,
+    "customerInventoryWrites": 0,
+    "customerPreferenceWrites": 0
+  }
+}
