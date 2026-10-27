@@ -1,0 +1,189 @@
+{
+  "sourceCommit": "8a29bd83095542b6d1fb075c44c742f76093e01a",
+  "sourceAssets": {
+    "app": 116,
+    "styles": 93,
+    "themes": 112,
+    "shell": 130
+  },
+  "checks": {
+    "lint": "passed",
+    "syntax": "passed",
+    "unit": {
+      "passed": 595,
+      "skipped": 3,
+      "failed": 0
+    },
+    "portfolioServiceFinal": {
+      "passed": 6,
+      "failed": 0
+    },
+    "browser": {
+      "startTime": "2026-10-27T03:45:22.315Z",
+      "duration": 583444.1109999999,
+      "expected": 908,
+      "skipped": 91,
+      "unexpected": 0,
+      "flaky": 0,
+      "projects": {
+        "desktop-chromium": {
+          "passed": 303,
+          "skipped": 32,
+          "failed": 0
+        },
+        "mobile-chromium": {
+          "passed": 305,
+          "skipped": 30,
+          "failed": 0
+        },
+        "mobile-webkit": {
+          "passed": 300,
+          "skipped": 29,
+          "failed": 0
+        }
+      }
+    },
+    "staticContracts": "passed; retired controls stay absent/inert; held optional delivery stays unscheduled",
+    "schema": "passed",
+    "migrationBaseline": "passed; no migrations applied",
+    "previewArtifact": {
+      "files": 44,
+      "match": true
+    },
+    "releaseRouting": {
+      "functions": 9,
+      "entries": 64,
+      "realOutboundCalls": 0,
+      "independentDeletion": true
+    }
+  },
+  "independentCi": {
+    "run": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40446385133",
+    "status": "success",
+    "commit": "d331abf91d361f0edb0add141fdb2bf8e4f434ec",
+    "browserPassed": 406,
+    "browserSkipped": 11,
+    "largeInventoryPassed": 3
+  },
+  "stagedDeployment": {
+    "id": "dpl_34ZLkDAN5oyt2izXbtd36GKnZuA2",
+    "url": "https://jordan-pokemon-evycos7l1-earouse23-devs-projects.vercel.app",
+    "health": {
+      "status": "healthy",
+      "checkedAt": "2026-10-27T03:52:55.334Z",
+      "release": "d331abf91d36",
+      "services": {
+        "database": "healthy",
+        "auth": "healthy",
+        "appSchema": "access_restricted",
+        "schemaVerification": "requires_authenticated_acceptance",
+        "catalog": "configured",
+        "pricingProvider": "healthy",
+        "paidPricing": "configured_unverified",
+        "vision": "identification_configured_unverified",
+        "grading": "release_hold"
+      }
+    },
+    "anonymousPortfolio": {
+      "error": "Authentication required"
+    }
+  },
+  "publication": {
+    "status": "published",
+    "url": "https://jordan-pokemon-app.vercel.app/",
+    "deployment": "https://jordan-pokemon-kj9303ard-earouse23-devs-projects.vercel.app",
+    "deploymentId": "dpl_D8Jwb5yJ99DnVL5aybzuzuqXaWxp",
+    "checks": {
+      "health": {
+        "status": "healthy",
+        "checkedAt": "2026-10-27T04:22:27.123Z",
+        "release": "8a29bd830955",
+        "services": {
+          "database": "healthy",
+          "auth": "healthy",
+          "appSchema": "access_restricted",
+          "schemaVerification": "requires_authenticated_acceptance",
+          "catalog": "configured",
+          "pricingProvider": "healthy",
+          "paidPricing": "configured_unverified",
+          "vision": "identification_configured_unverified",
+          "grading": "release_hold"
+        }
+      },
+      "pages": [
+        {
+          "path": "/",
+          "status": 200,
+          "appShell": true,
+          "app116": true,
+          "theme112": true
+        },
+        {
+          "path": "/profile",
+          "status": 200,
+          "appShell": true,
+          "app116": true,
+          "theme112": true
+        },
+        {
+          "path": "/profile/",
+          "status": 200,
+          "appShell": true,
+          "app116": true,
+          "theme112": true
+        },
+        {
+          "path": "/index.html",
+          "status": 200,
+          "appShell": true,
+          "app116": true,
+          "theme112": true
+        }
+      ],
+      "anonymous": {
+        "status": 401,
+        "cacheControl": "private, no-store",
+        "body": {
+          "error": "Authentication required"
+        }
+      }
+    }
+  },
+  "preserved": {
+    "customerWriteTests": false,
+    "schemaChanges": false,
+    "cronChanges": false,
+    "providerBudgetChanges": false,
+    "dependenciesChanged": false
+  },
+  "fullGateCommit": "d331abf91d361f0edb0add141fdb2bf8e4f434ec",
+  "finalScopedChecks": {
+    "commit": "8a29bd83095542b6d1fb075c44c742f76093e01a",
+    "browser": {
+      "startTime": "2026-10-27T04:20:23.965Z",
+      "duration": 12781.179,
+      "expected": 27,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "security": {
+      "passed": 73,
+      "failed": 0
+    },
+    "routing": "passed; auth/holds unchanged; profile and index shell rewrites verified"
+  },
+  "finalHeadCi": {
+    "conclusion": "",
+    "databaseId": 40449285993,
+    "headSha": "8a29bd83095542b6d1fb075c44c742f76093e01a",
+    "status": "in_progress",
+    "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40449285993"
+  },
+  "restored": {
+    "theme": "System",
+    "viewportOverride": false,
+    "route": "dashboard",
+    "savedPortfolioVisible": true
+  }
+}

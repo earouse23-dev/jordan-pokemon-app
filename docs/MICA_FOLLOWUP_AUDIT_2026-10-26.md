@@ -1,5 +1,7 @@
 # Mica follow-up audit — October 26, 2026
 
+**Correction status:** the three findings below were repaired; see [corrections and verification](MICA_FOLLOWUP_AUDIT_FIXES_2026-10-26.md). The observations below describe the audited pre-correction release.
+
 Audited the published `b82f5f1a94fc` application, following the client reset and the prior light/dark correction packet. The application is materially better, but there is one confirmed broken interaction, a recovery UX gap and stale tests to repair before the next release gate. This was an audit only; no application code or production settings were changed.
 
 ## Findings, in repair order
