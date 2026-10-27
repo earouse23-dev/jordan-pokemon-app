@@ -319,3 +319,22 @@ for (const appearance of ["light", "dark"]) {
     await expect(page.locator("#view-detail")).toBeVisible();
   });
 }
+
+for (const appearance of ["light", "dark"]) {
+  test(`library tab hover stays readable (${appearance})`, async ({ page }) => {
+    await openCollection(page);
+    await page.evaluate(value => { document.body.dataset.appearance = value; }, appearance);
+    const tab = page.locator('[data-condition-filter="Graded"]');
+    await tab.hover();
+    const colors = await tab.evaluate(e => {
+      const s = getComputedStyle(e);
+      const lum = color => color.match(/[\d.]+/g).slice(0,3).map(Number).map(c=>c/255).map(c=>c<=.04045?c/12.92:((c+.055)/1.055)**2.4).reduce((n,c,i)=>n+c*[.2126,.7152,.0722][i],0);
+      let surface = e;
+      while (getComputedStyle(surface).backgroundColor === 'rgba(0, 0, 0, 0)' && surface.parentElement) surface = surface.parentElement;
+      const values = [lum(s.color),lum(getComputedStyle(surface).backgroundColor)].sort((a,b)=>b-a);
+      return { image:s.backgroundImage,contrast:(values[0]+.05)/(values[1]+.05) };
+    });
+    expect(colors.image).toBe('none');
+    expect(colors.contrast).toBeGreaterThanOrEqual(4.5);
+  });
+}

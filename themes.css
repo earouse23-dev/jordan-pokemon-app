@@ -4788,11 +4788,9 @@ body[data-ui-theme="mica"] .view-tab {
 
 body[data-ui-theme="mica"] .view-tab.active,
 body[data-ui-theme="mica"] .view-tab:hover {
-  border-color: #9bab90;
-  background: linear-gradient(180deg, #edf1e9, #dfe7da);
-  box-shadow:
-    0 5px 12px rgba(62, 78, 58, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-color: var(--line-dark);
+  background: var(--mint);
+  box-shadow: none;
 }
 
 body[data-ui-theme="mica"] .view-tab.active {
