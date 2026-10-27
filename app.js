@@ -2753,7 +2753,7 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   if (focusedRange) queueMicrotask(() => $("#cardHistoryRange")?.focus({ preventScroll: true }));
   const { summary, points, currency } = model;
   const insufficientHistory = points.length < 2 && !model.observations.length;
-  const controls = `<label class="history-range-select">Timeframe<select id="cardHistoryRange" aria-label="Price history timeframe">${[["1m", "1 month"], ["6m", "6 months"], ["1y", "1 year"], ["all", "All time"]].map(([value, label]) => `<option value="${value}" ${model.range === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>`;
+  const controls = `<label class="history-range-select"><span class="sr-only">Timeframe</span><select id="cardHistoryRange" aria-label="Price history timeframe">${[["1m", "1 month"], ["6m", "6 months"], ["1y", "1 year"], ["all", "All time"]].map(([value, label]) => `<option value="${value}" ${model.range === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>`;
   const context =
     item.cardState === "sealed"
       ? "Unopened"
@@ -2796,7 +2796,7 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   const chart = insufficientHistory
     ? '<p class="unavailable-panel" role="status">One price recorded. A trend needs two.</p>'
     : `<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>`;
-  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}"><div class="history-chart-head">${controls}${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong></div>` : ""}</div>${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}
+  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}"><div class="detail-section-head history-chart-head"><div><h2>Price history</h2>${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong></div>` : ""}</div>${controls}</div>${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}
     ${points.length ? `<small class="history-coverage">Available from ${esc(new Date(points[0].x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }))}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
     <details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary>
     <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>${dailySales ? "Average daily median" : "Average recorded price"}</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
@@ -8444,7 +8444,7 @@ function renderOwnedDetailLegacy() {
     <div class="owned-banner"><div><span>In your library</span><strong>${item.quantity} owned · ${total == null ? "Price unavailable" : money(total)}</strong></div><button id="editCopyButton" type="button">Edit details</button></div>
     <section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>${item.price == null ? "No matching price" : item.pricingStatus === "live" ? "Live price" : "Older provider price"}</span></div>${sourceRows}<p class="legal-copy">Prices are estimates, not guaranteed sale amounts. Wear and where you sell can change what someone will pay.</p></section>
     <section class="detail-section"><div class="detail-section-head"><h2>Your copy</h2><span>${esc(item.location)}</span></div><div class="copy-row"><div><strong>${item.gradingCompany ? `${esc(item.gradingCompany)} grade ${esc(item.grade)}` : esc(conditionLabel(item.condition))}</strong><span>Bought ${esc(item.purchaseDate || "date not recorded")} · ${money(item.cost)} each</span></div><b>×${item.quantity}</b></div>${item.notes ? `<div class="unavailable-panel">${esc(item.notes)}</div>` : ""}</section>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2></div>${renderInteractiveHistory(item)}</section>
+    <section class="detail-section">${renderInteractiveHistory(item)}</section>
     <section class="detail-section"><div class="detail-section-head"><h2>Recent completed sales</h2><span>${item.salesStatus === "live" ? "Completed sale links" : "Needs a connected price source"}</span></div>${renderSales(item)}</section>`;
   $("#detailBack").addEventListener("click", () => routeTo("collection"));
   $("#editCopyButton").addEventListener("click", () =>
@@ -8936,7 +8936,7 @@ function renderDetail() {
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
     <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><div class="detail-title-block"><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="sr-only" aria-live="polite">Copy title</span></button></div>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
-    <section class="detail-section"><div class="detail-section-head"><h2>Price history</h2></div>${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
+    <section class="detail-section">${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
     ${context.cardState === "graded" ? `<details class="provider-index-details" data-detail-tool="provider-index"><summary>Market reference</summary>${marketHero}</details>` : ""}
