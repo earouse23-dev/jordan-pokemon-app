@@ -1138,7 +1138,7 @@ for (const theme of ["light", "dark"]) test(`audit corrections keep ${theme} con
     await page.locator("#cardHistoryRange").selectOption("all");
     await assertFits(page);
   }
-  await page.evaluate(() => { const { state, renderDetail } = globalThis.fixtureApp; Object.assign(state.items[0], { cardState: "graded", gradingCompany: "PSA", grade: "10" }); renderDetail(); });
+  await page.evaluate(() => { const { state, renderDetail } = globalThis.fixtureApp; Object.assign(state.items[0], { cardState: "graded", gradingCompany: "PSA", grade: "10" }); state.detailValuationContext = null; renderDetail(); });
   await expect(page.locator('[data-detail-tool="provider-index"]>summary')).toBeVisible();
   for (const selector of ['[data-detail-tool="provider-index"]>summary', '[data-detail-tool="valuation-context"]>summary', '.owned-actions button']) {
     for (const el of await page.locator(selector).all()) {
