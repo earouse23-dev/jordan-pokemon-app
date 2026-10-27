@@ -1,0 +1,127 @@
+{
+  "release": "b82f5f1a94fcf2faaf03758c7b62deaf5461dc71",
+  "auditOnly": true,
+  "fresh": {
+    "lint": "passed",
+    "syntax": "passed",
+    "unit": {
+      "passed": 595,
+      "skipped": 3,
+      "failed": 0
+    },
+    "browser": {
+      "startTime": "2026-10-27T01:48:51.204Z",
+      "duration": 90486.36600000001,
+      "expected": 101,
+      "skipped": 1,
+      "unexpected": 8,
+      "flaky": 0
+    },
+    "failures": [
+      {
+        "test": "mobile intake keeps identity readable and raw quantity editable",
+        "project": "mobile-chromium",
+        "errors": [
+          "Error: page.evaluate: TypeError: Cannot read properties of null (reading 'getBoundingClientRect')\n    at bounds (eval at evaluate (:290:30), <anonymous>:2:66)\n    at eval (eval at evaluate (:290:30), <anonymous>:7:15)\n    at UtilityScript.evaluate (<anonymous>:292:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at bounds (eval at evaluate (:290:30), <anonymous>:2:66)\n    at eval (eval at evaluate (:290:30), <anonymous>:7:15)\n    at UtilityScript.evaluate (<anonymous>:292:16)\n    at UtilityScript.<anonymous> (<anonymous>:1:44)\n    at /Users/elliottrouse/App repos/jordan-pokemon-app/tests/browser/intake-continuity.spec.js:339:32"
+        ]
+      },
+      {
+        "test": "mobile intake keeps identity readable and raw quantity editable",
+        "project": "mobile-webkit",
+        "errors": [
+          "Error: page.evaluate: TypeError: null is not an object (evaluating 'document.querySelector(selector).getBoundingClientRect')\n\n  337 |     await page.setViewportSize({ width, height });\n  338 |     await page.screenshot({ path: testInfo.outputPath(`intake-${width}.png`) });\n> 339 |     const metrics = await page.evaluate(() => {\n      |                                ^\n  340 |       const bounds = (selector) =>\n  341 |         document.querySelector(selector).getBoundingClientRect().toJSON();\n  342 |       return {\n    at /Users/elliottrouse/App repos/jordan-pokemon-app/tests/browser/intake-continuity.spec.js:339:32"
+        ]
+      },
+      {
+        "test": "light and dark mode persist, retaining green primary actions",
+        "project": "desktop-chromium",
+        "errors": [
+          "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"rgb(39, 100, 67)\"\nReceived: \"rgb(79, 99, 72)\"\n\n  158 |           .backgroundColor,\n  159 |     ),\n> 160 |   ).toBe(\"rgb(39, 100, 67)\");\n      |     ^\n  161 |   await page.screenshot({\n  162 |     path: testInfo.outputPath(\"dark-profile.png\"),\n  163 |     fullPage: true,\n    at /Users/elliottrouse/App repos/jordan-pokemon-app/tests/browser/local-card-ocr.spec.js:160:5"
+        ]
+      },
+      {
+        "test": "light and dark mode persist, retaining green primary actions",
+        "project": "mobile-chromium",
+        "errors": [
+          "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"rgb(39, 100, 67)\"\nReceived: \"rgb(79, 99, 72)\"\n\n  158 |           .backgroundColor,\n  159 |     ),\n> 160 |   ).toBe(\"rgb(39, 100, 67)\");\n      |     ^\n  161 |   await page.screenshot({\n  162 |     path: testInfo.outputPath(\"dark-profile.png\"),\n  163 |     fullPage: true,\n    at /Users/elliottrouse/App repos/jordan-pokemon-app/tests/browser/local-card-ocr.spec.js:160:5"
+        ]
+      },
+      {
+        "test": "light and dark mode persist, retaining green primary actions",
+        "project": "mobile-webkit",
+        "errors": [
+          "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: \"rgb(39, 100, 67)\"\nReceived: \"rgb(79, 99, 72)\"\n\n  158 |           .backgroundColor,\n  159 |     ),\n> 160 |   ).toBe(\"rgb(39, 100, 67)\");\n      |     ^\n  161 |   await page.screenshot({\n  162 |     path: testInfo.outputPath(\"dark-profile.png\"),\n  163 |     fullPage: true,\n    at /Users/elliottrouse/App repos/jordan-pokemon-app/tests/browser/local-card-ocr.spec.js:160:5"
+        ]
+      },
+      {
+        "test": "saved EUR portfolio requests conversion before inventory arrives and retries without losing history",
+        "project": "desktop-chromium",
+        "errors": [
+          "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n\n  856 |   await expect(page.locator('#retryDisplayFx')).toBeHidden();\n  857 |   expect(fxCalls).toBe(3);\n> 858 |   expect(await page.locator('#portfolioChartRange').evaluate(n=>n.getBoundingClientRect().top >= document.querySelector('#portfolioHistoryChart').getBoundingClientRect().bottom)).toBe(true);\n      |                                                                                                                                                                                    ^\n  859 |   await page.evaluate(async appUrl=>{const a=await import(appUrl);a.state.portfolioView.summaries[0].history=a.state.portfolioView.summaries[0].history.slice(-1);a.renderCollection();},appUrl);\n  860 |   await expect(page.locator('#portfolioHistoryChart')).toBeVisible();\n  861 |   await expect.poll(()=>page.evaluate(async url=>Boolean((await import(url)).portfolioChartInstance),appUrl)).toBe(true);\n    at /Users/elliottrouse/App repos/jordan-pokemon-app/tests/browser/portfolio-history.spec.js:858:180"
+        ]
+      },
+      {
+        "test": "saved EUR portfolio requests conversion before inventory arrives and retries without losing history",
+        "project": "mobile-chromium",
+        "errors": [
+          "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n\n  856 |   await expect(page.locator('#retryDisplayFx')).toBeHidden();\n  857 |   expect(fxCalls).toBe(3);\n> 858 |   expect(await page.locator('#portfolioChartRange').evaluate(n=>n.getBoundingClientRect().top >= document.querySelector('#portfolioHistoryChart').getBoundingClientRect().bottom)).toBe(true);\n      |                                                                                                                                                                                    ^\n  859 |   await page.evaluate(async appUrl=>{const a=await import(appUrl);a.state.portfolioView.summaries[0].history=a.state.portfolioView.summaries[0].history.slice(-1);a.renderCollection();},appUrl);\n  860 |   await expect(page.locator('#portfolioHistoryChart')).toBeVisible();\n  861 |   await expect.poll(()=>page.evaluate(async url=>Boolean((await import(url)).portfolioChartInstance),appUrl)).toBe(true);\n    at /Users/elliottrouse/App repos/jordan-pokemon-app/tests/browser/portfolio-history.spec.js:858:180"
+        ]
+      },
+      {
+        "test": "saved EUR portfolio requests conversion before inventory arrives and retries without losing history",
+        "project": "mobile-webkit",
+        "errors": [
+          "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: true\nReceived: false\n\n  856 |   await expect(page.locator('#retryDisplayFx')).toBeHidden();\n  857 |   expect(fxCalls).toBe(3);\n> 858 |   expect(await page.locator('#portfolioChartRange').evaluate(n=>n.getBoundingClientRect().top >= document.querySelector('#portfolioHistoryChart').getBoundingClientRect().bottom)).toBe(true);\n      |                                                                                                                                                                                    ^\n  859 |   await page.evaluate(async appUrl=>{const a=await import(appUrl);a.state.portfolioView.summaries[0].history=a.state.portfolioView.summaries[0].history.slice(-1);a.renderCollection();},appUrl);\n  860 |   await expect(page.locator('#portfolioHistoryChart')).toBeVisible();\n  861 |   await expect.poll(()=>page.evaluate(async url=>Boolean((await import(url)).portfolioChartInstance),appUrl)).toBe(true);\n    at /Users/elliottrouse/App repos/jordan-pokemon-app/tests/browser/portfolio-history.spec.js:858:180"
+        ]
+      }
+    ],
+    "productionDependencies": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "health": {
+      "status": "healthy",
+      "checkedAt": "2026-10-27T01:48:54.572Z",
+      "release": "b82f5f1a94fc",
+      "services": {
+        "database": "healthy",
+        "auth": "healthy",
+        "appSchema": "access_restricted",
+        "schemaVerification": "requires_authenticated_acceptance",
+        "catalog": "configured",
+        "pricingProvider": "healthy",
+        "paidPricing": "configured_unverified",
+        "vision": "identification_configured_unverified",
+        "grading": "release_hold"
+      }
+    },
+    "databaseMetadata": {
+      "publicTables": 86,
+      "publicTablesWithoutRls": 0,
+      "buckets": 4,
+      "publicBuckets": 0
+    }
+  },
+  "previousSameSourceGate": {
+    "browserPassed": 783,
+    "browserSkipped": 21,
+    "browserFailed": 0,
+    "run": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40426083066"
+  },
+  "restored": {
+    "theme": "System",
+    "viewportOverride": false,
+    "route": "dashboard"
+  },
+  "limitations": [
+    "No production inventory/favorite/notification writes",
+    "No physical iPhone acceptance",
+    "No new capacity load test or restore drill",
+    "No new full security-definer authorization audit",
+    "No application deployment in this audit"
+  ]
+}

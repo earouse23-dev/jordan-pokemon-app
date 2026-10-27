@@ -1,0 +1,26 @@
+[
+  {
+    "name": "saved-portfolio",
+    "status": 401,
+    "cacheControl": "private, no-store",
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "name": "account-deletion",
+    "status": 401,
+    "cacheControl": "no-store",
+    "body": "{\"error\":\"Authentication required\"}"
+  },
+  {
+    "name": "photo-identification",
+    "status": 503,
+    "cacheControl": "private, no-store",
+    "body": "{\"error\":\"This service is unavailable in this release.\",\"code\":\"release_hold\"}"
+  },
+  {
+    "name": "photo-identification-mode",
+    "status": 401,
+    "cacheControl": "no-store",
+    "body": "{\"error\":\"Authentication required\"}"
+  }
+]

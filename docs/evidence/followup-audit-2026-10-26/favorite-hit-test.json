@@ -1,0 +1,79 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "appearance": "light",
+  "controls": [
+    {
+      "pointerEvents": "none",
+      "rect": {
+        "bottom": -76.8046875,
+        "height": 44,
+        "left": 137.5,
+        "right": 181.5,
+        "top": -120.8046875,
+        "width": 44,
+        "x": 137.5,
+        "y": -120.8046875
+      }
+    },
+    {
+      "pointerEvents": "none",
+      "rect": {
+        "bottom": -74.8046875,
+        "height": 44,
+        "left": 321,
+        "right": 365,
+        "top": -118.8046875,
+        "width": 44,
+        "x": 321,
+        "y": -118.8046875
+      }
+    },
+    {
+      "hit": "ledger-open-overlay",
+      "pointerEvents": "none",
+      "rect": {
+        "bottom": 327.09375,
+        "height": 44,
+        "left": 137.5,
+        "right": 181.5,
+        "top": 283.09375,
+        "width": 44,
+        "x": 137.5,
+        "y": 283.09375
+      }
+    },
+    {
+      "hit": "ledger-open-overlay",
+      "pointerEvents": "none",
+      "rect": {
+        "bottom": 327.09375,
+        "height": 44,
+        "left": 321,
+        "right": 365,
+        "top": 283.09375,
+        "width": 44,
+        "x": 321,
+        "y": 283.09375
+      }
+    },
+    {
+      "hit": "ledger-open-overlay",
+      "pointerEvents": "none",
+      "rect": {
+        "bottom": 736.1875,
+        "height": 44,
+        "left": 137.5,
+        "right": 181.5,
+        "top": 692.1875,
+        "width": 44,
+        "x": 137.5,
+        "y": 692.1875
+      }
+    }
+  ],
+  "rootSelector": ".ledger-row > :not(.ledger-open-overlay, .ledger-row-actions)",
+  "note": "Read-only hit testing; no customer favorite mutation performed."
+}
