@@ -174,7 +174,8 @@ const config = {
   version: 3,
   routes: [
     ...sourceConfig.headers.map(rule => ({src: rule.source, headers: Object.fromEntries(rule.headers.map(h => [h.key,h.value])), continue: true})),
-    {src:"^/profile/?$",dest:"/index.html"},
+    {src:"^/profile/?$",dest:"/"},
+    {src:"^/index\\.html$",dest:"/"},
     {handle:"filesystem"},
   ],
   crons: sourceConfig.crons,

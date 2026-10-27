@@ -33,6 +33,9 @@ for (const f of manifest.deployment)
 const config = JSON.parse(
   await fs.readFile(path.join(stage, ".vercel/output/config.json")),
 );
+for (const pathname of ["/profile", "/profile/", "/index.html"])
+  assert.equal(config.routes.find(route => route.dest && new RegExp(route.src).test(pathname))?.dest, "/", `${pathname} must reach the served app shell`);
+await fs.access(path.join(stage, ".vercel/output/static/index.html"));
 const functionRoot = path.join(stage, ".vercel/output/functions");
 const names = [];
 async function walk(d) {
