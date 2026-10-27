@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=115";
+const appUrl = "/app.js?v=116";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -34,7 +34,7 @@ async function openSecondaryTools(page) {
 }
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=115", (route) =>
+  await page.route("**/app.js?v=116", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,

@@ -125,7 +125,7 @@ test("verified recovery permits password retry while collection reads are stalle
   );
   await expect(page.locator("#passwordResetDialog")).toBeVisible();
   expect(await page.evaluate(async () => {
-    const { state } = await import("/app.js?v=115");
+    const { state } = await import("/app.js?v=116");
     return [state.portfolioHistoryRange, state.portfolioPnlRange];
   })).toEqual(["all", "all"]);
   await mkdir("docs/evidence/client-reset-2026-10-03/screenshots", {

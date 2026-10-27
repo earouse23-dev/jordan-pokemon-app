@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { normalizeTcgdexCard } from "../../lib/providers/tcgdex.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=115";
+const appUrl = "/app.js?v=116";
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const otherOwnerId = "99999999-9999-4999-8999-999999999999";
 const baselineFile = process.env.MICA_CARD_PROFILE_BASELINE_FILE;
@@ -170,7 +170,7 @@ async function setup(
   page,
   { onCards, onSupabase, accountProfiles = null } = {},
 ) {
-  await page.route("**/app.js?v=115", (route) =>
+  await page.route("**/app.js?v=116", (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
   if (baselineStyles)

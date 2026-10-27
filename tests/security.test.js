@@ -473,7 +473,7 @@ test("optional grading assets cannot block service-worker installation", async (
 
   assert.equal(skippedWaiting, true);
   assert.ok(coreAssets.includes("./index.html"));
-  assert.ok(coreAssets.includes("./app.js?v=115"));
+  assert.ok(coreAssets.includes("./app.js?v=116"));
   assert.equal(
     coreAssets.some((asset) => asset.includes("coach-")),
     false,
@@ -596,7 +596,7 @@ test("Mica uses one green interface with synchronized light/dark shell assets", 
   assert.match(themes, /--canvas:\s*#f6f7f4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-design-129/);
+  assert.match(serviceWorker, /mica-shell-design-130/);
   assert.match(serviceWorker, /themes\.css\?v=112/);
 });
 

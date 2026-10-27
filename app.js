@@ -4241,7 +4241,7 @@ function routeTo(route, options = {}) {
       ? `/${location.search}`
       : route === "profile"
         ? "/profile"
-        : `#${route}`;
+        : `/${location.search}#${route}`;
   const historyMode = options.history || (options.instant ? "replace" : "push");
   if (historyMode === "push" && changed) history.pushState({ route }, "", url);
   else if (historyMode === "replace") history.replaceState({ route }, "", url);

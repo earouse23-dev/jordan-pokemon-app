@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=115";
+const appUrl = "/app.js?v=116";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -30,7 +30,7 @@ test.beforeAll(async () => {
 });
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=115", (route) =>
+  await page.route("**/app.js?v=116", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -338,3 +338,18 @@ for (const appearance of ["light", "dark"]) {
     expect(colors.contrast).toBeGreaterThanOrEqual(4.5);
   });
 }
+
+test('leaving Settings clears its path and back/forward preserves the selected workspace', async ({page}) => {
+  await openCollection(page);
+  await page.getByRole('button',{name:'Open profile',exact:true}).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await page.locator('[data-sidebar-target="collection"]:visible, [data-route="collection"]:visible').first().click();
+  expect(new URL(page.url()).pathname).toBe('/');
+  expect(new URL(page.url()).hash).toBe('#collection');
+  await expect(page.locator('#view-collection')).toBeVisible();
+  await page.goBack();
+  await expect(page.locator('#view-profile')).toBeVisible();
+  await page.goForward();
+  await expect(page.locator('#view-collection')).toBeVisible();
+  expect(new URL(page.url()).pathname).toBe('/');
+});

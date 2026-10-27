@@ -1,7 +1,7 @@
 # Configuration-neutral artifact for the follow-up audit corrections.
 # Rebuilt and checked independently by verify-preview-artifact.mjs.
 49a205505cd8fe54392ff3e2e4dd238d1aaf11791a4747392cd3d739e89d66e2  ./app-config.js
-77cff5c5116628276c86c06d59e057e4300cc3ab3689967b103f68cb3c8e24f2  ./app.js
+7816b66310da5f715f6cf0793e91873626db3d26574f70585b8f20236a7bf247  ./app.js
 ee2bf1579c20bdc5be015ef965ca20af71a04c9a3d747689e8730d1013fb3694  ./assets/coach-background-pass.jpg
 fa4a70c9fb65d0e53e50f99b36df30e092553433787e1cd02c9d6c87cae87101  ./assets/coach-background-retake.jpg
 3407a7743f7f5773ed4f4d6e8cf4a70b8eba1d4267865a57f494bb6e6e44930f  ./assets/coach-frame-pass.jpg
@@ -39,8 +39,8 @@ bb83d747849308b590cbdeee1b3c3187ff30064b39e77c1f81a654e20ecc60e7  ./chunks/esm-F
 a41e0f47e99823aed2b6267db94176a8600542eadfd0113a2f3907a2ff73568f  ./icons/icon-192.png
 3b285a525ff42de9a27b522be01b046b6ad1de44a48e794726aa5fbb29041227  ./icons/icon-512.png
 924acc1d5c054eaecba7947403764f77aeb14b0a17600954fa5d2a0a7287714a  ./icons/icon.svg
-1e23659745b74392108e8b54122f311588895452f35bc7bc1910be304d04536e  ./index.html
+03d09ca129b3567c465ed47f4ed2412bc8027639adea5847fa11dbf952475e7a  ./index.html
 2db940851dc90775bea5a33dc838fc518481839de996f6503a1f06545c8f9bbe  ./manifest.webmanifest
 dabdbdada7126a7bcc62aa25bf95385d30fa0d1ba71626421255d77d3d1d7d0f  ./styles.css
-1620accd4cc5231a42476b63f0868554663193cd04ec00c1372869d763d32beb  ./sw.js
+e70d64e33d4f4ebe4f01ea0cb7ef2bdf2df365f51b24fbcce7714f3cff991c98  ./sw.js
 6dcb7a205eccf417519fe800c4e671139190abc0f26de23d3503508b2ca396d6  ./themes.css

@@ -152,7 +152,7 @@ test("legacy mode preferences never restore seller or trade clutter", async ({ p
   await page.goto("/");
   await revealShell(page, "view-dashboard");
   for (const mode of ["collector", "investor", "seller"]) {
-    await page.evaluate(async mode => (await import("/app.js?v=115")).switchSoftwareMode(mode, { persist: false, announce: false }), mode);
+    await page.evaluate(async mode => (await import("/app.js?v=116")).switchSoftwareMode(mode, { persist: false, announce: false }), mode);
     await expect(page.locator("body")).toHaveAttribute("data-software-mode", "collector");
     await expect(page.locator("#softwareModeHome")).toBeHidden();
     await expect(page.locator("#dashboardTitle")).not.toHaveText("Seller workspace");
@@ -237,7 +237,7 @@ test("generic Add opens search while photo capture remains explicit", async ({
   await page.goto("/");
   await revealShell(page, "view-dashboard");
   await page.evaluate(async () => {
-    const { openAddWorkspace } = await import("/app.js?v=115");
+    const { openAddWorkspace } = await import("/app.js?v=116");
     openAddWorkspace();
   });
   await expect(page.locator("#view-scan")).toBeVisible();
@@ -264,7 +264,7 @@ test("exact catalog cards can be queued without slowing the direct add path", as
   await revealShell(page, "view-scan");
   await page.evaluate(async () => {
     const { queueIntakeCard, openBatchIntakeSheet } =
-      await import("/app.js?v=115");
+      await import("/app.js?v=116");
     const pikachu = {
       id: "tcgdex:en:base1-58",
       name: "Pikachu",
@@ -309,7 +309,7 @@ test("CSV review shows mapping, duplicate evidence, and a read-only dry check", 
   await page.goto("/");
   await revealShell(page, "view-profile");
   await page.evaluate(async () => {
-    const { openCsvImportReview } = await import("/app.js?v=115");
+    const { openCsvImportReview } = await import("/app.js?v=116");
     await openCsvImportReview(
       "Name,Set,Number,Quantity,Condition,Purchase Date,Purchase Price\nPikachu,Base Set,58/102,1,Near Mint,2026-01-02,5.00\nPikachu,Base Set,58/102,1,Near Mint,2026-01-02,5.00",
       { name: "sample.csv" },
@@ -338,7 +338,7 @@ test("manual unopened entry remains available for every supported catalog langua
   await page.goto("/");
   await revealShell(page, "view-scan");
   await page.evaluate(async () => {
-    const { openManualSealedEntry } = await import("/app.js?v=115");
+    const { openManualSealedEntry } = await import("/app.js?v=116");
     openManualSealedEntry({ name: "151 Booster Bundle", language: "de" });
   });
   await expect(
@@ -359,7 +359,7 @@ test("market values carry compact source, context, freshness, and confidence", a
 }) => {
   await page.goto("/");
   const disclosure = await page.evaluate(async () => {
-    const { priceProvenanceText } = await import("/app.js?v=115");
+    const { priceProvenanceText } = await import("/app.js?v=116");
     const quote = {
       provider: "tcgplayer",
       market: "tcgplayer",
@@ -398,7 +398,7 @@ test("trade values never relabel stale or owner-entered evidence as live", async
 }) => {
   await page.goto("/");
   const result = await page.evaluate(async () => {
-    const { tradePricingSeed } = await import("/app.js?v=115");
+    const { tradePricingSeed } = await import("/app.js?v=116");
     return {
       live: tradePricingSeed(
         { price: 100, pricingStatus: "live", quotes: [] },
@@ -441,7 +441,7 @@ test("adding a catalog card requires confirmation of its stable exact version", 
   await revealShell(page, "view-scan");
   await page.evaluate(
     async ({ normalId, reverseId }) => {
-      const { openPositionSheet } = await import("/app.js?v=115");
+      const { openPositionSheet } = await import("/app.js?v=116");
       openPositionSheet({
         id: "tcgdex:en:sv03.5-025",
         cardId: "33333333-3333-4333-8333-333333333333",
@@ -493,7 +493,7 @@ test("collapsed collection filters are excluded from arrow navigation", async ({
   await page.goto("/");
   await revealShell(page, "view-collection");
   const visibleTargets = await page.evaluate(async () => {
-    const { visibleCollectionViewTabs } = await import("/app.js?v=115");
+    const { visibleCollectionViewTabs } = await import("/app.js?v=116");
     return visibleCollectionViewTabs().map(
       (tab) => tab.dataset.conditionFilter || tab.dataset.ledgerView,
     );
@@ -533,7 +533,7 @@ test("account setup failure contains focus and keeps the app inert for retry", a
   await page.goto("/");
   await revealShell(page, "view-dashboard");
   await page.evaluate(async () => {
-    const { openOnboarding } = await import("/app.js?v=115");
+    const { openOnboarding } = await import("/app.js?v=116");
     openOnboarding();
   });
   await expect(page.locator("#onboardingDialog")).toHaveAttribute(
@@ -822,7 +822,7 @@ test("portable grading report renders as a complete estimate-labeled image", asy
 }, testInfo) => {
   await page.goto("/");
   const result = await page.evaluate(async () => {
-    const { gradingReportImageBlob } = await import("/app.js?v=115");
+    const { gradingReportImageBlob } = await import("/app.js?v=116");
     const subscores = ["centering", "corners", "edges", "surface"].map(
       (category, index) => ({
         category,
@@ -908,7 +908,7 @@ test("Add card saves in one step and retries safely without exposing server erro
   await page.goto("/");
   await revealShell(page, "view-scan");
   await page.evaluate(async () => {
-    const { openPositionSheet } = await import("/app.js?v=115");
+    const { openPositionSheet } = await import("/app.js?v=116");
     openPositionSheet({
       name: "Pikachu",
       set: "151",
@@ -953,7 +953,7 @@ test("optional grading stays separate from the default add action and slab detai
   await page.goto("/");
   await revealShell(page, "view-scan");
   await page.evaluate(async () => {
-    const { openPositionSheet } = await import("/app.js?v=115");
+    const { openPositionSheet } = await import("/app.js?v=116");
     openPositionSheet({
       name: "Pikachu",
       set: "151",
@@ -1002,7 +1002,7 @@ test("account setup retries without collecting or changing rejected preferences"
   await page.goto("/");
   await revealShell(page, "view-dashboard");
   await page.evaluate(async () =>
-    (await import("/app.js?v=115")).openOnboarding(),
+    (await import("/app.js?v=116")).openOnboarding(),
   );
   await expect(page.getByRole("button", { name: "Try again" })).toBeEnabled();
   await page.getByRole("button", { name: "Try again" }).click();
