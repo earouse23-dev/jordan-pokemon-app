@@ -6573,7 +6573,7 @@ body[data-ui-theme="mica"] #appShell .detail-title-year:empty { display: none; }
 body[data-ui-theme="mica"] #appShell .detail-title-year { display: block; font-size: 12px; }
 body[data-ui-theme="mica"] #appShell .owned-banner { background: var(--mint); border: 0; border-radius: 14px; padding: 14px; gap: 12px; }
 body[data-ui-theme="mica"] #appShell .owned-banner strong { font-size: 14px; }
-body[data-ui-theme="mica"] #appShell :is(.owned-actions button,.sold-actions>a,.position-new-state) { min-height: 44px; border-radius: 10px; }
+body[data-ui-theme="mica"] #appShell :is(.owned-actions button,.sold-actions>a,.position-new-state) { min-height: 44px; min-width: 44px; border-radius: 10px; }
 body[data-ui-theme="mica"] #appShell .detail-tool-group { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; margin: 0; }
 body[data-ui-theme="mica"] #appShell .detail-tool-group>summary { min-height: 56px; padding: 12px 0; }
 body[data-ui-theme="mica"] #appShell .detail-tool-group summary small { display: none; }
@@ -6729,7 +6729,7 @@ body[data-ui-theme="mica"] #appShell :is(.portfolio-value,.detail-price,.history
 body[data-ui-theme="mica"] #appShell #portfolioHistory { overflow: visible; }
 body[data-ui-theme="mica"] #appShell :is(#portfolioHistory .portfolio-chart-shell, #detailContent .chart-wrap) { height: clamp(320px,42dvh,560px); min-width: 0; margin-block: 16px 0; }
 body[data-ui-theme="mica"] #appShell :is(#portfolioHistory .portfolio-chart-shell, #detailContent .chart-wrap) canvas { display: block; width: 100% !important; height: 100% !important; }
-body[data-ui-theme="mica"] #appShell :is(.portfolio-chart-footer,.history-range-select) select { border-radius: 999px; background-color: var(--paper); }
+body[data-ui-theme="mica"] #appShell :is(.portfolio-history-head,.portfolio-chart-footer,.history-range-select) select { border-radius: 999px; background-color: var(--paper); }
 body[data-ui-theme="mica"] #appShell .history-coverage { display: block; margin-block: 8px; font-size: 12px; color: var(--muted); }
 body[data-ui-theme="mica"] #appShell .detail-section-head { align-items: baseline; margin-bottom: 12px; }
 body[data-ui-theme="mica"] #appShell .detail-section-head>span { font-size: 12px; }
@@ -6870,3 +6870,20 @@ body[data-ui-theme="mica"] #appShell .ledger-row .position-price-grid.compact > 
 body[data-ui-theme="mica"] #appShell .ledger-row .price-cell { gap: 4px; }
 body[data-ui-theme="mica"] #appShell .ledger-row .row-move { font-variant-numeric: tabular-nums; }
 body[data-ui-theme="mica"] #appShell .digital-grader-launch:disabled { opacity: 1; color: var(--muted); background: var(--paper); box-shadow: none; cursor: default; }
+
+/* Keep utility text and optional controls consistent across appearances. */
+body[data-ui-theme="mica"] #appShell :is(#resultCount,.price-provenance,.legal-copy) { color: var(--muted); }
+body[data-ui-theme="mica"] #appShell :is(#allCount,#sealedCount,#watchlistCount) { color: var(--ink); }
+body[data-ui-theme="mica"] #appShell #dashboardMoneyDetails>summary { color: var(--pine-2); }
+body[data-ui-theme="mica"] #appShell :is([data-detail-tool="provider-index"],[data-detail-tool="valuation-context"])>summary { min-height: 44px; display: flex; align-items: center; padding-block: 10px; box-sizing: border-box; cursor: pointer; }
+body[data-ui-theme="mica"] #appShell :is([data-detail-tool="provider-index"],[data-detail-tool="valuation-context"])>summary::after { content: "⌄"; margin-left: auto; color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .history-chart-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+body[data-ui-theme="mica"] #appShell .history-chart-head .history-range-select { order: 2; margin: 0 0 0 auto; }
+body[data-ui-theme="mica"] #appShell .history-chart-head .history-period-change { margin: 0; }
+body[data-ui-theme="mica"] #appShell .portfolio-history-head { justify-content: flex-end; }
+@media (min-width: 760px) and (max-width: 1023px) {
+  body[data-ui-theme="mica"] #appShell .app-header { top: calc(8px + var(--safe-top)); left: 16px; right: 16px; padding-inline: 14px 4px; }
+  body[data-ui-theme="mica"] #appShell .app-header .wordmark { position: static; width: auto; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; }
+  body[data-ui-theme="mica"] #appShell .view { padding-top: calc(72px + var(--safe-top)); }
+  body[data-ui-theme="mica"] #appShell .view>:is(.collection-heading,.add-cards-heading,.screen-heading) { padding-right: 0; }
+}

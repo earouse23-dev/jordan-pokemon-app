@@ -2796,7 +2796,7 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   const chart = insufficientHistory
     ? '<p class="unavailable-panel" role="status">One price recorded. A trend needs two.</p>'
     : `<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>`;
-  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}">${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong></div>` : ""}${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}${controls}
+  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}"><div class="history-chart-head">${controls}${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong></div>` : ""}</div>${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}
     ${points.length ? `<small class="history-coverage">Available from ${esc(new Date(points[0].x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }))}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
     <details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary>
     <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>${dailySales ? "Average daily median" : "Average recorded price"}</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
@@ -2936,7 +2936,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
       day: "numeric",
       ...(detailed
         ? { year: "numeric", hour: "numeric", minute: "2-digit" }
-        : model.range === "1d"
+        : model.range === "1d" || model.end - model.start < 86_400_000
           ? { hour: "numeric" }
           : new Date(model.start).getUTCFullYear() !== new Date(model.end).getUTCFullYear()
             ? { year: "2-digit" }
@@ -2982,6 +2982,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           border: { display: false },
           ticks: {
             maxTicksLimit: 4,
+            stepSize: model.end - model.start >= 86_400_000 && model.end - model.start <= 7 * 86_400_000 ? 86_400_000 : undefined,
             color: muted,
             padding: 6,
             align: "inner",
@@ -5559,7 +5560,7 @@ function renderPortfolioHistory() {
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong></div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(points[0].total) ? esc(money(points[0].total, saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}<div class="portfolio-chart-footer">${rangeControls()}</div>${historyNotice}${estimateNotice}<details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
+    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(points[0].total) ? esc(money(points[0].total, saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}${historyNotice}${estimateNotice}<details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
     $("#portfolioChartRange", root)?.addEventListener("change", event => { state.portfolioHistoryRange = event.target.value; renderPortfolioHistory(); });
     if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false, dateDomain: { start: historyStart, end: today }, zeroBaseline: allTime }));
     return;

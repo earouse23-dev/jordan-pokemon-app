@@ -1080,3 +1080,95 @@ test("price history draws from left to right and respects reduced motion", async
   expect(await page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal)).toBeUndefined();
   expect(await page.evaluate(() => globalThis.fixtureApp.chartInstance.data.datasets[0].data.length)).toBe(3);
 });
+
+for (const theme of ["light", "dark"]) test(`audit corrections keep ${theme} controls clear, readable and touch-sized`, async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await openCollection(page);
+  await page.evaluate(theme => {
+    document.body.dataset.appearance = theme;
+    globalThis.fixtureApp.routeTo("dashboard", { focus: false });
+  }, theme);
+  for (const width of [320, 390, 430, 667, 759, 760, 768, 820, 1023, 1024, 1440, 1920]) {
+    await page.setViewportSize({ width, height: width === 667 ? 375 : 900 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect.poll(() => page.locator("#moreButton").evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+    })).toBe(true);
+    await assertFits(page);
+  }
+  await page.setViewportSize({ width: 820, height: 1180 });
+  await page.screenshot({ path: testInfo.outputPath(`${theme}-tablet-fixed-synthetic.png`) });
+  await page.evaluate(() => globalThis.fixtureApp.routeTo("collection", { focus: false }));
+  // Measure the text against its actual composited ancestor surface.
+  const contrast = async selectors => page.evaluate(selectors => {
+    const rgb = value => (value.match(/[\d.]+/g) || []).map(Number);
+    const luminance = channels => channels.slice(0, 3).map(c => c / 255).map(c => c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4).reduce((sum, c, i) => sum + c * [.2126, .7152, .0722][i], 0);
+    return selectors.map(selector => {
+      const el = document.querySelector(selector);
+      if (!el) return { selector, ratio: null };
+      let bg = [255, 255, 255];
+      const ancestors = []; for (let e = el; e; e = e.parentElement) ancestors.unshift(e);
+      for (const e of ancestors) { const c = rgb(getComputedStyle(e).backgroundColor); const alpha = c[3] ?? 1; bg = bg.map((v, i) => c[i] * alpha + v * (1 - alpha)); }
+      const fg = luminance(rgb(getComputedStyle(el).color)), background = luminance(bg);
+      return { selector, ratio: (Math.max(fg, background) + .05) / (Math.min(fg, background) + .05) };
+    });
+  }, selectors);
+  for (const row of await contrast(["#resultCount", "#allCount", "#sealedCount", "#watchlistCount", ".row-unit.price-provenance"])) {
+    if (row.ratio !== null) expect(row.ratio, row.selector).toBeGreaterThanOrEqual(4.5);
+  }
+  await page.evaluate(() => globalThis.fixtureApp.routeTo("dashboard", { focus: false }));
+  for (const row of await contrast(["#dashboardMoneyDetails>summary"])) expect(row.ratio, row.selector).toBeGreaterThanOrEqual(4.5);
+  await page.evaluate(() => {
+    const { state, routeTo } = globalThis.fixtureApp;
+    state.detailId = state.items[0].uid; state.detailCard = state.items[0];
+    routeTo("detail", { focus: false });
+  });
+  for (const row of await contrast(["#detailContent .legal-copy"])) expect(row.ratio, row.selector).toBeGreaterThanOrEqual(4.5);
+  for (const width of [320, 390, 667, 820]) {
+    await page.setViewportSize({ width, height: width === 667 ? 375 : 844 });
+    await page.locator("#cardHistoryRange").scrollIntoViewIfNeeded();
+    await expect.poll(() => page.locator("#cardHistoryRange").evaluate(el => {
+      const r = el.getBoundingClientRect();
+      return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+    })).toBe(true);
+    expect(await page.locator("#cardHistoryRange").evaluate(el => el.closest(".history-chart-head") !== null)).toBe(true);
+    await page.locator("#cardHistoryRange").selectOption("1y");
+    await expect(page.locator("#cardHistoryRange")).toBeFocused();
+    await page.locator("#cardHistoryRange").selectOption("all");
+    await assertFits(page);
+  }
+  await page.evaluate(() => { const { state, renderDetail } = globalThis.fixtureApp; Object.assign(state.items[0], { cardState: "graded", gradingCompany: "PSA", grade: "10" }); renderDetail(); });
+  await expect(page.locator('[data-detail-tool="provider-index"]>summary')).toBeVisible();
+  for (const selector of ['[data-detail-tool="provider-index"]>summary', '[data-detail-tool="valuation-context"]>summary', '.owned-actions button']) {
+    for (const el of await page.locator(selector).all()) {
+      const rect = await el.boundingBox();
+      if (rect) { expect(rect.height, selector).toBeGreaterThanOrEqual(44); expect(rect.width, selector).toBeGreaterThanOrEqual(44); }
+    }
+  }
+});
+
+test("short price axes use unique calendar dates without altering recorded timestamps", async ({ page }) => {
+  await openDetail(page, { condition: "Near Mint" });
+  for (const dates of [
+    ["2026-09-01", "2026-09-02"],
+    ["2026-09-01", "2026-09-02", "2026-09-03"],
+    ["2026-08-31", "2026-09-01", "2026-09-02"],
+    ["2025-12-31", "2026-01-01", "2026-01-02"],
+    ["2026-09-01T08:00:00Z", "2026-09-01T14:00:00Z", "2026-09-01T20:00:00Z"],
+  ]) {
+    await page.evaluate(dates => {
+      const { state, renderDetail } = globalThis.fixtureApp;
+      state.items[0].priceHistory = dates.map((recordedAt, i) => ({ recordedAt, amount: 100 + i * 5, currency: "USD", finish: "holofoil", condition: "Near Mint", provider: "synthetic" }));
+      state.chartRange = "all"; renderDetail();
+    }, dates);
+    await expect.poll(() => page.evaluate(() => !!globalThis.fixtureApp.chartInstance)).toBe(true);
+    const rendered = await page.evaluate(() => {
+      const chart = globalThis.fixtureApp.chartInstance;
+      return { labels: chart.scales.x.ticks.map(t => t.label), x: chart.data.datasets[0].data.map(p => p.x) };
+    });
+    expect(rendered.labels.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(rendered.labels).size).toBe(rendered.labels.length);
+    expect(rendered.x).toEqual(dates.map(Date.parse));
+  }
+});
