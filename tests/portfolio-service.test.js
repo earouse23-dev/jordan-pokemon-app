@@ -69,7 +69,7 @@ test("saved views are owner scoped, refresh failures preserve the published view
         if (patch.view) stored = patch.view;
         return new Response(null, { status: 204 });
       }
-      return Response.json({ view: stored, inventory_revision: 0 });
+      return Response.json({ view: stored, inventory_revision: 0, attempted_at: new Date().toISOString() });
     }
     if (url.pathname.endsWith("/collection_items") && !readFailure) return Response.json([]);
     if (url.pathname.endsWith("/collection_items"))
@@ -90,6 +90,13 @@ test("saved views are owner scoped, refresh failures preserve the published view
   );
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body.view, saved);
+  const today = new Date().toISOString().slice(0, 10);
+  stored = { ...saved, refreshIncomplete: true, attemptDay: today, attemptRevision: 0, attemptCount: 3 };
+  const summaryResponse = response();
+  await portfolioService({ method: "GET", headers: { authorization: "Bearer fixture-user" }, query: { surface: "portfolio", display: "summary" } }, summaryResponse);
+  assert.equal(summaryResponse.body.view.retryAt, new Date(Date.parse(today) + 86_400_000).toISOString());
+  assert.deepEqual(summaryResponse.body.view.summaries, saved.summaries);
+  stored = structuredClone(saved);
   res = response();
   await portfolioService(
     {
@@ -103,6 +110,7 @@ test("saved views are owner scoped, refresh failures preserve the published view
   assert.deepEqual(stored.summaries, saved.summaries);
   assert.equal(stored.updatedAt, saved.updatedAt);
   assert.equal(stored.attemptCount, 1);
+  assert.equal(stored.refreshIncomplete, true, 'A blocked retry must not present the old view as a completed update');
   assert.equal(paid, 0);
   readFailure = false;
   res = response();
@@ -219,7 +227,14 @@ test('daily cache skips inventory and providers; revisions reuse today’s price
   race=false;
   stored={...published,refreshIncomplete:true,attemptDay:day,attemptRevision:revision,attemptCount:3};
   const reads=inventoryReads;
-  await refreshPortfolioView(db,owner,{}, {now});assert.equal(inventoryReads,reads,'Bounded failed refresh retries');
+  attempted=now;
+  const limited=await refreshPortfolioView(db,owner,{}, {now});
+  assert.equal(limited.retryAt,'2026-01-04T00:00:00.000Z');
+  stored={...stored,attemptCount:1};
+  const waiting=await refreshPortfolioView(db,owner,{}, {now});
+  assert.equal(waiting.retryAt,'2026-01-03T12:05:00.000Z');
+  assert.deepEqual(waiting.summaries,published.summaries,'Retry metadata preserves saved values and history');
+  assert.equal(inventoryReads,reads,'Bounded failed refresh retries');
   assert.equal(paid,0);
   revision=published.inventoryRevision;
   stored={...published,version:1,refreshIncomplete:false};

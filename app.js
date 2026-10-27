@@ -271,6 +271,7 @@ let portfolioChartInstance = null;
 let portfolioChartMountVersion = 0;
 let portfolioRenderKey = "";
 let portfolioPricingRequest = null;
+let portfolioRetryTimer = null;
 let purchaseMarketBackfillInFlight = false;
 const purchaseMarketReferenceAttempts = new Set();
 let deferredInstallPrompt = null;
@@ -6972,6 +6973,7 @@ function renderCollection() {
             ? "Live pricing is temporarily unavailable"
             : "Waiting for live prices";
   $(".status-label").innerHTML = `<i></i> ${savedPortfolio && state.portfolioView.updatedAt ? `Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}` : state.pricingStatus === "loading" ? "Updating prices" : pricingLabel}`;
+  renderPortfolioRetry();
   const syncLabels = {
     loading: "Prices updating",
     live: "Prices current",
@@ -17361,12 +17363,32 @@ async function refreshLivePricing(positionIds = null) {
   }
   const request = { owner, version, promise: refreshSavedPortfolio(owner, version).then(handled => handled ? undefined : updateLivePricing(positionIds)) };
   portfolioPricingRequest = request;
+  renderPortfolioRetry();
   try { await request.promise; } finally {
     if (portfolioPricingRequest === request) {
       portfolioPricingRequest = null;
+      renderPortfolioRetry();
       if (accountRequestIsCurrent(owner, version) && state.route === "detail") renderDetailPreservingValuationFocus();
     }
   }
+}
+
+function renderPortfolioRetry() {
+  clearTimeout(portfolioRetryTimer);
+  const button = $("#retryPortfolio"), note = $("#portfolioRetryNote");
+  const view = state.portfolioView, owner = state.session?.user?.id;
+  const pending = Boolean(owner && portfolioPricingRequest?.owner === owner && portfolioPricingRequest.version === sessionLoadVersion);
+  const incomplete = Boolean(owner && view?.refreshIncomplete);
+  const today = new Date().toISOString().slice(0, 10);
+  const budget = view?.refreshReason === "provider_daily_budget_reached" && view.attemptDay === today;
+  const retryAt = budget ? Date.parse(today) + 86_400_000 : Date.parse(view?.retryAt);
+  const waiting = incomplete && retryAt > Date.now();
+  button.hidden = !incomplete || budget;
+  button.disabled = pending || waiting;
+  button.textContent = pending ? "Updating…" : "Retry update";
+  note.hidden = !incomplete || pending || !waiting;
+  note.textContent = budget ? "Try again tomorrow" : waiting ? `Try again at ${new Date(retryAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : "";
+  if (waiting) portfolioRetryTimer = setTimeout(renderPortfolioRetry, Math.min(retryAt - Date.now() + 10, 2_147_483_647));
 }
 
 function restorePortfolioPricing(view) {
@@ -17407,7 +17429,8 @@ function renderSavedPortfolio() {
   $("#portfolioValue").textContent = money(saved.total ?? saved.knownTotal, saved.currency);
   $("#portfolioValue").dataset.savedSnapshot = "true";
   $("#portfolioChange").textContent = saved.missingUnits ? `${saved.missingUnits} unpriced ${saved.missingUnits === 1 ? "copy" : "copies"} excluded` : "";
-  $(".status-label").innerHTML = `<i></i> Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}`;
+  $(".status-label").innerHTML = `<i></i> Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}`;
+  renderPortfolioRetry();
   renderPortfolioHistory();
   renderPortfolioPnl();
   renderDashboardHighlights();
@@ -17443,7 +17466,7 @@ async function refreshSavedPortfolio(owner, version) {
     for (let attempt = 0; attempt < 2; attempt++) {
     const response = await fetch("/api/capabilities?surface=portfolio", { method: "POST", headers: providerRequestHeaders(), signal: AbortSignal.timeout(65_000) });
     if (response.status === 404) return false;
-    if (!response.ok) return true;
+    if (!response.ok) throw Error("portfolio_refresh_failed");
     const { view } = await response.json();
     if (!accountRequestIsCurrent(owner, version) || !view?.summaries) return true;
     const originalKeys = new Map(JSON.parse(inventoryAtStart).map(row => [row[0], row[1]]));
@@ -17453,7 +17476,7 @@ async function refreshSavedPortfolio(owner, version) {
       return [item.uid, portfolioPricingKeyMatches(original, saved) && portfolioPricingKeyMatches(key, saved) ? original : key, item.quantity, item.lots, item.transactions];
     }));
     if (inventoryAtStart !== currentInventory) return true;
-    if (attempt === 0 && view?.refreshIncomplete && view.refreshReason !== "provider_daily_budget_reached" && view.pendingPricing?.some(p => p.price != null)) continue;
+    if (attempt === 0 && view?.refreshIncomplete && !(Date.parse(view.retryAt) > Date.now()) && view.refreshReason !== "provider_daily_budget_reached" && view.pendingPricing?.some(p => p.price != null)) continue;
     if (!hasPortfolioValue(view)) return true;
     state.portfolioView = view;
     restorePortfolioPricing(view);
@@ -17465,7 +17488,13 @@ async function refreshSavedPortfolio(owner, version) {
     if (attempt === 0 && !view.refreshIncomplete && view.checkedDay && view.checkedDay < new Date().toISOString().slice(0,10)) continue;
     return true;
     }
-  } catch { return true; }
+  } catch {
+    if (accountRequestIsCurrent(owner, version) && hasPortfolioValue(state.portfolioView)) {
+      state.portfolioView = { ...state.portfolioView, refreshIncomplete: true, refreshReason: "incomplete_refresh", retryAt: null };
+      renderSavedPortfolio();
+    }
+    return true;
+  }
 }
 
 async function updateLivePricing(positionIds = null) {
@@ -20113,6 +20142,7 @@ function bindEvents() {
   );
   $("#profileDisplayCurrency")?.addEventListener("change", () => void persistWorkflowDefaults());
   $("#retryDisplayFx").addEventListener("click", () => void loadDisplayFx());
+  $("#retryPortfolio").addEventListener("click", () => void refreshLivePricing());
   $("#gradingResearchConsentButton")?.addEventListener(
     "click",
     () => void openGradingResearchConsent(),

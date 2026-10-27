@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=114";
+const appUrl = "/app.js?v=115";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -30,7 +30,7 @@ test.beforeAll(async () => {
 });
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=114", (route) =>
+  await page.route("**/app.js?v=115", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -293,3 +293,29 @@ test("watchlist Recently updated sorts by dates instead of price and handles mis
   await expect(rows.nth(1)).toContainText("Old expensive");
   await expect(rows.nth(2)).toContainText("Unknown date");
 });
+
+for (const appearance of ["light", "dark"]) {
+  test(`library favorites accept pointer and keyboard input without opening details (${appearance})`, async ({ page }) => {
+    await openCollection(page);
+    await page.evaluate(value => { document.body.dataset.appearance = value; }, appearance);
+    const writes = [];
+    page.on("request", request => {
+      if (request.method() === "PATCH" && request.url().includes("/collection_items"))
+        writes.push(request.postDataJSON());
+    });
+    const heart = page.locator(".ledger-favorite").first();
+    if (test.info().project.use.hasTouch) await heart.tap();
+    else await heart.click();
+    await expect(heart).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#view-collection")).toBeVisible();
+    await expect.poll(() => writes.length).toBe(1);
+    expect(writes[0]).toEqual({ tags: ["Favorites"] });
+    await heart.press("Enter");
+    await expect(heart).toHaveAttribute("aria-pressed", "false");
+    await expect.poll(() => writes.length).toBe(2);
+    expect(writes[1]).toEqual({ tags: [] });
+    await expect(page.locator("#view-collection")).toBeVisible();
+    await page.locator(".ledger-open-overlay").first().click();
+    await expect(page.locator("#view-detail")).toBeVisible();
+  });
+}

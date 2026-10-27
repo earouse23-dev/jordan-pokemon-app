@@ -21,7 +21,7 @@
       sizes="180x180"
       href="icons/apple-touch-icon.png"
     />
-    <link rel="stylesheet" href="styles.css?v=92" />
+    <link rel="stylesheet" href="styles.css?v=93" />
     <link rel="stylesheet" href="themes.css?v=111" />
     <title>Mica — Pokémon Card Library</title>
   </head>
@@ -349,6 +349,8 @@
                 ><span class="status-label" aria-live="polite"
                   ><i></i> Checking prices</span
                 >
+                <button type="button" class="inline-retry" id="retryPortfolio" hidden>Retry update</button>
+                <small id="portfolioRetryNote" role="status" hidden></small>
               </div>
               <strong class="portfolio-value" id="portfolioValue">$0.00</strong
               ><small class="portfolio-change" id="portfolioChange"></small>
@@ -1520,6 +1522,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=114"></script>
+    <script type="module" src="app.js?v=115"></script>
   </body>
 </html>

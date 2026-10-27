@@ -106,7 +106,7 @@ requirePattern(
 );
 requirePattern(app, /Undo last bulk change/, "bulk undo UI");
 requirePattern(app, /collectionAttachmentMarkup/, "attachment UI");
-requirePattern(shell, /id="collectionOrganization"/, "organization workspace");
+requirePattern(shell, /id="collectionOrganization" hidden inert data-retired="true"/, "retired organization stays hidden and inert");
 requirePattern(
   databaseTest,
   /cross-owner organization reads are denied/i,
@@ -114,8 +114,8 @@ requirePattern(
 );
 requirePattern(
   browserTest,
-  /collection organization is accessible/i,
-  "browser organization coverage",
+  /retired organization stays inaccessible while catalog languages remain available/i,
+  "retired organization exclusion coverage",
 );
 
 if (failures.length)
@@ -124,5 +124,5 @@ if (failures.length)
   );
 
 console.info(
-  "Verified folders, labels, locations, saved views, goals, private files, indexed paging, atomic previews, and safe undo contracts.",
+  "Verified preserved organization data, private files, indexed paging, safe undo, and retired workspace exclusion.",
 );

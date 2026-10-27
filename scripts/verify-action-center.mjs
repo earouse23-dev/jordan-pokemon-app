@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 
-const [rules, delivery, maintenance, migration, app, shell, vercel] =
+const [rules, delivery, maintenance, migration, app, shell, vercel, held] =
   await Promise.all([
     readFile(new URL("../lib/action-center.js", import.meta.url), "utf8"),
     readFile(
@@ -18,6 +18,7 @@ const [rules, delivery, maintenance, migration, app, shell, vercel] =
     readFile(new URL("../app.js", import.meta.url), "utf8"),
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../vercel.json", import.meta.url), "utf8"),
+    readFile(new URL("../lib/held-routes.js", import.meta.url), "utf8"),
   ]);
 
 const checks = [
@@ -80,11 +81,11 @@ const checks = [
   ],
   [
     app,
-    /openNotificationPreferencesSheet[\s\S]+Unsubscribe optional channels/,
+    /openNotificationPreferencesSheet[\s\S]+Turn off email &amp; push/,
     "channel preferences",
   ],
-  [shell, />Action alerts</i, "settings entry point"],
-  [vercel, /"path": "\/api\/maintenance"/, "scheduled maintenance"],
+  [shell, /id="targetAlertButton"/, "settings entry point"],
+  [held, /maintenance: \["GET"\]/, "optional delivery maintenance remains held"],
 ];
 
 const failures = checks
@@ -92,6 +93,8 @@ const failures = checks
   .map(([, , label]) => label);
 if ((JSON.parse(vercel).crons || []).length > 2)
   failures.push("Vercel Hobby cron limit");
+if ((JSON.parse(vercel).crons || []).some(cron => cron.path === "/api/maintenance"))
+  failures.push("Held optional delivery must not be scheduled");
 
 if (failures.length)
   throw new Error(`Action-center verification failed: ${failures.join(", ")}`);

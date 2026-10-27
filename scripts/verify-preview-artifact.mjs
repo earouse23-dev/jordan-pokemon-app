@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = new URL("../", import.meta.url);
 const dist = new URL("../dist/", import.meta.url);
 const evidence = new URL(
-  "../docs/evidence/MICA_REPRODUCIBLE_PREVIEW.sha256",
+  "../docs/evidence/followup-audit-fixes-2026-10-26/preview.sha256",
   import.meta.url,
 );
 

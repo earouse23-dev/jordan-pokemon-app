@@ -42,6 +42,7 @@ export default defineConfig({
         "**/add-save-recovery.spec.js",
         "**/ui-regression.spec.js",
         "**/detail-recovery.spec.js",
+        "**/collection-continuity.spec.js",
         "**/mobile-workspaces.spec.js",
         "**/collector-home.spec.js",
         "**/grading-capture-recovery.spec.js",

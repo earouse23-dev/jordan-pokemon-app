@@ -137,6 +137,7 @@ test("light and dark mode persist, retaining green primary actions", async ({
       user: { id: "11111111-1111-4111-8111-111111111111" },
     };
     app.state.accountLoading = false;
+    app.state.actionCenter.status = "ready";
     app.bindEvents();
     document.body.classList.add("authenticated");
     document.querySelector("#authGate").hidden = true;
@@ -151,13 +152,20 @@ test("light and dark mode persist, retaining green primary actions", async ({
       () => getComputedStyle(document.documentElement).colorScheme,
     ),
   ).toBe("dark");
-  expect(
-    await page.evaluate(
-      () =>
-        getComputedStyle(document.querySelector("button.primary"))
-          .backgroundColor,
-    ),
-  ).toBe("rgb(39, 100, 67)");
+  await page.locator("#targetAlertButton").click();
+  const primary = page.getByRole("button", { name: "Save alert settings", exact: true });
+  await expect(primary).toBeVisible();
+  const colors = await primary.evaluate(el => {
+    const channels = value => value.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const bg = channels(getComputedStyle(el).backgroundColor);
+    const fg = channels(getComputedStyle(el).color);
+    const luminance = rgb => rgb.map(c => c / 255).map(c => c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4).reduce((sum, c, i) => sum + c * [.2126, .7152, .0722][i], 0);
+    const [light, dark] = [luminance(bg), luminance(fg)].sort((a, b) => b - a);
+    return { green: bg[1] > bg[0] && bg[1] > bg[2], contrast: (light + .05) / (dark + .05) };
+  });
+  expect(colors.green).toBe(true);
+  expect(colors.contrast).toBeGreaterThanOrEqual(4.5);
+  await page.getByRole("button", { name: "Close", exact: true }).click();
   await page.screenshot({
     path: testInfo.outputPath("dark-profile.png"),
     fullPage: true,

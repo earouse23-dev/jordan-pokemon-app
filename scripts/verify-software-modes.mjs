@@ -24,24 +24,25 @@ const checks = [
   [app, /export async function switchSoftwareMode/, "reversible switch"],
   [app, /saveProfile\(supabase,[\s\S]+softwareMode/, "cloud preference save"],
   [app, /restoreModeCollectionView/, "per-mode collection state"],
-  [shell, /id="softwareModeSelect"/, "header mode control"],
-  [shell, /id="softwareModeSettings"/, "settings mode control"],
+  [shell, /id="softwareModeSettings" hidden inert/, "legacy settings stay hidden and inert"],
   [shell, /id="softwareModeHome"/, "focused dashboard composition"],
   [data, /recordSoftwareModeEvent/, "privacy-minimized mode telemetry"],
   [migration, /enable row level security/i, "mode-event RLS"],
   [migration, /user_id = auth\.uid\(\)/i, "owner event boundary"],
   [migration, /on delete cascade/i, "account deletion"],
-  [browser, /Collector, Investor, and Seller modes/, "browser mode coverage"],
+  [browser, /legacy mode preferences never restore seller or trade clutter/, "legacy preference recovery coverage"],
 ];
 
 const failures = checks
   .filter(([source, pattern]) => !pattern.test(source))
   .map(([, , label]) => label);
+if (/id="softwareModeSelect"/.test(shell))
+  failures.push("retired header mode control stays absent");
 
 if (failures.length) {
   throw new Error(`Software-mode verification failed: ${failures.join(", ")}`);
 }
 
 console.info(
-  "Verified Collector, Investor, and Seller composition, reversible preferences, shared navigation, and owner-private mode events.",
+  "Verified preserved legacy mode contracts, owner-private events, and collector-only shipping navigation.",
 );
