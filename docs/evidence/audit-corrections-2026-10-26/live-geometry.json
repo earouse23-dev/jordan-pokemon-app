@@ -1,0 +1,417 @@
+{
+  "notes": "Zero-sized Add Cards is hidden below 760px; the bottom Add card action is used there. Offscreen disclosure centers are not hit-tested, but their 44px geometry is recorded.",
+  "rows": [
+    {
+      "add": null,
+      "appearance": "light",
+      "chart": null,
+      "height": 1180,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 752,
+        "y": 78.296875
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "light-tablet-dashboard",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 820
+    },
+    {
+      "add": {
+        "centerClear": false,
+        "height": 0,
+        "width": 0
+      },
+      "appearance": "light",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 699,
+        "y": 72
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "light-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 759
+    },
+    {
+      "add": {
+        "centerClear": true,
+        "height": 45,
+        "width": 121.140625
+      },
+      "appearance": "light",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 692,
+        "y": 78.296875
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "light-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 760
+    },
+    {
+      "add": {
+        "centerClear": true,
+        "height": 45,
+        "width": 121.140625
+      },
+      "appearance": "light",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 700,
+        "y": 78.296875
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "light-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 768
+    },
+    {
+      "add": {
+        "centerClear": true,
+        "height": 45,
+        "width": 121.140625
+      },
+      "appearance": "light",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 955,
+        "y": 81.140625
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "light-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 1023
+    },
+    {
+      "add": {
+        "centerClear": true,
+        "height": 45,
+        "width": 121.140625
+      },
+      "appearance": "light",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 756,
+        "y": 36.65625
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "light-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 1024
+    },
+    {
+      "add": {
+        "centerClear": false,
+        "height": 0,
+        "width": 0
+      },
+      "appearance": "dark",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 699,
+        "y": 72
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "dark-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 759
+    },
+    {
+      "add": {
+        "centerClear": true,
+        "height": 45,
+        "width": 121.140625
+      },
+      "appearance": "dark",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 692,
+        "y": 78.296875
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "dark-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 760
+    },
+    {
+      "add": {
+        "centerClear": true,
+        "height": 45,
+        "width": 121.140625
+      },
+      "appearance": "dark",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 700,
+        "y": 78.296875
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "dark-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 768
+    },
+    {
+      "add": {
+        "centerClear": true,
+        "height": 45,
+        "width": 121.140625
+      },
+      "appearance": "dark",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 752,
+        "y": 78.296875
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "dark-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 820
+    },
+    {
+      "add": {
+        "centerClear": true,
+        "height": 45,
+        "width": 121.140625
+      },
+      "appearance": "dark",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 955,
+        "y": 81.140625
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "dark-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 1023
+    },
+    {
+      "add": {
+        "centerClear": true,
+        "height": 45,
+        "width": 121.140625
+      },
+      "appearance": "dark",
+      "chart": null,
+      "height": 900,
+      "marketDisclosure": null,
+      "menu": {
+        "centerClear": true,
+        "height": 44,
+        "width": 44,
+        "x": 756,
+        "y": 36.65625
+      },
+      "overflow": 0,
+      "priceOptions": null,
+      "range": null,
+      "rangeInHeader": false,
+      "surface": "dark-dashboard-boundary",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": null,
+      "width": 1024
+    },
+    {
+      "add": null,
+      "appearance": "dark",
+      "chart": {
+        "centerClear": true,
+        "height": 319.796875,
+        "width": 374,
+        "x": 8,
+        "y": 426.484375
+      },
+      "height": 844,
+      "marketDisclosure": {
+        "centerClear": false,
+        "height": 44,
+        "width": 358,
+        "x": 16,
+        "y": 939.6796875
+      },
+      "menu": {
+        "centerClear": false,
+        "height": 0,
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": 0,
+      "priceOptions": {
+        "centerClear": false,
+        "height": 44,
+        "width": 358,
+        "x": 16,
+        "y": 995.6796875
+      },
+      "range": {
+        "centerClear": true,
+        "height": 44,
+        "width": 94.5,
+        "x": 279.5,
+        "y": 374.484375
+      },
+      "rangeInHeader": true,
+      "surface": "dark-phone-detail-entry",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": {
+        "centerClear": true,
+        "height": 62,
+        "width": 366,
+        "x": 12,
+        "y": 774
+      },
+      "width": 390
+    },
+    {
+      "add": null,
+      "appearance": "light",
+      "chart": {
+        "centerClear": true,
+        "height": 319.796875,
+        "width": 374,
+        "x": 8,
+        "y": 426.484375
+      },
+      "height": 844,
+      "marketDisclosure": {
+        "centerClear": false,
+        "height": 44,
+        "width": 358,
+        "x": 16,
+        "y": 939.6796875
+      },
+      "menu": {
+        "centerClear": false,
+        "height": 0,
+        "width": 0,
+        "x": 0,
+        "y": 0
+      },
+      "overflow": 0,
+      "priceOptions": {
+        "centerClear": false,
+        "height": 44,
+        "width": 358,
+        "x": 16,
+        "y": 995.6796875
+      },
+      "range": {
+        "centerClear": true,
+        "height": 44,
+        "width": 94.5,
+        "x": 279.5,
+        "y": 374.484375
+      },
+      "rangeInHeader": true,
+      "surface": "light-phone-detail-entry",
+      "themeAsset": "themes.css?v=111",
+      "toolbar": {
+        "centerClear": true,
+        "height": 62,
+        "width": 366,
+        "x": 12,
+        "y": 774
+      },
+      "width": 390
+    }
+  ]
+}

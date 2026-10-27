@@ -1,0 +1,143 @@
+{
+  "applicationCommit": "b82f5f1a94fcf2faaf03758c7b62deaf5461dc71",
+  "testFixtureCorrectionCommit": "95ba155",
+  "lintPassed": true,
+  "typecheckPassed": true,
+  "unit": {
+    "passed": 595,
+    "skipped": 3,
+    "failed": 0
+  },
+  "schema": {
+    "publicTables": 83,
+    "rlsEnabledOnAll": true
+  },
+  "migrationBaselinePassed": true,
+  "expandedBrowserInitial": {
+    "startTime": "2026-10-27T00:00:57.334Z",
+    "duration": 376325.591,
+    "expected": 445,
+    "skipped": 10,
+    "unexpected": 4,
+    "flaky": 0
+  },
+  "expandedBrowserInitialFailures": {
+    "count": 4,
+    "scope": "New audit test only: selected raw valuation context was retained when the fixture mutated its card to graded, so Market reference was absent.",
+    "correction": "Reset synthetic detailValuationContext before rendering the slab; no application source change.",
+    "finalRerun": {
+      "passed": 9,
+      "failed": 0,
+      "projects": [
+        "desktop-chromium",
+        "mobile-chromium",
+        "mobile-webkit"
+      ]
+    }
+  },
+  "releaseRouting": {
+    "artifactEntries": 64,
+    "functionCount": 9,
+    "heldRoutes": 3,
+    "realOutboundCalls": 0
+  },
+  "stage": "https://jordan-pokemon-oht0qidz4-earouse23-devs-projects.vercel.app",
+  "bundleSha256": "531dc800a4adea2635ffe3471424a5072c2da72e2fa96fcc43f61cc8017abbad",
+  "ciRun": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40426083066",
+  "published": true,
+  "firstCi": {
+    "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40423763629",
+    "result": "failed",
+    "failedChecks": 2,
+    "flakyChecks": 1,
+    "cause": "Phone plot started too low after adding the initial selector row.",
+    "correction": "Combine title and period change beside the 44px selector in a single chart header; existing phone plot placement checks retained unchanged."
+  },
+  "finalFocused": {
+    "passed": 18,
+    "failed": 0,
+    "projects": [
+      "desktop-chromium",
+      "mobile-chromium",
+      "mobile-webkit"
+    ]
+  },
+  "separateDailyRefreshObservation": {
+    "beforePromotion": true,
+    "incompleteSavedViews": 1,
+    "totalSavedViews": 2,
+    "code": "incomplete_refresh",
+    "priorCheckedDay": "2026-10-26",
+    "savedValuesRetained": true,
+    "pricingPipelineChanged": false,
+    "resolvedDuringVerification": true,
+    "final": {
+      "incompleteSavedViews": 0,
+      "currentDayViews": 1,
+      "totalSavedViews": 2,
+      "scope": "Active showcase portfolio completed its new-day update. This does not qualify all accounts or unattended next-day refreshes."
+    }
+  },
+  "finalBrowser": {
+    "startTime": "2026-10-27T00:24:22.418Z",
+    "duration": 631914.169,
+    "expected": 783,
+    "skipped": 21,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "finalBrowserInterpretation": "783 passed, 21 skipped, zero failures or flaky passes on final application source",
+  "verifiedAt": "2026-10-27T00:44:01.003Z",
+  "canonical": "https://jordan-pokemon-app.vercel.app/",
+  "deploymentId": "dpl_2FXQpjgo2HUoktifMHbjnPzX73gX",
+  "ci": {
+    "result": "success",
+    "workflowBrowser": {
+      "passed": 406,
+      "skipped": 11,
+      "failed": 0,
+      "flaky": 0
+    },
+    "largeInventory": {
+      "passed": 3,
+      "failed": 0
+    }
+  },
+  "live": {
+    "appearances": [
+      "light",
+      "dark"
+    ],
+    "dashboardWidths": [
+      759,
+      760,
+      768,
+      820,
+      1023,
+      1024
+    ],
+    "visibleDashboardActionCentersClear": true,
+    "phone": {
+      "width": 390,
+      "height": 844,
+      "chartWidth": 374,
+      "gutters": 8,
+      "rangeTop": 374.484375,
+      "rangeHeight": 44,
+      "toolbarTop": 774,
+      "rangeCenterClear": true,
+      "optionalDisclosureHeight": 44,
+      "rangeInHeader": true,
+      "rangeChangeRetainsFocus": true
+    },
+    "portfolioRangeControlAboveChart": true,
+    "portfolioMonthAndAllTimeControlsVerified": true,
+    "appearanceRestored": "auto (System)",
+    "viewportRestored": {
+      "width": 1710,
+      "height": 929
+    },
+    "customerInventoryWrites": 0,
+    "customerPreferenceDatabaseWrites": 0
+  }
+}

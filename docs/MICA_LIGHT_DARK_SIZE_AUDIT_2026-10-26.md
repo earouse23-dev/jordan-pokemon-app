@@ -1,5 +1,7 @@
 # Mica light/dark and responsive audit — October 26, 2026
 
+**Correction status:** all five findings were repaired and published in release `b82f5f1a94fc`. See [verified corrections](MICA_AUDIT_CORRECTIONS_2026-10-26.md). The original audit observations below describe the earlier release.
+
 **Verdict: the core flows are passing, but I would fix the tablet header collision and phone chart-control overlap before an unrestricted Jordan walkthrough.** A small contrast pass and two lower-priority consistency fixes remain. No new feature or redesign is needed.
 
 Audited canonical release `64c9d2a670aa` and repository checkpoint `fcb2e36`. This was a read-only application audit: no application source, production setting, provider budget, dependency, schema or customer inventory was changed. Appearance changes used the existing browser-local setting and were restored to System. The temporary viewport was reset and the dashboard restored.
