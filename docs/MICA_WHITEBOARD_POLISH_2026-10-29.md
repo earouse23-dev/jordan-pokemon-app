@@ -37,3 +37,9 @@ The existing seven workflow areas and screen IDs are retained. Fresh browser cap
 Canva requires an explicit preview approval before the draft transaction can be committed. The application release and the whiteboard’s save state are tracked separately; a prepared draft is not described as a saved design.
 
 Physical iPhone camera acceptance, real-image/provider coverage, final operator/legal notices, email delivery and App Store submission remain separate previously deferred requirements. This visual correction is not a claim of unrestricted commercial or store readiness.
+
+## Published release
+
+Published [Mica](https://jordan-pokemon-app.vercel.app/) from source `39a3eefe8e396324542c491ee8091d2524885f68`, deployment `dpl_3JJGWDYVC2ypKpZDVU4RzgBzLnwA`. Staged and canonical JavaScript/styles match the reviewed artifact; health identifies the release, and anonymous portfolio access remains 401 with private/no-store caching. Live read-only showcase checks confirmed the saved chart, compact Settings, secondary-panel restoration and consolidated card pricing controls.
+
+595 unit checks passed (three skips). All 947 non-skipped browser cases have passing evidence across the broad run and the documented corrected suites; 91 intentional browser skips remain. The cloud beta CI run is separately recorded as in progress at publication, not passed. A 15-minute deployed log scan found two Node DEP0169 deprecation warnings and no application exception. No customer data or settings were changed during live acceptance. The Canva draft still awaits preview approval before its commit.

@@ -58,6 +58,11 @@
         375
       ],
       "sharedShell": "Existing 15-width sweep, intermediate breakpoints and enlarged text tests passed"
+    },
+    "browserCoverage": {
+      "nonSkippedCasesWithPassingEvidence": 947,
+      "intentionalSkips": 91,
+      "method": "938 passed in the broad run; its one fixture failure was corrected and the complete 91-case document suite passed; eight newly included WebKit component cases also passed. Initial runs are not claimed clean."
     }
   },
   "canva": {
@@ -68,7 +73,65 @@
     "status": "draft-awaiting-preview-approval"
   },
   "publication": {
-    "status": "awaiting reviewed source commit and staged release"
+    "status": "published",
+    "sourceCommit": "39a3eefe8e396324542c491ee8091d2524885f68",
+    "deploymentId": "dpl_3JJGWDYVC2ypKpZDVU4RzgBzLnwA",
+    "stagedUrl": "https://jordan-pokemon-j6fplhq84-earouse23-devs-projects.vercel.app",
+    "canonicalUrl": "https://jordan-pokemon-app.vercel.app/",
+    "appVersion": 118,
+    "themeVersion": 113,
+    "shellCache": "mica-shell-design-132",
+    "appSha256": "61316c3653b988ae643464534e9e837225f6251d92184f5b163145eecce5b536",
+    "stagedAndCanonicalArtifactMatch": true,
+    "health": {
+      "status": "healthy",
+      "checkedAt": "2026-10-29T21:38:33.946Z",
+      "release": "39a3eefe8e39",
+      "services": {
+        "database": "healthy",
+        "auth": "healthy",
+        "appSchema": "access_restricted",
+        "schemaVerification": "requires_authenticated_acceptance",
+        "catalog": "configured",
+        "pricingProvider": "healthy",
+        "paidPricing": "configured_unverified",
+        "vision": "identification_configured_unverified",
+        "grading": "release_hold"
+      }
+    },
+    "anonymousPortfolio": {
+      "httpStatus": 401,
+      "cacheControl": "private, no-store"
+    },
+    "artifact": {
+      "functions": 9,
+      "deploymentEntries": 64,
+      "sourceEntries": 99,
+      "routingGate": "passed; zero real outbound calls"
+    },
+    "cloudCi": {
+      "conclusion": "",
+      "status": "in_progress",
+      "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40959191120",
+      "checkedAt": "2026-10-29T21:42:15.517Z"
+    },
+    "liveBrowser": {
+      "account": "authorized showcase account; read-only acceptance",
+      "checked": [
+        "new navigation labels",
+        "saved portfolio visible during account loading",
+        "Settings inline switch state",
+        "separate insights sheet and focus restoration",
+        "consolidated card Price details disclosure"
+      ],
+      "writesToAccount": false
+    },
+    "runtimeScan": {
+      "window": "15 minutes after staged/live checks",
+      "stderrWarnings": 2,
+      "warning": "Node DEP0169 url.parse deprecation",
+      "applicationExceptionsObserved": 0
+    }
   },
   "boundaries": {
     "customerWrites": false,
