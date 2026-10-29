@@ -2,6 +2,8 @@
 
 Scope: repeat the app audit across light/dark appearances and responsive sizes; improve onboarding; repair the portfolio and card-history period controls. This is a software correction, not an App Store submission or authorization to buy services. Ponytail full mode was used; existing authentication, pricing, chart rendering and account-isolation code were reused.
 
+Published to [Mica](https://jordan-pokemon-app.vercel.app/) from source commit `b21242d7e1e00ed959741145d7dc19be2c134c96`. Staged and canonical health identify that release; root and Settings return the new shell, and anonymous portfolio access returns 401 with `private, no-store` caching. Normal live clicks changed both portfolio and card periods; the dashboard was restored to All time.
+
 ## Research and implementation decisions
 
 | Source | Finding | Application to Mica |
@@ -32,6 +34,8 @@ A longer selected range cannot invent records that a provider has never supplied
 ## Verification and release evidence
 
 Final results and publication identity are recorded in [verification.json](evidence/onboarding-chart-audit-2026-10-29/verification.json). New screenshots in that directory show synthetic/empty account flows, not customer data.
+
+595 unit checks passed, with three intentional skips. The broad browser run found the two responsive defects above: 925 passed, four failed, 91 skipped. After correction, all 21 final targeted checks passed, including every failed case, the 15-width/two-theme sweep, first-card failure recovery, authentication and cached timeframe boundaries. There are no unresolved test failures; all 929 non-skipped browser cases have passing evidence. [The cloud CI run](https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40934211923) was still running at publication; it is not reported as passed here. [Light signup](evidence/onboarding-chart-audit-2026-10-29/signup-light.png) and [dark signup](evidence/onboarding-chart-audit-2026-10-29/signup-dark.png) show the revised flow.
 
 The verification includes the repository release gates, unit/security checks and the full Chromium/WebKit browser suite. The common shell audit covers 15 widths from 320 to 1920px, light/dark appearances and the five existing shell views, including the 759/760 and 1023/1024 breakpoints and 667px landscape. Separate populated-detail, chart, account-recovery, interrupted-draft and first-card tests cover behavior beyond empty shell geometry. This is representative breakpoint testing, not a claim to test every possible pixel dimension or physical device.
 

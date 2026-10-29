@@ -1,5 +1,5 @@
 {
-  "status": "verified_pending_publication",
+  "status": "published_verified",
   "date": "2026-10-29",
   "unitTests": {
     "passed": 595,
@@ -78,5 +78,34 @@
     "index.html": "affc00d052b2489cebc9241b73192e459204d77f0c76c58462078e40e7fdb53f",
     "styles.css": "2dc8f17db62cabbee91543f08fc8a07343aaff2761e560038725bffc1c20dab0",
     "sw.js": "cf57ef96fbdf41c4fb0ebc9547e3fd5face967b209be07f0effbb81275d6fc80"
-  }
+  },
+  "sourceCommit": "b21242d7e1e00ed959741145d7dc19be2c134c96",
+  "canonicalUrl": "https://jordan-pokemon-app.vercel.app",
+  "deploymentUrl": "https://jordan-pokemon-6gd1ys4ks-earouse23-devs-projects.vercel.app",
+  "releaseHealth": {
+    "status": "healthy",
+    "release": "b21242d7e1e0"
+  },
+  "liveChecks": {
+    "rootAndProfileShell": true,
+    "anonymousPortfolioStatus": 401,
+    "anonymousPortfolioCacheControl": "private, no-store",
+    "portfolioNormalClicks": [
+      "1m",
+      "1d",
+      "all"
+    ],
+    "cardNormalClicks": [
+      "1m",
+      "all"
+    ],
+    "consoleErrorsObserved": 0,
+    "dashboardRestoredTo": "all",
+    "cardRangeResultsChanged": true
+  },
+  "cloudCi": {
+    "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40934211923",
+    "status": "in_progress_at_publication"
+  },
+  "rawCustomerScreenshotsPublished": false
 }
