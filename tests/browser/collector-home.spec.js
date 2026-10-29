@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=117";
+const appUrl = "/app.js?v=118";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -34,7 +34,7 @@ async function openSecondaryTools(page) {
 }
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=117", (route) =>
+  await page.route("**/app.js?v=118", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -401,9 +401,11 @@ test("graded detail shows recorded sold-derived chart without using a provider i
   await openDetail(page,{cardState:"graded",gradingCompany:"PSA",grade:"10",certificationNumber:"000123",gradedValuations:[point(2,100),point(1,110),point(1,999,{contextValidated:false}),point(1,888,{currency:"EUR"})],priceHistory:[{recordedAt:new Date().toISOString(),amount:777,finish:"holofoil",currency:"USD",gradingCompany:"PSA",grade:"10"}]});
   await expect(page.locator("#positionChart")).toBeVisible();
   await expect(page.locator("#detailValuationGrade")).not.toBeVisible();
+  if (await page.locator('[data-detail-tool="prices"]').getAttribute('open') === null) await page.locator('[data-detail-tool="prices"] > summary').click();
   await page.locator('[data-detail-tool="valuation-context"] > summary').click();
   await expect(page.locator("#detailValuationGrade")).toBeVisible();
   await expect(page.locator("#detailValuationGrade")).toHaveValue("10");
+  if (await page.locator('[data-detail-tool="prices"]').getAttribute('open') === null) await page.locator('[data-detail-tool="prices"] > summary').click();
   await page.locator('[data-detail-tool="valuation-context"] > summary').click();
   await expect(page.locator("#cardPriceHistory")).not.toContainText("could not be loaded");
   expect(await page.locator("#cardPriceHistory").evaluate((el) => Boolean(el.compareDocumentPosition(document.querySelector(".exact-sold-value")) & Node.DOCUMENT_POSITION_PRECEDING))).toBe(true);
@@ -741,7 +743,8 @@ test("missing saved printing requires explicit choices and preserves the copy th
 
 test('primary detail hides extra evidence tools and retains them through an explicit secondary entry', async ({page},testInfo) => {
   await openDetail(page);
-  for (const tool of ['prices','attachments']) await expect(page.locator(`[data-detail-tool="${tool}"]`)).toBeHidden();
+  await expect(page.locator('[data-detail-tool="prices"]')).not.toHaveAttribute('open','');
+  await expect(page.locator('[data-detail-tool="attachments"]')).toBeHidden();
   await expect(page.locator('[data-detail-tool="grading"]')).toBeVisible();
   await expect(page.locator('[data-detail-tool="grading-comparison"]')).toHaveCount(0);
   expect(await page.locator('#detailTitle').evaluate(node=>getComputedStyle(node).fontFamily)).toMatch(/system-ui|-apple-system/);
@@ -820,14 +823,14 @@ test("additional purchase Free (trade) records known zero and can be unchecked",
     const { state, openPurchaseLotSheet } = await import(url);
     openPurchaseLotSheet(state.items[0]);
   }, appUrl);
-  await expect(page.getByLabel("Free (trade)")).toBeVisible();
+  await expect(page.getByLabel("No cost")).toBeVisible();
   await page.locator("#lotTotalCost").fill("12.50");
-  await page.getByLabel("Free (trade)").check();
+  await page.getByLabel("No cost").check();
   await expect(page.locator("#lotTotalCost")).toHaveValue("0.00");
   await expect(page.locator("#lotCostUnknown")).not.toBeChecked();
   await expect(page.locator("#purchaseLotTotal")).toHaveText("$0.00");
   await expect(page.locator("#lotTotalCost")).toHaveJSProperty("readOnly", true);
-  await page.getByLabel("Free (trade)").uncheck();
+  await page.getByLabel("No cost").uncheck();
   await expect(page.locator("#lotTotalCost")).toHaveValue("");
   await expect(page.locator("#lotTotalCost")).toHaveJSProperty("readOnly", false);
 });
@@ -1139,6 +1142,7 @@ for (const theme of ["light", "dark"]) test(`audit corrections keep ${theme} con
     await assertFits(page);
   }
   await page.evaluate(() => { const { state, renderDetail } = globalThis.fixtureApp; Object.assign(state.items[0], { cardState: "graded", gradingCompany: "PSA", grade: "10" }); state.detailValuationContext = null; renderDetail(); });
+  await page.locator('[data-detail-tool="prices"]>summary').click();
   await expect(page.locator('[data-detail-tool="provider-index"]>summary')).toBeVisible();
   for (const selector of ['[data-detail-tool="provider-index"]>summary', '[data-detail-tool="valuation-context"]>summary', '.owned-actions button']) {
     for (const el of await page.locator(selector).all()) {

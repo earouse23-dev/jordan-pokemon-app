@@ -1,0 +1,83 @@
+{
+  "scope": "Whole-app whiteboard UI corrections; no provider, schema, dependency or pricing changes",
+  "checkedAt": "2026-10-29T21:35:08.616Z",
+  "checks": {
+    "lint": "passed (101 source files)",
+    "typecheck": "passed",
+    "unit": {
+      "passed": 595,
+      "skipped": 3,
+      "failed": 0
+    },
+    "schema": "83 schema-defined public tables have RLS",
+    "migrationBaseline": "read-only baseline check passed; no SQL applied",
+    "neutralPreview": "44 files match recorded SHA-256 baseline",
+    "broadBrowser": {
+      "passed": 938,
+      "skipped": 91,
+      "failed": 1,
+      "remainingFailure": "Document-capture fixture allowed a second shipping app bootstrap; fixed in the fixture, then reverified below"
+    },
+    "cameraAfterIsolation": {
+      "passed": 18,
+      "failed": 0,
+      "repeatEach": 3,
+      "engines": [
+        "desktop Chromium",
+        "mobile Chromium",
+        "mobile WebKit"
+      ]
+    },
+    "completeDocumentAfterIsolation": {
+      "passed": 91,
+      "skipped": 2,
+      "failed": 0
+    },
+    "additionalWebkitComponents": {
+      "passed": 8,
+      "failed": 0
+    },
+    "responsive": {
+      "appearances": [
+        "light",
+        "dark"
+      ],
+      "widths": [
+        320,
+        375,
+        390,
+        430,
+        667,
+        768,
+        1024,
+        1440,
+        1920
+      ],
+      "shortLandscape": [
+        667,
+        375
+      ],
+      "sharedShell": "Existing 15-width sweep, intermediate breakpoints and enlarged text tests passed"
+    }
+  },
+  "canva": {
+    "designId": "DAHZbP_QRV0",
+    "imagePlacementsReplaced": 99,
+    "uniqueCaptureFiles": 98,
+    "captureProvenance": "Actual running app UI in isolated synthetic browser fixtures",
+    "status": "draft-awaiting-preview-approval"
+  },
+  "publication": {
+    "status": "awaiting reviewed source commit and staged release"
+  },
+  "boundaries": {
+    "customerWrites": false,
+    "providerBudgetChange": false,
+    "dependencyChange": false,
+    "databaseChange": false,
+    "cronChange": false,
+    "gitTriggeredVercelDeployments": "No Git repository linked to the existing project; explicit prebuilt release only",
+    "physicalDevice": "Owner acceptance remains separate",
+    "commercialReadiness": "Not established by UI corrections"
+  }
+}

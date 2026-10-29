@@ -28,7 +28,7 @@ test.beforeAll(async () => {
   appBundle = (
     await build({
       stdin: {
-        contents: `${source}\nexport { bindEvents, routeTo, state };`,
+        contents: `${source}\nexport { bindEvents, routeTo, state, openNotificationPreferencesSheet };`,
         resolveDir: root,
         sourcefile: "app.js",
       },
@@ -152,7 +152,7 @@ test("light and dark mode persist, retaining green primary actions", async ({
       () => getComputedStyle(document.documentElement).colorScheme,
     ),
   ).toBe("dark");
-  await page.locator("#targetAlertButton").click();
+  await page.evaluate(async () => (await import("/app.js")).openNotificationPreferencesSheet());
   const primary = page.getByRole("button", { name: "Save alert settings", exact: true });
   await expect(primary).toBeVisible();
   const colors = await primary.evaluate(el => {

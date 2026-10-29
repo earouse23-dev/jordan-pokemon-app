@@ -473,7 +473,7 @@ test("optional grading assets cannot block service-worker installation", async (
 
   assert.equal(skippedWaiting, true);
   assert.ok(coreAssets.includes("./index.html"));
-  assert.ok(coreAssets.includes("./app.js?v=117"));
+  assert.ok(coreAssets.includes("./app.js?v=118"));
   assert.equal(
     coreAssets.some((asset) => asset.includes("coach-")),
     false,
@@ -589,15 +589,15 @@ test("Mica uses one green interface with synchronized light/dark shell assets", 
   assert.match(appShell, /data-software-mode="collector"/);
   assert.match(appShell, /data-software-mode="investor"/);
   assert.match(appShell, /data-software-mode="seller"/);
-  assert.match(appShell, /themes\.css\?v=112/);
+  assert.match(appShell, /themes\.css\?v=113/);
   assert.match(appSource, /let uiTheme = "mica"/);
   assert.match(appSource, /let workspaceMode = "collector"/);
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
   assert.match(themes, /--canvas:\s*#f6f7f4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-design-131/);
-  assert.match(serviceWorker, /themes\.css\?v=112/);
+  assert.match(serviceWorker, /mica-shell-design-132/);
+  assert.match(serviceWorker, /themes\.css\?v=113/);
 });
 
 test("signup keeps account existence private and supports confirmation resend", () => {
@@ -1997,7 +1997,7 @@ test("returned-label proof is private, owner-scoped, hashed, and never self-veri
   );
   assert.match(
     appSource,
-    /Returned-label proof[\s\S]+uploadGradingOutcomeProof[\s\S]+proofStoragePath:\s*proof\?\.path/,
+    /id="gradingResultProof"[\s\S]+uploadGradingOutcomeProof[\s\S]+proofStoragePath:\s*proof\?\.path/,
   );
   assert.match(
     psaAccuracyFoundationMigration,

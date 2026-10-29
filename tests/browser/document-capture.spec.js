@@ -54,6 +54,9 @@ async function setup(
 ) {
   const requests = { writes: [], vision: [], cameras: [], catalog: [], pricing: [] };
   await page.addInitScript(text => {globalThis.__ocrText = text;}, visionPayload?.analysis?.identity?.grader ? "PSA GEM MT 10 Pikachu 025/165" : "Pikachu 025/165");
+  // Keep the document fixture as the only app instance; the shipping entry
+  // must not bootstrap a second auth/router against the same DOM.
+  await page.route("**/app.js*", route => route.fulfill({contentType:"application/javascript",body:""}));
   await page.route(`**${appUrl}`, (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );

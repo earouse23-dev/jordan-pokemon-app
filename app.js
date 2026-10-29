@@ -1172,7 +1172,7 @@ function compactSubmissionDecision(item, prediction = {}, micaScore = {}) {
       ["raw_value", "graded_comparables"].includes(input),
     );
     return {
-      answer: "Maybe",
+      answer: "Unavailable",
       tone: "maybe",
       reason: confidenceReasons
         ? `${confidenceReasons} Mica withholds a submit recommendation until the confidence standard passes.`
@@ -1201,7 +1201,7 @@ function compactSubmissionDecision(item, prediction = {}, micaScore = {}) {
 }
 
 function compactSubmissionMarkup(decision) {
-  return `<section class="compact-submission ${esc(decision.tone)}" aria-labelledby="submissionTitle"><span id="submissionTitle">Should you send it in?</span><strong>${esc(decision.answer)}</strong><p>${esc(decision.reason)}</p></section>`;
+  return `<section class="compact-submission ${esc(decision.tone)}" aria-labelledby="submissionTitle"><span id="submissionTitle">Grading recommendation</span><strong>${esc(decision.answer)}</strong>${decision.answer !== "Unavailable" ? `<p>${esc(decision.reason)}</p>` : `<p>Not enough verified evidence.</p><details><summary>Why?</summary><p>${esc(decision.reason)}</p></details>`}</section>`;
 }
 
 function compactGradingReportMarkup({
@@ -1249,7 +1249,7 @@ function compactGradingReportMarkup({
   const outcomeLabel =
     prediction.validated === true && Number.isFinite(likelyGrade)
       ? `Most likely PSA result · PSA ${likelyGrade}`
-      : "PSA probabilities awaiting validation";
+      : "Digital estimate";
   return `${reportEvidenceCarouselMarkup({ images, findings, cardName: item?.name || "graded card" })}<section class="compact-grade-hero" aria-labelledby="compactGradeTitle"><span>Mica pregrade</span><strong id="compactGradeTitle">${esc(scoreLabel)}</strong><em>${esc(outcomeLabel)}</em><small>${esc(basisLabel)} · not an official PSA grade</small><div class="pregrade-confidence-grid"><span><b>${evidencePercent}%</b><small>Evidence seen</small></span><span><b>${identityPercent || "—"}${identityPercent ? "%" : ""}</b><small>Card identity</small></span></div></section>${blockers}${reportSubgradeGaugesMarkup(subscores, findings)}${gradeLikelihoodChartMarkup(likelihood)}${compactSubmissionMarkup(decision)}`;
 }
 
@@ -1279,7 +1279,7 @@ function openPsaOutcomeLinkSheet(session, item) {
       `<option value="${code}" ${existing?.no_grade_code === code ? "selected" : ""}>${code}</option>`,
   ).join("");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">${existing ? "Update" : "Attach"} the PSA return</h2><p>${esc(item.name)} · connect the real label to this exact scan</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="psaOutcomeLinkForm"><div class="form-grid"><div class="field full"><label for="psaOutcomeKind">Label PSA returned</label><select id="psaOutcomeKind" name="outcomeKind"><option value="numeric" ${initialKind === "numeric" ? "selected" : ""}>Numeric grade</option><option value="qualified" ${initialKind === "qualified" ? "selected" : ""}>Qualified grade</option><option value="no_grade" ${initialKind === "no_grade" ? "selected" : ""}>No grade code</option><option value="authentic" ${initialKind === "authentic" ? "selected" : ""}>Authentic</option><option value="altered" ${initialKind === "altered" ? "selected" : ""}>Authentic altered</option></select></div><div class="field psa-outcome-field" data-outcome-field="grade"><label for="psaReturnedGrade">PSA grade</label><select id="psaReturnedGrade" name="returnedGrade">${gradeOptions}</select></div><div class="field psa-outcome-field" data-outcome-field="qualifier"><label for="psaQualifier">Qualifier</label><select id="psaQualifier" name="qualifier">${qualifierOptions}</select></div><div class="field full psa-outcome-field" data-outcome-field="no-grade"><label for="psaNoGradeCode">PSA no-grade code</label><select id="psaNoGradeCode" name="noGradeCode">${noGradeOptions}</select></div><div class="field"><label for="psaSubmissionDate">Date sent to PSA</label><input id="psaSubmissionDate" name="submissionDate" type="date" min="${esc(captureDate)}" max="${today}" value="${esc(existing?.submission_date || "")}" required><small>The Mica photos must have been captured before submission.</small></div><div class="field"><label for="psaReturnDate">Date returned</label><input id="psaReturnDate" name="returnDate" type="date" min="${esc(existing?.submission_date || captureDate)}" max="${today}" value="${esc(existing?.return_date || today)}" required></div><div class="field full"><label for="psaCertificationNumber">PSA certification number</label><input id="psaCertificationNumber" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(existing?.certification_number || "")}" required><small>Required so an independent reviewer can verify the label belongs to this returned card.</small></div><div class="field full"><label for="psaOutcomeProof">PSA label proof ${proofAlreadyAttached ? '<span class="optional-label">Replace only if needed</span>' : ""}</label><input id="psaOutcomeProof" name="proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" ${proofAlreadyAttached ? "" : "required"}><small>${proofAlreadyAttached ? "A private proof is already attached. A new file replaces it after the update succeeds." : "Attach a clear slab-label photo or official return PDF. JPG, PNG, WebP, or PDF; maximum 10 MB."}</small></div><div class="field full"><label for="psaOutcomeNotes">PSA or return notes <span class="optional-label">Optional</span></label><textarea id="psaOutcomeNotes" name="graderNotes" maxlength="10000" placeholder="Qualifier details, submission notes, or anything the reviewer should know">${esc(existing?.grader_notes || "")}</textarea></div><p class="form-error" id="psaOutcomeLinkError" role="alert"></p></div><div class="psa-return-note"><strong>Blind verification protects the accuracy result.</strong><p>The reviewer sees the PSA proof separately from Mica’s prediction. ${state.gradingResearchConsent ? "Your current research setting is on, but only scans captured while valid consent was active can become eligible." : "Research consent is currently off; this return can be saved to your account, but it is not automatically eligible for model training."}</p></div><div class="sheet-actions"><button class="secondary" id="psaOutcomeCancel" type="button">Cancel</button><button class="primary" type="submit">${existing ? "Update PSA return" : "Attach PSA return"}</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">${existing ? "Update" : "Attach"} the PSA return</h2><p>${esc(item.name)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="psaOutcomeLinkForm"><div class="form-grid"><div class="field full"><label for="psaOutcomeKind">Label PSA returned</label><select id="psaOutcomeKind" name="outcomeKind"><option value="numeric" ${initialKind === "numeric" ? "selected" : ""}>Numeric grade</option><option value="qualified" ${initialKind === "qualified" ? "selected" : ""}>Qualified grade</option><option value="no_grade" ${initialKind === "no_grade" ? "selected" : ""}>No grade code</option><option value="authentic" ${initialKind === "authentic" ? "selected" : ""}>Authentic</option><option value="altered" ${initialKind === "altered" ? "selected" : ""}>Authentic altered</option></select></div><div class="field psa-outcome-field" data-outcome-field="grade"><label for="psaReturnedGrade">PSA grade</label><select id="psaReturnedGrade" name="returnedGrade">${gradeOptions}</select></div><div class="field psa-outcome-field" data-outcome-field="qualifier"><label for="psaQualifier">Qualifier</label><select id="psaQualifier" name="qualifier">${qualifierOptions}</select></div><div class="field full psa-outcome-field" data-outcome-field="no-grade"><label for="psaNoGradeCode">PSA no-grade code</label><select id="psaNoGradeCode" name="noGradeCode">${noGradeOptions}</select></div><div class="field"><label for="psaSubmissionDate">Date sent to PSA</label><input id="psaSubmissionDate" name="submissionDate" type="date" min="${esc(captureDate)}" max="${today}" value="${esc(existing?.submission_date || "")}" required><small>The Mica photos must have been captured before submission.</small></div><div class="field"><label for="psaReturnDate">Date returned</label><input id="psaReturnDate" name="returnDate" type="date" min="${esc(existing?.submission_date || captureDate)}" max="${today}" value="${esc(existing?.return_date || today)}" required></div><div class="field full"><label for="psaCertificationNumber">PSA certification number</label><input id="psaCertificationNumber" name="certificationNumber" maxlength="120" autocomplete="off" value="${esc(existing?.certification_number || "")}" required><small>Use the certificate printed on the returned slab.</small></div><div class="field full"><label for="psaOutcomeProof">PSA label proof ${proofAlreadyAttached ? '<span class="optional-label">Replace only if needed</span>' : ""}</label><input id="psaOutcomeProof" name="proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" ${proofAlreadyAttached ? "" : "required"}><small>${proofAlreadyAttached ? "A private proof is already attached. A new file replaces it after the update succeeds." : "Attach a clear slab-label photo or official return PDF. JPG, PNG, WebP, or PDF; maximum 10 MB."}</small></div><div class="field full"><label for="psaOutcomeNotes">PSA or return notes <span class="optional-label">Optional</span></label><textarea id="psaOutcomeNotes" name="graderNotes" maxlength="10000" placeholder="Qualifier details, submission notes, or anything the reviewer should know">${esc(existing?.grader_notes || "")}</textarea></div><p class="form-error" id="psaOutcomeLinkError" role="alert"></p></div><div class="psa-return-note"><strong>Blind verification protects the accuracy result.</strong><p>The reviewer sees the PSA proof separately from Mica’s prediction. ${state.gradingResearchConsent ? "Your current research setting is on, but only scans captured while valid consent was active can become eligible." : "Research consent is currently off; this return can be saved to your account, but it is not automatically eligible for model training."}</p></div><div class="sheet-actions"><button class="secondary" id="psaOutcomeCancel" type="button">Cancel</button><button class="primary" type="submit">${existing ? "Update PSA return" : "Attach PSA return"}</button></div></form>`,
   );
   const form = $("#psaOutcomeLinkForm");
   const syncOutcomeFields = () => {
@@ -1472,7 +1472,7 @@ function openGradingActivityReport(sessionId, loadedSession = null) {
     ? '<button class="secondary" id="correctSavedGradingReport" type="button">Correct inputs</button>'
     : "";
   openSheet(
-    `<div class="saved-grade-report compact-report"><div class="grading-report-top"><div><span>Report ${esc(session.id.slice(0, 8).toUpperCase())}</span><strong>${esc(item.name)}</strong><small>${esc([item.set, item.number].filter(Boolean).join(" · ") || "Exact printing verified")} · ${esc(date || "date unavailable")}</small></div><button class="sheet-close" type="button" aria-label="Close report">×</button></div>${compactReport}<details class="report-card-data"><summary>Report details</summary><dl><div><dt>Language / variant</dt><dd>${esc([item.language, item.variant].filter(Boolean).join(" · ") || "Unavailable")}</dd></div><div><dt>Model bundle</dt><dd>${esc(prediction.model_bundle_version || session.model_bundle_version || "Mica grading")}</dd></div><div><dt>Photo retention</dt><dd>Private card-only thumbnail</dd></div><div><dt>Report type</dt><dd>Digital estimate, not an official grade</dd></div><div><dt>PSA return</dt><dd>${esc(session.outcomes?.find((outcome) => outcome.professional_grader === "PSA")?.returned_label || "Not attached")}</dd></div></dl></details>${correctionHistoryMarkup}<div class="sheet-actions saved-report-actions"><button class="secondary" id="shareSavedGradingReport" type="button">Share report</button>${correctionButton}<button class="secondary" id="attachPsaOutcome" type="button">${session.outcomes?.some((outcome) => outcome.professional_grader === "PSA") ? "Update PSA return" : "Attach PSA return"}</button><button class="primary sheet-close" type="button">Done</button></div></div>`,
+    `<div class="saved-grade-report compact-report"><div class="grading-report-top"><div><span>Report ${esc(session.id.slice(0, 8).toUpperCase())}</span><strong>${esc(item.name)}</strong><small>${esc([item.set, item.number].filter(Boolean).join(" · ") || "Printing not confirmed")} · ${esc(date || "date unavailable")}</small></div><button class="sheet-close" type="button" aria-label="Close report">×</button></div>${compactReport}<details class="report-card-data"><summary>Report details</summary><dl><div><dt>Language / variant</dt><dd>${esc([item.language, item.variant].filter(Boolean).join(" · ") || "Unavailable")}</dd></div><div><dt>Model bundle</dt><dd>${esc(prediction.model_bundle_version || session.model_bundle_version || "Mica grading")}</dd></div><div><dt>Photo retention</dt><dd>Private card-only thumbnail</dd></div><div><dt>Report type</dt><dd>Digital estimate, not an official grade</dd></div><div><dt>PSA return</dt><dd>${esc(session.outcomes?.find((outcome) => outcome.professional_grader === "PSA")?.returned_label || "Not attached")}</dd></div></dl></details>${correctionHistoryMarkup}<div class="sheet-actions saved-report-actions"><button class="secondary" id="shareSavedGradingReport" type="button">Share report</button>${correctionButton}<button class="secondary" id="attachPsaOutcome" type="button">${session.outcomes?.some((outcome) => outcome.professional_grader === "PSA") ? "Update PSA return" : "Attach PSA return"}</button><button class="primary sheet-close" type="button">Done</button></div></div>`,
   );
   $("#bottomSheet").dataset.experience = "grading";
   $("#shareSavedGradingReport")?.addEventListener("click", async (event) => {
@@ -4226,7 +4226,7 @@ function routeTo(route, options = {}) {
   });
   $(".bottom-nav").classList.toggle("hidden", route === "detail");
   const headerCopy = {
-    dashboard: ["Dashboard", "Your collection at a glance"],
+    dashboard: ["Portfolio", "Your collection at a glance"],
     collection: ["Collection", "Browse, filter, and manage your cards"],
     scan: ["Add items", "Find cards and unopened products"],
     trade: ["Trades", "Compare both sides before you agree"],
@@ -4259,10 +4259,10 @@ function routeTo(route, options = {}) {
 }
 
 const workspaceCopy = Object.freeze({
-  dashboard: ["Dashboard", "Welcome back", "Here’s your collection overview."],
+  dashboard: ["Portfolio", "Welcome back", "Here’s your collection overview."],
   collection: [
     "Collection",
-    "My Collection",
+    "Collection",
     "Browse, filter, and manage every item you own.",
   ],
   sets: ["Sets", "All Sets", "Track exact set progress and missing cards."],
@@ -6808,7 +6808,7 @@ function renderCollection() {
     $("#collectionEmpty").classList.remove("hidden");
     $("#collectionEmptyTitle").textContent = state.accountLoading
       ? "Reconnecting to your library…"
-      : "Your library couldn't load";
+      : "Your collection couldn't load";
     $("#collectionEmptyCopy").textContent = state.accountLoading
       ? "Loading your saved collection."
       : navigator.onLine
@@ -7321,7 +7321,7 @@ function renderCollection() {
           ? `${item.gradingCompany} ${item.grade}`
           : item.digitalGrade
             ? `DG ${dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`}`
-            : "Ungraded",
+            : normalizeRawCondition(item.rawCondition || item.condition).normalized !== "unknown" ? conditionLabel(item.rawCondition || item.condition) : "Ungraded",
       copyGroup?.copies.length > 1
         ? `${activeCopies} active${soldCopies ? `/${soldCopies} sold` : ""}`
         : null,
@@ -7354,7 +7354,7 @@ function renderCollection() {
     ? Number(state.organization.summary?.positionCount || 0) === 0
     : state.items.length === 0;
   $("#collectionEmptyTitle").textContent = trulyEmpty
-    ? "Your library is empty"
+    ? "Your collection is empty"
     : "No items match this view";
   $("#collectionEmptyCopy").textContent = trulyEmpty
     ? "Add a card or unopened product."
@@ -8304,7 +8304,7 @@ function renderSalePlanner(item, displayPrice) {
     <div class="field"><label for="planSalePrice">Expected selling price for each</label><div class="money-input"><span>$</span><input id="planSalePrice" type="number" inputmode="decimal" min="0" step="0.01" value="${displayPrice == null ? "" : Number(displayPrice).toFixed(2)}" placeholder="0.00"></div></div>
     <div class="field"><label for="planFeePercent">Selling site fee (%)</label><input id="planFeePercent" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${currencyInputValue(state.preferences.sellingFeePercent || 0)}" placeholder="Enter the current fee"></div>
     <div class="field"><label for="planShipping">Shipping you pay</label><div class="money-input"><span>$</span><input id="planShipping" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
-    <div class="field"><label for="planOtherCosts">Other selling costs</label><div class="money-input"><span>$</span><input id="planOtherCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
+    <div class="field"><label for="planOtherCosts">Other costs</label><div class="money-input"><span>$</span><input id="planOtherCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
     <div class="field"><label for="planTargetProfit">Money you hope to make <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="planTargetProfit" type="number" inputmode="decimal" min="0" step="0.01" placeholder="50.00"></div></div>
   </div><p class="planner-fee-note">Starts with your saved selling-fee setting. Confirm the current fee where you plan to sell.</p><div class="sale-plan-output" id="salePlanOutput" aria-live="polite"><div class="unavailable-panel">Enter an expected selling price to calculate the plan.</div></div><button class="planner-record" id="planRecordSaleButton" type="button" disabled>Use this plan to record a sale</button></section>`;
 }
@@ -8362,7 +8362,7 @@ function renderBuyPlanner(item, displayPrice) {
     <div class="field"><label for="buyPlanQuantity">How many?</label><input id="buyPlanQuantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1"></div>
     <div class="field"><label for="buyPlanResale">What each card may sell for</label><div class="money-input"><span>$</span><input id="buyPlanResale" type="number" inputmode="decimal" min="0" step="0.01" value="${Number(displayPrice).toFixed(2)}"></div></div>
     <div class="field"><label for="buyPlanFees">Selling site fee (%)</label><input id="buyPlanFees" type="number" inputmode="decimal" min="0" max="99.99" step="0.01" value="${currencyInputValue(state.preferences.sellingFeePercent || 0)}" placeholder="Enter the current fee"></div>
-    <div class="field"><label for="buyPlanCosts">Other selling costs</label><div class="money-input"><span>$</span><input id="buyPlanCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
+    <div class="field"><label for="buyPlanCosts">Other costs</label><div class="money-input"><span>$</span><input id="buyPlanCosts" type="number" inputmode="decimal" min="0" step="0.01" value="0.00"></div></div>
     <div class="field advanced-workspace"><label for="buyPlanRoi">Percent you hope to make</label><input id="buyPlanRoi" type="number" inputmode="decimal" min="0" step="0.1" value="20"></div>
     <div class="field"><label for="buyPlanOffer">Price the seller wants for each <span class="optional-label">Optional</span></label><div class="money-input"><span>$</span><input id="buyPlanOffer" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Compare an offer"></div></div>
   </div><p class="planner-fee-note">Buying it only for your collection? Set the percent you hope to make to 0. Add selling fees only if you expect to resell it.</p><div class="sale-plan-output" id="buyPlanOutput" aria-live="polite"></div><div class="planner-actions"><button class="secondary" id="buyPlanWatchButton" type="button">Watch for this price</button><button class="planner-record" id="buyPlanPurchaseButton" type="button" disabled>${item.uid ? "Add this purchase" : "Buy & add to library"}</button></div><p class="planner-fee-note" id="buyPlanPurchaseHelp">Enter the seller’s price to carry it into your purchase record.</p></section>`;
@@ -8899,7 +8899,7 @@ function renderDetail() {
     (item.tags || []).some((tag) => String(tag).toLowerCase() === "favorites");
   const action = owned
     ? `<div class="owned-banner"><div><span>${Number(item.quantity) === 0 ? "Sold copy" : item.status === "listed" ? "Listed for sale" : "In your collection"}</span><strong>${physicalCopy ? `${copyGroup.activeCount} active ${copyGroup.activeCount === 1 ? "copy" : "copies"}` : `${item.quantity} owned`} · ${ownedValuationPrice == null ? "Current price unavailable" : `${displayCurrencyMoney(ownedValuationPrice, owned.currency)} each`}</strong></div><div class="owned-actions"><button class="favorite-heart${favorite ? " selected" : ""}" id="favoriteCopyButton" type="button" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button><button id="duplicateCopyButton" type="button">Add copy</button><button id="editCopyButton" type="button">Edit</button></div></div>${physicalCopy && copyGroup.copies.length === 1 ? `<details class="single-copy-details"><summary>Your copy</summary>${copyNavigation}</details>` : copyNavigation}${!sealed && !item.gradingCompany && item.status === "owned" ? `<section class="detail-digital-grade"><div><span>${item.digitalGrade ? "Digital grade" : "Ungraded card"}</span><strong>${item.digitalGrade ? `DG ${esc(dgNumber || `${item.digitalGrade.low}–${item.digitalGrade.high}`)}` : "Check condition before you submit"}</strong><small>${item.digitalGrade ? "Your latest photo estimate" : "Four guided views · one uninterrupted grader"}</small></div><button id="detailDigitalGradeButton" type="button">${item.digitalGrade ? "Regrade" : "Digital grade"}</button></section>` : ""}`
-    : state.detailScanDraft ? `<div class="detail-sticky-action scan-add-action"><button id="addLibraryButton" type="button">${sealed ? "Add product" : "Add card"}</button></div>` : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched ? "Edit Watch" : sealed ? "Watch product" : "Watch card"}</button><button id="addLibraryButton" type="button">Add to Library</button></div>`;
+    : state.detailScanDraft ? `<div class="detail-sticky-action scan-add-action"><button id="addLibraryButton" type="button">${sealed ? "Add product" : "Add card"}</button></div>` : `<div class="detail-sticky-action split"><button class="secondary" id="watchCardButton" type="button">${watched ? "Edit watch" : sealed ? "Watch product" : "Watch card"}</button><button id="addLibraryButton" type="button">Add card</button></div>`;
   const watchedPerformance = watched
     ? watchPerformance({
         startingPrice: watched.startingMarketPrice,
@@ -8994,6 +8994,22 @@ function renderDetail() {
     $("#detailMoreToolsButton").setAttribute("aria-expanded", String(!tools.hidden));
   });
   if (moreToolsOpen) { $("#detailMoreTools").hidden = false; $("#detailMoreToolsButton").setAttribute("aria-expanded", "true"); }
+  const priceDetails = detailRoot.querySelector(".sold-price-details > div, .price-source-details");
+  const extraPrices = detailRoot.querySelector('[data-detail-tool="prices"]');
+  if (priceDetails) {
+    const disclosure = priceDetails.closest("details");
+    disclosure.dataset.detailTool = "prices";
+    disclosure.querySelector(":scope > summary").textContent = "Price details";
+    for (const selector of ['[data-detail-tool="provider-index"]', '[data-detail-tool="valuation-context"]']) {
+      const support = detailRoot.querySelector(selector);
+      if (support) priceDetails.append(support);
+    }
+    if (extraPrices) {
+      const content = extraPrices.querySelector(".detail-tool-content");
+      if (content) priceDetails.append(content);
+      extraPrices.remove();
+    }
+  }
   bindDetailValuationControls(baseItem);
   detailRoot.querySelectorAll("details[data-detail-tool]").forEach((tool) => {
     tool.open = openTools.has(tool.dataset.detailTool);
@@ -9448,7 +9464,7 @@ function openSealedSearch(defaults = {}) {
   let photoCandidate = defaults.photoCandidate || null;
   let photoVersion = 0;
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find unopened products</h2></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search unopened products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="de">German</option></select></div></div><div class="sealed-photo-check"><label class="sealed-photo-button" for="sealedPhoto">Take a box or ETB photo</label><input class="sr-only" id="sealedPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"><img id="sealedPhotoPreview" alt="Selected unopened product photo for visual comparison" hidden><small>Choose the matching product.</small></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><strong>Search unopened products</strong><span>Search a set or product name.</span></div></div><p class="legal-copy">Confirm the product and language before saving.</p><div class="sheet-actions"><button class="secondary" id="manualSealedEntry" type="button">Enter product manually</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find unopened products</h2></div><button class="sheet-close" aria-label="Close">×</button></div><div class="form-grid"><label class="search-field full"><span class="sr-only">Search unopened products</span><input id="sealedQuery" type="search" placeholder="Crown Zenith Elite Trainer Box" autocomplete="off"></label><div class="field"><label for="sealedLanguage">Language</label><select id="sealedLanguage"><option value="en">English</option><option value="ja">Japanese</option><option value="de">German</option></select></div></div><div class="sealed-photo-check"><label class="sealed-photo-button" for="sealedPhoto">Take a box or ETB photo</label><input class="sr-only" id="sealedPhoto" type="file" accept="image/jpeg,image/png,image/webp" capture="environment"><img id="sealedPhotoPreview" alt="Selected unopened product photo for visual comparison" hidden></div><div class="manual-results" id="sealedResults" aria-live="polite"><div class="find-empty"><span>Search by product name or set.</span></div></div><div class="sheet-actions"><button class="secondary" id="manualSealedEntry" type="button">Enter product manually</button></div>`,
   );
   const input = $("#sealedQuery");
   const language = $("#sealedLanguage");
@@ -9675,7 +9691,7 @@ function openSealedPositionSheet(product, options = {}) {
     source: product.externalIds?.pkmnpricesSealed ? "pkmnprices" : "manual",
   });
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm unopened product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="simple-note"><strong>${esc(languageName(product.language))} · ${esc(String(product.productType || "type unknown").replaceAll("_", " "))}</strong><br>Package variant: ${esc(product.sealedVariant || "not confirmed")} · Region: ${esc(product.sealedRegion || "not confirmed")}. ${product.externalIds?.pkmnpricesSealed ? "Provider candidate; check the box before saving." : "Manual identity; provider prices remain unavailable."}</div><div class="sheet-actions"><button class="secondary" id="sealedChangeProduct" type="button">Change product</button><button class="secondary" id="sealedEnterManual" type="button">Edit details</button><button class="secondary" id="sealedViewProduct" type="button">View product</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field full acquisition-field"><label for="sealedTotalCost">Total paid</label><div class="money-input"><span id="sealedCurrencyMark">$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><label for="sealedCurrency">Currency</label><select id="sealedCurrency" name="currency"><option value="USD">USD</option><option value="EUR">EUR</option></select><input id="sealedCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="sealedFree" type="checkbox"> Free (trade)</label></div><details class="full intake-more"><summary id="sealedMoreSummary">Purchase details · 1 product · ${today}</summary><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">Purchase date</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required><label class="field-choice"><input id="sealedDateUnknown" type="checkbox"> I don't know the date</label></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Condition of the box, source, or reminder…"></textarea></div></div></details><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><p class="unknown-basis-note" id="sealedUnknownBasisNote" hidden>Value tracking still works, but Mica cannot show money gained until you add what you paid.</p><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm unopened product</h2><p>${esc(product.name)} · ${esc(product.set)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="simple-note"><strong>${esc(languageName(product.language))} · ${esc(String(product.productType || "type unknown").replaceAll("_", " "))}</strong><br>Package variant: ${esc(product.sealedVariant || "not confirmed")} · Region: ${esc(product.sealedRegion || "not confirmed")}. ${product.externalIds?.pkmnpricesSealed ? "Provider candidate; check the box before saving." : "Manual identity; provider prices remain unavailable."}</div><div class="sheet-actions"><button class="secondary" id="sealedChangeProduct" type="button">Change product</button><button class="secondary" id="sealedEnterManual" type="button">Edit details</button><button class="secondary" id="sealedViewProduct" type="button">View product</button></div><form id="sealedPositionForm"><div class="form-grid"><div class="field full acquisition-field"><label for="sealedTotalCost">Total paid</label><div class="money-input"><span id="sealedCurrencyMark">$</span><input id="sealedTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><label for="sealedCurrency">Currency</label><select id="sealedCurrency" name="currency"><option value="USD">USD</option><option value="EUR">EUR</option></select><input id="sealedCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="sealedFree" type="checkbox"> No cost</label></div><details class="full intake-more"><summary id="sealedMoreSummary">Purchase details · 1 product · ${today}</summary><div class="form-grid"><div class="field"><label for="sealedQuantity">How many?</label><input id="sealedQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="1" required></div><div class="field"><label for="sealedPurchaseDate">Purchase date</label><input id="sealedPurchaseDate" name="transactionDate" type="date" max="${today}" value="${today}" required><label class="field-choice"><input id="sealedDateUnknown" type="checkbox"> I don't know the date</label></div><div class="field full"><label for="sealedNotes">Notes <span class="optional-label">Optional</span></label><textarea id="sealedNotes" name="notes" maxlength="10000" placeholder="Condition of the box, source, or reminder…"></textarea></div></div></details><p class="form-error" id="sealedPositionError" role="alert"></p></div><div class="position-total"><span id="sealedCostSummary">Total for 1 product</span><strong id="sealedPositionTotal">$0.00</strong></div><p class="unknown-basis-note" id="sealedUnknownBasisNote" hidden>Value tracking still works, but Mica cannot show money gained until you add what you paid.</p><div class="sheet-actions rapid-intake-actions"><button class="secondary" type="button" id="sealedPositionCancel">Cancel</button><button class="secondary" type="submit" name="saveMode" value="continue">Save + add another</button><button class="primary" type="submit" name="saveMode" value="view">Save & view</button></div></form>`,
   );
   $("#sealedChangeProduct").addEventListener("click", () => openSealedSearch({ name: product.name, language: product.language, photoFile: options.photoFile }));
   $("#sealedEnterManual").addEventListener("click", () => openManualSealedEntry({ ...product, photoFile: options.photoFile }));
@@ -10414,14 +10430,14 @@ export function openPositionSheet(card, options = {}) {
       ${options.visionAnalysis ? options.visionAnalysis.mode === "grade" ? `<div class="vision-prefill-note full"><strong>AI suggestion · confirm before saving</strong><span>Mica pregrade ${esc(options.visionAnalysis.gradeRange || "unavailable")} · ${esc(conditionLabel(options.visionAnalysis.condition))} · ${esc(confidenceLabel(options.visionAnalysis.confidence))}. This is not an official grade or condition guarantee.</span></div>` : '<p class="simple-note full">Read from photo · confirm the card and slab details.</p>' : ""}
       <details class="full intake-more" id="positionPurchaseDetails"><summary id="positionMoreSummary">Purchase details · optional</summary><div class="form-grid">
       <input id="positionAcquisitionMethod" name="acquisitionMethod" type="hidden" value="direct_purchase">
-      <div class="field full acquisition-field" id="positionPaidField"><label for="positionTotalCost">Total paid</label><label for="positionCurrency">Currency</label><select id="positionCurrency" name="currency"><option value="USD" ${prefill.currency !== "EUR" ? "selected" : ""}>USD</option><option value="EUR" ${prefill.currency === "EUR" ? "selected" : ""}>EUR</option></select><div class="money-input"><span id="positionCurrencyMark">$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="Not recorded"></div><input id="positionCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="positionFree" type="checkbox"> Free (trade)</label></div>
+      <div class="field full acquisition-field" id="positionPaidField"><label for="positionTotalCost">Total paid</label><label for="positionCurrency">Currency</label><select id="positionCurrency" name="currency"><option value="USD" ${prefill.currency !== "EUR" ? "selected" : ""}>USD</option><option value="EUR" ${prefill.currency === "EUR" ? "selected" : ""}>EUR</option></select><div class="money-input"><span id="positionCurrencyMark">$</span><input id="positionTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(initialTotal)}" placeholder="Not recorded"></div><input id="positionCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="positionFree" type="checkbox"> No cost</label></div>
       <div class="field full"><label for="positionDate">Purchase date</label><input id="positionDate" name="transactionDate" type="date" max="${today}" value="${esc(initialDate)}"><input id="positionDateUnknown" type="checkbox" hidden></div><div class="field full"><label for="positionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="positionNotes" name="notes" maxlength="10000" placeholder="A note about this copy or purchase…">${esc(prefill.notes || "")}</textarea></div></div></details>
       <p class="form-error" id="positionError" role="alert"></p>
     </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>Add the missing purchase details later to see profit or loss.</p>
     <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Add card</button>${!options.visionAnalysis ? '<button class="secondary raw-position" type="submit" id="positionGradeFirst">Grade first</button>' : ""}</div></form>`);
   const form = $("#positionForm");
   // Purchase facts lead; existing identity controls remain editable and submit unchanged.
-  const grid = form.querySelector(":scope > .form-grid");
+  const grid = form.querySelector(".form-grid");
   const purchaseDetails = $("#positionPurchaseDetails");
   const cardDetails = document.createElement("details");
   cardDetails.className = "full intake-more card-edit-details";
@@ -10507,9 +10523,9 @@ export function openPositionSheet(card, options = {}) {
         : money(breakdown.totalMinor / 100, input.currency);
     $("#positionCostSummary").textContent =
       `Total for ${count || 0} card${count === 1 ? "" : "s"}`;
-    $("#positionMoreSummary").textContent = "Notes · optional";
+    $("#positionMoreSummary").textContent = "Notes";
     cardDetails.querySelector("summary").textContent = input.cardState === "graded"
-      ? `Card details · ${input.grader || "Choose grader"} ${input.grade || "Choose grade"}`
+      ? (input.grader && input.grader !== "Choose grader" && input.grade ? `Grading details · ${input.grader} ${input.grade}` : "Grading details")
       : "Card details · ungraded";
     $("#positionUnknownBasisNote").hidden = true;
     $(".position-total", form).hidden = costUnknown;
@@ -10763,7 +10779,7 @@ function openPurchaseLotSheet(item, defaults = {}) {
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add another ${noun}</h2><p>${esc(item.name)} · ${esc(item.gradingCompany ? `${item.gradingCompany} grade ${item.grade}` : conditionLabel(item.condition))}</p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="purchaseLotForm"><div class="form-grid">
       <input id="lotAcquisitionMethod" name="acquisitionMethod" type="hidden" value="direct_purchase">
-      <div class="field full acquisition-field" id="lotPaidField"><label for="lotTotalCost">Total paid</label><div class="money-input"><span>${esc(item.currency || "USD")}</span><input id="lotTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaults.totalAcquisitionCost ?? "")}" placeholder="0.00" required></div><input id="lotCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="lotFree" type="checkbox"> Free (trade)</label></div>
+      <div class="field full acquisition-field" id="lotPaidField"><label for="lotTotalCost">Total paid</label><div class="money-input"><span>${esc(item.currency || "USD")}</span><input id="lotTotalCost" name="totalAcquisitionCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaults.totalAcquisitionCost ?? "")}" placeholder="0.00" required></div><input id="lotCostUnknown" type="checkbox" hidden><label class="field-choice"><input id="lotFree" type="checkbox"> No cost</label></div>
       <details class="full intake-more"><summary id="purchaseLotSummary">1 ${noun} · bought today</summary><div class="form-grid"><div class="field"><label for="lotQuantity">How many ${noun}s?</label><input id="lotQuantity" name="quantity" type="number" inputmode="numeric" min="1" max="99999" step="1" value="${esc(defaults.quantity || 1)}" required></div><div class="field"><label for="lotDate">When did you get them?</label><input id="lotDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required><label class="field-choice"><input id="lotDateUnknown" type="checkbox"> I don't know the date</label></div><div class="field full"><label for="lotNotes">Purchase notes <span class="optional-label">Optional</span></label><textarea id="lotNotes" name="notes" maxlength="10000">${esc(defaults.notes || "")}</textarea></div></div><section class="blended-purchase advanced-workspace" aria-labelledby="blendedPurchaseTitle"><div class="blended-purchase-head"><span>After this purchase</span><strong id="blendedPurchaseTitle">Updated totals</strong></div><div class="blended-purchase-grid" id="blendedPurchaseGrid" aria-live="polite"></div><small>Mica keeps this purchase separate so future sales use the right purchase amount.</small></section></details>
       <p class="form-error" id="purchaseLotError" role="alert"></p>
     </div><div class="position-total"><span>Total paid</span><strong id="purchaseLotTotal">$0.00</strong></div>
@@ -10976,14 +10992,14 @@ function openGradingSubmissionSheet(item, submission = null, defaults = {}) {
     statuses.findIndex(([value]) => value === submission?.status),
   );
   const availableStatuses = statuses.slice(currentIndex);
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${editing ? "Update cards sent for grading" : "Send cards for grading"}</h2><p>${esc(item.name)} · ${item.quantity} ungraded card${item.quantity === 1 ? "" : "s"} · update the status yourself</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingSubmissionForm"><div class="form-grid">
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${editing ? "Update cards sent for grading" : "Send cards for grading"}</h2><p>${esc(item.name)} · All ${item.quantity} ${item.quantity === 1 ? "copy" : "copies"}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingSubmissionForm"><div class="form-grid">
     ${editing ? `<div class="field"><label for="submissionStatus">Current stage</label><select id="submissionStatus" name="status" required>${availableStatuses.map(([value, label]) => `<option value="${value}" ${value === submission.status ? "selected" : ""}>${label}</option>`).join("")}<option value="cancelled">Cancel submission</option></select></div><div class="field"><label for="submissionStatusDate">Status date</label><input id="submissionStatusDate" name="statusUpdatedAt" type="date" min="${esc(submission.submittedAt)}" max="${today}" value="${today}" required></div>` : `<div class="field"><label for="submissionGrader">Grading company</label><select id="submissionGrader" name="grader" required><option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option ${value === defaults.grader ? "selected" : ""}>${value}</option>`).join("")}</select></div><div class="field"><label for="submissionSentDate">Date sent</label><input id="submissionSentDate" name="submittedAt" type="date" min="${esc(latestAcquisition)}" max="${today}" value="${esc(defaults.submittedAt || today)}" required></div>`}
     <div class="field"><label for="submissionExpectedDate">Expected return <span class="optional-label">Optional</span></label><input id="submissionExpectedDate" name="expectedReturnDate" type="date" min="${esc(editing ? submission.submittedAt : latestAcquisition || today)}" value="${esc(submission?.expectedReturnDate || defaults.expectedReturnDate || "")}"></div>
     ${editing ? "" : `<div class="field"><label for="submissionEstimatedCost">Estimated all-in cost <span class="optional-label">Planning only</span></label><div class="money-input"><span>$</span><input id="submissionEstimatedCost" name="estimatedTotalCost" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaults.estimatedTotalCost || "")}" placeholder="0.00"></div></div>`}
     <div class="field full"><label for="submissionReference">Order number <span class="optional-label">Optional</span></label><input id="submissionReference" name="submissionReference" maxlength="120" value="${esc(submission?.submissionReference || "")}" autocomplete="off" placeholder="Order or grading number"></div>
     <div class="field full"><label for="submissionNotes">Notes <span class="optional-label">Optional</span></label><textarea id="submissionNotes" name="notes" maxlength="10000" placeholder="Shipping, service speed, or anything you want to remember">${esc(submission?.notes || defaults.notes || "")}</textarea></div>
     <p class="form-error" id="gradingSubmissionError" role="alert"></p>
-  </div><div class="warning-panel"><strong>${editing ? "Status is manual" : "All current copies in this position are included"}.</strong><p>${editing ? "Mica does not claim a live connection to the grader. Choose only a stage you have verified. Recording the returned grade closes this submission automatically." : "Purchases and sales for this position pause while the cards are away. Estimated cost is not counted as paid or added to profit; enter the actual all-in total when the cards return."}</p></div><div class="sheet-actions"><button class="secondary" type="button" id="gradingSubmissionCancel">Close</button><button class="primary" type="submit">${editing ? "Save status" : "Start tracking"}</button></div></form>`);
+  </div><div class="warning-panel"><strong>${editing ? "Manual tracking" : "All copies are included"}.</strong><p>${editing ? "Choose the stage confirmed by your grader. Record the returned grade to finish tracking." : "Purchases and sales pause while these cards are away. Enter the actual grading cost when they return."}</p></div><div class="sheet-actions"><button class="secondary" type="button" id="gradingSubmissionCancel">Close</button><button class="primary" type="submit">${editing ? "Save status" : "Start tracking"}</button></div></form>`);
   $("#gradingSubmissionCancel").addEventListener("click", closeSheet);
   $("#gradingSubmissionForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -11168,18 +11184,18 @@ function openGradingResultSheet(item) {
     (item.lots || []).every((lot) => lot.costBasisKnown);
   const batchNote =
     Number(item.quantity) > 1
-      ? "Every card in this saved entry must have the same grading company and grade. If the results differ, cancel and use Separate copies first. Leave the certification number blank unless one number represents the whole group."
+      ? "All copies must have the same grader and grade. Different results? Cancel and use Separate copies first. Enter a certificate only if it represents the whole group."
       : "The original purchase stays in place. This adds only the grading cost and returned graded-card details.";
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Record the returned grade</h2><p>${esc(item.name)} · update the card without creating a sale</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingResultForm"><div class="form-grid">
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Record the returned grade</h2><p>${esc(item.name)} · ${item.quantity > 1 ? `All ${item.quantity} copies` : "1 copy"}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="gradingResultForm"><div class="form-grid">
     <div class="field"><label for="gradingResultGrader">Grading company</label><select id="gradingResultGrader" name="grader" required>${activeSubmission ? `<option>${esc(activeSubmission.grader)}</option>` : `<option value="">Choose grader</option>${["PSA", "BGS", "CGC", "TAG", "SGC"].map((value) => `<option>${value}</option>`).join("")}`}</select></div>
     <div class="field"><label for="gradingResultGrade">Returned grade</label><input id="gradingResultGrade" name="grade" type="number" inputmode="decimal" min="1" max="10" step="0.1" placeholder="10" required></div>
     <div class="field"><label for="gradingResultDate">Return date</label><input id="gradingResultDate" name="transactionDate" type="date" min="${esc(earliestReturn)}" max="${today}" value="${today}" required></div>
     <div class="field"><label for="gradingResultCost">Total grading cost</label><div class="money-input"><span>$</span><input id="gradingResultCost" name="totalGradingCost" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required></div><small>Include fees, shipping, insurance, and supplies for these ${item.quantity} card${item.quantity === 1 ? "" : "s"} as one total.</small></div>
     <div class="field full"><label for="gradingResultCert">Certification number <span class="optional-label">Optional</span></label><input id="gradingResultCert" name="certificationNumber" maxlength="120" autocomplete="off"><small>${item.quantity === 1 ? "Printed on the returned graded case." : "If the numbers are different, keep each graded card in a separate saved entry."}</small></div>
-    <div class="field full"><label for="gradingResultProof">Returned-label proof <span class="optional-label">Optional</span></label><input id="gradingResultProof" name="proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><small>For PSA accuracy research, attach a clear label photo or official return PDF. It stays private, is hashed on this device, and is not treated as verified until reviewed. Maximum 10 MB.</small></div>
+    <div class="field full"><label for="gradingResultProof">Label photo or PDF <span class="optional-label">Optional</span></label><input id="gradingResultProof" name="proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><small>Private PSA research proof · review required · 10 MB max.</small></div>
     <div class="field full"><label for="gradingResultNotes">Notes <span class="optional-label">Optional</span></label><textarea id="gradingResultNotes" name="notes" maxlength="10000" placeholder="Submission or return details"></textarea></div>
     <p class="form-error" id="gradingResultError" role="alert">${basisReady ? "" : "Add the missing amount paid first so Mica can keep an honest purchase history."}</p>
-  </div><div class="warning-panel"><strong>All ${item.quantity} current card${item.quantity === 1 ? "" : "s"} will become professionally graded.</strong><p>${esc(batchNote)} Old ungraded prices are cleared, and the total grading cost is divided across the remaining cards to the cent.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="gradingResultCancel">Cancel</button><button class="primary" type="submit" ${basisReady ? "" : "disabled"}>Save returned grade</button></div></form>`);
+  </div><div class="warning-panel"><strong>All ${item.quantity} current card${item.quantity === 1 ? "" : "s"} will become professionally graded.</strong><p>${esc(batchNote)} Grading cost is shared across these copies; purchase history is kept.</p></div><div class="sheet-actions"><button class="secondary" type="button" id="gradingResultCancel">Cancel</button><button class="primary" type="submit" ${basisReady ? "" : "disabled"}>Save grade</button></div></form>`);
   $("#gradingResultCancel").addEventListener("click", closeSheet);
   $("#gradingResultForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -11318,8 +11334,15 @@ function openSaleSheet(item, defaults = {}) {
     item.listingVenue ??
     workflowDefault("sale-marketplace");
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Record a sale</h2><p>${esc(item.name)} · ${esc(saleContext)} · ${esc(selectedCopyContext)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saleForm"><div class="form-grid">${gradedCopy ? '<input name="quantity" type="hidden" value="1"><div class="field"><span class="field-label">Physical copy</span><strong>1 selected copy</strong></div>' : `<div class="field"><label for="saleQuantity">How many did you sell?</label><input id="saleQuantity" name="quantity" type="number" min="1" max="${item.quantity}" step="1" value="${esc(defaults.quantity || 1)}" required></div>`}<div class="field"><label for="saleDate">When did you sell it?</label><input id="saleDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div><div class="field"><label for="salePrice">Selling price for each</label><input id="salePrice" name="unitPrice" type="number" min="0" step="0.01" value="${esc(suggestedUnitPrice)}" required>${item.askingPrice != null && defaults.unitPrice == null ? "<small>Filled from this card’s sale listing.</small>" : ""}</div><div class="field"><label for="saleCurrency">Currency</label><input id="saleCurrency" name="currency" value="${esc(item.currency || "USD")}" readonly aria-readonly="true"><small>Must match this copy’s purchase currency.</small></div><div class="field"><label for="saleFees">Selling site fees</label><input id="saleFees" name="marketplaceFees" type="number" min="0" step="0.01" value="${esc(defaults.marketplaceFees ?? "0.00")}"></div><div class="field"><label for="saleShipping">Shipping you paid</label><input id="saleShipping" name="shipping" type="number" min="0" step="0.01" value="${esc(defaults.shipping ?? "0.00")}"></div><div class="field"><label for="saleOther">Other selling costs</label><input id="saleOther" name="otherCosts" type="number" min="0" step="0.01" value="${esc(defaults.otherCosts ?? "0.00")}"></div><div class="field full"><label for="saleMarketplace">Where did you sell it?</label><input id="saleMarketplace" name="marketplace" value="${esc(suggestedMarketplace)}" placeholder="eBay, TCGplayer, card show…"></div><div class="field full"><label for="saleNotes">Notes <span class="optional-label">Optional</span></label><textarea id="saleNotes" name="notes">${esc(defaults.notes || "")}</textarea></div><p class="form-error" id="saleError" role="alert"></p></div><div class="simple-note"><strong>${gradedCopy ? "Only this selected physical copy will be sold." : "Mica uses your oldest recorded purchase first."}</strong><br>${gradedCopy ? "Its certificate, acquisition, and sale history remain available with the sold copy." : "This keeps the amount you made from the sale consistent and leaves a clear history."}</div><div class="sheet-actions"><button class="secondary" type="button" id="saleCancel">Cancel</button><button class="primary" type="submit">Record sale</button></div></form>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Record a sale</h2><p>${esc(item.name)} · ${esc(saleContext)} · ${esc(selectedCopyContext)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="saleForm"><div class="form-grid">${gradedCopy ? '<input name="quantity" type="hidden" value="1"><div class="field"><span class="field-label">Physical copy</span><strong>1 selected copy</strong></div>' : `<div class="field"><label for="saleQuantity">How many did you sell?</label><input id="saleQuantity" name="quantity" type="number" min="1" max="${item.quantity}" step="1" value="${esc(defaults.quantity || 1)}" required></div>`}<div class="field"><label for="saleDate">Sale date</label><input id="saleDate" name="transactionDate" type="date" max="${today}" value="${esc(defaults.transactionDate || today)}" required></div><div class="field"><label for="salePrice">Price per card</label><input id="salePrice" name="unitPrice" type="number" min="0" step="0.01" value="${esc(suggestedUnitPrice)}" required>${item.askingPrice != null && defaults.unitPrice == null ? "<small>Filled from this card’s sale listing.</small>" : ""}</div><div class="field"><label for="saleCurrency">Currency</label><input id="saleCurrency" name="currency" value="${esc(item.currency || "USD")}" readonly aria-readonly="true"><small>Must match this copy’s purchase currency.</small></div><div class="field"><label for="saleFees">Fees</label><input id="saleFees" name="marketplaceFees" type="number" min="0" step="0.01" value="${esc(defaults.marketplaceFees ?? "0.00")}"></div><div class="field"><label for="saleShipping">Shipping</label><input id="saleShipping" name="shipping" type="number" min="0" step="0.01" value="${esc(defaults.shipping ?? "0.00")}"></div><div class="field"><label for="saleOther">Other costs</label><input id="saleOther" name="otherCosts" type="number" min="0" step="0.01" value="${esc(defaults.otherCosts ?? "0.00")}"></div><div class="field full"><label for="saleMarketplace">Sold on</label><input id="saleMarketplace" name="marketplace" value="${esc(suggestedMarketplace)}" placeholder="eBay, TCGplayer, card show…"></div><div class="field full"><label for="saleNotes">Notes <span class="optional-label">Optional</span></label><textarea id="saleNotes" name="notes">${esc(defaults.notes || "")}</textarea></div><p class="form-error" id="saleError" role="alert"></p></div><div class="simple-note"><strong>${gradedCopy ? "Only this selected physical copy will be sold." : "Mica uses your oldest recorded purchase first."}</strong><br>${gradedCopy ? "Its certificate, acquisition, and sale history remain available with the sold copy." : "This keeps the amount you made from the sale consistent and leaves a clear history."}</div><div class="sheet-actions"><button class="secondary" type="button" id="saleCancel">Cancel</button><button class="primary" type="submit">Record sale</button></div></form>`,
   );
+  const saleExtras = document.createElement("details");
+  saleExtras.className = "intake-more full";
+  saleExtras.innerHTML = "<summary>Fees & notes</summary><div class='form-grid'></div>";
+  $("#saleFees").closest(".field").before(saleExtras);
+  for (const id of ["saleFees", "saleShipping", "saleOther", "saleMarketplace", "saleNotes"])
+    saleExtras.querySelector(".form-grid").append($("#" + id).closest(".field"));
+  saleExtras.open = Boolean(Number(defaults.marketplaceFees) || Number(defaults.shipping) || Number(defaults.otherCosts) || defaults.notes);
   $("#saleCancel").addEventListener("click", closeSheet);
   $("#saleForm").addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -11691,12 +11714,40 @@ function openRemapPositionSheet(item) {
   void search();
 }
 
+let restoreSecondaryPanel = null;
+function openSecondaryPanel(panel, title) {
+  // Move the existing view: its listeners, values and pending saves stay intact.
+  const parent = panel.parentNode;
+  const next = panel.nextSibling;
+  const wasOpen = panel.open;
+  openSheet(`<div class="sheet-heading"><h2 id="sheetTitle">${esc(title)}</h2><button class="sheet-close" type="button" aria-label="Close">×</button></div><div class="secondary-panel-host"></div>`);
+  panel.classList.add("secondary-panel");
+  if (panel instanceof HTMLDetailsElement) panel.open = true;
+  $(".secondary-panel-host").append(panel);
+  restoreSecondaryPanel = () => {
+    parent.insertBefore(panel, next?.parentNode === parent ? next : null);
+    panel.classList.remove("secondary-panel");
+    if (panel instanceof HTMLDetailsElement) panel.open = wasOpen;
+    restoreSecondaryPanel = null;
+  };
+}
 function openSheet(content, trigger = document.activeElement) {
+  restoreSecondaryPanel?.();
+  delete $("#bottomSheet").dataset.experience;
   const wasOpen = !$("#bottomSheet").hidden;
   if (!wasOpen) state.lastFocus = trigger;
   if (!wasOpen && trigger?.setAttribute)
     trigger.setAttribute("aria-expanded", "true");
   $("#sheetContent").innerHTML = content;
+  const sheetForm = $("#sheetContent > form");
+  const actions = sheetForm?.querySelector(":scope > .sheet-actions:last-child");
+  if (actions) {
+    sheetForm.classList.add("sheet-form");
+    const body = document.createElement("div");
+    body.className = "sheet-form-body";
+    while (sheetForm.firstChild !== actions) body.append(sheetForm.firstChild);
+    sheetForm.prepend(body);
+  }
   $("#bottomSheet").scrollTop = 0;
   $("#sheetContent").scrollTop = 0;
   $("#sheetBackdrop").hidden = false;
@@ -11725,6 +11776,7 @@ function openSheet(content, trigger = document.activeElement) {
 function closeSheet(options = {}) {
   if ($("#bottomSheet").dataset.lockClose === "true" && !options.force) return;
   const sensitive = $("#bottomSheet").dataset.sensitive === "true";
+  restoreSecondaryPanel?.();
   $("#sheetBackdrop").hidden = true;
   $("#bottomSheet").hidden = true;
   document.body.style.overflow = "";
@@ -11795,36 +11847,41 @@ function openFilterSheet() {
   const graders = [
     ...new Set(source.map((item) => item.gradingCompany).filter(Boolean)),
   ].sort();
-  const grades = [
-    ...new Set(
-      source
-        .map(
-          (item) =>
-            item.grade ||
-            item.digitalGrade?.predictedGrade ||
-            item.digitalGrade?.low,
-        )
-        .filter(Boolean)
-        .map(String),
-    ),
-  ].sort((left, right) => Number(right) - Number(left));
   openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Filter & sort</h2></div><button class="sheet-close" aria-label="Close">×</button></div>
     <div class="field"><label for="sheetView">Show</label><select id="sheetView"><option value="all">All items</option><option value="favorites">Favorites only</option><option value="graded">Professionally graded only</option><option value="unpriced">Missing a matching price</option><option value="for-sale">For sale</option><option value="watchlist">Cards I’m watching</option><option value="sets">Set progress</option></select></div>
     <div class="field"><label for="sheetSet">Set</label><select id="sheetSet"><option value="">Every set</option>${sets.map((set) => `<option value="${esc(set)}">${esc(set)}</option>`).join("")}</select></div>
-    <div class="field"><label for="sheetCondition">Card type or wear</label><select id="sheetCondition"><option value="">Every type and condition</option><option value="Raw">Ungraded cards</option><option value="Graded">Professionally graded cards</option><option value="Sealed">Unopened products</option><option value="Near Mint">Like new</option><option value="Lightly Played">Light wear</option><option value="Moderately Played">Noticeable wear</option><option value="Heavily Played">Heavy wear</option><option value="Damaged">Damaged</option></select></div>
+    <div class="field"><label for="sheetCardType">Card type</label><select id="sheetCardType"><option value="">All types</option><option value="Raw">Ungraded</option><option value="Graded">Graded</option><option value="Sealed">Unopened</option></select></div>
+    <div class="field"><label for="sheetCondition">Condition</label><select id="sheetCondition"><option value="">Any condition</option><option value="Near Mint">Like new</option><option value="Lightly Played">Light wear</option><option value="Moderately Played">Noticeable wear</option><option value="Heavily Played">Heavy wear</option><option value="Damaged">Damaged</option></select></div>
     <div class="field"><label for="sheetLanguage">Language</label><select id="sheetLanguage"><option value="">Every supported language</option>${["en", "ja", "fr", "de", "es", "it", "pt", "zh-tw", "id", "th"].map((code) => `<option value="${code}">${esc(languageName(code))}</option>`).join("")}</select></div>
     <div class="field"><label for="sheetGrader">Grading company</label><select id="sheetGrader"><option value="">Every company</option>${graders.map((grader) => `<option value="${esc(grader)}">${esc(grader)}</option>`).join("")}</select></div>
-    <div class="field"><label for="sheetGrade">Digital or professional grade</label><select id="sheetGrade"><option value="">Every grade</option>${grades.map((grade) => `<option value="${esc(grade)}">${esc(grade)}</option>`).join("")}</select></div>
+    <div class="field"><label for="sheetGrade">Grade</label><select id="sheetGrade"><option value="">Every grade</option></select></div>
     <div class="field"><label for="sheetPerformance">Profit or loss</label><select id="sheetPerformance"><option value="">Every result</option><option value="gain">Gain</option><option value="loss">Loss</option><option value="unknown">Not enough information</option></select></div>
-    <div class="field"><label for="sheetMovement">Recorded price movement</label><select id="sheetMovement"><option value="">Any movement</option><option value="rising">Rising</option><option value="falling">Falling</option><option value="flat">Flat</option></select></div>
+    <div class="field"><label for="sheetMovement">Price change</label><select id="sheetMovement"><option value="">Any movement</option><option value="rising">Rising</option><option value="falling">Falling</option><option value="flat">Flat</option></select></div>
     <div class="field"><label for="sheetCoverage">Price coverage</label><select id="sheetCoverage"><option value="">Any coverage</option><option value="missing">Missing or unavailable</option><option value="stale">Stale</option></select></div>
     <div class="field"><label for="sheetAcquisition">How it was acquired</label><select id="sheetAcquisition"><option value="">Every method</option><option value="direct_purchase">Bought directly</option><option value="paid_pack">Paid pack</option><option value="free_pack">Free pack</option><option value="trade">Trade</option><option value="gift">Gift</option><option value="prize">Prize</option><option value="free_card">Free card</option><option value="unknown">Unknown</option><option value="mixed">Mixed</option></select></div>
-    <div class="field"><label>Position value</label><div class="value-range"><input id="sheetMinimumValue" type="number" min="0" step="1" placeholder="Minimum" aria-label="Minimum position value"><input id="sheetMaximumValue" type="number" min="0" step="1" placeholder="Maximum" aria-label="Maximum position value"></div></div>
-    <div class="field"><label>Position P/L · native currency</label><div class="value-range"><input id="sheetMinimumProfitLoss" type="number" step="0.01" placeholder="Minimum" aria-label="Minimum position profit or loss"><input id="sheetMaximumProfitLoss" type="number" step="0.01" placeholder="Maximum" aria-label="Maximum position profit or loss"></div></div>
+    <div class="field"><label>Value</label><div class="value-range"><input id="sheetMinimumValue" type="number" min="0" step="1" placeholder="Minimum" aria-label="Minimum position value"><input id="sheetMaximumValue" type="number" min="0" step="1" placeholder="Maximum" aria-label="Maximum position value"></div></div>
+    <div class="field"><label>Profit/loss · original currency</label><div class="value-range"><input id="sheetMinimumProfitLoss" type="number" step="0.01" placeholder="Minimum" aria-label="Minimum position profit or loss"><input id="sheetMaximumProfitLoss" type="number" step="0.01" placeholder="Maximum" aria-label="Maximum position profit or loss"></div></div>
     <div class="field"><label>Purchase date</label><div class="value-range"><input id="sheetPurchaseDateFrom" type="date" aria-label="Purchase date from"><input id="sheetPurchaseDateTo" type="date" aria-label="Purchase date to"></div></div>
-    <div class="field"><label for="sheetGroup">Group rows by</label><select id="sheetGroup"><option value="none">No grouping</option><option value="set">Set</option><option value="language">Language</option><option value="condition">Condition or grade</option></select></div>
+    <div class="field"><label for="sheetGroup">Group by</label><select id="sheetGroup"><option value="none">No grouping</option><option value="set">Set</option><option value="language">Language</option><option value="condition">Condition or grade</option></select></div>
     <div class="field"><label for="sheetSort">Sort by</label><select id="sheetSort"><option value="value-desc">Most valuable first</option><option value="name">Name, A to Z</option><option value="updated-desc">Recently updated</option></select></div>
     <div class="sheet-actions"><button class="secondary" id="resetSheet">Reset</button><button class="primary" id="applySheet">Apply filters</button></div>`);
+  const conditionField = $("#sheetCondition").closest(".field");
+  const cardType = $("#sheetCardType");
+  cardType.value = ["Raw", "Graded", "Sealed"].includes(state.conditionFilter) ? state.conditionFilter : state.conditionFilter ? "Raw" : "";
+  const syncTypeFields = () => {
+    conditionField.hidden = cardType.value !== "Raw";
+    $("#sheetGrader").closest(".field").hidden = ["Raw", "Sealed"].includes(cardType.value);
+    const grade = $("#sheetGrade");
+    const selected = grade.value;
+    const applicable = source.filter(item => cardType.value === "Graded" ? item.gradingCompany : cardType.value === "Raw" ? !item.gradingCompany && item.cardState !== "sealed" : true);
+    const values = [...new Set(applicable.map(item => item.grade || item.digitalGrade?.predictedGrade || item.digitalGrade?.low).filter(Boolean).map(String))].sort((a,b) => Number(b)-Number(a));
+    grade.innerHTML = '<option value="">Every grade</option>' + values.map(value => `<option>${esc(value)}</option>`).join("");
+    grade.value = values.includes(selected) ? selected : "";
+    grade.closest(".field").hidden = cardType.value === "Sealed";
+    grade.previousElementSibling.textContent = cardType.value === "Raw" ? "Digital estimate" : cardType.value === "Graded" ? "Grade" : "Grade or digital estimate";
+  };
+  cardType.addEventListener("change", syncTypeFields);
+  syncTypeFields();
   const advancedFilters = document.createElement("details");
   advancedFilters.className = "intake-more collection-advanced-filters";
   advancedFilters.innerHTML = '<summary>More filters</summary>';
@@ -11905,13 +11962,13 @@ function openFilterSheet() {
   $("#applySheet").addEventListener("click", () => {
     state.ledgerView = $("#sheetView").value;
     state.setFilter = $("#sheetSet").value;
-    state.conditionFilter = $("#sheetCondition").value;
+    state.conditionFilter = cardType.value === "Raw" ? $("#sheetCondition").value || "Raw" : cardType.value;
     state.labelFilter = "";
     state.collectionFilter = "";
     state.locationFilter = "";
     state.languageFilter = $("#sheetLanguage").value;
-    state.graderFilter = $("#sheetGrader").value;
-    state.gradeFilter = $("#sheetGrade").value;
+    state.graderFilter = ["Raw", "Sealed"].includes(cardType.value) ? "" : $("#sheetGrader").value;
+    state.gradeFilter = cardType.value === "Sealed" ? "" : $("#sheetGrade").value;
     state.performanceFilter = $("#sheetPerformance").value;
     state.movementFilter = $("#sheetMovement").value;
     state.coverageFilter = $("#sheetCoverage").value;
@@ -16284,42 +16341,29 @@ async function refreshActionCenter({ persist = true } = {}) {
   updateTargetAlertControl();
 }
 
+let targetAlertSave = null;
 function updateTargetAlertControl() {
   const button = $("#targetAlertButton");
   if (!button) return;
   if (state.actionCenter.status === "ready") {
     const preferences = state.actionCenter.preferences;
-    button.disabled = false;
-    $("#targetAlertState").textContent = preferences.enabled && Object.values(preferences.channels).some(Boolean) ? "On" : "Off";
-    $("#targetAlertHelp").textContent = "Price targets and collection updates";
+    button.disabled = targetAlertSave?.owner === state.session?.user?.id;
+    const enabled = preferences.enabled && preferences.channels.inApp;
+    button.setAttribute("role", "switch");
+    button.setAttribute("aria-checked", String(Boolean(enabled)));
+    $("#targetAlertState").textContent = enabled ? "On" : "Off";
+    const otherAlerts = $("#otherAlertSettings");
+    if (otherAlerts) otherAlerts.hidden = !(preferences.channels.email || preferences.channels.webPush || state.actionCenter.capabilities.email === "configured_unverified" || state.actionCenter.capabilities.webPush === "configured_unverified");
+    $("#targetAlertHelp").textContent = button.disabled ? "Saving…" : "Price targets and collection updates";
     return;
   }
-  const supported = "Notification" in window;
-  const permission = supported ? Notification.permission : "unsupported";
-  if (!supported) {
-    button.disabled = true;
-    $("#targetAlertState").textContent = "Unavailable";
-    $("#targetAlertHelp").textContent =
-      "This browser does not support notifications";
-    return;
-  }
-  button.disabled = false;
-  if (permission === "denied") {
-    targetAlertsEnabled = false;
-    try {
-      localStorage.setItem("mica-target-alerts", "off");
-    } catch {}
-    $("#targetAlertState").textContent = "Blocked";
-    $("#targetAlertHelp").textContent =
-      "Allow notifications in browser settings to use target alerts";
-    return;
-  }
-  $("#targetAlertState").textContent =
-    targetAlertsEnabled && permission === "granted" ? "On" : "Off";
-  $("#targetAlertHelp").textContent =
-    targetAlertsEnabled && permission === "granted"
-      ? "Alerts once when a matching price crosses each target"
-      : "Alert while Mica is open and prices refresh";
+  button.disabled = true;
+  button.setAttribute("role", "switch");
+  button.setAttribute("aria-checked", "false");
+  $("#targetAlertState").textContent = "Unavailable";
+  $("#targetAlertHelp").textContent = "Alerts are unavailable. Try again later.";
+  return;
+
 }
 
 async function notifyReachedTargets() {
@@ -16362,41 +16406,34 @@ async function notifyReachedTargets() {
 }
 
 async function toggleTargetAlerts() {
-  if (state.actionCenter.status === "ready") {
-    openNotificationPreferencesSheet();
-    return;
-  }
-  if (!("Notification" in window)) return;
-  if (targetAlertsEnabled && Notification.permission === "granted") {
-    targetAlertsEnabled = false;
-    try {
-      localStorage.setItem("mica-target-alerts", "off");
-      localStorage.removeItem(targetAlertStorageKey());
-    } catch {}
-    updateTargetAlertControl();
-    toast("Buy target alerts turned off");
-    return;
-  }
-  let permission = Notification.permission;
-  if (permission === "default")
-    permission = await Notification.requestPermission();
-  if (permission !== "granted") {
-    targetAlertsEnabled = false;
-    try {
-      localStorage.setItem("mica-target-alerts", "off");
-    } catch {}
-    updateTargetAlertControl();
-    toast("Notifications are blocked in this browser");
-    return;
-  }
-  targetAlertsEnabled = true;
-  try {
-    localStorage.setItem("mica-target-alerts", "on");
-    localStorage.removeItem(targetAlertStorageKey());
-  } catch {}
+  if (state.actionCenter.status !== "ready") return;
+  const owner = state.session?.user?.id;
+  const version = sessionLoadVersion;
+  if (!owner || targetAlertSave?.owner === owner) return;
+  const save = { owner, version };
+  targetAlertSave = save;
+  const preferences = state.actionCenter.preferences;
+  const inApp = !(preferences.enabled && preferences.channels.inApp);
   updateTargetAlertControl();
-  toast("Buy target alerts turned on");
-  void notifyReachedTargets();
+  let failed = false;
+  try {
+    const result = await saveActionCenterPreferences(supabase, {
+      ...preferences,
+      enabled: inApp || preferences.channels.email || preferences.channels.webPush,
+      channels: { ...preferences.channels, inApp },
+    });
+    if (!accountRequestIsCurrent(owner, version)) return;
+    state.actionCenter.preferences = result;
+    void refreshActionCenter();
+  } catch {
+    failed = true;
+  } finally {
+    if (targetAlertSave === save) targetAlertSave = null;
+    if (accountRequestIsCurrent(owner, version)) {
+      updateTargetAlertControl();
+      if (failed) $("#targetAlertHelp").textContent = "Couldn’t save. Tap to retry.";
+    }
+  }
 }
 
 function notificationKindLabel(kind) {
@@ -19852,9 +19889,19 @@ async function openGradingResearchConsent() {
 }
 
 function bindEvents() {
+  $("#otherAlertSettings")?.addEventListener("click", openNotificationPreferencesSheet);
   const secondarySettings = $("#profileCollectionTools");
   if (secondarySettings) for (const id of ["collectionInsights", "advancedSettings", "gradingCalibration"])
     secondarySettings.append($("#" + id));
+  for (const id of ["collectionInsights", "advancedSettings", "gradingCalibration"]) {
+    const panel = $("#" + id);
+    const summary = panel?.querySelector(":scope > summary");
+    summary?.addEventListener("click", (event) => {
+      if (panel.classList.contains("secondary-panel")) return;
+      event.preventDefault();
+      openSecondaryPanel(panel, summary.textContent.trim());
+    });
+  }
   document.addEventListener(
     "error",
     (event) => {
@@ -20168,7 +20215,7 @@ function bindEvents() {
   $("#moreButton").addEventListener("click", () => {
     if (!requireAccountData()) return;
     openSheet(
-      `<div class="sheet-heading"><div><h2 id="sheetTitle">Library options</h2><p>Keep copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Collection backup<small>Cards, purchases, sales, and watched cards</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection spreadsheet<small>A copy you can import again later</small></span><b>›</b></button></div>`,
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Collection options</h2><p>Keep copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Collection backup<small>Cards, purchases, sales, and watched cards</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection spreadsheet<small>A copy you can import again later</small></span><b>›</b></button></div>`,
     );
   });
   document.addEventListener("click", (event) => {

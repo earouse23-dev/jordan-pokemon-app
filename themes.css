@@ -6886,3 +6886,81 @@ body[data-ui-theme="mica"] #appShell .portfolio-history-head { justify-content: 
   body[data-ui-theme="mica"] #appShell .view { padding-top: calc(72px + var(--safe-top)); }
   body[data-ui-theme="mica"] #appShell .view>:is(.collection-heading,.add-cards-heading,.screen-heading) { padding-right: 0; }
 }
+
+/* Shared component corrections from the whole-app whiteboard review. */
+body[data-ui-theme="mica"] #bottomSheet { color: var(--ink); background: var(--paper); }
+body[data-ui-theme="mica"] #bottomSheet :is(.sheet-heading h2,#sheetTitle) { color: var(--ink); font-size: clamp(22px,3vw,28px); line-height: 1.2; letter-spacing: -.025em; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-heading { gap: 16px; margin-bottom: 24px; }
+body[data-ui-theme="mica"] #bottomSheet :is(.sheet-heading p,.field small,.info-copy,.legal-copy,.simple-note,.psa-return-note) { color: var(--muted); font-size: 14px; line-height: 1.5; }
+body[data-ui-theme="mica"] #bottomSheet :is(label,.field-label,.settings-form strong) { color: var(--ink); font-size: 14px; line-height: 1.4; }
+body[data-ui-theme="mica"] #bottomSheet .form-grid { gap: 20px 16px; }
+body[data-ui-theme="mica"] #bottomSheet .field { gap: 8px; min-width: 0; }
+body[data-ui-theme="mica"] #bottomSheet :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) { min-height: 48px; color: var(--ink); background-color: var(--canvas); border: 1px solid var(--line-dark); font-size: 16px; line-height: 1.4; border-radius: 12px; }
+body[data-ui-theme="mica"] #bottomSheet input[type="file"] { padding: 8px; height: auto; white-space: normal; }
+body[data-ui-theme="mica"] #bottomSheet input::file-selector-button { min-height: 40px; margin-right: 12px; padding: 8px 12px; color: var(--pine-2); background: var(--mint); border: 0; border-radius: 8px; font: inherit; cursor: pointer; }
+body[data-ui-theme="mica"] #bottomSheet input::placeholder,
+body[data-ui-theme="mica"] #bottomSheet textarea::placeholder { color: var(--muted); opacity: 1; }
+body[data-ui-theme="mica"] #bottomSheet .optional-label { margin-left: 4px; color: var(--muted); font-size: 12px; font-weight: 400; }
+body[data-ui-theme="mica"] #bottomSheet .intake-more { padding: 0 12px 12px; border: 1px solid var(--line); border-radius: 12px; background: transparent; }
+body[data-ui-theme="mica"] #bottomSheet .intake-more>summary { min-height: 48px; padding-block: 12px; color: var(--ink); font-size: 14px; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-actions { gap: 8px; padding: 12px 0 max(12px,var(--safe-bottom)); background: var(--paper); }
+body[data-ui-theme="mica"] #bottomSheet .sheet-actions button { min-height: 48px; padding: 10px 12px; line-height: 1.3; font-size: 14px; }
+body[data-ui-theme="mica"] #bottomSheet :is(.form-error,.warning-panel) { line-height: 1.5; overflow-wrap: anywhere; }
+body[data-ui-theme="mica"] #bottomSheet .form-error:empty { display: none; }
+body[data-ui-theme="mica"] #bottomSheet .warning-panel { padding: 12px 16px; font-size: 14px; }
+body[data-ui-theme="mica"] #bottomSheet .warning-panel p { margin: 8px 0 0; }
+body[data-ui-theme="mica"] #bottomSheet .secondary-panel { width: 100%; margin: 0; padding: 0; color: var(--ink); background: transparent; border: 0; box-shadow: none; }
+body[data-ui-theme="mica"] #bottomSheet .secondary-panel>summary { display: none; }
+body[data-ui-theme="mica"] #bottomSheet .secondary-panel :is(.section-heading,h2) { margin: 24px 0 12px; font-size: 18px; }
+body[data-ui-theme="mica"] #bottomSheet .secondary-panel .mover { padding-block: 12px; border-bottom: 1px solid var(--line); }
+body[data-ui-theme="mica"] #bottomSheet .secondary-panel .mover :is(small,span) { color: var(--muted); }
+body[data-ui-theme="mica"] #bottomSheet .secondary-panel .mover :is(strong,b) { color: var(--ink); }
+body[data-ui-theme="mica"] #bottomSheet .secondary-panel .movers-list { margin-bottom: 24px; }
+body[data-ui-theme="mica"] #bottomSheet .secondary-panel .insight-feature { padding: 16px; background: var(--mint); border: 0; }
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top { color: var(--report-text); background: var(--report-bg); border-color: var(--report-line); }
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top strong { color: var(--report-text); font: 650 22px/1.2 var(--font-sans); }
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top :is(span,small) { color: var(--report-muted); text-transform: none; letter-spacing: 0; }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="grading"] .compact-report { --report-bg: var(--paper); --report-panel: var(--canvas); --report-panel-raised: var(--mint); --report-text: var(--ink); --report-muted: var(--muted); --report-soft: var(--muted); --report-line: var(--line); --report-gold: var(--pine-2); }
+body[data-ui-theme="mica"] #bottomSheet[data-experience="grading"] .saved-grade-report.compact-report,
+body[data-ui-theme="mica"] #bottomSheet[data-experience="grading"] .grading-report-shell.compact-report { background: var(--report-bg); box-shadow: none; border-color: var(--report-line); border-radius: 16px; padding: 16px; gap: 24px; }
+body[data-ui-theme="mica"] #bottomSheet .report-evidence-carousel.empty { color: var(--muted); background: var(--canvas); box-shadow: none; padding: 12px; border-radius: 12px; }
+body[data-ui-theme="mica"] #bottomSheet .compact-submission.maybe { color: var(--report-text); background: var(--report-panel); border-color: var(--report-line); }
+body[data-ui-theme="mica"] #bottomSheet .compact-submission.maybe>strong { color: var(--report-text); font-size: 28px; line-height: 1.2; }
+body[data-ui-theme="mica"] #bottomSheet .compact-submission details>summary { min-height: 44px; display: flex; align-items: center; color: var(--report-muted); }
+body[data-ui-theme="mica"] #appShell .grading-activity { color: var(--ink); background: var(--canvas); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: none; }
+body[data-ui-theme="mica"] #appShell .grading-activity :is(.grading-activity-heading h2,.grading-activity-row strong) { color: var(--ink); }
+body[data-ui-theme="mica"] #appShell .grading-activity :is(small,.grading-activity-heading span) { color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .grading-activity-row { grid-template-columns: 44px minmax(0,1fr) auto; gap: 8px 12px; margin: 0; padding: 12px 0; color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+body[data-ui-theme="mica"] #appShell .grading-activity-row em { grid-column: 2; justify-self: start; font-size: 12px; }
+body[data-ui-theme="mica"] #appShell .grading-activity-row button { grid-column: 3; grid-row: 1 / span 2; min-height: 44px; padding: 8px 12px; }
+body[data-ui-theme="mica"] #appShell #view-dashboard .portfolio-native-history { margin-top: 16px; }
+body[data-ui-theme="mica"] #appShell #view-dashboard .portfolio-chart-coverage { margin-block: 12px; }
+body[data-ui-theme="mica"] #appShell #view-dashboard .portfolio-return-summary { margin-top: 8px; }
+body[data-ui-theme="mica"] #appShell .exact-sold-value[data-price-state="empty"]>strong { font-size: clamp(22px,3vw,32px); line-height: 1.2; color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .ledger-row .card-title { line-height: 1.3; }
+body[data-ui-theme="mica"] #appShell #view-scan .add-cards-layout { grid-template-areas: "search capture" "results capture"; }
+body[data-ui-theme="mica"] #appShell .add-search-results { grid-area: results; min-width: 0; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .search-options>label { font-size: 14px; }
+@media (max-width:759px) {
+  body[data-ui-theme="mica"] #appShell #view-scan .add-cards-layout { grid-template-areas: "search" "capture" "results"; }
+  body[data-ui-theme="mica"] #bottomSheet .form-grid { grid-template-columns: minmax(0,1fr); }
+  body[data-ui-theme="mica"] #bottomSheet .secondary-panel .mover { grid-template-columns: 40px minmax(0,1fr); }
+  body[data-ui-theme="mica"] #bottomSheet .secondary-panel .mover b { grid-column: 2; text-align: left; }
+}
+/* Scroll form content independently so the footer never covers a field. */
+body[data-ui-theme="mica"] #bottomSheet:has(.sheet-form) { overflow: hidden; display: flex; flex-direction: column; }
+body[data-ui-theme="mica"] #bottomSheet:has(.sheet-form) #sheetContent { display: flex; flex-direction: column; min-height: 0; max-height: calc(88dvh - 48px); overflow: hidden; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-form { display: flex; flex-direction: column; min-height: 0; margin: 0; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-form-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 4px 16px; scroll-padding-block: 12px; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-form>.sheet-actions:last-child { position: static; flex-shrink: 0; margin-top: 0; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-heading { flex-shrink: 0; }
+body[data-ui-theme="mica"] #bottomSheet .compact-report :is(.compact-grade-hero,.report-subgrades,.report-subgrade,.grade-likelihood,.compact-submission,.report-card-data) { color: var(--report-text); background: var(--report-panel); border-color: var(--report-line); box-shadow: none; }
+body[data-ui-theme="mica"] #bottomSheet .compact-report :is(.compact-grade-hero>strong,.compact-grade-hero>em,.compact-grade-hero>span,.pregrade-confidence-grid b,.report-subgrade>span,.subgrade-gauge>strong,.report-card-data dd,.report-card-data summary,.compact-submission>strong) { color: var(--report-text); text-shadow: none; }
+body[data-ui-theme="mica"] #bottomSheet .compact-report :is(.report-subgrade>small,.compact-grade-hero>small,.pregrade-confidence-grid small,.compact-submission p,.report-card-data dt) { color: var(--report-muted); }
+body[data-ui-theme="mica"] #bottomSheet .compact-report .pregrade-confidence-grid>span { background: var(--report-bg); border-color: var(--report-line); }
+body[data-ui-theme="mica"] #bottomSheet .compact-report .subgrade-gauge::after { background: var(--report-panel); }
+body[data-ui-theme="mica"] #bottomSheet .compact-report .saved-report-actions .secondary { color: var(--pine-2); background: var(--paper); border-color: var(--line-dark); }
+body[data-ui-theme="mica"] #bottomSheet .psa-return-note { color: var(--ink); background: var(--canvas); border-color: var(--line); box-shadow: none; }
+body[data-ui-theme="mica"] #bottomSheet .psa-return-note strong { color: var(--ink); }
+body[data-ui-theme="mica"] #bottomSheet .psa-return-note p { color: var(--muted); font-size: 14px; }
+body[data-ui-theme="mica"] #bottomSheet .compact-report .grading-report-top { margin: 0; padding: 0 0 16px; box-shadow: none; }

@@ -11,7 +11,7 @@ import { portfolioPricingKey } from "../../lib/portfolio-view.js";
 import { collectibleIdentitySnapshot } from "../../lib/identity.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=117";
+const appUrl = "/app.js?v=118";
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const copyIds = {
   a: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -175,7 +175,7 @@ test("CLIENT-05I form saves to disposable database and fresh browser login reope
     noncriticalErrors: 0,
   };
   const routePage = async (target) => {
-    await target.route("**/app.js?v=117", (route) =>
+    await target.route("**/app.js?v=118", (route) =>
       route.fulfill({
         contentType: "application/javascript",
         body: instrumentedApp,
@@ -489,7 +489,7 @@ function gradedCopy(key, { sold = false } = {}) {
 }
 
 async function setup(page, { soldB = false, onSale } = {}) {
-  await page.route("**/app.js?v=117", (route) =>
+  await page.route("**/app.js?v=118", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -1750,6 +1750,7 @@ test("record sale posts one stable selected-copy id and leaves siblings untouche
   );
   await page.locator("#saleDate").fill("2026-04-04");
   await page.locator("#salePrice").fill("100");
+  if (await page.locator("#saleFees").isHidden()) await page.locator("#saleForm .intake-more>summary").click();
   await page.locator("#saleFees").fill("10");
   await page.locator("#saleShipping").fill("5");
   await page.locator("#saleMarketplace").fill("Card show");
@@ -1952,6 +1953,7 @@ test("selected-copy sale reloads persisted history and reopens without changing 
   await page.locator("#recordSaleButton").click();
   await page.locator("#saleDate").fill("2026-04-04");
   await page.locator("#salePrice").fill("100");
+  if (await page.locator("#saleFees").isHidden()) await page.locator("#saleForm .intake-more>summary").click();
   await page.locator("#saleFees").fill("10");
   await page.locator("#saleShipping").fill("5");
   await page.locator('#saleForm button[type="submit"]').click();
@@ -2079,7 +2081,7 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.state.detailSales.salesStatus='loading';app.renderDetail();},appUrl);
  await expect(page.locator('#positionChart')).toBeVisible();
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;app.state.detailSales.salesStatus='live';app.renderDetail();},appUrl);
- await expect(page.locator('.exact-sold-value .inline-source-link')).toHaveAttribute('aria-label',/2026-08-31/);
+ await expect(page.locator('.exact-sold-value > .sold-actions > .inline-source-link')).toHaveAttribute('aria-label',/2026-08-31/);
  await expect(page.locator('.sold-price-details')).not.toHaveAttribute('open','');
  await expect(page.locator('.sold-summary')).toContainText('Older price');
  await expect(page.locator('.sold-price-details > summary')).toBeVisible();
@@ -2111,7 +2113,7 @@ test('latest slab comp and full-width recorded history stay legible in light and
  });
  expect(hover).toEqual({title:'$5,000.00',date:'Aug 31, 2026'});
  await expect(page.locator('.exact-sold-value > .sold-summary')).not.toContainText('Unverified');
- await expect(page.locator('.exact-sold-value .inline-source-link')).toHaveText('eBay · Aug 31');
+ await expect(page.locator('.exact-sold-value > .sold-actions > .inline-source-link')).toHaveText('eBay · Aug 31');
 
  await page.locator('.history-values > summary').click();
  await expect(page.locator('.history-values tbody tr')).toHaveCount(3);
@@ -2121,7 +2123,7 @@ test('latest slab comp and full-width recorded history stay legible in light and
  expect(await page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance.config.plugins.some(plugin=>plugin.id==="historyCursor"))).toBe(true);
  expect(await page.locator(".history-period-change").evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector("#positionChart"))&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
 
- expect(await page.locator('.exact-sold-value .inline-source-link').evaluate(el=>parseFloat(getComputedStyle(el).borderRadius))).toBeGreaterThanOrEqual(12);
+ expect(await page.locator('.exact-sold-value > .sold-actions > .inline-source-link').evaluate(el=>parseFloat(getComputedStyle(el).borderRadius))).toBeGreaterThanOrEqual(12);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.evaluate(()=>{const app=globalThis.fixtureCopyApp;const item=app.state.items[0];app.state.detailSales=null;app.openCardDetail(item,true);},appUrl);
  await expect(page.locator('.exact-sold-value > strong')).toHaveText('$5,000.00');
@@ -2130,7 +2132,7 @@ test('latest slab comp and full-width recorded history stay legible in light and
  expect(savedChart.version).toBe('daily-median-v1');expect(savedChart.points).toHaveLength(2);
  await expect(page.getByRole('heading', {name: 'Price history', exact: true})).toBeVisible();
  const originalSaleUrl='https://www.ebay.com/itm/11002?nordt=true&orig_cvip=true&rt=nc';
- const compLink=page.locator('.exact-sold-value .inline-source-link');
+ const compLink=page.locator('.exact-sold-value > .sold-actions > .inline-source-link');
  await expect(compLink).toHaveAttribute('href',originalSaleUrl);
  await openSaleDetails(page);
  await page.locator('#exactSaleEvidence > summary').click();

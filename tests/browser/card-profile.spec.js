@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { normalizeTcgdexCard } from "../../lib/providers/tcgdex.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=117";
+const appUrl = "/app.js?v=118";
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const otherOwnerId = "99999999-9999-4999-8999-999999999999";
 const baselineFile = process.env.MICA_CARD_PROFILE_BASELINE_FILE;
@@ -170,7 +170,7 @@ async function setup(
   page,
   { onCards, onSupabase, accountProfiles = null } = {},
 ) {
-  await page.route("**/app.js?v=117", (route) =>
+  await page.route("**/app.js?v=118", (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
   if (baselineStyles)
@@ -1464,6 +1464,8 @@ test("owned raw value stays separate through graded loading, failure, and retry"
     "Current price unavailable",
   );
 
+  const priceDetails = page.locator('[data-detail-tool="prices"]');
+  if (await priceDetails.count() && !(await priceDetails.evaluate(element => element.open))) await priceDetails.locator(":scope > summary").click();
   const providerIndex = page.locator('[data-detail-tool="provider-index"]');
   if (await providerIndex.count() && !(await providerIndex.evaluate(element => element.open)))
     await providerIndex.locator(":scope > summary").click();
@@ -1946,6 +1948,8 @@ test("captures owner-safe automatic account setup and resumed Watch viewports", 
 });
 
 async function openValueContext(page) {
+  const prices = page.locator('[data-detail-tool="prices"]');
+  if (await prices.count() && !(await prices.evaluate(element => element.open))) await prices.locator(":scope > summary").click();
   const context = page.locator('[data-detail-tool="valuation-context"]');
   if (await context.count() && !(await context.evaluate(element => element.open)))
     await context.locator("summary").click();
@@ -2120,7 +2124,7 @@ test("beta design keeps exact results readable in light and dark with one clear 
   await expect(page.locator("#bottomSheet")).toBeVisible();
   await page.locator("#positionPurchaseDetails > summary").click();
   await expect(page.locator("#positionFree")).toBeVisible();
-  expect(await page.locator("#positionPurchaseDetails").evaluate(n => getComputedStyle(n).backgroundColor)).toBe(await page.evaluate(() => getComputedStyle(document.querySelector("#view-detail")).backgroundColor));
+  expect(await page.locator("#positionPurchaseDetails").evaluate(n => getComputedStyle(n).backgroundColor)).toBe("rgba(0, 0, 0, 0)");
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:`/tmp/mica102-add-dark-${testInfo.project.name}.png`,fullPage:true,animations:"disabled"});
 });

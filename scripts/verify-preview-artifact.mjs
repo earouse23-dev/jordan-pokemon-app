@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const root = new URL("../", import.meta.url);
 const dist = new URL("../dist/", import.meta.url);
 const evidence = new URL(
-  "../docs/evidence/onboarding-chart-audit-2026-10-29/preview.sha256",
+  "../docs/evidence/whiteboard-polish-2026-10-29/preview.sha256",
   import.meta.url,
 );
 

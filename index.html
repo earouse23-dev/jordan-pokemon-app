@@ -22,7 +22,7 @@
       href="icons/apple-touch-icon.png"
     />
     <link rel="stylesheet" href="styles.css?v=94" />
-    <link rel="stylesheet" href="themes.css?v=112" />
+    <link rel="stylesheet" href="themes.css?v=113" />
     <title>Mica — Pokémon Card Library</title>
   </head>
   <body>
@@ -93,7 +93,7 @@
             Create account
           </button>
         </form>
-        <button class="secondary" type="button" id="tryCardSearch">Try card search</button>
+        <button class="secondary" type="button" id="tryCardSearch">Search cards</button>
         <p class="auth-legal-copy" id="authLegalCopy" hidden>
           By creating an account, you agree to Mica’s
           <button type="button" data-auth-legal="terms">Terms</button> and
@@ -187,7 +187,7 @@
           class="sidebar-brand"
           type="button"
           data-sidebar-target="dashboard"
-          aria-label="Mica dashboard"
+          aria-label="Mica portfolio"
         >
           <span class="sidebar-gem" aria-hidden="true"
             ><i></i><i></i><i></i
@@ -203,7 +203,7 @@
             <span aria-hidden="true"
               ><svg viewBox="0 0 24 24">
                 <path d="M4 11 12 4l8 7v9h-6v-6h-4v6H4z" /></svg></span
-            ><b>Dashboard</b>
+            ><b>Portfolio</b>
           </button>
           <button
             class="sidebar-item"
@@ -221,7 +221,7 @@
               ><svg viewBox="0 0 24 24">
                 <path d="M12 5v14M5 12h14" />
                 <circle cx="12" cy="12" r="9" /></svg></span
-            ><b>Add Cards</b>
+            ><b>Add cards</b>
           </button>
         </nav>
         <button
@@ -247,7 +247,7 @@
           <span>Mica</span>
         </button>
         <div class="header-context">
-          <strong id="headerSection">Dashboard</strong
+          <strong id="headerSection">Portfolio</strong
           ><span id="headerSubtitle">Your collection at a glance</span>
         </div>
         <div class="header-actions">
@@ -278,7 +278,7 @@
             </div>
             <div class="collection-actions">
               <button class="quick-add" type="button" data-sidebar-target="add">
-                + Add Cards</button
+                + Add cards</button
               ><button
                 class="icon-button"
                 id="moreButton"
@@ -628,7 +628,7 @@
             class="collection-grading-workspace"
             aria-labelledby="collectionGradingTitle"
           >
-            <summary>Pregrading &amp; grading history</summary>
+            <summary>Grading &amp; reports</summary>
             <div class="collection-grading-copy">
               <span class="condition-lab-icon" aria-hidden="true">
                 <svg viewBox="0 0 48 48">
@@ -672,11 +672,7 @@
             >
               <div class="grading-activity-heading">
                 <div>
-                  <span>Saved to your account</span>
                   <h2 id="gradingActivityTitle">Recent grading</h2>
-                  <small
-                    >Your saved reports</small
-                  >
                 </div>
                 <button type="button" data-refresh-grading-activity>
                   Refresh
@@ -803,6 +799,8 @@
                 role="status"
                 aria-live="polite"
               ></p>
+            </section>
+            <section class="add-search-results" aria-label="Card search results">
               <div class="intake-queue-bar" id="intakeQueueBar" hidden>
                 <div>
                   <span>Ready to add</span>
@@ -1432,12 +1430,13 @@
             <h2>Notifications</h2>
             <button type="button" id="targetAlertButton">
               <span
-                >Alerts<small id="targetAlertHelp"
+                >In-app alerts<small id="targetAlertHelp"
                   >Price targets and collection updates</small
                 ></span
               ><strong id="targetAlertState">Off</strong>
             </button>
           </div>
+          <button id="otherAlertSettings" class="secondary" type="button" hidden>Other alert settings</button>
           <div class="settings-group" id="privacySettings">
             <h2>Privacy</h2>
             <button type="button" data-info="sources">
@@ -1479,19 +1478,19 @@
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M5 5h14v15H5zM8 2h8v3H8zM8 9h8M8 13h8M8 17h5" /></svg
-          ><span>Home</span>
+          ><span>Portfolio</span>
         </button>
         <button class="nav-item scan-nav" type="button" data-route="scan">
           <span class="scan-button"
             ><svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 5v14M5 12h14" /></svg></span
-          ><span>Add card</span>
+          ><span>Add cards</span>
         </button>
         <button class="nav-item" type="button" data-sidebar-target="collection">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <rect x="5" y="3" width="14" height="18" rx="2" />
             <path d="M8 7h8M8 11h8M8 15h5" /></svg
-          ><span>Library</span>
+          ><span>Collection</span>
         </button>
       </nav>
       <div class="bulk-organize-bar" id="bulkOrganizeBar" hidden>
@@ -1525,6 +1524,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=117"></script>
+    <script type="module" src="app.js?v=118"></script>
   </body>
 </html>

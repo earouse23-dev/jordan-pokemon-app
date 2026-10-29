@@ -129,3 +129,29 @@ test('in-app-only settings stay simple and retain hidden limits through retry',a
   expect(saved.channels).toEqual({inApp:false,email:false,webPush:false});
   expect(saved.enabled).toBe(false);expect(Number(saved.dailyCap)).toBe(9);
 });
+
+test('inline alert switch saves once, preserves other preferences, and recovers without cross-account updates',async({page})=>{
+ const inline=source.slice(source.indexOf('let targetAlertSave = null;'),source.indexOf('\nfunction notificationKindLabel'));
+ await page.setContent('<button id="targetAlertButton"><span id="targetAlertState"></span></button><p id="targetAlertHelp"></p><button id="otherAlertSettings"></button>');
+ await page.evaluate(({inline,preferences})=>{
+  window.$=s=>document.querySelector(s);window.supabase={};window.sessionLoadVersion=1;
+  window.state={session:{user:{id:'one'}},actionCenter:{status:'ready',preferences,capabilities:{}}};
+  window.accountRequestIsCurrent=(owner,version)=>state.session.user.id===owner&&sessionLoadVersion===version;
+  window.refreshActionCenter=async()=>{};window.saves=[];
+  window.saveActionCenterPreferences=async(_client,input)=>{saves.push(input);return await new Promise((resolve,reject)=>{window.completeSave=()=>resolve(input);window.rejectSave=()=>reject(new Error('private server error'));});};
+  (0,eval)(inline+'\nwindow.toggleAlerts=toggleTargetAlerts;window.updateAlerts=updateTargetAlertControl;updateAlerts();');
+  document.querySelector('#targetAlertButton').onclick=()=>void toggleAlerts();
+ },{inline,preferences:normalizeNotificationPreferences({enabled:true,channels:{inApp:true,email:true,webPush:false},dailyCap:9})});
+ const button=page.getByRole('switch');await expect(button).toHaveAttribute('aria-checked','true');
+ await button.click();await expect(button).toBeDisabled();
+ await page.evaluate(()=>{updateAlerts();void toggleAlerts();});
+ expect(await page.evaluate(()=>saves.length)).toBe(1);
+ await page.evaluate(()=>rejectSave());await expect(button).toBeEnabled();await expect(button).toHaveAttribute('aria-checked','true');
+ await expect(page.locator('#targetAlertHelp')).toContainText('Tap to retry');
+ await button.click();await page.evaluate(()=>completeSave());await expect(button).toHaveAttribute('aria-checked','false');
+ expect(await page.evaluate(()=>saves[1].channels)).toEqual({inApp:false,email:true,webPush:false});
+ expect(await page.evaluate(()=>Number(saves[1].dailyCap))).toBe(9);
+ await button.click();await page.evaluate(()=>{state.session.user.id='two';sessionLoadVersion++;state.actionCenter.preferences={enabled:false,channels:{inApp:false,email:false,webPush:false}};completeSave();updateAlerts();});
+ await expect(button).toHaveAttribute('aria-checked','false');
+ expect(await page.evaluate(()=>state.actionCenter.preferences.channels.email)).toBe(false);
+});

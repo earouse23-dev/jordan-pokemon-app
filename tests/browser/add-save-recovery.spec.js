@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import { expect, test } from "@playwright/test";
 
-const appUrl = "/app.js?v=117";
+const appUrl = "/app.js?v=118";
 const ownerA = "11111111-1111-4111-8111-111111111111";
 const ownerB = "22222222-2222-4222-8222-222222222222";
 let bundle;
@@ -35,7 +35,7 @@ export { state, applySession, bindEvents, restoreIntakeQueue };`,
 
 async function setup(page, { deferWrite = false, failRefreshes = 0, failWrites = 0, failWriteAt = 0, rejectionCode = null } = {}) {
   const requests = { writes: [], refreshes: 0, pendingWrite: null };
-  await page.route("**/app.js?v=117", (route) =>
+  await page.route("**/app.js?v=118", (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
   await page.route("**/app-config.js*", (route) =>
@@ -381,7 +381,7 @@ test("Free (trade) saves explicit zero cost and preserves a typed paid amount wh
   await expect(page.getByText("Include tax, shipping, and fees in one total.", {exact:true})).toHaveCount(0);
   await expect(page.getByText("I don't know the date", {exact:true})).toHaveCount(0);
   await page.locator("#positionTotalCost").fill("12.50");
-  await page.getByLabel("Free (trade)", {exact:true}).check();
+  await page.getByLabel("No cost", {exact:true}).check();
   await expect(page.locator("#positionTotalCost")).toBeDisabled();
   await expect(page.locator("#positionTotalCost")).toHaveValue("0.00");
   await page.locator("#positionFree").uncheck();
