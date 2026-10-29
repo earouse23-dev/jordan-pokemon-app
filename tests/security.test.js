@@ -473,7 +473,7 @@ test("optional grading assets cannot block service-worker installation", async (
 
   assert.equal(skippedWaiting, true);
   assert.ok(coreAssets.includes("./index.html"));
-  assert.ok(coreAssets.includes("./app.js?v=116"));
+  assert.ok(coreAssets.includes("./app.js?v=117"));
   assert.equal(
     coreAssets.some((asset) => asset.includes("coach-")),
     false,
@@ -596,18 +596,17 @@ test("Mica uses one green interface with synchronized light/dark shell assets", 
   assert.match(themes, /--canvas:\s*#f6f7f4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-design-130/);
+  assert.match(serviceWorker, /mica-shell-design-131/);
   assert.match(serviceWorker, /themes\.css\?v=112/);
 });
 
-test("signup distinguishes repeated accounts and supports confirmation resend", () => {
+test("signup keeps account existence private and supports confirmation resend", () => {
   assert.match(appShell, /id="resendConfirmation"/);
   assert.match(supabaseData, /client\.auth\.resend\(\{/);
   assert.match(supabaseData, /type:\s*"signup"/);
   assert.match(supabaseData, /emailRedirectTo:\s*returnTo/);
-  assert.match(appSource, /result\.user\?\.identities/);
-  assert.match(appSource, /No new email was sent/);
-  assert.match(appSource, /use Forgot password/);
+  assert.doesNotMatch(appSource, /result\.user\?\.identities/);
+  assert.match(appSource, /If you already have an account, sign in or reset your password/);
 });
 
 test("one interface uses plain language and keeps mode separate from access", () => {
@@ -663,7 +662,7 @@ test("owned positions use provider prices and never fabricate current value or h
 
 test("portfolio dashboard uses a responsive stock-style interactive chart", () => {
   assert.match(appSource, /id="portfolioHistoryChart"/);
-  assert.match(appSource, /id="portfolioChartRange" aria-label="Graph timeframe"/);
+  assert.match(appSource, /historyRangeControls\("portfolioChartRange", "Graph timeframe"/);
   assert.match(appSource, /portfolioHistoryRange: "all"/);
   assert.match(appSource, /portfolioPnlRange: "all"/);
   for (const [value, label] of [["all", "All time"], ["1m", "Month"], ["ytd", "YTD"], ["1y", "Year"], ["1d", "Day"]]) {

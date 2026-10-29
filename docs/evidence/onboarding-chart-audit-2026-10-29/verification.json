@@ -1,0 +1,82 @@
+{
+  "status": "verified_pending_publication",
+  "date": "2026-10-29",
+  "unitTests": {
+    "passed": 595,
+    "skipped": 3,
+    "failed": 0
+  },
+  "focusedBrowserChecks": {
+    "passed": 30,
+    "skipped": 3,
+    "failed": 0
+  },
+  "productionDependencyAudit": {
+    "reportedVulnerabilities": 0
+  },
+  "productionMetadata": {
+    "publicTables": 86,
+    "publicTablesWithoutRls": 0,
+    "publicStorageBuckets": 0
+  },
+  "securityAdvisories": {
+    "rlsWithoutPolicyInformational": 21,
+    "authenticatedSecurityDefinerWarnings": 14,
+    "leakedPasswordProtectionDisabled": true
+  },
+  "customerWriteTests": false,
+  "newDependencies": false,
+  "databaseChanges": false,
+  "newSpending": false,
+  "releaseGates": "passed",
+  "fullBrowserRun": {
+    "total": 1020,
+    "passed": 925,
+    "failed": 4,
+    "skipped": 91,
+    "minutes": 17.3,
+    "failures": "Two More-control target failures and two narrow card-history placement failures, superseded by the final corrected checks."
+  },
+  "finalTargetedBrowserRun": {
+    "passed": 21,
+    "failed": 0,
+    "skipped": 0,
+    "projects": [
+      "desktop-chromium",
+      "mobile-chromium",
+      "mobile-webkit"
+    ]
+  },
+  "unresolvedTestFailures": 0,
+  "uniquePassingBrowserChecksAfterCorrections": 929,
+  "responsiveAudit": {
+    "widths": [
+      320,
+      360,
+      375,
+      390,
+      430,
+      667,
+      759,
+      760,
+      768,
+      820,
+      1023,
+      1024,
+      1280,
+      1440,
+      1920
+    ],
+    "appearances": [
+      "light",
+      "dark"
+    ],
+    "shellViews": 5
+  },
+  "sourceHashes": {
+    "app.js": "1b06a4c80ab4f2e0bfcf25f518495edc566708fbc8145ae7b102fbfd7e136472",
+    "index.html": "affc00d052b2489cebc9241b73192e459204d77f0c76c58462078e40e7fdb53f",
+    "styles.css": "2dc8f17db62cabbee91543f08fc8a07343aaff2761e560038725bffc1c20dab0",
+    "sw.js": "cf57ef96fbdf41c4fb0ebc9547e3fd5face967b209be07f0effbb81275d6fc80"
+  }
+}

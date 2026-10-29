@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { normalizeTcgdexCard } from "../../lib/providers/tcgdex.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=116";
+const appUrl = "/app.js?v=117";
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const otherOwnerId = "99999999-9999-4999-8999-999999999999";
 const baselineFile = process.env.MICA_CARD_PROFILE_BASELINE_FILE;
@@ -170,7 +170,7 @@ async function setup(
   page,
   { onCards, onSupabase, accountProfiles = null } = {},
 ) {
-  await page.route("**/app.js?v=116", (route) =>
+  await page.route("**/app.js?v=117", (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
   if (baselineStyles)
@@ -895,7 +895,8 @@ test("same-owner Watch draft waits for automatic account setup and preserves sto
 
   await initializeAccount(page, ownerId);
   await expect.poll(() => Boolean(pendingProfile)).toBe(true);
-  await expect(page.locator("#onboardingDialog")).not.toBeVisible();
+  await expect(page.locator("#onboardingDialog")).toBeVisible();
+  await expect(page.locator("#onboardingForm")).toHaveAttribute("aria-busy", "true");
   await expect(page.locator('input[name="softwareMode"], input[name="experience"]')).toHaveCount(0);
   await expect(page.locator("#watchlistForm")).toHaveCount(0);
   expect(
@@ -1963,8 +1964,8 @@ test("card result leads with price and recovers provider images through the vali
   const positions = await page.evaluate(() => ({ price: document.querySelector(".market-hero").getBoundingClientRect().top, chart: document.querySelector("#cardPriceHistory").getBoundingClientRect().top, metadata: document.querySelector(".detail-secondary").getBoundingClientRect().top }));
   expect(positions.price).toBeLessThan(positions.chart);
   expect(positions.metadata).toBeGreaterThan(positions.chart);
-  await expect(page.getByRole("combobox", { name: "Price history timeframe" })).toHaveValue("all");
-  await expect(page.locator("#cardHistoryRange option")).toHaveText(["1 month", "6 months", "1 year", "All time"]);
+  await expect(page.locator("#cardHistoryRange")).toHaveAttribute("data-value", "all");
+  await expect(page.locator("#cardHistoryRange button")).toHaveText(["1M", "6M", "1Y", "All"]);
 });
 
 
@@ -2048,7 +2049,7 @@ test("Watch All time preserves full recorded history through a current-price-onl
     await route.fulfill({contentType:"application/json",body:JSON.stringify(payload)});
   }});
   await openWatchFromCollection(page,watchEntry());
-  await expect(page.locator("#cardHistoryRange")).toHaveValue("all");
+  await expect(page.locator("#cardHistoryRange")).toHaveAttribute("data-value", "all");
   await expect(page.locator("#cardPriceHistory")).toContainText("2025");
   expect(requests).toContain("full");
   await page.evaluate(async url=>{const app=await import(url);await app.refreshWatchlistPricing();},appUrl);

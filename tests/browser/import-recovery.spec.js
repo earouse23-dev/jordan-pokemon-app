@@ -56,7 +56,7 @@ test("import retry preserves its job and column choices without exposing backend
   });
   await page.goto("/");
   await page.evaluate(async (csvText) => {
-    const { openCsvImportReview } = await import("/app.js?v=116");
+    const { openCsvImportReview } = await import("/app.js?v=117");
     await openCsvImportReview(csvText, { name: "fixture.csv" });
   }, csv);
   await expect(page.locator("#commitCsvImport")).toBeDisabled();

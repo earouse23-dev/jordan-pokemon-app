@@ -4,7 +4,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=116";
+const appUrl = "/app.js?v=117";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -34,7 +34,7 @@ async function openSecondaryTools(page) {
 }
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=116", (route) =>
+  await page.route("**/app.js?v=117", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -181,7 +181,7 @@ test("consecutive daily prices retain their connecting trend line", async ({
   await expect
     .poll(() =>
       page.evaluate(async () => {
-        const { chartInstance } = await import("/app.js?v=116");
+        const { chartInstance } = await import("/app.js?v=117");
         return chartInstance
           ?.getDatasetMeta(0)
           .dataset.segments.map(({ start, end }) => ({ start, end }));
@@ -255,22 +255,22 @@ test("dated chart uses elapsed time and range-consistent values, including empty
   expect(
     (plot.pixels[1] - plot.pixels[0]) / (plot.pixels[2] - plot.pixels[1]),
   ).toBeCloseTo(54 / 4, 1);
-  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("1m");
+  await page.locator(`#cardHistoryRange [data-range="${"1m"}"]`).click();
   await expect(page.locator(".history-summary")).toContainText("$40.00");
   await expect(
-    page.getByRole("combobox", { name: "Price history timeframe" }),
+    page.locator('#cardHistoryRange [aria-pressed="true"]'),
   ).toBeFocused();
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(2);
   await expect(page.locator(".history-purchases")).toContainText("Bought 1");
-  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("6m");
+  await page.locator(`#cardHistoryRange [data-range="${"6m"}"]`).click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(3);
-  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("all");
+  await page.locator(`#cardHistoryRange [data-range="${"all"}"]`).click();
   await expect(page.locator("#positionChart")).toBeVisible();
   await openDetail(page, { priceHistory: [point(800, 10), point(790, 30)], historyStatus: "live" });
-  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("1y");
+  await page.locator(`#cardHistoryRange [data-range="${"1y"}"]`).click();
   await expect(page.locator("#cardPriceHistory")).toContainText("No prices in this period");
-  await page.getByRole("combobox", { name: "Price history timeframe" }).selectOption("all");
+  await page.locator(`#cardHistoryRange [data-range="${"all"}"]`).click();
   await expect(page.locator("#positionChart")).toBeVisible();
   await assertFits(page);
   await page

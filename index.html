@@ -21,7 +21,7 @@
       sizes="180x180"
       href="icons/apple-touch-icon.png"
     />
-    <link rel="stylesheet" href="styles.css?v=93" />
+    <link rel="stylesheet" href="styles.css?v=94" />
     <link rel="stylesheet" href="themes.css?v=112" />
     <title>Mica — Pokémon Card Library</title>
   </head>
@@ -40,7 +40,7 @@
         </div>
         <p class="eyebrow">Your private card collection</p>
         <h1 id="authTitle">Welcome back</h1>
-        <p>
+        <p id="authDescription">
           Sign in to your collection.
         </p>
 
@@ -52,6 +52,8 @@
               name="email"
               type="email"
               autocomplete="email"
+              autocapitalize="none"
+              spellcheck="false"
               required
             />
           </div>
@@ -80,6 +82,7 @@
               </button>
             </div>
           </div>
+          <small id="authPasswordHint" hidden>At least 8 characters.</small>
           <button class="auth-text-action" type="button" id="forgotPassword">
             Forgot password?
           </button>
@@ -91,7 +94,7 @@
           </button>
         </form>
         <button class="secondary" type="button" id="tryCardSearch">Try card search</button>
-        <p class="auth-legal-copy">
+        <p class="auth-legal-copy" id="authLegalCopy" hidden>
           By creating an account, you agree to Mica’s
           <button type="button" data-auth-legal="terms">Terms</button> and
           <button type="button" data-auth-legal="privacy">Privacy notice</button
@@ -1522,6 +1525,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=116"></script>
+    <script type="module" src="app.js?v=117"></script>
   </body>
 </html>

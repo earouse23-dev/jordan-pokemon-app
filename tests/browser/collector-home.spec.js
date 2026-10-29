@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=116";
+const appUrl = "/app.js?v=117";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -34,7 +34,7 @@ async function openSecondaryTools(page) {
 }
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=116", (route) =>
+  await page.route("**/app.js?v=117", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -407,8 +407,8 @@ test("graded detail shows recorded sold-derived chart without using a provider i
   await page.locator('[data-detail-tool="valuation-context"] > summary').click();
   await expect(page.locator("#cardPriceHistory")).not.toContainText("could not be loaded");
   expect(await page.locator("#cardPriceHistory").evaluate((el) => Boolean(el.compareDocumentPosition(document.querySelector(".exact-sold-value")) & Node.DOCUMENT_POSITION_PRECEDING))).toBe(true);
-  await expect(page.getByRole("combobox",{name:"Price history timeframe"})).toBeVisible();
-  await page.getByRole("combobox",{name:"Price history timeframe"}).selectOption("6m");
+  await expect(page.locator('#cardHistoryRange [aria-pressed="true"]')).toBeVisible();
+  await page.locator(`#cardHistoryRange [data-range="${"6m"}"]`).click();
   await expect(page.locator(".market-hero")).not.toBeVisible();
   await page.locator(".history-values > summary").click();
   await expect(page.locator(".history-values tbody tr")).toHaveCount(2);
@@ -469,7 +469,7 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
     state.items = [{ ...base, currency: "USD", quantity: 1, costBasis: 100, cost: 100, pricingStatus: "live", price: 130, cardState: "raw", gradingCompany: null, variant: "Holofoil", condition: "Near Mint", lots: [{ acquiredAt: "2026-01-01", quantityAcquired: 1, quantityRemaining: 1, totalCost: 100, currency: "USD", costBasisKnown: true, acquisitionDateKnown: true }], transactions: [], priceHistory: [1,2,3].map((day,index) => ({ recordedAt: new Date(Date.now()-day*86400000).toISOString(), amount: 130-index*10, currency: "USD", finish: "holofoil", condition: "Near Mint", provider: "synthetic" })) }];
     renderCollection(); routeTo("dashboard", { focus: false });
   });
-  await expect(page.locator("#portfolioChartRange")).toHaveValue("all");
+  await expect(page.locator("#portfolioChartRange")).toHaveAttribute("data-value", "all");
   await expect(page.locator("#portfolioPnlRange")).toHaveValue("all");
   await expect(page.locator("#portfolioHistoryChart")).toBeVisible();
   for (const selector of ["#portfolioChartRange", "#portfolioPnlRange"])
@@ -542,10 +542,10 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
   await page.locator(".portfolio-pnl-picker > summary").click();
   await page.locator("#portfolioPnlRange").selectOption("1m");
   await expect(page.locator("#portfolioReturn")).toHaveText("+20.0%");
-  await expect(page.locator("#portfolioChartRange")).toHaveValue("all");
-  await page.locator("#portfolioChartRange").selectOption("ytd");
+  await expect(page.locator("#portfolioChartRange")).toHaveAttribute("data-value", "all");
+  await page.locator(`#portfolioChartRange [data-range="${"ytd"}"]`).click();
   await expect(page.locator("#portfolioPnlRange")).toHaveValue("1m");
-  await page.locator("#portfolioChartRange").selectOption("all");
+  await page.locator(`#portfolioChartRange [data-range="${"all"}"]`).click();
   await page.locator("#portfolioPnlRange").selectOption("all");
   await page.locator(".portfolio-pnl-picker > summary").click();
   await assertFits(page);
@@ -1133,9 +1133,9 @@ for (const theme of ["light", "dark"]) test(`audit corrections keep ${theme} con
       return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
     })).toBe(true);
     expect(await page.locator("#cardHistoryRange").evaluate(el => el.closest(".history-chart-head") !== null)).toBe(true);
-    await page.locator("#cardHistoryRange").selectOption("1y");
-    await expect(page.locator("#cardHistoryRange")).toBeFocused();
-    await page.locator("#cardHistoryRange").selectOption("all");
+    await page.locator(`#cardHistoryRange [data-range="${"1y"}"]`).click();
+    await expect(page.locator('#cardHistoryRange [data-range="1y"]')).toBeFocused();
+    await page.locator(`#cardHistoryRange [data-range="${"all"}"]`).click();
     await assertFits(page);
   }
   await page.evaluate(() => { const { state, renderDetail } = globalThis.fixtureApp; Object.assign(state.items[0], { cardState: "graded", gradingCompany: "PSA", grade: "10" }); state.detailValuationContext = null; renderDetail(); });
@@ -1171,4 +1171,23 @@ test("short price axes use unique calendar dates without altering recorded times
     expect(new Set(rendered.labels).size).toBe(rendered.labels.length);
     expect(rendered.x).toEqual(dates.map(Date.parse));
   }
+});
+
+test('new collectors get a direct first-card action without a blank chart or camera permission', async ({page}) => {
+  await openDetail(page);
+  await page.evaluate(() => {
+    const a=globalThis.fixtureApp;
+    a.state.items=[]; a.state.portfolioView=null; a.state.portfolioHistory=[];
+    a.state.accountLoading=false; a.state.largeInventory.active=false;
+    a.state.accountLoadError='';
+    a.state.profile={...a.state.profile,onboardingCompletedAt:new Date().toISOString()};
+    a.bindEvents(); a.routeTo('dashboard'); a.renderCollection();
+  });
+  await expect(page.locator('#portfolioHistoryChart')).toHaveCount(0);
+  await page.evaluate(() => { const a=globalThis.fixtureApp; a.state.accountLoadError='Saved collection unavailable'; a.renderCollection(); });
+  await expect(page.locator('[data-first-card]')).toHaveCount(0);
+  await page.evaluate(() => { const a=globalThis.fixtureApp; a.state.accountLoadError=''; a.renderCollection(); });
+  await page.getByRole('button',{name:'Add your first card',exact:true}).click();
+  await expect(page.locator('#bottomSheet')).toBeVisible();
+  await expect(page.locator('#catalogQuery')).toBeVisible();
 });

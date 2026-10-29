@@ -9766,6 +9766,7 @@ body[data-motion="full"] .set-progress-track i {
   flex: none;
 }
 .collection-more > summary {
+  min-width: 44px;
   min-height: 44px;
   padding: 12px 0 8px;
   color: var(--muted);
@@ -11868,3 +11869,50 @@ body .history-range-select select { border-radius: 12px; cursor: pointer; }
 }
 body button:focus-visible, body .inline-source-link:focus-visible, body select:focus-visible { outline: 3px solid var(--pine-2); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { body button { transition: none !important; } }
+
+/* Native buttons keep chart ranges operable through redraws and touch input. */
+.history-range-buttons {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  width: max-content;
+  max-width: 100%;
+  margin-left: auto;
+  padding: 0 3px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+}
+.history-range-buttons button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+}
+.history-range-buttons button[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--mint);
+}
+.history-range-buttons button:focus-visible {
+  outline: 2px solid var(--pine-2);
+  outline-offset: 1px;
+}
+.history-chart-head { flex-wrap: wrap; }
+.auth-form [hidden], .auth-card [hidden] { display: none !important; }
+#authPasswordHint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+#passwordAuthForm[aria-busy="true"] { cursor: progress; }
+.portfolio-first-card { padding-block: clamp(28px, 6vh, 72px); }
+.portfolio-first-card h2 { margin: 0 0 8px; }
+.portfolio-first-card p { color: var(--muted); margin: 0 0 20px; }
+.portfolio-first-card button { min-height: 44px; }
+@media (max-width: 680px) {
+  body[data-ui-theme="mica"] #appShell .history-chart-head .history-period-change {
+    font-size: 12px;
+  }
+}

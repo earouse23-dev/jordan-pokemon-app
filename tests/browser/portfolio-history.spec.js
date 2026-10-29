@@ -7,7 +7,7 @@ import { collectibleIdentitySnapshot } from "../../lib/identity.js";
 import { buildPortfolioView } from "../../lib/portfolio-view.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=116";
+const appUrl = "/app.js?v=117";
 const evidenceDir = fileURLToPath(
   new URL("../../docs/evidence/sol-client-06/", import.meta.url),
 );
@@ -53,7 +53,7 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
   // Keep action/assertion limits; allow the complete workflow its own total budget.
   test.setTimeout(120_000);
   await page.clock.install({ time: new Date("2026-09-25T12:00:00Z") });
-  await page.route("**/app.js?v=116", (route) =>
+  await page.route("**/app.js?v=117", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -188,16 +188,16 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
   await expect(page.locator(".portfolio-chart-coverage")).toBeVisible();
   await page.locator(".portfolio-native-history > summary").click();
   await expect(page.locator(".portfolio-history-metrics")).toBeVisible();
-  await expect(page.locator("#portfolioChartRange")).toHaveValue("1m");
-  await page.locator("#portfolioChartRange").selectOption("1d");
-  await expect(page.locator("#portfolioChartRange")).toHaveValue("1d");
+  await expect(page.locator("#portfolioChartRange")).toHaveAttribute("data-value", "1m");
+  await page.locator(`#portfolioChartRange [data-range="${"1d"}"]`).click();
+  await expect(page.locator("#portfolioChartRange")).toHaveAttribute("data-value", "1d");
   await expect(page.locator(".portfolio-native-history")).toHaveAttribute("open", "");
   await page.locator(".portfolio-native-history > summary").click();
   await chooseChartMode(page, "value");
   await expect(page.locator("#portfolioHistory")).toContainText("Known value");
   await expect(page.locator("#portfolioHistory")).toContainText("$220.00");
-  await page.locator("#portfolioChartRange").selectOption("ytd");
-  await page.locator("#portfolioChartRange").selectOption("1y");
+  await page.locator(`#portfolioChartRange [data-range="${"ytd"}"]`).click();
+  await page.locator(`#portfolioChartRange [data-range="${"1y"}"]`).click();
   await chooseChartMode(page, "pnl");
   await expect
     .poll(() =>
@@ -298,7 +298,7 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
   await expect(nativeRows.filter({ hasText: "EUR" })).toContainText("€110.00");
   await expect(nativeRows.filter({ hasText: "EUR" })).toContainText("€60.00");
   await page.locator(".portfolio-native-history > summary").click();
-  await expect(page.locator("#portfolioChartRange")).toHaveValue("1y");
+  await expect(page.locator("#portfolioChartRange")).toHaveAttribute("data-value", "1y");
   await page.evaluate(() =>
     document.querySelector("#toastRegion").replaceChildren(),
   );
@@ -455,7 +455,7 @@ test("graded reference index cannot enter portfolio totals or snapshots; exact s
   page,
 }) => {
   await page.clock.install({ time: new Date("2026-09-25T12:00:00Z") });
-  await page.route("**/app.js?v=116", (route) =>
+  await page.route("**/app.js?v=117", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -639,7 +639,7 @@ test("graded reference index cannot enter portfolio totals or snapshots; exact s
 
 
 test("portfolio refresh publishes once, shares requests and retains values on failed batches", async ({ page }) => {
-  await page.route("**/app.js?v=116", route => route.fulfill({ contentType: "application/javascript", body: instrumentedApp }));
+  await page.route("**/app.js?v=117", route => route.fulfill({ contentType: "application/javascript", body: instrumentedApp }));
   await page.route("**/app-config.js*", route => route.fulfill({ contentType: "application/javascript", body: 'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};' }));
   await page.route("https://mica-portfolio-test.supabase.co/**", route => route.fulfill({ contentType: "application/json", body: "[]" }));
   await page.route("**/api/**", route => route.request().url().includes("surface=portfolio") ? route.fulfill({status:404,body:"{}"}) : route.abort());
@@ -698,7 +698,7 @@ test("portfolio refresh publishes once, shares requests and retains values on fa
 });
 
 test("portfolio overlaps three batches and publishes only after the final batch", async ({ page }) => {
-  await page.route("**/app.js?v=116", route => route.fulfill({ contentType: "application/javascript", body: instrumentedApp }));
+  await page.route("**/app.js?v=117", route => route.fulfill({ contentType: "application/javascript", body: instrumentedApp }));
   await page.route("**/app-config.js*", route => route.fulfill({ contentType: "application/javascript", body: 'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};' }));
   await page.route("https://mica-portfolio-test.supabase.co/**", route => route.fulfill({ contentType: "application/json", body: "[]" }));
   await page.route("**/api/**", route => route.request().url().includes("surface=portfolio") ? route.fulfill({status:404,body:"{}"}) : route.abort());
@@ -741,7 +741,7 @@ test('saved chart and total restore together and publish only after a completed 
  const owner='11111111-1111-4111-8111-111111111111';
  const makeView=(total,day)=>({version:4,complete:true,updatedAt:`2026-01-${day}T12:00:00Z`,dashboard:buildPortfolioView([{uid:'saved-card',id:'saved-card',name:'Saved Charizard',set:'Base Set',number:'4/102',quantity:1,currency:'USD',price:total,pricingStatus:'live',costBasis:200,lots:[],transactions:[]}]).dashboard,summaries:[{currency:'USD',total,knownTotal:total,missingUnits:0,historyStartsAt:'2026-01-01',history:[{date:'2026-01-01',total:400},{date:'2026-01-02',total}]}],pricing:[]});
  let saved=makeView(400,'02'),release,fail=false,empty=false,paid=0,posts=0;
- await page.route('**/app.js?v=116',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+ await page.route('**/app.js?v=117',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
  await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
  await page.route('https://mica-portfolio-test.supabase.co/**',route=>route.fulfill({contentType:'application/json',body:'[]'}));
  await page.route('**/api/**',async route=>{
@@ -789,7 +789,7 @@ test('saved chart paints while account and server reads are pending, survives re
   const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
   const view=amount=>({version:1,dailyVersion:1,checkedDay:'2026-01-03',updatedAt:'2026-01-03T12:00:00Z',summaries:[{currency:'USD',total:amount,knownTotal:amount,missingUnits:0,history:[{date:'2026-01-02',total:400},{date:'2026-01-03',total:amount}],historyStartsAt:'2026-01-02'}],pricing:[{uid:'fixture',priceHistory:Array(1000).fill({amount:100})}]});
   let release,fail=false;
-  await page.route('**/app.js?v=116',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app.js?v=117',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
   await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
   await page.route('https://mica-portfolio-test.supabase.co/**',route=>route.abort());
   await page.route('**/api/**',async route=>{
@@ -829,7 +829,7 @@ test('saved chart paints while account and server reads are pending, survives re
 test('saved EUR portfolio requests conversion before inventory arrives and retries without losing history', async ({ page }) => {
   const owner='11111111-1111-4111-8111-111111111111';
   let fxCalls=0, fail=true;
-  await page.route('**/app.js?v=116',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app.js?v=117',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
   await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
   await page.route('https://mica-portfolio-test.supabase.co/**',route=>route.abort());
   await page.route('**/api/**',route=>route.fulfill({status:503,body:'{}'}));
@@ -869,7 +869,7 @@ test.describe('UTC daily valuation boundaries', () => {
  test.use({timezoneId:'America/Chicago'});
  test('saved dashboard timeframes retain daily observations across local and UTC midnight without pricing requests', async ({page}) => {
   await page.clock.install({time:new Date('2026-10-22T02:30:00Z')});
-  await page.route('**/app.js?v=116',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app.js?v=117',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
   await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={};'}));
   let requests=0;
   await page.route('**/api/**',route=>{requests++;return route.abort();});
@@ -884,8 +884,8 @@ test.describe('UTC daily valuation boundaries', () => {
   },{appUrl,dates});
   const before=requests;
   for(const [range,start] of [['all','2024-11-03'],['1d','2026-10-21'],['1m','2026-09-21'],['ytd','2026-01-01'],['1y','2025-10-21'],['all','2024-11-03'],['1d','2026-10-21']]) {
-    await page.locator('#portfolioChartRange').selectOption(range);
-    await expect(page.locator('#portfolioChartRange')).toHaveValue(range);
+    await page.locator(`#portfolioChartRange [data-range="${range}"]`).click();
+    await expect(page.locator("#portfolioChartRange")).toHaveAttribute("data-value", range);
     await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
     await expect.poll(()=>page.evaluate(async({appUrl,start})=>{
       const chart=(await import(appUrl)).portfolioChartInstance;
@@ -909,7 +909,7 @@ for (const appearance of ['light', 'dark']) {
   const owner='11111111-1111-4111-8111-111111111111';
   const saved={version:4,dailyVersion:1,checkedDay:'2026-01-03',updatedAt:'2026-01-03T11:00:00Z',summaries:[{currency:'USD',total:450,knownTotal:450,missingUnits:0,history:[{date:'2026-01-02',total:400},{date:'2026-01-03',total:450}]}],pricing:[]};
   let calls=0, release;
-  await page.route('**/app.js?v=116',r=>r.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app.js?v=117',r=>r.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
   await page.route('**/app-config.js*',r=>r.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
   await page.route('https://mica-portfolio-test.supabase.co/**',r=>r.abort());
   await page.route('**/api/**',async r=>{

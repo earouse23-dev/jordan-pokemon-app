@@ -125,7 +125,7 @@ test("verified recovery permits password retry while collection reads are stalle
   );
   await expect(page.locator("#passwordResetDialog")).toBeVisible();
   expect(await page.evaluate(async () => {
-    const { state } = await import("/app.js?v=116");
+    const { state } = await import("/app.js?v=117");
     return [state.portfolioHistoryRange, state.portfolioPnlRange];
   })).toEqual(["all", "all"]);
   await mkdir("docs/evidence/client-reset-2026-10-03/screenshots", {
@@ -180,4 +180,73 @@ test("reset query alone never authorizes a password update", async ({
   await expect(page.locator("#authEmail")).toBeVisible();
   await expect(page.locator("#passwordResetDialog")).not.toBeVisible();
   expect(calls.some((call) => call.method === "PUT")).toBe(false);
+});
+
+test('account creation is explicit, password-manager friendly, and preserves email through confirmation', async ({page}) => {
+  const calls = await setup(page);
+  await page.goto('/');
+  await page.locator('#authEmail').fill(user.email);
+  await page.locator('#passwordSignUp').click();
+  expect(calls.filter(call => call.path.endsWith('/signup'))).toHaveLength(0);
+  await expect(page.locator('#authTitle')).toHaveText('Create your collection');
+  await expect(page.locator('#authPassword')).toHaveAttribute('autocomplete','new-password');
+  await expect(page.locator('#authPasswordHint')).toBeVisible();
+  await page.locator('#authPassword').fill('synthetic-onboarding-password');
+  await page.locator('#passwordSignIn').click();
+  await expect(page.locator('#authMessage')).toContainText('Check your email');
+  expect(calls.filter(call => call.path.endsWith('/signup'))).toHaveLength(1);
+  await expect(page.locator('#resendConfirmation')).toBeVisible();
+  await expect(page.locator('#authPassword')).toHaveValue('');
+  await expect(page.locator('#authEmail')).toHaveValue(user.email);
+  await page.locator('#passwordSignUp').click();
+  await expect(page.locator('#authTitle')).toHaveText('Welcome back');
+  await expect(page.locator('#authPassword')).toHaveAttribute('autocomplete','current-password');
+  await expect(page.locator('#authEmail')).toHaveValue(user.email);
+});
+
+test('auth requests cannot be duplicated while pending and failure keeps entered values', async ({page}) => {
+  await setup(page);
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  let requests = 0;
+  await page.route('**/auth/v1/token*', async route => {
+    if(route.request().method() === 'OPTIONS') return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'}});
+    requests++;
+    await pending;
+    return route.fulfill({status:400,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({code:'invalid_credentials',message:'Invalid login credentials'})});
+  });
+  await page.goto('/');
+  await page.locator('#authEmail').fill(user.email);
+  await page.locator('#authPassword').fill('synthetic-onboarding-password');
+  await page.locator('#passwordSignIn').click();
+  await expect(page.locator('#passwordSignIn')).toBeDisabled();
+  await page.locator('#passwordAuthForm').dispatchEvent('submit');
+  await expect.poll(()=>requests).toBe(1);
+  release();
+  await expect(page.locator('#authMessage')).toHaveText('The email or password is incorrect.');
+  await expect(page.locator('#passwordSignIn')).toBeEnabled();
+  await expect(page.locator('#authPassword')).toHaveValue('synthetic-onboarding-password');
+});
+
+test('sign-in and account creation fit narrow and wide screens in both appearances', async ({page},testInfo) => {
+  await setup(page);
+  await page.goto('/');
+  for(const theme of ['light','dark']) {
+    await page.emulateMedia({colorScheme:theme});
+    for(const [width,height] of [[320,568],[390,844],[667,375],[768,1024],[1440,1000],[1920,1080]]) {
+      await page.setViewportSize({width,height});
+      for(const creating of [false,true]) {
+        if(creating) await page.locator('#passwordSignUp').click();
+        expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+        await expect(page.locator('#passwordSignIn')).toBeVisible();
+        await page.locator('#passwordSignIn').scrollIntoViewIfNeeded();
+        expect(await page.locator('#passwordSignIn').evaluate(el=>{const r=el.getBoundingClientRect();return r.width>=44&&r.height>=44&&el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})).toBe(true);
+        if(width===390&&creating&&testInfo.project.name==='desktop-chromium') {
+          await mkdir('docs/evidence/onboarding-chart-audit-2026-10-29',{recursive:true});
+          await page.screenshot({path:`docs/evidence/onboarding-chart-audit-2026-10-29/signup-${theme}.png`,fullPage:true});
+        }
+      }
+      await page.locator('#passwordSignUp').click();
+    }
+  }
 });

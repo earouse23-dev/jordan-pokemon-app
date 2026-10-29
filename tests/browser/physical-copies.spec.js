@@ -11,7 +11,7 @@ import { portfolioPricingKey } from "../../lib/portfolio-view.js";
 import { collectibleIdentitySnapshot } from "../../lib/identity.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=116";
+const appUrl = "/app.js?v=117";
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const copyIds = {
   a: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -175,7 +175,7 @@ test("CLIENT-05I form saves to disposable database and fresh browser login reope
     noncriticalErrors: 0,
   };
   const routePage = async (target) => {
-    await target.route("**/app.js?v=116", (route) =>
+    await target.route("**/app.js?v=117", (route) =>
       route.fulfill({
         contentType: "application/javascript",
         body: instrumentedApp,
@@ -489,7 +489,7 @@ function gradedCopy(key, { sold = false } = {}) {
 }
 
 async function setup(page, { soldB = false, onSale } = {}) {
-  await page.route("**/app.js?v=116", (route) =>
+  await page.route("**/app.js?v=117", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -2093,9 +2093,9 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await expect(page.locator('.copy-navigation.single-copy #nextCopyButton')).toBeHidden();
  const bounds=await page.evaluate(()=>{const {chartInstance:chart}=globalThis.fixtureCopyApp;return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
  expect(bounds).toEqual({min:Date.parse(dates[0]),max:Date.parse(dates[2]),radius:0});
- await page.getByRole('combobox',{name:'Price history timeframe'}).selectOption('1y');
+ await page.locator(`#cardHistoryRange [data-range="${'1y'}"]`).click();
  expect(await page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance.options.scales.x.min)).toBe(Date.parse(dates[0]));
- await page.getByRole('combobox',{name:'Price history timeframe'}).selectOption('all');
+ await page.locator(`#cardHistoryRange [data-range="${'all'}"]`).click();
  const dailyPlot=await page.evaluate(()=>{const chart=globalThis.fixtureCopyApp.chartInstance;return {points:chart.data.datasets[0].data.map(p=>({x:p.x,y:p.y,count:p.point.saleCount})),series:chart.data.datasets.length,max:chart.options.scales.y.max,change:document.querySelector('.history-period-change strong').textContent};});
  expect(dailyPlot.points.map(p=>p.y)).toEqual([1010,5000]);
  expect(dailyPlot.points.map(p=>p.count)).toEqual([2,1]);

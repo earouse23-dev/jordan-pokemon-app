@@ -2743,18 +2743,32 @@ function renderEntryPoints(item, currentPrice = item.price) {
   return `<section class="entry-points" aria-label="Your purchases"><div class="entry-points-head"><div><span>Your purchases</span><strong>${entries.length} recorded</strong></div><div><span>Current market price</span><strong>${current === null ? "Unavailable" : `${money(current, currency)} each`}</strong></div></div><div class="entry-point-list">${entries.map((entry) => `<div class="entry-point-row"><div><strong>${esc(entry.date || "Date not recorded")}</strong><span>${entry.quantity} ${noun}${entry.quantity === 1 ? "" : "s"} · ${money(entry.totalCostMinor / 100, currency)} total</span></div><div><span>Market when bought</span><strong>${entry.marketAtPurchaseMinor === null ? "Waiting for history" : money(entry.marketAtPurchaseMinor / 100, currency)}</strong><small>${esc(entry.marketPriceProvider || "")}</small></div><div><span>You paid per ${noun}</span><strong>${money(entry.unitCostMinor / 100, currency)}</strong></div><div><span>Profit or loss per ${noun}</span><strong>${entry.changeMinor === null ? "Unavailable" : `${entry.changeMinor >= 0 ? "Up " : "Down "}${money(Math.abs(entry.changeMinor) / 100, currency)}`}</strong><small>${entry.returnPercent === null ? "" : `${entry.returnPercent >= 0 ? "+" : ""}${entry.returnPercent.toFixed(1)}%`}</small></div></div>`).join("")}</div></section>`;
 }
 
+function historyRangeControls(id, label, ranges, selected) {
+  return `<div id="${id}" class="history-range-buttons" role="group" aria-label="${label}" data-value="${selected}">${ranges.map(([value, text]) => `<button type="button" data-range="${value}" aria-label="${({all: "All time", "1d": "1 day", "1m": "1 month", "6m": "6 months", "1y": "1 year", ytd: "Year to date"})[value]}" aria-pressed="${value === selected}">${text}</button>`).join("")}</div>`;
+}
+
+function bindHistoryRange(root, id, change) {
+  const control = $(`#${id}`, root);
+  if (!control) return;
+  control.onclick = event => {
+    const button = event.target.closest("button[data-range]");
+    if (!button || button.getAttribute("aria-pressed") === "true") return;
+    const range = button.dataset.range;
+    change(range);
+    $(`#${id} [data-range="${range}"]`)?.focus({ preventScroll: true });
+  };
+}
+
 function renderInteractiveHistory(item, currentPrice = item.price, history = historyForItem(item)) {
   const model = displayHistoryCurrency(cardPriceHistoryWindow(item, history, state.chartRange), displayCurrency(), lastValidatedFxRate);
   const supportedCurrency = ["USD", "EUR"].includes(model.nativeCurrency);
   if (model.conversionUnavailable && supportedCurrency && state.displayFxStatus === "ready" && !usableFxRate(lastValidatedFxRate)) state.displayFxStatus = "idle";
   if (model.conversionUnavailable && supportedCurrency && state.displayFxStatus === "idle") void loadDisplayFx();
   state.chartRange = model.range;
-  const focusedRange = document.activeElement?.id === "cardHistoryRange";
   const itemKey = String(item.uid || item.id || "");
-  if (focusedRange) queueMicrotask(() => $("#cardHistoryRange")?.focus({ preventScroll: true }));
   const { summary, points, currency } = model;
   const insufficientHistory = points.length < 2 && !model.observations.length;
-  const controls = `<label class="history-range-select"><span class="sr-only">Timeframe</span><select id="cardHistoryRange" aria-label="Price history timeframe">${[["1m", "1 month"], ["6m", "6 months"], ["1y", "1 year"], ["all", "All time"]].map(([value, label]) => `<option value="${value}" ${model.range === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>`;
+  const controls = historyRangeControls("cardHistoryRange", "Price history timeframe", [["1m", "1M"], ["6m", "6M"], ["1y", "1Y"], ["all", "All"]], model.range);
   const context =
     item.cardState === "sealed"
       ? "Unopened"
@@ -2878,17 +2892,14 @@ async function mountPriceChart(item, history = historyForItem(item)) {
   if (retryFx) retryFx.onclick = () => void loadDisplayFx();
   // Bind before loading Chart.js, including empty ranges, so controls never wait
   // on the chart download and an empty view can always recover.
-  const selector = $("#cardHistoryRange", root);
-  if (selector) selector.onchange = () => {
-    const range = selector.value;
+  bindHistoryRange(root, "cardHistoryRange", range => {
     const tableOpen = $(".history-values", root)?.open;
     state.chartRange = range;
     root.outerHTML = renderInteractiveHistory(item, item.price, history);
     const next = $("#cardPriceHistory");
     if (tableOpen && $(".history-values", next)) $(".history-values", next).open = true;
     void mountPriceChart(item, history);
-    $("#cardHistoryRange", next)?.focus({ preventScroll: true });
-  };
+  });
   const canvas = $("#positionChart", root);
   const collapsedPrices = canvas?.closest('[data-detail-tool="prices"]');
   if (!canvas || (collapsedPrices && !collapsedPrices.open)) return;
@@ -5539,8 +5550,15 @@ function renderPortfolioHistory() {
   if (!root) return;
   const detailsOpen = Boolean($(".portfolio-native-history", root)?.open);
   const ranges = [["all", "All time"], ["1m", "Month"], ["ytd", "YTD"], ["1y", "Year"], ["1d", "Day"]];
-  const rangeControls = () => `<select id="portfolioChartRange" aria-label="Graph timeframe">${ranges.map(([value, label]) => `<option value="${value}" ${state.portfolioHistoryRange === value ? "selected" : ""}>${label}</option>`).join("")}</select>`;
+  const rangeControls = () => historyRangeControls("portfolioChartRange", "Graph timeframe", ranges.map(([value, label]) => [value, ({all:"All", "1m":"1M", "1y":"1Y", "1d":"1D"})[value] || label]), state.portfolioHistoryRange);
   const saved = displayPortfolioView(state.portfolioView, displayCurrency(), lastValidatedFxRate);
+  if (state.profile?.onboardingCompletedAt && !state.accountLoading && !state.accountLoadError && !state.items.length && !state.largeInventory.active && !saved?.history?.length && !state.portfolioHistory.length) {
+    destroyPortfolioHistoryChart();
+    portfolioRenderKey = null;
+    root.innerHTML = '<div class="portfolio-first-card"><h2>Your collection starts here</h2><p>Add a card to start tracking its value.</p><button type="button" class="primary" data-first-card>Add your first card</button></div>';
+    $("[data-first-card]", root).onclick = openManualSearch;
+    return;
+  }
   if (saved?.fxUnavailable && state.portfolioHistoryMode === "value") {
     destroyPortfolioHistoryChart();
     portfolioRenderKey = null;
@@ -5562,7 +5580,7 @@ function renderPortfolioHistory() {
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
     root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(points[0].total) ? esc(money(points[0].total, saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}${historyNotice}${estimateNotice}<details class="portfolio-chart-coverage"><summary>History details${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
-    $("#portfolioChartRange", root)?.addEventListener("change", event => { state.portfolioHistoryRange = event.target.value; renderPortfolioHistory(); });
+    bindHistoryRange(root, "portfolioChartRange", range => { state.portfolioHistoryRange = range; renderPortfolioHistory(); });
     if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false, dateDomain: { start: historyStart, end: today }, zeroBaseline: allTime }));
     return;
   }
@@ -5573,8 +5591,8 @@ function renderPortfolioHistory() {
         renderPortfolioHistory();
       }),
     );
-    $("#portfolioChartRange", root)?.addEventListener("change", event => {
-      state.portfolioHistoryRange = event.target.value;
+    bindHistoryRange(root, "portfolioChartRange", range => {
+      state.portfolioHistoryRange = range;
       renderPortfolioHistory();
     });
     $("[data-portfolio-history-retry]", root)?.addEventListener(
@@ -20256,66 +20274,77 @@ function openPasswordResetDialog() {
 }
 
 function bindAuthUI() {
-  $("#passwordAuthForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
+  let creatingAccount = false;
+  let authPending = false;
+  const form = $("#passwordAuthForm");
+  const submit = $("#passwordSignIn");
+  const switchMode = $("#passwordSignUp");
+  const setAuthMode = creating => {
+    creatingAccount = creating;
+    $("#authTitle").textContent = creating ? "Create your collection" : "Welcome back";
+    $("#authDescription").textContent = creating ? "Save your cards. Track their value." : "Sign in to your collection.";
+    submit.textContent = creating ? "Create account" : "Sign in";
+    switchMode.textContent = creating ? "Sign in instead" : "Create account";
+    $("#authPassword").autocomplete = creating ? "new-password" : "current-password";
+    $("#authPassword").type = "password";
+    $("#toggleAuthPassword").setAttribute("aria-pressed", "false");
+    $("#toggleAuthPassword").setAttribute("aria-label", "Show password");
+    $("#toggleAuthPassword").classList.remove("showing");
+    $("#authPasswordHint").hidden = !creating;
+    $("#authPassword").setAttribute("aria-describedby", creating ? "authPasswordHint" : "authMessage");
+    $("#forgotPassword").hidden = creating;
+    $("#authLegalCopy").hidden = !creating;
     $("#resendConfirmation").classList.add("hidden");
-    const data = new FormData(event.currentTarget);
-    authMessage("Signing in…");
-    const { error } = await signInWithPassword(
-      supabase,
-      String(data.get("email")).trim(),
-      String(data.get("password")),
-    );
-    if (error) authMessage(friendlyAuthError(error), true);
-  });
-  $("#passwordSignUp").addEventListener("click", async () => {
-    const form = $("#passwordAuthForm");
-    if (!form.reportValidity()) return;
-    const data = new FormData(form);
-    authMessage("Creating your account…");
-    const email = String(data.get("email")).trim();
-    const { data: result, error } = await signUpWithPassword(
-      supabase,
-      email,
-      String(data.get("password")),
-    );
-    const resend = $("#resendConfirmation");
-    resend.classList.add("hidden");
     pendingConfirmationEmail = "";
-    if (error) {
-      authMessage(friendlyAuthError(error), true);
-    } else if (result.session) {
-      authMessage("Account created. Loading your collection…");
-    } else if (
-      Array.isArray(result.user?.identities) &&
-      !result.user.identities.length
-    ) {
-      authMessage(
-        "No new email was sent. If you already created this account, sign in or use Forgot password.",
-      );
-    } else {
-      pendingConfirmationEmail = email;
-      authMessage(
-        "Confirmation email requested. Check your inbox and spam folder, or resend it below.",
-      );
-      resend.classList.remove("hidden");
-    }
+    authMessage("");
+  };
+  switchMode.addEventListener("click", () => {
+    if (authPending) return;
+    setAuthMode(!creatingAccount);
+    $("#authEmail").focus();
   });
-  $("#resendConfirmation").addEventListener("click", async (event) => {
+  const runAuthRequest = async (message, request) => {
+    if (authPending) return;
+    authPending = true;
+    const controls = $$("button, input", $(".auth-card"));
+    controls.forEach(control => { control.disabled = true; });
+    form.setAttribute("aria-busy", "true");
+    authMessage(message);
+    try { await request(); }
+    catch { authMessage("Couldn’t connect. Please try again.", true); }
+    finally {
+      authPending = false;
+      form.removeAttribute("aria-busy");
+      controls.forEach(control => { control.disabled = false; });
+    }
+  };
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    if (authPending || !form.reportValidity()) return;
+    const data = new FormData(form);
+    const email = String(data.get("email")).trim();
+    const password = String(data.get("password"));
+    $("#resendConfirmation").classList.add("hidden");
+    await runAuthRequest(creatingAccount ? "Creating your account…" : "Signing in…", async () => {
+      const { data: result, error } = creatingAccount
+        ? await signUpWithPassword(supabase, email, password)
+        : await signInWithPassword(supabase, email, password);
+      if (error) { authMessage(friendlyAuthError(error), true); return; }
+      $("#authPassword").value = "";
+      if (!creatingAccount) return;
+      if (result.session) { authMessage("Loading your collection…"); return; }
+      pendingConfirmationEmail = email;
+      authMessage("Check your email to confirm your account. If you already have an account, sign in or reset your password.");
+      $("#resendConfirmation").classList.remove("hidden");
+    });
+  });
+  $("#resendConfirmation").addEventListener("click", async () => {
     const email = pendingConfirmationEmail || $("#authEmail").value.trim();
     if (!email || !$("#authEmail").reportValidity()) return;
-    const button = event.currentTarget;
-    button.disabled = true;
-    button.textContent = "Sending…";
-    const { error } = await resendSignupConfirmation(supabase, email);
-    authMessage(
-      error
-        ? friendlyAuthError(error)
-        : "If this address still needs confirmation, a new email is on the way.",
-      Boolean(error),
-    );
-    button.disabled = false;
-    button.textContent = "Resend confirmation email";
+    await runAuthRequest("Sending…", async () => {
+      const { error } = await resendSignupConfirmation(supabase, email);
+      authMessage(error ? friendlyAuthError(error) : "If this address needs confirmation, an email is on the way.", Boolean(error));
+    });
   });
   $("#toggleAuthPassword").addEventListener("click", (event) => {
     const input = $("#authPassword");
@@ -20331,14 +20360,10 @@ function bindAuthUI() {
   $("#forgotPassword").addEventListener("click", async () => {
     const email = $("#authEmail");
     if (!email.reportValidity()) return;
-    authMessage("Sending password reset instructions…");
-    const { error } = await sendPasswordReset(supabase, email.value.trim());
-    authMessage(
-      error
-        ? friendlyAuthError(error)
-        : "If that email has an account, password reset instructions are on the way.",
-      Boolean(error),
-    );
+    await runAuthRequest("Sending reset instructions…", async () => {
+      const { error } = await sendPasswordReset(supabase, email.value.trim());
+      authMessage(error ? friendlyAuthError(error) : "If that email has an account, reset instructions are on the way.", Boolean(error));
+    });
   });
   $$("[data-auth-legal]").forEach((button) =>
     button.addEventListener("click", () =>
@@ -21036,17 +21061,18 @@ export function openOnboarding({ afterComplete } = {}) {
   const previousAriaHidden = appShell.getAttribute("aria-hidden");
   const dialog = document.createElement("section");
   dialog.id = "onboardingDialog";
+  dialog.tabIndex = -1;
   dialog.className = "onboarding-dialog";
   dialog.setAttribute("role", "dialog");
   dialog.setAttribute("aria-modal", "true");
   dialog.setAttribute("aria-labelledby", "onboardingTitle");
   dialog.setAttribute("aria-describedby", "onboardingDescription");
-  dialog.hidden = true;
-  dialog.innerHTML = `<form class="onboarding-card" id="onboardingForm"><h1 id="onboardingTitle">Account setup needs another try</h1><p id="onboardingDescription">Your saved information is unchanged.</p><p class="form-error" id="onboardingError" role="alert"></p><div class="onboarding-actions"><button class="primary" type="submit">Try again</button></div></form>`;
+  dialog.innerHTML = `<form class="onboarding-card" id="onboardingForm" aria-busy="true"><h1 id="onboardingTitle">Getting your collection ready</h1><p id="onboardingDescription">Just a moment…</p><p class="form-error" id="onboardingError" role="alert"></p><div class="onboarding-actions"><button class="primary" type="submit">Try again</button></div></form>`;
   appShell.inert = true;
   appShell.setAttribute("aria-hidden", "true");
   document.body.style.overflow = "hidden";
   document.body.append(dialog);
+  dialog.focus({ preventScroll: true });
   const closeOnboarding = (restore = true) => {
     if (!dialog.isConnected) return;
     dialog.remove();
@@ -21065,6 +21091,7 @@ export function openOnboarding({ afterComplete } = {}) {
   const saveAndClose = async (preferences, button) => {
     if (saving) return;
     saving = true;
+    $("#onboardingForm").setAttribute("aria-busy", "true");
     const controls = $$("button, input", dialog);
     controls.forEach((control) => (control.disabled = true));
     const originalLabel = button.textContent;
@@ -21085,7 +21112,9 @@ export function openOnboarding({ afterComplete } = {}) {
       afterComplete?.();
     } catch {
       if (ownerId && !accountRequestIsCurrent(ownerId, loadVersion)) { closeOnboarding(false); return; }
-      dialog.hidden = false;
+      $("#onboardingForm").removeAttribute("aria-busy");
+      $("#onboardingTitle").textContent = "Let’s try that again";
+      $("#onboardingDescription").textContent = "Your saved information is unchanged.";
       saving = false;
       controls.forEach((control) => (control.disabled = false));
       button.textContent = originalLabel;
