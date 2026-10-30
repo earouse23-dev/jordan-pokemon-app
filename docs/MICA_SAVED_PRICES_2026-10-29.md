@@ -16,3 +16,9 @@ No schema/migration, dependency, platform, provider budget or cron changes. Exis
 ## Verification
 
 See [verification.json](evidence/saved-prices-2026-10-29/verification.json). Tests use synthetic accounts/data and intercept provider calls. Checks cover immediate Collection restoration during a blocked network read, old price persistence after failed reads and reload, changed condition rejection, owner isolation, background publication, fresh detail reuse, partial refreshes and confirmed comp withdrawals. Chromium desktop, Chromium phone and WebKit phone pricing/portfolio regressions: 144 passed. Release and live acceptance are recorded separately below when completed.
+
+## Publication
+
+Published source `3d33f11ded45ceee89827245f3691b329a2f75ee` as deployment `dpl_8F4inoYsSvG8uW6uKZEpwd8AexSv`. Staged/live app SHA-256 matches the reviewed build. Production health identifies the new source; anonymous portfolio reads remain 401/private/no-store. Existing nine-function routing and cron definitions passed the offline release gate.
+
+Live read-only Collection acceptance showed all 14 saved entries / 25 copies priced after both reloads, with the same values retained on the repeat visit. No inventory, purchase or Settings write tests were made against this account; ordinary background price refresh remains application behavior. The new first-paint screenshot is private outside Git; repository screenshots are synthetic network-failure fixtures. An additional 18 slab-focused browser checks passed. Full unit suite: 598 passed, three skips. Runtime scan found only the existing Node DEP0169 dependency warning, no application exception. The cloud beta CI run was still in progress at the recorded check, not marked passed.

@@ -21,7 +21,17 @@
       "realProviderCalls": 0
     },
     "schema": "83 public tables with RLS",
-    "migrationBaseline": "read-only check passed; no SQL applied"
+    "migrationBaseline": "read-only check passed; no SQL applied",
+    "additionalSlabBrowser": {
+      "passed": 18,
+      "failed": 0,
+      "coverage": "24-hour reuse across midnight; partial metadata; comp withdrawal; chart visibility",
+      "engines": [
+        "desktop Chromium",
+        "mobile Chromium",
+        "mobile WebKit"
+      ]
+    }
   },
   "rootCauses": [
     "Compact database response and local first-paint cache omitted all holding prices",
@@ -38,8 +48,60 @@
     "gitTriggeredBuild": "Existing beta CI; Vercel project has no linked Git repository; explicit staged deployment only"
   },
   "publication": {
-    "status": "verified; publication pending",
+    "status": "published and live-verified",
+    "sourceCommit": "3d33f11ded45ceee89827245f3691b329a2f75ee",
+    "deploymentId": "dpl_8F4inoYsSvG8uW6uKZEpwd8AexSv",
+    "stagedUrl": "https://jordan-pokemon-3moghf924-earouse23-devs-projects.vercel.app",
+    "canonicalUrl": "https://jordan-pokemon-app.vercel.app/",
     "appVersion": 119,
-    "shellCache": "mica-shell-design-133"
+    "shellCache": "mica-shell-design-133",
+    "health": {
+      "status": "healthy",
+      "checkedAt": "2026-10-30T00:41:25.752Z",
+      "release": "3d33f11ded45",
+      "services": {
+        "database": "healthy",
+        "auth": "healthy",
+        "appSchema": "access_restricted",
+        "schemaVerification": "requires_authenticated_acceptance",
+        "catalog": "configured",
+        "pricingProvider": "healthy",
+        "paidPricing": "configured_unverified",
+        "vision": "identification_configured_unverified",
+        "grading": "release_hold"
+      }
+    },
+    "appSha256": "d8f5b16c7e15070ebb1eb33e709232124b27f6704876db0cb18124534d234ccf",
+    "appMatches": true,
+    "anonymousPortfolio": {
+      "status": 401,
+      "cacheControl": "private, no-store"
+    },
+    "artifact": {
+      "functions": 9,
+      "deploymentEntries": 64,
+      "sourceEntries": 99,
+      "routingGate": "passed; zero real outbound calls"
+    },
+    "liveBrowser": {
+      "observedAt": "2026-10-30T00:43:17.927Z",
+      "account": "authorized existing showcase; no inventory/settings edits",
+      "visibleEntries": 14,
+      "visibleCopies": 25,
+      "unavailableLabels": 0,
+      "repeatedReloads": 2,
+      "pricesStableOnRepeat": true,
+      "screenshot": "private capture retained outside Git"
+    },
+    "runtime": {
+      "applicationExceptionsObserved": 0,
+      "existingNodeDeprecationWarnings": 1,
+      "warning": "DEP0169 url.parse from runtime dependencies"
+    },
+    "cloudCi": {
+      "status": "in_progress",
+      "url": "https://github.com/earouse23-dev/jordan-pokemon-app/actions/runs/40980961569",
+      "checkedAt": "2026-10-30T00:43:17.932Z"
+    }
   }
 }
