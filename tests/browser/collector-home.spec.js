@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=119";
+const appUrl = "/app.js?v=120";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -34,7 +34,7 @@ async function openSecondaryTools(page) {
 }
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=119", (route) =>
+  await page.route("**/app.js?v=120", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -148,7 +148,7 @@ test("polished detail preserves the complete copyable identity and ranks holding
   });
   const names = await page.locator("#dashboardHighestCards .dashboard-card-row>span:first-of-type>strong").allTextContents();
   expect(names).toEqual(["Multiple copies", "One valuable card", "Low value"]);
-  await expect(page.locator("#dashboardHighestTitle")).toHaveText("Top holdings");
+  await expect(page.locator("#dashboardHighestTitle")).toHaveText("Most valuable");
 });
 
 async function openCollection(page) {
@@ -188,7 +188,7 @@ test("client portfolio preserves unpriced inventory without rejected workspace c
     state.organization.goals = [{ id: "goal-home", name: "Base Set binder", progress: { status: "ready", current: 2, target: 102, percent: 2 / 102 * 100 } }];
     renderCollection(); routeTo("dashboard", { focus: false });
   }, appUrl);
-  await expect(page.locator("#dashboardHighestTitle")).toHaveText("Top holdings");
+  await expect(page.locator("#dashboardHighestTitle")).toHaveText("Most valuable");
   await expect(page.locator("#dashboardHighestCards button")).toHaveCount(2);
   await expect(page.locator("#dashboardHighestCards")).toContainText("×3");
   await expect(page.locator("#softwareModeHome")).not.toBeVisible();
@@ -200,7 +200,7 @@ test("client portfolio preserves unpriced inventory without rejected workspace c
   await expect(page.locator("#portfolioValue")).toBeVisible();
   await expect(page.locator("#portfolioValue")).toHaveText("—");
   const hierarchy = await page.locator("#portfolioHistory, #portfolioReturn, #portfolioValue").evaluateAll(nodes => nodes.map(node=>node.id));
-  expect(hierarchy).toEqual(["portfolioValue", "portfolioHistory", "portfolioReturn"]);
+  expect(hierarchy).toEqual(["portfolioValue", "portfolioReturn", "portfolioHistory"]);
   await expect(page.locator("#gradedOwnedCount")).not.toBeVisible();
   await expect(page.locator("#sealedOwnedCount")).not.toBeVisible();
   await expect(page.locator("#dashboardMoneyDetails")).not.toHaveAttribute("open", "");
@@ -1194,4 +1194,68 @@ test('new collectors get a direct first-card action without a blank chart or cam
   await page.getByRole('button',{name:'Add your first card',exact:true}).click();
   await expect(page.locator('#bottomSheet')).toBeVisible();
   await expect(page.locator('#catalogQuery')).toBeVisible();
+});
+
+test("audit fixes preserve return destinations, value units and available actions", async ({ page }) => {
+  await openCollection(page);
+  await page.evaluate(() => {
+    const { state, renderCollection } = fixtureApp;
+    state.gradingCapability = "unavailable";
+    state.items[0] = {...state.items[0], quantity: 3, price: 50, pricingStatus: "live"};
+    renderCollection();
+  });
+  await expect(page.locator(".ledger-row").first().locator(".position-price-grid")).toContainText("Total");
+  await expect(page.locator("[data-digital-grade]:visible")).toHaveCount(0);
+  await page.evaluate(() => { fixtureApp.state.gradingCapability = "active"; fixtureApp.renderCollection(); });
+  await expect(page.locator("[data-digital-grade]").first()).toBeEnabled();
+  await page.evaluate(() => fixtureApp.routeTo("dashboard", {focus:false}));
+  await page.locator("#dashboardHighestCards button").first().click();
+  await expect(page.locator("#detailBack")).toHaveText("Portfolio");
+  await page.locator("#detailBack").click();
+  await expect(page.locator("#view-dashboard")).toBeVisible();
+  await page.evaluate(() => fixtureApp.routeTo("collection", {focus:false}));
+  await page.locator(".ledger-open-overlay").first().click();
+  await expect(page.locator("#detailBack")).toHaveText("Collection");
+  await expect(page.locator('[data-detail-tool="grading"]>summary')).toHaveText("Grading history");
+  await page.locator("#detailBack").click();
+  await expect(page.locator("#view-collection")).toBeVisible();
+});
+
+test("audit shared layouts fit both themes across available screen sizes", async ({ page }, info) => {
+  await openCollection(page);
+  await page.evaluate(() => {
+    fixtureApp.state.gradingCapability = "unavailable";
+    fixtureApp.state.items = fixtureApp.state.items.map((item,index) => ({...item,
+      price:130+index*10, costBasis:100, cost:100, pricingStatus:"live",
+      cardState:"raw", gradingCompany:null, condition:"Near Mint", variant:"Holofoil", quantity:index+1,
+      lots:[{acquiredAt:"2026-01-01",quantityAcquired:index+1,quantityRemaining:index+1,totalCost:100,currency:"USD",costBasisKnown:true,acquisitionDateKnown:true}],
+      priceHistory:[1,2,3].map((day,n)=>({recordedAt:new Date(Date.now()-day*86400000).toISOString(),amount:130+index*10-n*10,currency:"USD",finish:"holofoil",condition:"Near Mint",provider:"synthetic"})),
+    }));
+    fixtureApp.renderCollection();
+  });
+  for (const appearance of ["light", "dark"]) for (const [width,height] of [[320,568],[390,844],[667,375],[768,1024],[1440,900]]) {
+    await page.setViewportSize({width,height});
+    await page.evaluate(a => { document.body.dataset.appearance=a; fixtureApp.routeTo("dashboard",{focus:false}); }, appearance);
+    await assertFits(page);
+    const positions=await page.evaluate(()=>({
+      performance:document.querySelector('.portfolio-return-summary').getBoundingClientRect().bottom,
+      chart:document.querySelector('#portfolioHistory').getBoundingClientRect().top,
+    }));
+    expect(positions.performance).toBeLessThanOrEqual(positions.chart);
+    if ([390,1440].includes(width)) {
+      await page.screenshot({animations:"disabled",path:info.outputPath(`audit-portfolio-${appearance}-${width}.png`)});
+      await page.evaluate(() => fixtureApp.routeTo("collection",{focus:false}));
+      await page.screenshot({animations:"disabled",path:info.outputPath(`audit-collection-${appearance}-${width}.png`)});
+    }
+    await page.evaluate(() => fixtureApp.routeTo("profile",{focus:false}));
+    await expect(page.locator('#everydaySettings #appearanceSelect')).toBeVisible();
+    await expect(page.locator('#everydaySettings #profileDisplayCurrency')).toBeVisible();
+    await assertFits(page);
+    if ([390,1440].includes(width)) await page.screenshot({animations:"disabled", path:info.outputPath(`audit-settings-${appearance}-${width}.png`)});
+    await page.evaluate(() => fixtureApp.routeTo("scan",{focus:false}));
+    await expect(page.locator('#quickCardSearch')).toBeVisible();
+    expect(await page.locator('#addSearchTitle').evaluate(el=>el.parentElement.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
+    await assertFits(page);
+    if ([390,1440].includes(width)) await page.screenshot({animations:"disabled", path:info.outputPath(`audit-add-${appearance}-${width}.png`)});
+  }
 });

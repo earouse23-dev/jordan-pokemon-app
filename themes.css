@@ -6539,7 +6539,7 @@ body[data-ui-theme="mica"] #appShell .portfolio-hero .portfolio-value { order: 1
 body[data-ui-theme="mica"] #appShell .portfolio-history-head { min-height: 0; margin: 0; }
 body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage { border: 0; }
 body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage>summary { font-weight: 400; font-size: 12px; }
-body[data-ui-theme="mica"] #appShell .portfolio-return-summary { border-top: 0; padding: 12px 0 20px; }
+body[data-ui-theme="mica"] #appShell .portfolio-return-summary { order: 4; flex-wrap: wrap; border: 0; padding: 8px 0 0; }
 body[data-ui-theme="mica"] #appShell .portfolio-return-summary>small { color: var(--muted); }
 body[data-ui-theme="mica"] #appShell .ledger-row { gap: 8px; }
 body[data-ui-theme="mica"] #appShell .ledger-row .card-tags { gap: 4px; margin-top: 6px; }
@@ -6683,10 +6683,10 @@ body[data-ui-theme="mica"] #appShell .add-capture-panel { grid-area: capture; }
 
 body[data-ui-theme="mica"] #bottomSheet #sheetContent>form>.sheet-actions:last-child,
 body[data-ui-theme="mica"] #bottomSheet #sheetContent>.sheet-actions:last-child { position: sticky; bottom: -1px; z-index: 2; }
-body[data-ui-theme="mica"] #appShell .add-search-panel { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; }
+body[data-ui-theme="mica"] #appShell .add-search-panel { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 8px 12px; align-content: start; }
 body[data-ui-theme="mica"] #appShell .add-search-panel>:is(.add-panel-heading,.find-search,.search-examples,.quick-results,.intake-queue-bar,#quickSearchStatus) { grid-column: 1 / -1; }
 body[data-ui-theme="mica"] #appShell .add-search-panel .add-panel-heading { margin: 0; }
-body[data-ui-theme="mica"] #appShell .add-search-panel .search-options { margin: 0; display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .search-options { margin: 0; padding: 0; display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
 body[data-ui-theme="mica"] #appShell .add-search-panel .search-options>label { font-size: 12px; }
 body[data-ui-theme="mica"] #appShell .catalog-set-filter { margin: 0; align-self: center; }
 body[data-ui-theme="mica"] #appShell .catalog-set-filter>summary { min-height: 44px; display: flex; justify-content: flex-end; align-items: center; font-size: 13px; }
@@ -6710,8 +6710,8 @@ body[data-ui-theme="mica"] #appShell .app-header {
   width: auto;
   height: 52px;
   margin: 0;
-  padding: 4px 6px 4px 16px;
-  gap: 16px;
+  padding: 4px;
+  gap: 0;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: color-mix(in srgb, var(--paper) 88%, transparent);
@@ -6719,7 +6719,7 @@ body[data-ui-theme="mica"] #appShell .app-header {
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 4px 20px #0000000a;
 }
-body[data-ui-theme="mica"] #appShell .header-context { padding: 0; }
+body[data-ui-theme="mica"] #appShell .header-context { display: none; }
 body[data-ui-theme="mica"] #appShell .header-context span { display: none; }
 body[data-ui-theme="mica"] #appShell .app-header .avatar { width: 44px; height: 44px; min-height: 44px; }
 body[data-ui-theme="mica"] #appShell .view { padding-top: 84px; }
@@ -6796,7 +6796,7 @@ body[data-ui-theme="mica"] #appShell #view-profile .settings-group>label {
   text-align: left;
   border-bottom: 1px solid var(--line);
 }
-body[data-ui-theme="mica"] #appShell #view-profile .settings-group>button:last-child { border-bottom: 0; }
+body[data-ui-theme="mica"] #appShell #view-profile .settings-group>button:last-of-type:not(.primary):not(.danger-action) { border-bottom: 0; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group button>span { min-width: 0; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group button small { display: block; margin-top: 3px; color: var(--muted); font-weight: 400; line-height: 1.4; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group button>strong { flex-shrink: 0; font-size: 13px; color: var(--muted); font-weight: 500; }
@@ -6836,7 +6836,7 @@ body[data-ui-theme="mica"] #appShell #deviceSettings { order: 6; }
 body[data-ui-theme="mica"] #appShell :is(#collectionInsights,#gradingCalibration,#profileCollectionTools) { order: 8; }
 body[data-ui-theme="mica"] #appShell #profileCollectionTools>.settings-group { border: 0; border-top: 1px solid var(--line); border-radius: 0; margin: 0; padding: 4px 0; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23808b80' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 4px center; }
-body[data-ui-theme="mica"] #appShell #view-profile .settings-group>label:last-child,
+body[data-ui-theme="mica"] #appShell #view-profile .settings-group>label:last-of-type,
 body[data-ui-theme="mica"] #appShell #view-profile #exportCsvButton { border-bottom: 0; }
 body[data-ui-theme="mica"] #appShell #view-profile.active { align-items: stretch; }
 body[data-ui-theme="mica"] #appShell #view-profile>:is(.settings-group,.settings-about,.settings-account-actions) { width: 100%; box-sizing: border-box; }
@@ -6964,3 +6964,10 @@ body[data-ui-theme="mica"] #bottomSheet .psa-return-note { color: var(--ink); ba
 body[data-ui-theme="mica"] #bottomSheet .psa-return-note strong { color: var(--ink); }
 body[data-ui-theme="mica"] #bottomSheet .psa-return-note p { color: var(--muted); font-size: 14px; }
 body[data-ui-theme="mica"] #bottomSheet .compact-report .grading-report-top { margin: 0; padding: 0 0 16px; box-shadow: none; }
+
+/* Shared detail disclosures use one title and one expansion indicator. */
+body[data-ui-theme="mica"] #appShell #detailContent :is(.detail-tool-group,.identity-details,.single-copy-details)>summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; cursor: pointer; }
+body[data-ui-theme="mica"] #appShell #detailContent :is(.detail-tool-group,.identity-details,.single-copy-details)>summary::-webkit-details-marker { display: none; }
+body[data-ui-theme="mica"] #appShell #detailContent :is(.detail-tool-group,.identity-details,.single-copy-details)>summary::after { content: "⌄"; color: var(--muted); }
+body[data-ui-theme="mica"] #appShell #detailContent :is(.detail-tool-group,.identity-details,.single-copy-details)[open]>summary::after { transform: rotate(180deg); }
+body[data-ui-theme="mica"] #appShell .ledger-row .price-cell:empty { display: none; }

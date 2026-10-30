@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 import { normalizeTcgdexCard } from "../../lib/providers/tcgdex.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=119";
+const appUrl = "/app.js?v=120";
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const otherOwnerId = "99999999-9999-4999-8999-999999999999";
 const baselineFile = process.env.MICA_CARD_PROFILE_BASELINE_FILE;
@@ -170,7 +170,7 @@ async function setup(
   page,
   { onCards, onSupabase, accountProfiles = null } = {},
 ) {
-  await page.route("**/app.js?v=119", (route) =>
+  await page.route("**/app.js?v=120", (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
   if (baselineStyles)
@@ -1645,9 +1645,9 @@ test("late raw-condition evidence cannot replace a newer owned research context"
     ),
   );
   await expect(page.locator(".market-hero")).toContainText("$3.00");
-  await expect(page.locator(".owned-banner")).toContainText(
-    "Current price unavailable",
-  );
+  // Researching Damaged must not erase the saved Near Mint copy valuation.
+  await expect(page.locator(".owned-banner")).toContainText("$10.00 each");
+  await expect(page.locator(".owned-banner")).not.toContainText("$3.00");
 });
 
 test("add and watch payloads retain the selected canonical identity and unknown raw condition", async ({

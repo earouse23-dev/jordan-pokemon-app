@@ -11,7 +11,7 @@ import { portfolioPricingKey } from "../../lib/portfolio-view.js";
 import { collectibleIdentitySnapshot } from "../../lib/identity.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=119";
+const appUrl = "/app.js?v=120";
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const copyIds = {
   a: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
@@ -175,7 +175,7 @@ test("CLIENT-05I form saves to disposable database and fresh browser login reope
     noncriticalErrors: 0,
   };
   const routePage = async (target) => {
-    await target.route("**/app.js?v=119", (route) =>
+    await target.route("**/app.js?v=120", (route) =>
       route.fulfill({
         contentType: "application/javascript",
         body: instrumentedApp,
@@ -489,7 +489,7 @@ function gradedCopy(key, { sold = false } = {}) {
 }
 
 async function setup(page, { soldB = false, onSale } = {}) {
-  await page.route("**/app.js?v=119", (route) =>
+  await page.route("**/app.js?v=120", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,

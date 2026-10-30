@@ -6052,7 +6052,7 @@ function renderPortfolioPnl() {
       ? displayNativePortfolioProfitLoss(state.portfolioView.dashboard.nativePerformance, displayCurrency(), lastValidatedFxRate)
       : portfolioDisplayProfitLoss(items, displayCurrency(), lastValidatedFxRate);
     output.textContent = current.totalProfitPercent === null ? "—" : `${current.totalProfitPercent >= 0 ? "+" : ""}${current.totalProfitPercent.toFixed(1)}%`;
-    note.textContent = current.comparableUnits || current.knownRealizedSales ? `${money(current.totalProfitMinor / 100, displayCurrency())} · total P/L` : "Matching value or purchase cost missing";
+    note.textContent = current.comparableUnits || current.knownRealizedSales ? `${money(current.totalProfitMinor / 100, displayCurrency())} · total gain/loss` : "Matching value or purchase cost missing";
     color(current.comparableUnits || current.knownRealizedSales ? current.totalProfitMinor : null);
     return;
   }
@@ -6088,7 +6088,7 @@ function renderSoftwareModeHome() {
   const returnMetric = $("#portfolioReturn")?.parentElement;
   if (returnMetric && kpis) {
     returnMetric.classList.add("portfolio-return-summary");
-    kpis.prepend(returnMetric);
+    $("#portfolioValue")?.closest("article")?.append(returnMetric);
     const picker = $("#portfolioPnlRange");
     picker.value = state.portfolioPnlRange;
     picker.onchange = () => { state.portfolioPnlRange = picker.value; renderPortfolioPnl(); };
@@ -6106,7 +6106,7 @@ function renderSoftwareModeHome() {
   if (modeHome) { modeHome.replaceChildren(); modeHome.hidden = true; }
   if ($("#dashboardTitle")) $("#dashboardTitle").textContent = "Portfolio";
   if ($("#dashboardSubtitle")) $("#dashboardSubtitle").textContent = "Your collection, over time";
-  if ($("#dashboardHighestTitle")) $("#dashboardHighestTitle").textContent = "Top holdings";
+  if ($("#dashboardHighestTitle")) $("#dashboardHighestTitle").textContent = "Most valuable";
 }
 
 function renderDashboardHighlights() {
@@ -7022,7 +7022,7 @@ function renderCollection() {
     $("#gradedOwnedCount").textContent = "Not estimated from one page";
     $("#sealedOwnedCount").textContent = "Not estimated from one page";
     $("#gradedShare").textContent =
-      `${totalPositions.toLocaleString()} saved entries`;
+      `${totalPositions.toLocaleString()} items`;
     $("#sealedShare").textContent = "Server-backed inventory mode";
     $("#portfolioReturn").textContent = "—";
     $("#realizedGain").textContent = "Use reports";
@@ -7227,13 +7227,13 @@ function renderCollection() {
     (sum, item) => sum + Number(item.quantity || 0),
     0,
   );
-  const groupedLabel = `${windowed.total} saved entr${windowed.total === 1 ? "y" : "ies"} · ${visibleCopies} card${visibleCopies === 1 ? "" : "s"}`;
+  const groupedLabel = `${windowed.total} item${windowed.total === 1 ? "" : "s"} · ${visibleCopies} cop${visibleCopies === 1 ? "y" : "ies"}`;
   $("#resultCount").textContent = state.largeInventory.active
     ? state.largeInventory.loading
       ? "Loading matching inventory…"
-      : `Showing ${displayed.length.toLocaleString()} of ${windowed.total.toLocaleString()} matching saved entries`
+      : `Showing ${displayed.length.toLocaleString()} of ${windowed.total.toLocaleString()} matching items`
     : windowed.remaining
-      ? `Showing ${displayed.length} of ${windowed.total} saved entries · ${visibleCopies} cards total`
+      ? `Showing ${displayed.length} of ${windowed.total} items · ${visibleCopies} copies`
       : groupedLabel;
   const remaining = windowed.remaining;
   $("#loadMorePositions").hidden = state.largeInventory.active
@@ -7292,9 +7292,7 @@ function renderCollection() {
       : "none";
     const movementLabel = purchasePerformance
       ? `${purchasePerformance.change >= 0 ? "+" : "−"}${displayCurrencyMoney(Math.abs(purchasePerformance.change), item.currency)}${purchasePerformance.percent === null ? "" : ` (${purchasePerformance.percent >= 0 ? "+" : ""}${purchasePerformance.percent.toFixed(1)}%)`}`
-      : total == null
-        ? ""
-        : "Cost not recorded";
+      : "";
     const listing = listingReadiness([item]);
     const listingTag =
       item.status === "listed"
@@ -7332,7 +7330,7 @@ function renderCollection() {
       ${state.bulkMode ? "" : `<button class="ledger-favorite${favorite ? " selected" : ""}" type="button" data-toggle-favorite="${esc(item.uid)}" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button>`}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${activeCopies > 1 ? `<span class="quantity">×${activeCopies}</span>` : ""}</div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="position-price-grid compact" aria-label="Card value"><span><small class="${copyGroup?.copies.length > 1 ? "" : "sr-only"}">${copyGroup?.copies.length > 1 ? "Each" : "Position value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span></div>
+      <div class="position-price-grid compact" aria-label="Card value"><span><small class="${copyGroup?.copies.length > 1 || activeCopies > 1 ? "" : "sr-only"}">${copyGroup?.copies.length > 1 ? "Each" : activeCopies > 1 ? "Total" : "Value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span></div>
       <div class="price-cell">${item.pricingStatus === "stale" || total == null ? `<span class="row-unit price-provenance">${item.pricingStatus === "stale" ? "Older price" : "Price unavailable"}</span>` : ""}${movementLabel ? `<span class="row-move ${moveClass}">${esc(movementLabel)}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}">${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
     </article>`;
   };
@@ -7530,7 +7528,7 @@ function collectionAttachmentMarkup(item) {
         `<li><span><strong>${esc(attachment.filename)}</strong><small>${attachment.kind === "photo" ? "Private photo" : "Private PDF"} · ${(Number(attachment.byte_size) / 1024).toFixed(0)} KB · ${esc(String(attachment.created_at).slice(0, 10))}</small></span><button type="button" data-open-collection-attachment="${esc(attachment.id)}">Open</button><button type="button" data-delete-collection-attachment="${esc(attachment.id)}" aria-label="Delete ${esc(attachment.filename)}">Delete</button></li>`,
     )
     .join("");
-  return `<details class="detail-tool-group collection-attachments" data-detail-tool="attachments"><summary><span><strong>Photos &amp; documents</strong><small>Private item evidence and records</small></span><b>Open</b></summary><div class="detail-tool-content"><div class="attachment-upload"><label for="collectionAttachmentInput">Add a private photo or PDF</label><input id="collectionAttachmentInput" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><small>10 MB maximum. Files stay in owner-only storage and are omitted from public sharing.</small><p class="form-error" id="collectionAttachmentError" role="alert"></p></div>${stateForItem.status === "loading" && !rows ? '<div class="searching-cards"><i></i><span>Loading private files…</span></div>' : stateForItem.status === "error" && !rows ? '<div class="unavailable-panel">Private files could not be loaded. Your collection is unchanged.</div>' : rows ? `<ul class="attachment-list">${rows}</ul>` : '<div class="compact-empty"><strong>No files attached</strong><span>Add an ownership photo, receipt, or insurance document.</span></div>'}</div></details>`;
+  return `<details class="detail-tool-group collection-attachments" data-detail-tool="attachments"><summary><span><strong>Photos &amp; documents</strong><small>Private item evidence and records</small></span></summary><div class="detail-tool-content"><div class="attachment-upload"><label for="collectionAttachmentInput">Add a private photo or PDF</label><input id="collectionAttachmentInput" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><small>10 MB maximum. Files stay in owner-only storage and are omitted from public sharing.</small><p class="form-error" id="collectionAttachmentError" role="alert"></p></div>${stateForItem.status === "loading" && !rows ? '<div class="searching-cards"><i></i><span>Loading private files…</span></div>' : stateForItem.status === "error" && !rows ? '<div class="unavailable-panel">Private files could not be loaded. Your collection is unchanged.</div>' : rows ? `<ul class="attachment-list">${rows}</ul>` : '<div class="compact-empty"><strong>No files attached</strong><span>Add an ownership photo, receipt, or insurance document.</span></div>'}</div></details>`;
 }
 
 async function loadOwnedGradingReports(item) {
@@ -8849,11 +8847,13 @@ function renderDetail() {
     : "";
   const backLabel =
     {
-      collection: "My library",
+      dashboard: "Portfolio",
+      collection: "Collection",
+      scan: "Search results",
       insights: "Collection",
       trade: "Trades",
-      profile: "Profile",
-    }[state.detailReturnRoute] || "Find cards";
+      profile: "Settings",
+    }[state.detailReturnRoute] || (owned ? "Collection" : "Search results");
   const activeSubmission = owned?.activeGradingSubmission || null;
   const gradingStatusLabel = activeSubmission
     ? {
@@ -8955,7 +8955,7 @@ function renderDetail() {
   const releaseYear = /^(\d{4})(?:$|-\d{2}-\d{2}(?:T|$))/.exec(String(item.release || item.releaseYear || ""))?.[1] || "Unknown";
   const identityDetails = sealed
     ? `<details class="identity-details"><summary>Product details</summary><div class="detail-meta">${detailMeta}</div></details>`
-    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span><b>Details</b></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
+    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span role="status">${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
   const listingTitle = sealed ? item.name : cardListingTitle(item, printing, context);
   const nameAt = listingTitle.indexOf(item.name);
   const gradeLabel = context.cardState === "graded" && context.gradingCompany && context.grade ? `${context.gradingCompany} ${context.grade}` : "";
@@ -8975,10 +8975,10 @@ function renderDetail() {
     ${action}
     ${listingSection}
     ${gradingSubmissionSection}
-    ${owned && !sealed ? `<details class="detail-tool-group" data-detail-tool="grading"><summary><span><strong>Grading history</strong></span><b>Details</b></summary><div class="detail-tool-content">${gradingLifecycleMarkup(item)}${!item.gradingCompany ? gradingReportHistoryMarkup(item) : ""}</div></details>` : ""}
-    ${owned ? `<details class="detail-tool-group" data-detail-tool="purchases"><summary><span><strong>Purchases, sales &amp; notes</strong></span><b>Open</b></summary><div class="detail-tool-content">${positionSection}${ownedSection}</div></details>` : ""}
+    ${owned && !sealed ? `<details class="detail-tool-group" data-detail-tool="grading"><summary><span><strong>Grading history</strong></span></summary><div class="detail-tool-content">${gradingLifecycleMarkup(item)}${!item.gradingCompany ? gradingReportHistoryMarkup(item) : ""}</div></details>` : ""}
+    ${owned ? `<details class="detail-tool-group" data-detail-tool="purchases"><summary><span><strong>Purchases, sales &amp; notes</strong></span></summary><div class="detail-tool-content">${positionSection}${ownedSection}</div></details>` : ""}
     <button class="secondary" id="detailMoreToolsButton" type="button" aria-controls="detailMoreTools" aria-expanded="false">More options</button>
-    <div id="detailMoreTools" hidden>    <details class="detail-tool-group" data-detail-tool="prices"><summary><span><strong>Price details</strong></span><b>Details</b></summary><div class="detail-tool-content"><section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
+    <div id="detailMoreTools" hidden>    <details class="detail-tool-group" data-detail-tool="prices"><summary><span><strong>Price details</strong></span></summary><div class="detail-tool-content"><section class="detail-section"><div class="detail-section-head"><h2>Matching prices</h2><span>Same card version only</span></div>${sourceRows}</section>
     ${!sealed ? `<details id="marketProofDetails" data-detail-tool="sales"><summary>Recent sold listings</summary><section class="detail-section" aria-label="Recent sold listings">${renderSales(valuationItem)}</section></details>` : ""}</div></details>
 
     ${owned ? collectionAttachmentMarkup(item) : ""}</div>
@@ -16093,6 +16093,7 @@ function renderGradingAvailability() {
   }
   $$("[data-digital-grade], [data-continue-grading], #positionGradeFirst").forEach(button => {
     button.disabled = Boolean(held);
+    if (button.matches("[data-digital-grade]")) button.hidden = Boolean(held);
     if (held) button.title = "Digital grading is currently unavailable";
     else button.removeAttribute("title");
   });

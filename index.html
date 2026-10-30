@@ -22,7 +22,7 @@
       href="icons/apple-touch-icon.png"
     />
     <link rel="stylesheet" href="styles.css?v=94" />
-    <link rel="stylesheet" href="themes.css?v=113" />
+    <link rel="stylesheet" href="themes.css?v=114" />
     <title>Mica — Pokémon Card Library</title>
   </head>
   <body>
@@ -255,7 +255,7 @@
             class="avatar"
             type="button"
             data-route="profile"
-            aria-label="Open profile"
+            aria-label="Open settings"
           >
             JD
           </button>
@@ -270,7 +270,7 @@
         >
           <div class="collection-heading">
             <div>
-              <p class="eyebrow" id="dashboardEyebrow">Your collection</p>
+              <p class="sr-only" id="dashboardEyebrow">Your collection</p>
               <h1 id="dashboardTitle">Welcome back</h1>
               <span class="sr-only" id="dashboardModeLabel"
                 >Collector home</span
@@ -330,7 +330,7 @@
                   ><strong id="unrealized">—</strong>
                 </div>
                 <div>
-                  <details class="portfolio-pnl-picker"><summary>P/L · <span id="portfolioPnlLabel">All time</span></summary><select id="portfolioPnlRange" aria-label="P/L timeframe"><option value="all">All time</option><option value="1m">Month</option><option value="ytd">YTD</option><option value="1y">Year</option><option value="1d">Day</option></select></details><strong id="portfolioReturn">—</strong><small id="portfolioPnlNote"></small>
+                  <details class="portfolio-pnl-picker"><summary>Gain/loss · <span id="portfolioPnlLabel">All time</span></summary><select id="portfolioPnlRange" aria-label="Gain/loss timeframe"><option value="all">All time</option><option value="1m">Month</option><option value="ytd">YTD</option><option value="1y">Year</option><option value="1d">Day</option></select></details><strong id="portfolioReturn">—</strong><small id="portfolioPnlNote"></small>
                 </div>
                 <div>
                   <span>Profit from cards already sold</span
@@ -361,7 +361,7 @@
             </article>
             <article class="dashboard-kpi">
               <span>Items you own</span><strong id="ownedCount">0</strong
-              ><small id="freshCoverage">Across your saved entries</small>
+              ><small id="freshCoverage">Across your collection</small>
             </article>
             <article class="dashboard-kpi advanced-workspace">
               <span>What you paid</span
@@ -427,12 +427,12 @@
         >
           <div class="collection-heading">
             <div>
-              <p class="eyebrow">Your cards</p>
+              <p class="sr-only">Your cards</p>
               <h1 id="collectionTitle">Collection</h1>
             </div>
             <div class="collection-actions">
               <button class="quick-add" type="button" data-sidebar-target="add">
-                + Add Card
+                + Add card
               </button>
             </div>
           </div>
@@ -725,7 +725,7 @@
                     <circle cx="9" cy="10" r="2" />
                     <path d="m4 18 5-5 3 3 2-2 6 5" /></svg
                   ><span
-                    ><strong>Choose a photo</strong
+                    ><strong>Choose photo</strong
                     ></span
                   ></button
                 >
@@ -744,8 +744,8 @@
               </button>
             </aside>
             <section class="add-search-panel" aria-labelledby="addSearchTitle">
-              <div class="add-panel-heading">
-                <h2 id="addSearchTitle">Find a card</h2>
+              <div class="sr-only">
+                <h2 id="addSearchTitle">Search cards</h2>
               </div>
               <label class="find-search"
                 ><svg viewBox="0 0 24 24" aria-hidden="true">
@@ -1374,7 +1374,7 @@
             <button type="button" id="exportCsvButton">
               <span
                 >Export spreadsheet<small
-                  >All saved entries · CSV</small
+                  >All collection items · CSV</small
                 ></span
               ><b>›</b>
             </button>
@@ -1388,11 +1388,6 @@
             </button>
             <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
           </div>
-          <div class="settings-group" id="appearanceSettings">
-            <h2>Appearance</h2>
-            <label for="appearanceSelect">Theme<select id="appearanceSelect"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
-            <label for="motionPreferenceSelect" hidden inert>Animations<select id="motionPreferenceSelect"><option value="auto">System</option><option value="reduce">Reduced</option><option value="full">Full</option></select></label>
-          </div>
           <div class="settings-group" id="deviceSettings" hidden inert><h2>This device</h2>
             <button type="button" id="installAppButton">
               <span
@@ -1405,6 +1400,8 @@
           </div>
           <div class="settings-group workflow-defaults" id="everydaySettings">
             <h2>Preferences</h2>
+            <label for="appearanceSelect">Theme<select id="appearanceSelect"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+            <label for="motionPreferenceSelect" hidden inert>Animations<select id="motionPreferenceSelect"><option value="auto">System</option><option value="reduce">Reduced</option><option value="full">Full</option></select></label>
             <label for="profileDisplayCurrency">Display currency<select id="profileDisplayCurrency"><option value="USD">USD</option><option value="EUR">EUR</option></select></label>
             <details class="settings-fees" hidden inert><summary>Selling preferences</summary>
             <label
@@ -1524,6 +1521,6 @@
       aria-atomic="true"
     ></div>
     <script src="app-config.js?v=69"></script>
-    <script type="module" src="app.js?v=119"></script>
+    <script type="module" src="app.js?v=120"></script>
   </body>
 </html>

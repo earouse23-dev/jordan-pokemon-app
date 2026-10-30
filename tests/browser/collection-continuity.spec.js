@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=119";
+const appUrl = "/app.js?v=120";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -30,7 +30,7 @@ test.beforeAll(async () => {
 });
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=119", (route) =>
+  await page.route("**/app.js?v=120", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -341,7 +341,7 @@ for (const appearance of ["light", "dark"]) {
 
 test('leaving Settings clears its path and back/forward preserves the selected workspace', async ({page}) => {
   await openCollection(page);
-  await page.getByRole('button',{name:'Open profile',exact:true}).click();
+  await page.getByRole('button',{name:'Open settings',exact:true}).click();
   await expect(page).toHaveURL(/\/profile$/);
   await page.locator('[data-sidebar-target="collection"]:visible, [data-route="collection"]:visible').first().click();
   expect(new URL(page.url()).pathname).toBe('/');
