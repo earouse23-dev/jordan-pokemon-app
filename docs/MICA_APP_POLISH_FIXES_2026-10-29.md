@@ -24,8 +24,17 @@ Scope: the nine findings from the initial App Polish Audit. Source and screensho
 - Preview hash baseline regenerated and verified for the changed public assets.
 - Release routing verification: nine functions, existing held routes/authentication/origin controls retained, zero real outbound provider calls.
 
-App asset revision: 120. Theme revision: 114. Service worker shell: 134. No dependencies, database schema, pricing calculation, provider budget, cron schedule or App Store configuration changed. Git-triggered Vercel deployments remain disabled; publication uses the existing explicit prebuilt release workflow.
+App asset revision: 121. Theme revision: 115. Service worker shell: 135. No dependencies, database schema, pricing calculation, provider budget, cron schedule or App Store configuration changed. Git-triggered Vercel deployments remain disabled; publication uses the existing explicit prebuilt release workflow.
 
 The initial audit's screenshot-only uncertainties (historical fixture gaps, an image failure in an older capture, full onboarding coverage and physical-device acceptance) were not treated as confirmed bugs. Native/physical-device acceptance remains separate.
 
 Publication details are recorded after the staged release and live verification.
+
+## Publication
+
+- Published to https://jordan-pokemon-app.vercel.app/ through the existing staged production promotion workflow.
+- Final deployment: `dpl_E9bjzjpg9RZRwV7PD4rTHyTdsdKw` (READY), https://jordan-pokemon-raj8npd1a-earouse23-devs-projects.vercel.app/.
+- Release artifact SHA-256: `1453e37b9c32133ea4467b43b915a5aaf4c8aef38384cd461c850d6cc9bd6905`.
+- Final visual acceptance also aligns total/per-copy labels beside prices at all widths, and checks the accessible Printing details disclosure name. The six acceptance checks pass again for revision 121; unit, lint, syntax, preview hash and routing checks pass.
+- Read-only live acceptance confirms populated collection prices, hidden capability-held tile grading actions, Total labels, the Portfolio return label and actual return destination, and the gain/loss summary beside portfolio value. No account record was edited.
+- Cloud CI is separate from the local scoped checks and was still running when publication was verified; no cloud pass is claimed.

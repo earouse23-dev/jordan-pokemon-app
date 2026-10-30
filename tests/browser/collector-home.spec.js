@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=120";
+const appUrl = "/app.js?v=121";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -34,7 +34,7 @@ async function openSecondaryTools(page) {
 }
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=120", (route) =>
+  await page.route("**/app.js?v=121", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -1217,6 +1217,7 @@ test("audit fixes preserve return destinations, value units and available action
   await page.locator(".ledger-open-overlay").first().click();
   await expect(page.locator("#detailBack")).toHaveText("Collection");
   await expect(page.locator('[data-detail-tool="grading"]>summary')).toHaveText("Grading history");
+  await expect(page.locator(".identity-details>summary")).toHaveAccessibleName(/Printing details/);
   await page.locator("#detailBack").click();
   await expect(page.locator("#view-collection")).toBeVisible();
 });

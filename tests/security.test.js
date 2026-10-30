@@ -473,7 +473,7 @@ test("optional grading assets cannot block service-worker installation", async (
 
   assert.equal(skippedWaiting, true);
   assert.ok(coreAssets.includes("./index.html"));
-  assert.ok(coreAssets.includes("./app.js?v=120"));
+  assert.ok(coreAssets.includes("./app.js?v=121"));
   assert.equal(
     coreAssets.some((asset) => asset.includes("coach-")),
     false,
@@ -589,15 +589,15 @@ test("Mica uses one green interface with synchronized light/dark shell assets", 
   assert.match(appShell, /data-software-mode="collector"/);
   assert.match(appShell, /data-software-mode="investor"/);
   assert.match(appShell, /data-software-mode="seller"/);
-  assert.match(appShell, /themes\.css\?v=114/);
+  assert.match(appShell, /themes\.css\?v=115/);
   assert.match(appSource, /let uiTheme = "mica"/);
   assert.match(appSource, /let workspaceMode = "collector"/);
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
   assert.match(themes, /--canvas:\s*#f6f7f4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-design-134/);
-  assert.match(serviceWorker, /themes\.css\?v=114/);
+  assert.match(serviceWorker, /mica-shell-design-135/);
+  assert.match(serviceWorker, /themes\.css\?v=115/);
 });
 
 test("signup keeps account existence private and supports confirmation resend", () => {

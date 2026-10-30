@@ -3,7 +3,7 @@ import { build } from "esbuild";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-const appUrl = "/app.js?v=120";
+const appUrl = "/app.js?v=121";
 const ownerA = "11111111-1111-4111-8111-111111111111";
 const ownerB = "22222222-2222-4222-8222-222222222222";
 let bundle;
@@ -49,7 +49,7 @@ function card(name, index, language = "en") {
 
 async function setup(page, { failAttempt = 0 } = {}) {
   const requests = [];
-  await page.route("**/app.js?v=120", (route) =>
+  await page.route("**/app.js?v=121", (route) =>
     route.fulfill({ contentType: "application/javascript", body: bundle }),
   );
   await page.route("**/app-config.js*", (route) =>

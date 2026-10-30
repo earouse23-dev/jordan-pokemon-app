@@ -6693,11 +6693,9 @@ body[data-ui-theme="mica"] #appShell .catalog-set-filter>summary { min-height: 4
 body[data-ui-theme="mica"] #appShell .catalog-set-filter[open] { grid-column: 1 / -1; }
 body[data-ui-theme="mica"] #appShell .catalog-set-filter[open]>summary { justify-content: flex-start; }
 /* Keep unit versus position value explicit, including grouped slabs. */
-@media (max-width:759px) {
-  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid>span:first-child { flex-direction: row; align-items: baseline; gap: 6px; }
-  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid small { display: inline; font-size: 12px; font-weight: 400; }
-  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid strong { order: -1; }
-}
+body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid>span:first-child { flex-direction: row; align-items: baseline; gap: 6px; }
+body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid small { display: inline; min-height: 0; font-size: 12px; font-weight: 400; }
+body[data-ui-theme="mica"] #appShell #view-collection .ledger-row .position-price-grid strong { order: -1; }
 body[data-ui-theme="mica"] #authGate #tryCardSearch { background: transparent; color: var(--pine-2); border: 0; box-shadow: none; min-height: 44px; padding: 8px 0; margin-top: 8px; font-size: 14px; }
 /* WebKit date controls must fit their grid cell on the smallest iPhone. */
 body[data-ui-theme="mica"] :is(input[type="date"],input[type="datetime-local"]) { min-inline-size: 0; max-inline-size: 100%; inline-size: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none; display: block; }
