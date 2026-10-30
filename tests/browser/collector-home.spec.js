@@ -1246,6 +1246,8 @@ test("audit shared layouts fit both themes across available screen sizes", async
     if ([390,1440].includes(width)) {
       await page.screenshot({animations:"disabled",path:info.outputPath(`audit-portfolio-${appearance}-${width}.png`)});
       await page.evaluate(() => fixtureApp.routeTo("collection",{focus:false}));
+      const aligned = await page.locator(".position-price-grid small:not(.sr-only)").first().evaluate(label => {const value=label.nextElementSibling.getBoundingClientRect(),unit=label.getBoundingClientRect();return unit.left>=value.right && unit.top<value.bottom && unit.bottom>value.top;});
+      expect(aligned).toBe(true);
       await page.screenshot({animations:"disabled",path:info.outputPath(`audit-collection-${appearance}-${width}.png`)});
     }
     await page.evaluate(() => fixtureApp.routeTo("profile",{focus:false}));
