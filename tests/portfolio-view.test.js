@@ -5,6 +5,7 @@ import {
   portfolioCondition,
   compactPortfolioView,
   portfolioDisplayTimeline,
+  portfolioPriceIsFresh,
 } from "../lib/portfolio-view.js";
 import { displayNativePortfolioProfitLoss } from "../lib/portfolio.js";
 test("display endpoints retain estimates and distinguish carried valuations without changing saved history", () => {
@@ -55,6 +56,7 @@ test("saved dashboard retains bounded holdings and the same performance arithmet
   full.pricing = [{secretEvidence:"not needed for first paint"}];
   const compact = JSON.parse(JSON.stringify(compactPortfolioView(full)));
   assert.equal(compact.pricing, undefined);
+  assert.deepEqual(compact.displayPricing, [{displayOnly:true}]);
   assert.equal(compact.dashboard.holdings.length,5);
   assert.equal(compact.dashboard.holdings[0].name,"Card 7");
   assert.equal(compact.dashboard.holdings[0].total,107);
@@ -63,6 +65,26 @@ test("saved dashboard retains bounded holdings and the same performance arithmet
   assert.equal(pnl.totalProfitMinor, 42800);
   assert.equal(displayNativePortfolioProfitLoss(compact.dashboard.nativePerformance,"EUR",null).unconvertedUnits,8);
   assert.deepEqual(compact.summaries[0].history,full.summaries[0].history);
+});
+test("price checks last a rolling 24 hours, independent of sale dates and UTC midnight", () => {
+  const checkedAt = "2026-01-03T23:30:00Z";
+  const pricing = {checkedAt, pricingUpdatedAt:"2024-01-01", checkedDay:"2026-01-03"};
+  assert.equal(portfolioPriceIsFresh(pricing, Date.parse("2026-01-04T23:29:59Z")), true);
+  assert.equal(portfolioPriceIsFresh(pricing, Date.parse("2026-01-04T23:30:00Z")), false);
+  assert.equal(portfolioPriceIsFresh(pricing, Date.parse("2026-01-03T23:29:59Z")), false);
+  assert.equal(portfolioPriceIsFresh({checkedDay:"2026-01-01"}, Date.parse("2026-01-03T12:00:00Z"), checkedAt), false);
+});
+test("compact first-paint pricing retains current quotes and one validated slab comp without histories", () => {
+  const latest={transactionKey:"ebay:1", amount:200, soldAt:"2026-01-01"};
+  const full={pricing:[{uid:"raw",key:"raw-key",price:100,quotes:[{amount:100}],priceHistory:Array(1000).fill({amount:100})},
+    {uid:"graded",key:"graded-key",price:200,exactSaleEvidence:{sales:Array(1000).fill(latest),validatedContext:{canonicalValidated:true},retrievedAt:"2026-01-03"},soldValuation:{evidence:[latest],contributingEvidenceIds:["ebay:1"]}}]};
+  const compact=compactPortfolioView(full);
+  assert.equal(compact.displayPricing[0].price,100);
+  assert.equal(compact.displayPricing[0].priceHistory,undefined);
+  assert.deepEqual(compact.displayPricing[1].exactSaleEvidence.sales,[latest]);
+  assert.equal(compact.displayPricing[1].exactSaleEvidence.summaryOnly,true);
+  assert.deepEqual(compactPortfolioView(compact),compact,"Repeated caching retains the same compact prices");
+  assert.equal(full.pricing[1].exactSaleEvidence.sales.length,1000,"Database evidence is not mutated");
 });
 test("purchase-date market values reconstruct daily ownership without logins or future-price backfill", () => {
   const a = item("charizard", "2026-01-01", 200, 2),

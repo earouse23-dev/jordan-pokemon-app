@@ -453,6 +453,9 @@ test("last eBay sale retains an older exact comp as stale evidence while the med
   assert.equal(result.estimate, 90);
   assert.equal(result.status, "stale");
   assert.equal(result.newestSoldAt, "2025-12-01");
+  const { compactPortfolioView } = await import("../lib/portfolio-view.js");
+  const compact = compactPortfolioView({pricing:[{uid:"slab",price:90,soldValuation:result,exactSaleEvidence:{sales:[old],...options}}]}).displayPricing[0];
+  assert.equal(latestEbaySoldValuation(compact.exactSaleEvidence.sales,context,{...options,...compact.exactSaleEvidence}).estimate,90,"First-paint comp still passes exact context validation");
 });
 
 test("latest exact comp keeps a market move instead of reverting to an older median, and rejects another edition", async () => {

@@ -64,7 +64,7 @@ async function setup(page) {
       view.hidden = view.id !== "view-scan";
       view.classList.toggle("active", view.id === "view-scan");
     });
-    const app = await import("/app.js?v=118");
+    const app = await import("/app.js?v=119");
     app.state.route = "scan";
     app.state.sidebarTarget = "add";
     app.bindEvents();
@@ -165,7 +165,7 @@ test("same-name English and Japanese close finishes open the exact clicked profi
           language: state.detailCard.language,
           finish: state.detailCard.finish,
         };
-      }, "/app.js?v=118"),
+      }, "/app.js?v=119"),
     ).toEqual({
       id: selected.id,
       variantId: selected.variantId,
@@ -208,7 +208,7 @@ for (const action of ["view", "add", "queue", "manual"]) {
     await setup(page);
     if (action === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=118")).openManualSearch(),
+        (await import("/app.js?v=119")).openManualSearch(),
       );
     const input = page.locator(
       action === "manual" ? "#catalogQuery" : "#quickCardSearch",
@@ -221,7 +221,7 @@ for (const action of ["view", "add", "queue", "manual"]) {
     await expect(results).toContainText("Pikachu English");
     await page.evaluate(
       async (replacement) => {
-        (await import("/app.js?v=118")).rememberCatalogItems([replacement]);
+        (await import("/app.js?v=119")).rememberCatalogItems([replacement]);
       },
       { ...original, name: "Pikachu Japanese", language: "ja" },
     );
@@ -241,7 +241,7 @@ for (const action of ["view", "add", "queue", "manual"]) {
       );
     } else {
       const chosen = await page.evaluate(async (action) => {
-        const { state } = await import("/app.js?v=118");
+        const { state } = await import("/app.js?v=119");
         const item =
           action === "queue" ? state.intakeQueue[0].card : state.detailCard;
         return { name: item.name, language: item.language };
@@ -270,7 +270,7 @@ for (const surface of ["quick", "manual"]) {
     await setup(page);
     if (surface === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=118")).openManualSearch(),
+        (await import("/app.js?v=119")).openManualSearch(),
       );
     const input = page.locator(
       surface === "quick" ? "#quickCardSearch" : "#catalogQuery",
@@ -318,7 +318,7 @@ for (const surface of ["quick", "manual"]) {
     await setup(page);
     if (surface === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=118")).openManualSearch(),
+        (await import("/app.js?v=119")).openManualSearch(),
       );
     const input = page.locator(
       surface === "quick" ? "#quickCardSearch" : "#catalogQuery",
@@ -356,7 +356,7 @@ for (const surface of ["quick", "manual"]) {
     await setup(page);
     if (surface === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=118")).openManualSearch(),
+        (await import("/app.js?v=119")).openManualSearch(),
       );
     // Use a deterministic future pause point relative to the installed clock.
     // Sampling the host's current time can be behind the browser by the time
@@ -396,7 +396,7 @@ for (const surface of ["quick", "manual"]) {
     await setup(page);
     if (surface === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=118")).openManualSearch(),
+        (await import("/app.js?v=119")).openManualSearch(),
       );
     const input = page.locator(
       surface === "quick" ? "#quickCardSearch" : "#catalogQuery",
@@ -446,7 +446,7 @@ test("cached search results stay in the selected language and disclose their sou
   await setup(page);
   await page.evaluate(
     async (cards) =>
-      (await import("/app.js?v=118")).rememberCatalogItems(cards),
+      (await import("/app.js?v=119")).rememberCatalogItems(cards),
     [
       card("Pikachu English", "en"),
       card("Pikachu Japanese", "ja"),
@@ -473,13 +473,13 @@ test("a replaced manual search ignores its late response", async ({ page }) => {
   });
   await setup(page);
   await page.evaluate(async () =>
-    (await import("/app.js?v=118")).openManualSearch(),
+    (await import("/app.js?v=119")).openManualSearch(),
   );
   await page.locator("#catalogQuery").fill("Pikachu");
   await page.locator("#catalogQuery").press("Enter");
   await expect.poll(() => Boolean(pending)).toBe(true);
   await page.evaluate(async () => {
-    const app = await import("/app.js?v=118");
+    const app = await import("/app.js?v=119");
     app.closeSheet({ discardHistory: true });
     app.openPositionSheet({
       name: "Eevee",
@@ -549,7 +549,7 @@ test("manual search starts with the current query and printed language", async (
   await page.locator("#quickCardSearch").press("Enter");
   await expect(page.locator("#quickSearchResults")).toContainText("Pikachu");
   await page.evaluate(async () =>
-    (await import("/app.js?v=118")).openManualSearch(),
+    (await import("/app.js?v=119")).openManualSearch(),
   );
   await expect(page.locator("#catalogQuery")).toHaveValue("Pikachu");
   await expect(page.locator("#catalogLanguage")).toHaveValue("ja");
@@ -587,7 +587,7 @@ for (const mode of ["quick", "manual"]) {
     await setup(page);
     if (mode === "manual")
       await page.evaluate(async () =>
-        (await import("/app.js?v=118")).openManualSearch(),
+        (await import("/app.js?v=119")).openManualSearch(),
       );
     const input = page.locator(
       mode === "quick" ? "#quickCardSearch" : "#catalogQuery",
@@ -649,7 +649,7 @@ test('manual printing choices have distinct accessible names with edition, finis
   const variants=['Unlimited Holofoil','1st Edition Holofoil','Non-holo'];
   await page.route('**/api/catalog?**',route=>fulfillCards(route,variants.map((variant,index)=>({...card('Blastoise'),id:`en:blastoise-${index}`,set:'Base Set',number:'2/102',variant,variants:[variant]}))));
   await setup(page);
-  await page.evaluate(async()=> (await import('/app.js?v=118')).openManualSearch());
+  await page.evaluate(async()=> (await import('/app.js?v=119')).openManualSearch());
   await page.getByRole('searchbox',{name:'Search by card name and bottom number',exact:true}).fill('Blastoise Base Set');
   await expect(page.locator('.catalog-result')).toHaveCount(3);
   const names=await page.locator('.catalog-result').evaluateAll(buttons=>buttons.map(b=>b.getAttribute('aria-label')));

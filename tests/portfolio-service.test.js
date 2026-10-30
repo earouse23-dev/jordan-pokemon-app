@@ -209,6 +209,8 @@ test('daily cache skips inventory and providers; revisions reuse today’s price
   inventoryReads=0;
   assert.deepEqual(await refreshPortfolioView(db,owner,{}, {now}),stored);
   assert.equal(inventoryReads,0);assert.equal(claims,0);assert.equal(paid,0);
+  assert.deepEqual(await refreshPortfolioView(db,owner,{}, {now:'2026-01-04T11:59:59Z'}),stored,'UTC midnight does not expire a price checked less than 24 hours ago');
+  assert.equal(inventoryReads,0);assert.equal(paid,0);
   // A v1 saved chart is rebuilt once from today's stored quotes/history, with zero provider calls.
   stored.version=2;
   const rebuilt=await refreshPortfolioView(db,owner,{}, {now});
@@ -296,7 +298,7 @@ test('a partial refresh keeps useful progress and does not exhaust continuation 
   assert.equal(result.attemptCount,0,'Useful saved progress permits another bounded continuation');
 });
 
-for (const interrupted of [false, true]) test('a confirmed regrade clears the published slab value' + (interrupted ? ' while interrupted work preserves untouched prices' : ''),async t=>{
+for (const {interrupted,withdrawn} of [{interrupted:false,withdrawn:true},{interrupted:true,withdrawn:true},{interrupted:false,withdrawn:false}]) test(withdrawn ? 'a confirmed regrade clears the published slab value' + (interrupted ? ' while interrupted work preserves untouched prices' : '') : 'an empty refresh retains the last successful slab price and its evidence',async t=>{
  const {createClient}=await import('@supabase/supabase-js');
  const {refreshPortfolioView}=await import('../lib/portfolio-service.js');
  const {loadPortfolio}=await import('../lib/supabase-data.js');
@@ -311,7 +313,7 @@ for (const interrupted of [false, true]) test('a confirmed regrade clears the pu
  t.mock.method(pkmnPricesRequests,'readCache',async key=>{
   if(!key.includes('ebay-archive'))return null;
   if(interrupted){if(++cacheReads===3){controller.abort();release();}await barrier;}
-  return {expires:Date.now()+86400000,body:{cardId:'17262',sales:[],hasMore:false,correctedSaleIds:['sale-1'],correctionsThrough:now}};
+  return {expires:Date.now()+86400000,body:{cardId:'17262',sales:[],hasMore:false,correctedSaleIds:withdrawn?['sale-1']:[],correctionsThrough:now}};
  });
  t.mock.method(globalThis,'fetch',async(input,init={})=>{
   const u=new URL(typeof input==='string'?input:input.url||input),table=u.pathname.split('/').at(-1);
@@ -332,6 +334,7 @@ for (const interrupted of [false, true]) test('a confirmed regrade clears the pu
  stored={...buildPortfolioView(bases.map((item,index)=>({...item,...priors[index]})),now),pricing:priors,dailyVersion:1,checkedDay:day,inventoryRevision:0,historyBackfillPending:true};
  assert.equal(stored.summaries[0].total,500*ids.length,'the saved comp was actually included in the old total');
  const result=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'correction-server-fixture'},{now,signal:controller.signal});
+ if(!withdrawn){assert.equal(result.summaries[0].total,500);assert.equal(result.pricing[0].price,500);assert.deepEqual(result.pricing[0].exactSaleEvidence.sales,[{providerSaleId:'sale-1'}]);return;}
  assert.equal(result.summaries[0].knownTotal,interrupted?500:null,'a withdrawn comp cannot remain in the published total');
  if(interrupted){assert.equal(cacheReads,3);assert.equal(result.pricing[3].price,500,'unvisited pricing survives the interrupted pass');}
  assert.equal(result.pricing[0].pricingReason,'matching_sold_price_unavailable');

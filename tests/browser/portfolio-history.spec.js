@@ -7,7 +7,7 @@ import { collectibleIdentitySnapshot } from "../../lib/identity.js";
 import { buildPortfolioView } from "../../lib/portfolio-view.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=118";
+const appUrl = "/app.js?v=119";
 const evidenceDir = fileURLToPath(
   new URL("../../docs/evidence/sol-client-06/", import.meta.url),
 );
@@ -42,7 +42,7 @@ test.beforeAll(async () => {
     write: false,
   });
   instrumentedApp = bundle.outputFiles[0].text;
-  instrumentedSavedApp = (await build({ stdin: { contents: source.replace("void bootstrap();", "") + "\nexport { state, bindEvents, routeTo, renderCollection, renderPortfolioHistory, loadSavedPortfolio, refreshSavedPortfolio, refreshLivePricing, sessionLoadVersion, portfolioChartInstance };", resolveDir: root, sourcefile: "app.js" }, bundle: true, format: "esm", platform: "browser", target: "es2022", write: false })).outputFiles[0].text;
+  instrumentedSavedApp = (await build({ stdin: { contents: source.replace("void bootstrap();", "") + "\nexport { state, bindEvents, routeTo, renderCollection, renderPortfolioHistory, loadSavedPortfolio, refreshSavedPortfolio, refreshLivePricing, sessionLoadVersion, portfolioChartInstance, restorePortfolioPricing, cachePortfolioView };", resolveDir: root, sourcefile: "app.js" }, bundle: true, format: "esm", platform: "browser", target: "es2022", write: false })).outputFiles[0].text;
   await mkdir(evidenceDir, { recursive: true });
 });
 
@@ -53,7 +53,7 @@ test("synthetic portfolio P/L, ranges, value toggle and honest movement filters"
   // Keep action/assertion limits; allow the complete workflow its own total budget.
   test.setTimeout(120_000);
   await page.clock.install({ time: new Date("2026-09-25T12:00:00Z") });
-  await page.route("**/app.js?v=118", (route) =>
+  await page.route("**/app.js?v=119", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -455,7 +455,7 @@ test("graded reference index cannot enter portfolio totals or snapshots; exact s
   page,
 }) => {
   await page.clock.install({ time: new Date("2026-09-25T12:00:00Z") });
-  await page.route("**/app.js?v=118", (route) =>
+  await page.route("**/app.js?v=119", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -639,7 +639,7 @@ test("graded reference index cannot enter portfolio totals or snapshots; exact s
 
 
 test("portfolio refresh publishes once, shares requests and retains values on failed batches", async ({ page }) => {
-  await page.route("**/app.js?v=118", route => route.fulfill({ contentType: "application/javascript", body: instrumentedApp }));
+  await page.route("**/app.js?v=119", route => route.fulfill({ contentType: "application/javascript", body: instrumentedApp }));
   await page.route("**/app-config.js*", route => route.fulfill({ contentType: "application/javascript", body: 'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};' }));
   await page.route("https://mica-portfolio-test.supabase.co/**", route => route.fulfill({ contentType: "application/json", body: "[]" }));
   await page.route("**/api/**", route => route.request().url().includes("surface=portfolio") ? route.fulfill({status:404,body:"{}"}) : route.abort());
@@ -698,7 +698,7 @@ test("portfolio refresh publishes once, shares requests and retains values on fa
 });
 
 test("portfolio overlaps three batches and publishes only after the final batch", async ({ page }) => {
-  await page.route("**/app.js?v=118", route => route.fulfill({ contentType: "application/javascript", body: instrumentedApp }));
+  await page.route("**/app.js?v=119", route => route.fulfill({ contentType: "application/javascript", body: instrumentedApp }));
   await page.route("**/app-config.js*", route => route.fulfill({ contentType: "application/javascript", body: 'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};' }));
   await page.route("https://mica-portfolio-test.supabase.co/**", route => route.fulfill({ contentType: "application/json", body: "[]" }));
   await page.route("**/api/**", route => route.request().url().includes("surface=portfolio") ? route.fulfill({status:404,body:"{}"}) : route.abort());
@@ -741,7 +741,7 @@ test('saved chart and total restore together and publish only after a completed 
  const owner='11111111-1111-4111-8111-111111111111';
  const makeView=(total,day)=>({version:4,complete:true,updatedAt:`2026-01-${day}T12:00:00Z`,dashboard:buildPortfolioView([{uid:'saved-card',id:'saved-card',name:'Saved Charizard',set:'Base Set',number:'4/102',quantity:1,currency:'USD',price:total,pricingStatus:'live',costBasis:200,lots:[],transactions:[]}]).dashboard,summaries:[{currency:'USD',total,knownTotal:total,missingUnits:0,historyStartsAt:'2026-01-01',history:[{date:'2026-01-01',total:400},{date:'2026-01-02',total}]}],pricing:[]});
  let saved=makeView(400,'02'),release,fail=false,empty=false,paid=0,posts=0;
- await page.route('**/app.js?v=118',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+ await page.route('**/app.js?v=119',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
  await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
  await page.route('https://mica-portfolio-test.supabase.co/**',route=>route.fulfill({contentType:'application/json',body:'[]'}));
  await page.route('**/api/**',async route=>{
@@ -789,7 +789,7 @@ test('saved chart paints while account and server reads are pending, survives re
   const owner='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
   const view=amount=>({version:1,dailyVersion:1,checkedDay:'2026-01-03',updatedAt:'2026-01-03T12:00:00Z',summaries:[{currency:'USD',total:amount,knownTotal:amount,missingUnits:0,history:[{date:'2026-01-02',total:400},{date:'2026-01-03',total:amount}],historyStartsAt:'2026-01-02'}],pricing:[{uid:'fixture',priceHistory:Array(1000).fill({amount:100})}]});
   let release,fail=false;
-  await page.route('**/app.js?v=118',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app.js?v=119',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
   await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
   await page.route('https://mica-portfolio-test.supabase.co/**',route=>route.abort());
   await page.route('**/api/**',async route=>{
@@ -829,7 +829,7 @@ test('saved chart paints while account and server reads are pending, survives re
 test('saved EUR portfolio requests conversion before inventory arrives and retries without losing history', async ({ page }) => {
   const owner='11111111-1111-4111-8111-111111111111';
   let fxCalls=0, fail=true;
-  await page.route('**/app.js?v=118',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app.js?v=119',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
   await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
   await page.route('https://mica-portfolio-test.supabase.co/**',route=>route.abort());
   await page.route('**/api/**',route=>route.fulfill({status:503,body:'{}'}));
@@ -869,7 +869,7 @@ test.describe('UTC daily valuation boundaries', () => {
  test.use({timezoneId:'America/Chicago'});
  test('saved dashboard timeframes retain daily observations across local and UTC midnight without pricing requests', async ({page}) => {
   await page.clock.install({time:new Date('2026-10-22T02:30:00Z')});
-  await page.route('**/app.js?v=118',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app.js?v=119',route=>route.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
   await page.route('**/app-config.js*',route=>route.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={};'}));
   let requests=0;
   await page.route('**/api/**',route=>{requests++;return route.abort();});
@@ -909,7 +909,7 @@ for (const appearance of ['light', 'dark']) {
   const owner='11111111-1111-4111-8111-111111111111';
   const saved={version:4,dailyVersion:1,checkedDay:'2026-01-03',updatedAt:'2026-01-03T11:00:00Z',summaries:[{currency:'USD',total:450,knownTotal:450,missingUnits:0,history:[{date:'2026-01-02',total:400},{date:'2026-01-03',total:450}]}],pricing:[]};
   let calls=0, release;
-  await page.route('**/app.js?v=118',r=>r.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app.js?v=119',r=>r.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
   await page.route('**/app-config.js*',r=>r.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
   await page.route('https://mica-portfolio-test.supabase.co/**',r=>r.abort());
   await page.route('**/api/**',async r=>{
@@ -957,3 +957,44 @@ for (const appearance of ['light', 'dark']) {
   expect(calls).toBe(3);
  });
 }
+
+test('collection restores matching saved prices before network, retains them on failure, and rejects changed identities', async ({page}, testInfo) => {
+  const owner='11111111-1111-4111-8111-111111111111';
+  let pending, reads=0, providerCalls=0;
+  await page.route('**/app.js?v=119',r=>r.fulfill({contentType:'application/javascript',body:instrumentedSavedApp}));
+  await page.route('**/app-config.js*',r=>r.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-portfolio-test.supabase.co",supabasePublishableKey:"fixture-key"};'}));
+  await page.route('https://mica-portfolio-test.supabase.co/**',r=>r.abort());
+  await page.route('**/api/**',r=>{
+    if(r.request().url().includes('surface=portfolio')) {reads++;pending=r;return;}
+    providerCalls++;return r.abort();
+  });
+  await page.goto('/');
+  const restore=async(seed)=>page.evaluate(async({appUrl,owner,seed})=>{
+    const a=await import(appUrl);
+    const base={uid:'cached-raw',id:'cached-raw',name:'Saved Charizard',set:'Base Set',number:'4/102',language:'en',variant:'Holofoil',finish:'holofoil',edition:'unlimited',promoType:'none',condition:'Near Mint',rawCondition:'near_mint',currency:'USD',cardState:'raw',quantity:2,price:null,pricingStatus:'loading',lots:[],transactions:[],tags:[]};
+    const key=JSON.stringify([base.id,base.externalIds?.pkmnprices,base.variant,base.language,base.condition,base.rawCondition,base.currency,base.cardState,base.gradingCompany,base.grade,base.gradeQualifier,base.finish,base.edition,base.promoType]);
+    const old='2024-01-01T12:00:00Z';
+    const price={uid:base.uid,key,price:100,pricingStatus:'stale',checkedAt:old,quotes:[{provider:'tcgplayer',currency:'USD',finish:'holofoil',condition:'Near Mint',priceType:'market',amount:100,observedAt:old,retrievedAt:old}]};
+    a.state.session={user:{id:owner}};a.state.accountLoading=false;a.state.organization.status='ready';a.state.items=[base];a.state.profile={displayCurrency:'USD'};
+    document.body.classList.add('authenticated');document.querySelector('#authGate').hidden=true;document.querySelector('#appShell').removeAttribute('aria-hidden');
+    if(seed)a.cachePortfolioView(owner,{version:4,updatedAt:old,summaries:[{currency:'USD',total:200,knownTotal:200,missingUnits:0,history:[]}],pricing:[price]});
+    a.routeTo('collection');globalThis.pendingSavedRead=a.loadSavedPortfolio(owner);a.renderCollection();
+  },{appUrl,owner,seed});
+  await restore(true);
+  await expect(page.locator('#cardLedger')).toContainText('$200.00');
+  await expect(page.locator('#cardLedger')).not.toContainText('Price unavailable');
+  await expect.poll(()=>Boolean(pending)).toBe(true);
+  await pending.fulfill({status:503,body:'{}'});await page.evaluate(()=>pendingSavedRead);
+  await expect(page.locator('#cardLedger')).toContainText('$200.00');
+  await page.reload();pending=null;await restore(false);
+  await expect(page.locator('#cardLedger')).toContainText('$200.00');
+  await expect.poll(()=>Boolean(pending)).toBe(true);
+  await pending.fulfill({status:503,body:'{}'});await page.evaluate(()=>pendingSavedRead);
+  await page.screenshot({path:testInfo.outputPath('saved-price-network-failure.png'),fullPage:false});
+  await page.evaluate(async appUrl=>{const a=await import(appUrl);a.state.items[0]={...a.state.items[0],condition:'Damaged',rawCondition:'damaged',price:null,quotes:[],pricingStatus:'loading'};a.restorePortfolioPricing(a.state.portfolioView);a.renderCollection();},appUrl);
+  await expect(page.locator('#cardLedger')).not.toContainText('$200.00');
+  await page.evaluate(async appUrl=>{const a=await import(appUrl);a.state.session={user:{id:'different-owner'}};a.state.items=[];globalThis.pendingSavedRead=a.loadSavedPortfolio('different-owner');},appUrl);
+  await expect.poll(()=>reads).toBe(3);await pending.fulfill({status:503,body:'{}'});await page.evaluate(()=>pendingSavedRead);
+  expect(await page.evaluate(async appUrl=>(await import(appUrl)).state.portfolioView,appUrl)).toBeNull();
+  expect(providerCalls).toBe(0);
+});

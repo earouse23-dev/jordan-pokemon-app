@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=118";
+const appUrl = "/app.js?v=119";
 let instrumentedApp;
 test.use({ serviceWorkers: "block" });
 
@@ -34,7 +34,7 @@ async function openSecondaryTools(page) {
 }
 
 async function openDetail(page, overrides = {}) {
-  await page.route("**/app.js?v=118", (route) =>
+  await page.route("**/app.js?v=119", (route) =>
     route.fulfill({
       contentType: "application/javascript",
       body: instrumentedApp,
@@ -810,7 +810,7 @@ test("recent owned history is reused only for its owner and matching context", a
   await reopen(); await expect(page.locator("#positionChart")).toBeVisible(); expect(calls).toBe(1);
   await page.evaluate(async url=>{const {state}=await import(url);state.items[0].condition="Lightly Played";},appUrl);
   await reopen(); await expect.poll(()=>calls).toBe(2);
-  await page.evaluate(async url=>{const {state}=await import(url);state.items[0].condition="Near Mint";state.items[0].historyLoadedAt=Date.now()-25*3600000;state.items[0].pricingUpdatedAt=new Date(Date.now()-25*3600000).toISOString();},appUrl);
+  await page.evaluate(async url=>{const {state}=await import(url);state.items[0].condition="Near Mint";state.items[0].historyLoadedAt=Date.now()-25*3600000;state.items[0].checkedAt=new Date(Date.now()-25*3600000).toISOString();},appUrl);
   await reopen(); await expect.poll(()=>calls).toBe(3);
   await expect.poll(()=>page.evaluate(()=>Date.now()-globalThis.fixtureApp.state.items[0].historyLoadedAt)).toBeLessThan(10000);
   await page.evaluate(async url=>{const {state}=await import(url);state.session={user:{id:"different-owner"}};},appUrl);

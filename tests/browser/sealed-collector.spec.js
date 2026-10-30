@@ -10,7 +10,7 @@ import { loadCollectionPositionAttachments, loadPortfolio } from "../../lib/supa
 import { portfolioProfitLoss, portfolioProfitLossHistory } from "../../lib/portfolio.js";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const appUrl = "/app.js?v=118";
+const appUrl = "/app.js?v=119";
 let bundle;
 
 test.use({ serviceWorkers: "block" });
@@ -25,7 +25,7 @@ test.beforeAll(async () => {
 });
 
 async function setup(page) {
-  await page.route("**/app.js?v=118", (route) => route.fulfill({ contentType: "application/javascript", body: bundle }));
+  await page.route("**/app.js?v=119", (route) => route.fulfill({ contentType: "application/javascript", body: bundle }));
   await page.route("**/app-config.js*", (route) => route.fulfill({ contentType: "application/javascript", body: 'globalThis.__APP_CONFIG__={supabaseUrl:"https://mica-sealed-test.supabase.co",supabasePublishableKey:"fixture-key"};' }));
   await page.route("https://mica-sealed-test.supabase.co/**", (route) => route.fulfill({ contentType: "application/json", body: "[]" }));
   await page.goto("/");
@@ -141,7 +141,7 @@ test("07E disposable sealed form survives lost response and fresh login with own
   let preCommitFailed = false;
   const attachmentResponses = [];
   const routePage = async (target) => {
-    await target.route("**/app.js?v=118", (route) => route.fulfill({ contentType: "application/javascript", body: bundle }));
+    await target.route("**/app.js?v=119", (route) => route.fulfill({ contentType: "application/javascript", body: bundle }));
     await target.route("**/app-config.js*", (route) => route.fulfill({ contentType: "application/javascript", body: `globalThis.__APP_CONFIG__=${JSON.stringify({ supabaseUrl: "https://mica-07e-test.supabase.co", supabasePublishableKey: anonKey })};` }));
     await target.route("**/api/**", (route) => route.fulfill({ contentType: "application/json", body: "{}" }));
     await target.route("**/api/vision", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ analysis: { candidate: { name: "Synthetic ETB", set: "Synthetic Set", language: "en", sealedRegion: "EU", productType: "elite_trainer_box", sealedVariant: "Standard" }, requiresConfirmation: true } }) }));
@@ -233,7 +233,7 @@ test("07E disposable sealed form survives lost response and fresh login with own
     expect((await loadPortfolio(sibling, createdIds[1])).find((item) => item.uid === saved[0].uid)).toBeUndefined();
     const forbidden = await sibling.from("collection_items").select("id").eq("id", saved[0].uid);
     expect(forbidden.data).toEqual([]);
-    await page.evaluate(async () => { const { supabase } = await import("/app.js?v=118"); await supabase.auth.signOut(); });
+    await page.evaluate(async () => { const { supabase } = await import("/app.js?v=119"); await supabase.auth.signOut(); });
     freshContext = await browser.newContext();
     const freshPage = await freshContext.newPage();
     await routePage(freshPage);

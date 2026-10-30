@@ -1,0 +1,45 @@
+{
+  "scope": "Saved-first collection pricing and rolling 24-hour reuse",
+  "checkedAt": "2026-10-30T00:38:25.586Z",
+  "checks": {
+    "lint": "101 files passed",
+    "typecheck": "passed",
+    "unit": {
+      "passed": 598,
+      "skipped": 3,
+      "failed": 0
+    },
+    "browser": {
+      "passed": 144,
+      "failed": 0,
+      "engines": [
+        "desktop Chromium",
+        "mobile Chromium",
+        "mobile WebKit"
+      ],
+      "synthetic": true,
+      "realProviderCalls": 0
+    },
+    "schema": "83 public tables with RLS",
+    "migrationBaseline": "read-only check passed; no SQL applied"
+  },
+  "rootCauses": [
+    "Compact database response and local first-paint cache omitted all holding prices",
+    "Summary reads did not repaint Collection",
+    "Source age was conflated with retrieval age",
+    "Empty graded refresh could replace successful evidence"
+  ],
+  "boundaries": {
+    "dependencies": false,
+    "migrations": false,
+    "cron": false,
+    "providerBudgetChange": false,
+    "customerWriteTests": false,
+    "gitTriggeredBuild": "Existing beta CI; Vercel project has no linked Git repository; explicit staged deployment only"
+  },
+  "publication": {
+    "status": "verified; publication pending",
+    "appVersion": 119,
+    "shellCache": "mica-shell-design-133"
+  }
+}

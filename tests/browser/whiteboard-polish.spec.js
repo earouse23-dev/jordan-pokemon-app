@@ -3,7 +3,7 @@ import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-const appUrl='/app.js?v=118';
+const appUrl='/app.js?v=119';
 let bundle;
 test.use({serviceWorkers:'block'});
 test.beforeAll(async()=>{
@@ -12,7 +12,7 @@ test.beforeAll(async()=>{
 });
 async function boot(page){
  await page.route('**/app-config.js*',r=>r.fulfill({contentType:'application/javascript',body:'globalThis.__APP_CONFIG__={};'}));
- await page.route('**/app.js?v=118',r=>r.fulfill({contentType:'application/javascript',body:bundle}));
+ await page.route('**/app.js?v=119',r=>r.fulfill({contentType:'application/javascript',body:bundle}));
  await page.route('**/api/**',r=>r.fulfill({json:{}}));
  await page.goto('/');
  await page.evaluate(async url=>{
