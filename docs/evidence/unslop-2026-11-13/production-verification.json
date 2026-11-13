@@ -1,0 +1,44 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "sha256": "5017a9112311dc0462c25f9c83ef18afb09317e9f8ffe01ebb0d38ae4dce327b"
+  },
+  {
+    "path": "/themes.css?v=117",
+    "status": 200,
+    "sha256": "a92ae8fc7ee2795d340417e6925aa75cc2ee4662c36f4c9dbdcec600dad1221c"
+  },
+  {
+    "path": "/styles.css?v=95",
+    "status": 200,
+    "sha256": "cfba5a2f54bda36d00956200e863b13290fbd82503b5729ab94ae791d9c2c03d"
+  },
+  {
+    "path": "/sw.js",
+    "status": 200,
+    "sha256": "03068e835fc51d99cbe29c2ebbc5090a8514bdb4c698bd8917eb90885cb60d2b"
+  },
+  {
+    "path": "/app.js?v=121",
+    "status": 200,
+    "sha256": "d76cf2c18d0afabec12ed059e859ba1750ff1cd4cefd6aec107ed48d8e3bf84c"
+  },
+  {
+    "path": "/api/cards",
+    "status": 401
+  },
+  {
+    "path": "/api/sales",
+    "status": 401
+  },
+  {
+    "path": "/api/graded-valuation",
+    "status": 401
+  },
+  {
+    "path": "/api/health",
+    "status": 200,
+    "health": "healthy"
+  }
+]

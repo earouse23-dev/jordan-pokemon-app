@@ -37,3 +37,14 @@ Guidance adapted from **unslop by Damir Sokolovsky (@heydamir)**, CC BY 4.0: htt
 ## Limits
 
 Browser matrix uses fixtures, including an intentional missing-image fallback; it does not establish live card/pricing-provider coverage or physical iPhone camera acceptance. Native installation and Canva whiteboard replacement are outside this visual-only change. Historical CSS remains for legacy paths; this does not claim the whole stylesheet has been structurally rewritten or every possible state is flawless.
+
+## Published result
+
+- Source commit: `f912af6` on the existing `codex/mica-baseline-reconciliation` branch; pushed to the existing repository.
+- Production: https://jordan-pokemon-app.vercel.app/
+- Deployment: https://vercel.com/earouse23-devs-projects/jordan-pokemon-app/G5mBdkW2fAQ3xPJLBm356GscEjBZ — READY, production.
+- Built from an isolated archive of the committed source using the existing `build-release.mjs` workflow. Unrelated workstation edits and generated historical evidence were excluded.
+- Prebuilt routing check: 9 functions, existing held-route and owner/auth boundaries retained, no real outbound provider calls. Existing cron configuration copied unchanged.
+- Git integration was checked before push: production branch remains `main`; this task pushed the existing working branch and published the reviewed prebuilt artifact directly, without changing the production branch setting.
+- Live index, both stylesheets, service worker and app bundle match the verified artifact SHA-256 hashes exactly; see `production-verification.json`.
+- Valid unauthenticated card-price, sold-comparison and saved-valuation requests return 401. Health returns 200 / healthy.
