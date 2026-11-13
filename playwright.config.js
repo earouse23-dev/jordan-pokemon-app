@@ -42,6 +42,7 @@ export default defineConfig({
         "**/add-save-recovery.spec.js",
         "**/ui-regression.spec.js",
         "**/whiteboard-polish.spec.js",
+        "**/unslop.spec.js",
         "**/notification-recovery.spec.js",
         "**/detail-recovery.spec.js",
         "**/collection-continuity.spec.js",

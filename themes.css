@@ -40,7 +40,7 @@ body[data-ui-theme="analytics"] {
 }
 
 body[data-ui-theme] {
-  letter-spacing: -0.005em;
+  letter-spacing: 0;
 }
 body[data-ui-theme] .app-shell {
   background: var(--canvas);
@@ -83,7 +83,7 @@ body[data-ui-theme] .theme-quick-switch {
   background: var(--paper);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
 }
 body[data-ui-theme] .theme-quick-switch i {
   width: 15px;
@@ -117,7 +117,7 @@ body[data-ui-theme] h1 {
 body[data-ui-theme] .eyebrow {
   color: var(--pine-2);
   font-size: 12px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
 }
 body[data-ui-theme] .quick-add {
   border-radius: 8px;
@@ -312,7 +312,7 @@ body[data-ui-theme] .auth-card {
 .theme-options > button > b {
   color: var(--pine-2);
   font-size: 12px;
-  text-transform: uppercase;
+  text-transform: none;
 }
 .detail-options {
   display: grid;
@@ -1016,7 +1016,7 @@ body[data-ui-theme="analytics"] .toast {
   background: var(--paper);
   color: var(--ink);
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
 }
 .header-add-action,
 body[data-ui-theme] .quick-add {
@@ -1052,14 +1052,14 @@ body[data-ui-theme] .quick-add {
 .dashboard-kpi .portfolio-topline {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
 }
 .dashboard-kpi > strong {
   display: block;
   margin: 7px 0 2px;
   color: var(--ink);
-  font: 760 22px/1 var(--font-sans);
-  letter-spacing: -0.035em;
+  font: 600 22px/1 var(--font-sans);
+  letter-spacing: 0;
 }
 .dashboard-kpi .portfolio-value {
   margin: 7px 0 2px;
@@ -1069,7 +1069,7 @@ body[data-ui-theme] .quick-add {
 .dashboard-kpi small {
   color: var(--pine-2);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .dashboard-kpi .status-label {
   color: var(--muted);
@@ -1160,7 +1160,7 @@ body[data-sidebar-target="dashboard"] .ledger-meta {
   padding: 12px 1px 8px;
   color: var(--ink);
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
 }
 body[data-sidebar-target="portfolio"] .view-tabs,
 body[data-sidebar-target="portfolio"] .ledger-tools,
@@ -1456,15 +1456,15 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     display: block;
   }
   .sidebar-brand > span:last-child strong {
-    font: 800 25px/1 var(--font-sans);
-    letter-spacing: 0.035em;
+    font: 600 25px/1 var(--font-sans);
+    letter-spacing: 0;
   }
   .sidebar-brand > span:last-child small {
     margin-top: 5px;
     color: #ac86ef;
     font-size: 12px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    letter-spacing: 0;
+    text-transform: none;
   }
   .sidebar-gem {
     position: relative;
@@ -1522,11 +1522,11 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     display: grid;
     place-items: center;
     color: #b1bac7;
-    font: 700 15px/1 var(--font-sans);
+    font: 600 15px/1 var(--font-sans);
   }
   .sidebar-item > b {
     font-size: 12px;
-    font-weight: 650;
+    font-weight: 600;
   }
   .sidebar-item:hover {
     background: #111c28;
@@ -1570,7 +1570,7 @@ body[data-ui-theme="analytics"] .price-chart polyline {
     background: #2b1e43;
     color: #dac8ff;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 600;
   }
   .sidebar-account strong,
   .sidebar-account small {
@@ -1796,7 +1796,7 @@ body[data-ui-theme="analytics"] .price-chart polyline {
   background: var(--paper);
   color: var(--pine-2);
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
 }
 body[data-sidebar-target="dashboard"] #dashboardViewAll {
   display: inline-flex;
@@ -2068,7 +2068,7 @@ body[data-ui-theme="mica"] h1,
 body[data-ui-theme="mica"] h2,
 body[data-ui-theme="mica"] h3 {
   color: var(--ink);
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 
 body[data-ui-theme="mica"] .eyebrow {
@@ -2485,7 +2485,7 @@ body[data-ui-theme="mica"] .settings-group > summary {
   align-items: center;
   padding: 4px 0;
   color: var(--ink);
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -2677,14 +2677,14 @@ body[data-ui-theme="mica"] .add-grade-hero .eyebrow {
   margin: 0 0 16px;
   color: #c7c2ff;
   font-size: 12px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0;
 }
 
 body[data-ui-theme="mica"] .add-grade-hero h1 {
   margin: 0;
   color: #fff;
-  font: 950 clamp(46px, 6.2vw, 94px) / 0.86 var(--font-sans);
-  letter-spacing: -0.065em;
+  font: 600 clamp(46px, 6.2vw, 94px) / 0.86 var(--font-sans);
+  letter-spacing: 0;
 }
 
 body[data-ui-theme="mica"] .add-grade-hero-copy > p:not(.eyebrow) {
@@ -2755,7 +2755,7 @@ body[data-ui-theme="mica"] .grading-proof-strip div {
 body[data-ui-theme="mica"] .grading-proof-strip dt {
   color: #fff;
   font-size: 20px;
-  font-weight: 850;
+  font-weight: 600;
 }
 
 body[data-ui-theme="mica"] .grading-proof-strip dd {
@@ -2800,8 +2800,8 @@ body[data-ui-theme="mica"] .preview-report-top {
   padding: 7px 3px 13px;
   color: #b7baba;
   font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 body[data-ui-theme="mica"] .preview-report-top i {
@@ -2833,8 +2833,8 @@ body[data-ui-theme="mica"] .preview-card-art {
     linear-gradient(145deg, #5a2da6, #f29c38 50%, #c3322a);
   color: #fff;
   font-size: 24px;
-  font-weight: 950;
-  font-style: italic;
+  font-weight: 600;
+  font-style: normal;
   text-shadow: 0 3px 0 #2259a8;
 }
 
@@ -2935,9 +2935,9 @@ body[data-ui-theme="mica"] .grading-activity-heading {
 body[data-ui-theme="mica"] .grading-activity-heading span {
   color: #9d7dff;
   font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 body[data-ui-theme="mica"] .grading-activity-heading h2 {
@@ -2955,7 +2955,7 @@ body[data-ui-theme="mica"] .grading-activity-empty button {
   border-radius: 999px;
   background: #171919;
   color: #fff;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 body[data-ui-theme="mica"] #gradingActivityList {
@@ -2985,7 +2985,7 @@ body[data-ui-theme="mica"] .grading-activity-score {
   background: linear-gradient(150deg, #3427d8, #1a133f);
   color: #fff;
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 body[data-ui-theme="mica"] .grading-activity-row > div {
@@ -3016,7 +3016,7 @@ body[data-ui-theme="mica"] .grading-activity-row em {
   border-radius: 999px;
   font-size: 12px;
   font-style: normal;
-  font-weight: 800;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -3239,8 +3239,8 @@ body[data-ui-theme="mica"] .grading-capture-progress strong {
 body[data-ui-theme="mica"] .grading-capture-progress span {
   color: #999d9b;
   font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 body[data-ui-theme="mica"] .grading-capture-progress strong {
@@ -3450,9 +3450,9 @@ body[data-ui-theme="mica"]
 body[data-ui-theme="mica"] .grading-process-heading > div > span {
   color: #b5aaff;
   font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 body[data-ui-theme="mica"] .grading-process-heading h2 {
@@ -3514,7 +3514,7 @@ body[data-ui-theme="mica"]
   span {
   color: #fff;
   font-size: 13px;
-  font-weight: 750;
+  font-weight: 600;
 }
 
 body[data-ui-theme="mica"]
@@ -3565,8 +3565,8 @@ body[data-ui-theme="mica"] .grading-report-top span,
 body[data-ui-theme="mica"] .grading-report-top small {
   color: #858987;
   font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 body[data-ui-theme="mica"] .grading-report-top strong {
@@ -3643,7 +3643,7 @@ body[data-ui-theme="mica"]
   margin: 8px 0 4px;
   color: #fff;
   font-size: clamp(68px, 12vw, 112px);
-  letter-spacing: -0.08em;
+  letter-spacing: 0;
 }
 
 body[data-ui-theme="mica"] .grading-report-shell .vision-grade span,
@@ -3675,14 +3675,14 @@ body[data-ui-theme="mica"] .report-section-heading {
 body[data-ui-theme="mica"] .report-section-heading span {
   color: #fff;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 body[data-ui-theme="mica"] .report-section-heading strong {
   color: #8e9290;
   font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 body[data-ui-theme="mica"] .grading-report-shell .vision-subscore-grid {
@@ -3784,7 +3784,7 @@ body[data-ui-theme="mica"] .report-technical > summary {
   display: flex;
   align-items: center;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -4014,7 +4014,7 @@ body[data-ui-theme="mica"] .auth-resend {
   border-radius: 10px;
   background: var(--paper);
   color: var(--pine-2);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 body[data-ui-theme="mica"] #view-collection {
@@ -4066,8 +4066,8 @@ body[data-ui-theme="mica"] .collection-grading-workspace::after {
   right: -10px;
   bottom: -30px;
   color: rgba(102, 120, 93, 0.055);
-  font: 950 150px/1 var(--font-sans);
-  letter-spacing: -0.1em;
+  font: 600 150px/1 var(--font-sans);
+  letter-spacing: 0;
   pointer-events: none;
 }
 
@@ -4080,7 +4080,7 @@ body[data-ui-theme="mica"] .collection-grading-workspace > section {
 
 body[data-ui-theme="mica"] .collection-grading-copy h2 {
   margin: 5px 0 8px;
-  font: 800 clamp(24px, 3vw, 38px) / 1.02 var(--font-serif);
+  font: 600 clamp(24px, 3vw, 38px) / 1.02 var(--font-serif);
 }
 
 body[data-ui-theme="mica"] .collection-grading-copy > p:last-child {
@@ -4152,8 +4152,8 @@ body[data-ui-theme="mica"] .digital-grader-mark {
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     0 8px 18px rgba(38, 53, 40, 0.2);
   font-size: 14px;
-  font-weight: 950;
-  letter-spacing: -0.04em;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
 body[data-ui-theme="mica"] .collection-grading-workspace .grading-activity {
@@ -4268,7 +4268,7 @@ body[data-ui-theme="mica"] .add-cards-heading {
 
 body[data-ui-theme="mica"] .add-cards-heading h1 {
   margin: 4px 0 8px;
-  font: 800 clamp(30px, 4vw, 48px) / 1 var(--font-serif);
+  font: 600 clamp(30px, 4vw, 48px) / 1 var(--font-serif);
 }
 
 body[data-ui-theme="mica"] .add-cards-heading > p:last-child {
@@ -4949,9 +4949,9 @@ body[data-ui-theme="mica"] .collection-grading-workspace::before {
   color: var(--pine-2);
   box-shadow: 0 5px 12px rgba(48, 56, 45, 0.08);
   font-size: 12px;
-  font-weight: 850;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 body[data-ui-theme="mica"] .collection-grading-workspace::after {
@@ -5016,7 +5016,7 @@ body[data-ui-theme="mica"] .condition-lab-icon svg {
 
 body[data-ui-theme="mica"] .collection-grading-copy h2 {
   margin: 5px 0 8px;
-  font: 800 clamp(25px, 3vw, 38px) / 1.02 var(--font-serif);
+  font: 600 clamp(25px, 3vw, 38px) / 1.02 var(--font-serif);
 }
 
 body[data-ui-theme="mica"] .collection-grading-copy > div > p:last-child {
@@ -5788,14 +5788,14 @@ body[data-ui-theme="mica"] .saved-grade-report .grading-report-top small {
 body[data-ui-theme="mica"] .saved-grade-report .grading-report-top span {
   color: #aeb9a8;
   font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 body[data-ui-theme="mica"] .saved-grade-report .grading-report-top strong {
   margin: 5px 0;
   color: #f8f6ed;
-  font: 650 clamp(23px, 4vw, 35px) / 1.05 var(--font-serif);
+  font: 600 clamp(23px, 4vw, 35px) / 1.05 var(--font-serif);
 }
 
 body[data-ui-theme="mica"] .saved-grade-report .grading-report-top small {
@@ -5843,14 +5843,14 @@ body[data-ui-theme="mica"] .saved-grade-identity span {
 body[data-ui-theme="mica"] .saved-grade-identity small {
   color: #aeb9a8;
   font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 body[data-ui-theme="mica"] .saved-grade-identity strong {
   margin: 7px 0;
   color: #f9f7ef;
-  font: 650 clamp(36px, 6vw, 58px) / 0.95 var(--font-serif);
+  font: 600 clamp(36px, 6vw, 58px) / 0.95 var(--font-serif);
 }
 
 body[data-ui-theme="mica"] .saved-grade-identity span {
@@ -6086,7 +6086,7 @@ body[data-ui-theme="mica"] #view-collection .ledger-row,
 body[data-ui-theme="mica"] #view-profile .settings-group { box-shadow: none; }
 body[data-ui-theme="mica"] #view-profile .profile-card { border: 0; background: transparent; box-shadow: none; }
 
-body[data-ui-theme="mica"] #everydaySettings .primary { border-radius: 10px; justify-content: center; text-align: center; font-weight: 700; }
+body[data-ui-theme="mica"] #everydaySettings .primary { border-radius: 10px; justify-content: center; text-align: center; font-weight: 600; }
 body[data-ui-theme="mica"] #profileDisplayCurrency { min-height: 44px; padding: 10px; border: 1px solid var(--line-dark); border-radius: 10px; background-color: var(--paper); color: var(--ink); font: inherit; }
 
 /* Current client reset: compact mobile typography and secondary evidence tools. */
@@ -6186,10 +6186,10 @@ body[data-ui-theme="mica"] {
 }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.app-shell,.view) { background: var(--canvas); }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(h1,h2,h3,strong,b) { font-family: inherit; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(h1,h2,h3) { line-height: 1.2; letter-spacing: -.035em; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.collection-heading,.add-cards-heading) h1 { font-size: clamp(28px,3.2vw,38px); font-weight: 700; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .eyebrow { font-size: 12px; font-weight: 650; letter-spacing: .12em; color: var(--muted); }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.portfolio-value,.exact-sold-value>strong,.market-hero>strong,.position-price-grid strong,.dashboard-card-row>span:last-child) { font-variant-numeric: tabular-nums; letter-spacing: -.025em; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(h1,h2,h3) { line-height: 1.2; letter-spacing: 0; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.collection-heading,.add-cards-heading) h1 { font-size: clamp(28px,3.2vw,38px); font-weight: 600; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0; color: var(--muted); }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.portfolio-value,.exact-sold-value>strong,.market-hero>strong,.position-price-grid strong,.dashboard-card-row>span:last-child) { font-variant-numeric: tabular-nums; letter-spacing: 0; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.desktop-sidebar,.app-header,.sidebar-brand,.sidebar-account) { background: var(--paper); box-shadow: none; border-color: var(--line); }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .sidebar-brand { border: 0; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.sidebar-brand small,.sidebar-account small) { color: var(--muted); }
@@ -6214,7 +6214,7 @@ body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #view-dashboard
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .portfolio-topline { align-items: center; gap: 8px; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #portfolioToplineLabel { font-weight: 500; color: var(--muted); font-size: 14px; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .status-label { font-size: 12px; font-weight: 400; color: var(--muted); }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #view-dashboard .portfolio-hero .portfolio-value { display: block; color: var(--pine-2); font-size: clamp(44px,6vw,72px); font-weight: 650; line-height: 1.1; letter-spacing: -.055em; margin: 8px 0; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #view-dashboard .portfolio-hero .portfolio-value { display: block; color: var(--ink); font-size: clamp(44px,6vw,72px); font-weight: 600; line-height: 1.1; letter-spacing: 0; margin: 8px 0; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .portfolio-change { font-size: 12px; font-weight: 400; color: var(--muted); }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #portfolioHistory { padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; margin: 0 0 16px; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #portfolioHistory .portfolio-chart-shell { height: clamp(240px,32vh,380px); min-height: 0; margin: 16px 0 0; }
@@ -6260,9 +6260,9 @@ body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .find-empty str
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-back { min-height: 44px; display: inline-flex; align-items: center; color: var(--muted); font-size: 14px; margin-bottom: 24px; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity { grid-template-columns: minmax(180px,32%) minmax(0,1fr); gap: 40px; align-items: center; padding: 0; background: none; box-shadow: none; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity img { width: 100%; max-height: 420px; object-fit: contain; border-radius: 12px; filter: drop-shadow(0 12px 18px #19352320); }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity h1 { font-size: clamp(24px,2.5vw,34px); font-weight: 650; overflow-wrap: break-word; line-height: 1.22; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity h1 { font-size: clamp(24px,2.5vw,34px); font-weight: 600; overflow-wrap: break-word; line-height: 1.22; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent :is(.market-hero,.exact-sold-value) { padding: 0; background: none; border: 0; box-shadow: none; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent :is(.market-hero>strong,.exact-sold-value>strong) { color: var(--pine-2); font-size: clamp(38px,5vw,56px); font-weight: 650; line-height: 1.15; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent :is(.market-hero>strong,.exact-sold-value>strong) { color: var(--ink); font-size: clamp(38px,5vw,56px); font-weight: 500; line-height: 1.15; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-section { padding: 24px 0; margin: 24px 0; border: 0; border-block: 1px solid var(--line); border-radius: 0; background: none; box-shadow: none; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .chart-wrap { height: 280px; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .detail-sticky-action { border: 1px solid var(--line); border-radius: 20px; background: var(--paper); box-shadow: 0 8px 32px #17251b1f; padding: 8px; bottom: calc(12px + var(--safe-bottom)); }
@@ -6276,7 +6276,7 @@ body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .sheet-close { 
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .auth-gate { background: var(--canvas); }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .auth-card { padding: clamp(24px,5vw,48px); max-width: 460px; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .auth-card h1 { font-size: 30px; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .auth-brand { font-weight: 650; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .auth-brand { font-weight: 600; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .profile-card { padding: 0; background: none; box-shadow: none; border: 0; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .settings-group { padding: 24px; margin-bottom: 16px; box-shadow: none; }
 body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .settings-group h2 { font-size: 18px; }
@@ -6377,7 +6377,7 @@ body[data-ui-theme="mica"] #appShell .find-search input:focus-visible { outline:
   body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity .detail-image { width: 100%; max-width: none; margin: 0; }
   body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity img { max-height: 180px; border-radius: 8px; }
   body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-identity h1 { font-size: 13px; line-height: 1.4; margin: 0; }
-  .detail-title-name { display: block; font-size: 23px; line-height: 1.12; font-weight: 700; margin-bottom: 6px; }
+  .detail-title-name { display: block; font-size: 23px; line-height: 1.12; font-weight: 600; margin-bottom: 6px; }
   .detail-title-context { color: var(--muted); font-weight: 450; }
   body[data-ui-theme="mica"] #appShell #detailContent .eyebrow { display: none; }
   body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) #detailContent .detail-section { margin-block: 16px; padding-block: 8px; }
@@ -6421,7 +6421,7 @@ body[data-ui-theme="mica"] #appShell .portfolio-chart-coverage > summary { min-h
   body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .app-header { height: calc(56px + var(--safe-top)); padding-inline: 16px; }
   body[data-ui-theme="mica"] #appShell .app-header .profile-button { width: 40px; height: 40px; }
   body[data-ui-theme="mica"] #appShell #detailContent .exact-sold-value { padding: 12px 0 0; margin: 0; gap: 4px; }
-  body[data-ui-theme="mica"] #appShell #detailContent .exact-sold-value > span { font-size: 12px; letter-spacing: .06em; }
+  body[data-ui-theme="mica"] #appShell #detailContent .exact-sold-value > span { font-size: 12px; letter-spacing: 0; }
   body[data-ui-theme="mica"] #appShell #detailContent .exact-sold-value > strong { font-size: clamp(30px,9vw,40px); line-height: 1.1; margin: 2px 0; }
   body[data-ui-theme="mica"] #appShell #detailContent .sold-summary { font-size: 12px; line-height: 1.4; }
   body[data-ui-theme="mica"] #appShell #detailContent .detail-back { margin-bottom: 14px; min-height: 44px; }
@@ -6480,7 +6480,7 @@ body[data-ui-theme="mica"] :is(.auth-card,.auth-dialog,.bottom-sheet,.settings-g
 body[data-ui-theme="mica"] :is(.auth-dialog,.settings-group,.profile-card) { border-radius: var(--panel-radius); box-shadow: none; }
 body[data-ui-theme="mica"] .auth-dialog { max-width: min(480px,calc(100vw - 24px)); padding: 24px; }
 body[data-ui-theme="mica"] :is(.sheet-heading,.auth-dialog-head) { align-items: start; gap: 16px; }
-body[data-ui-theme="mica"] :is(.sheet-heading h2,.auth-dialog h2) { font-size: 22px; line-height: 1.2; letter-spacing: -.025em; margin: 0; }
+body[data-ui-theme="mica"] :is(.sheet-heading h2,.auth-dialog h2) { font-size: 22px; line-height: 1.2; letter-spacing: 0; margin: 0; }
 body[data-ui-theme="mica"] :is(.sheet-heading p,.auth-dialog-head p) { margin: 8px 0 0; }
 body[data-ui-theme="mica"] :is(.sheet-close,[data-close-auth-dialog],[data-close-reset-dialog]) { flex: 0 0 44px; width: 44px; height: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; background: var(--canvas); color: var(--ink); }
 body[data-ui-theme="mica"] :is(.empty-state,.portfolio-history-empty,.catalog-empty) { color: var(--muted); background: transparent; box-shadow: none; }
@@ -6517,7 +6517,7 @@ body[data-ui-theme="mica"][data-appearance="dark"] :is(button.secondary,.owned-b
 @media (max-width: 680px) {
   body[data-ui-theme="mica"] #bottomSheet:not([data-experience="intake"]):not([data-experience="identification"]) { bottom: var(--keyboard-inset,0px); }
 }
-body[data-ui-theme="mica"] #appShell .settings-group>h2 { text-transform: none; letter-spacing: -.02em; }
+body[data-ui-theme="mica"] #appShell .settings-group>h2 { text-transform: none; letter-spacing: 0; }
 body[data-ui-theme="mica"] .portfolio-chart-footer { display: flex; justify-content: flex-end; margin-block: 8px; }
 body[data-ui-theme="mica"] .portfolio-history-empty { font-size: 14px; line-height: 1.5; padding-block: 24px; }
 /* iOS zooms focused controls below 16px, including chart range selectors. */
@@ -6526,8 +6526,8 @@ body[data-ui-theme="mica"] .portfolio-history-empty { font-size: 14px; line-heig
 }
 
 /* Screen composition: one hierarchy across browsing, decisions and editing. */
-body[data-ui-theme="mica"] .wordmark { font-weight: 700; letter-spacing: -.035em; }
-body[data-ui-theme="mica"] :is(.screen-heading,.collection-heading,.add-cards-heading) h1 { letter-spacing: -.04em; }
+body[data-ui-theme="mica"] .wordmark { font-weight: 600; letter-spacing: 0; }
+body[data-ui-theme="mica"] :is(.screen-heading,.collection-heading,.add-cards-heading) h1 { letter-spacing: 0; }
 body[data-ui-theme="mica"] #appShell :is(.portfolio-chart-footer,.history-range-select) { align-items: center; gap: 8px; }
 body[data-ui-theme="mica"] #appShell .portfolio-history-head>strong { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 body[data-ui-theme="mica"] #appShell .portfolio-topline { justify-content: flex-start; }
@@ -6555,21 +6555,21 @@ body[data-ui-theme="mica"] #appShell .single-copy-details>summary { min-height: 
 body[data-ui-theme="mica"] #appShell .single-copy-details>summary::after { content: "⌄"; color: var(--muted); }
 body[data-ui-theme="mica"] #appShell .single-copy-details .copy-navigation-head { display: none; }
 body[data-ui-theme="mica"] #appShell .single-copy-details .copy-navigation { border: 0; padding: 0 0 16px; margin: 0; }
-body[data-ui-theme="mica"] #appShell .detail-title-name { display: block; font-size: clamp(26px,3vw,38px); font-weight: 700; line-height: 1.12; margin-bottom: 8px; color: var(--ink); }
+body[data-ui-theme="mica"] #appShell .detail-title-name { display: block; font-size: clamp(26px,3vw,38px); font-weight: 500; line-height: 1.12; margin-bottom: 8px; color: var(--ink); }
 body[data-ui-theme="mica"] #appShell .detail-title-context { font-size: 14px; font-weight: 450; line-height: 1.5; color: var(--muted); letter-spacing: 0; }
 body[data-ui-theme="mica"] #appShell .detail-title-attributes { display: block; max-width: 48ch; text-wrap: pretty; }
-body[data-ui-theme="mica"] #appShell .detail-grade-badge { display: inline-block; padding: 2px 7px; border-radius: 6px; background: var(--mint); color: var(--ink); font-weight: 650; white-space: nowrap; }
+body[data-ui-theme="mica"] #appShell .detail-grade-badge { display: inline-block; padding: 2px 7px; border-radius: 6px; background: var(--mint); color: var(--ink); font-weight: 600; white-space: nowrap; }
 body[data-ui-theme="mica"] #appShell .detail-title-block { position: relative; }
 body[data-ui-theme="mica"] #appShell .detail-title-block .detail-title-name { padding-right: 40px; }
 body[data-ui-theme="mica"] #appShell .detail-copy-title { position: absolute; top: -8px; right: -6px; display: inline-flex; justify-content: center; align-items: center; width: 44px; min-height: 44px; margin: 0; padding: 8px; border: 0; border-radius: 12px; background: transparent; color: var(--muted); }
 body[data-ui-theme="mica"] #appShell .detail-copy-title svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6; }
 body[data-ui-theme="mica"] #appShell .detail-copy-title:hover { color: var(--ink); }
-body[data-ui-theme="mica"] #appShell :is(.exact-sold-value,.market-hero)[data-price-state="empty"]>strong { font-size: clamp(22px,3vw,30px); letter-spacing: -.025em; line-height: 1.2; }
+body[data-ui-theme="mica"] #appShell :is(.exact-sold-value,.market-hero)[data-price-state="empty"]>strong { font-size: clamp(22px,3vw,30px); letter-spacing: 0; line-height: 1.2; }
 body[data-ui-theme="mica"] #appShell #detailContent .sold-actions { gap: 8px 16px; }
 body[data-ui-theme="mica"] #appShell #detailContent .sold-actions>.inline-source-link { font-size: 13px; }
 body[data-ui-theme="mica"] #appShell .detail-title-year:empty { display: none; }
 body[data-ui-theme="mica"] #appShell .detail-title-year { display: block; font-size: 12px; }
-body[data-ui-theme="mica"] #appShell .owned-banner { background: var(--mint); border: 0; border-radius: 14px; padding: 14px; gap: 12px; }
+body[data-ui-theme="mica"] #appShell .owned-banner { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 16px; gap: 12px; }
 body[data-ui-theme="mica"] #appShell .owned-banner strong { font-size: 14px; }
 body[data-ui-theme="mica"] #appShell :is(.owned-actions button,.sold-actions>a,.position-new-state) { min-height: 44px; min-width: 44px; border-radius: 10px; }
 body[data-ui-theme="mica"] #appShell .detail-tool-group { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; margin: 0; }
@@ -6599,7 +6599,7 @@ body[data-ui-theme="mica"] #appShell .add-search-panel .find-empty { min-height:
 body[data-ui-theme="mica"] #appShell .add-search-panel .search-examples { gap: 6px; }
 body[data-ui-theme="mica"] #appShell .add-search-panel .search-examples button { border: 0; background: var(--mint); color: var(--pine-2); border-radius: 20px; padding-inline: 12px; }
 body[data-ui-theme="mica"] #appShell .find-action { min-height: 60px; }
-body[data-ui-theme="mica"] #appShell :is(.compact-empty,.find-empty,.portfolio-history-empty) strong { letter-spacing: -.02em; }
+body[data-ui-theme="mica"] #appShell :is(.compact-empty,.find-empty,.portfolio-history-empty) strong { letter-spacing: 0; }
 body[data-ui-theme="mica"] #appShell .history-values>summary { min-height: 44px; }
 @media (max-width:759px) {
   body[data-ui-theme="mica"] #appShell .app-header { height: calc(48px + var(--safe-top)); padding-inline: 16px; }
@@ -6618,7 +6618,7 @@ body[data-ui-theme="mica"] #appShell .history-values>summary { min-height: 44px;
   body[data-ui-theme="mica"] #appShell .portfolio-return-summary { gap: 6px 12px; }
   body[data-ui-theme="mica"] #appShell .bottom-nav { left: 12px; right: 12px; bottom: calc(8px + var(--safe-bottom)); height: 64px; padding: 4px; border-radius: 22px; box-shadow: 0 3px 18px #17251b14; }
   body[data-ui-theme="mica"] #appShell .bottom-nav .nav-item { min-height: 54px; border-radius: 17px; font-size: 12px; }
-  body[data-ui-theme="mica"] #appShell .bottom-nav .nav-item.active { background: transparent; font-weight: 700; }
+  body[data-ui-theme="mica"] #appShell .bottom-nav .nav-item.active { background: transparent; font-weight: 600; }
   body[data-ui-theme="mica"] #appShell .bottom-nav .nav-item.active>svg { color: var(--pine-2); }
   body[data-ui-theme="mica"] #appShell .bottom-nav .scan-button { width: 28px; height: 28px; }
   body[data-ui-theme="mica"] #appShell #view-collection .collection-actions .quick-add { display: none; }
@@ -6721,7 +6721,7 @@ body[data-ui-theme="mica"] #appShell .header-context { display: none; }
 body[data-ui-theme="mica"] #appShell .header-context span { display: none; }
 body[data-ui-theme="mica"] #appShell .app-header .avatar { width: 44px; height: 44px; min-height: 44px; }
 body[data-ui-theme="mica"] #appShell .view { padding-top: 84px; }
-body[data-ui-theme="mica"] #appShell :is(.portfolio-value,.detail-price,.history-summary strong) { font-variant-numeric: tabular-nums; letter-spacing: -.035em; }
+body[data-ui-theme="mica"] #appShell :is(.portfolio-value,.detail-price,.history-summary strong) { font-variant-numeric: tabular-nums; letter-spacing: 0; }
 body[data-ui-theme="mica"] #appShell #portfolioHistory { overflow: visible; }
 body[data-ui-theme="mica"] #appShell :is(#portfolioHistory .portfolio-chart-shell, #detailContent .chart-wrap) { height: clamp(320px,42dvh,560px); min-width: 0; margin-block: 16px 0; }
 body[data-ui-theme="mica"] #appShell :is(#portfolioHistory .portfolio-chart-shell, #detailContent .chart-wrap) canvas { display: block; width: 100% !important; height: 100% !important; }
@@ -6776,8 +6776,8 @@ body[data-ui-theme="mica"] #appShell #view-profile .settings-group>h2 {
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: .04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
 }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group>button:not(.primary):not(.danger-action),
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group>label {
@@ -6799,7 +6799,7 @@ body[data-ui-theme="mica"] #appShell #view-profile .settings-group button>span {
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group button small { display: block; margin-top: 3px; color: var(--muted); font-weight: 400; line-height: 1.4; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group button>strong { flex-shrink: 0; font-size: 13px; color: var(--muted); font-weight: 500; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group select { flex: 0 0 auto; width: auto; max-width: 52%; min-height: 44px; padding: 8px 24px 8px 10px; margin: 0; border-radius: 10px; color: var(--pine-2); font-weight: 500; }
-body[data-ui-theme="mica"] #appShell #view-profile #accountSettings { padding: 20px; background: var(--mint); border: 0; }
+body[data-ui-theme="mica"] #appShell #view-profile #accountSettings { padding: 20px; background: var(--paper); border: 1px solid var(--line); }
 body[data-ui-theme="mica"] #appShell #accountSettings>h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 body[data-ui-theme="mica"] #appShell #accountSettings .profile-card { display: flex; gap: 14px; align-items: center; padding: 0; }
 body[data-ui-theme="mica"] #appShell #accountSettings .profile-card>div:nth-child(2) { flex: 1; min-width: 0; }
@@ -6887,7 +6887,7 @@ body[data-ui-theme="mica"] #appShell .portfolio-history-head { justify-content: 
 
 /* Shared component corrections from the whole-app whiteboard review. */
 body[data-ui-theme="mica"] #bottomSheet { color: var(--ink); background: var(--paper); }
-body[data-ui-theme="mica"] #bottomSheet :is(.sheet-heading h2,#sheetTitle) { color: var(--ink); font-size: clamp(22px,3vw,28px); line-height: 1.2; letter-spacing: -.025em; }
+body[data-ui-theme="mica"] #bottomSheet :is(.sheet-heading h2,#sheetTitle) { color: var(--ink); font-size: clamp(22px,3vw,28px); line-height: 1.2; letter-spacing: 0; }
 body[data-ui-theme="mica"] #bottomSheet .sheet-heading { gap: 16px; margin-bottom: 24px; }
 body[data-ui-theme="mica"] #bottomSheet :is(.sheet-heading p,.field small,.info-copy,.legal-copy,.simple-note,.psa-return-note) { color: var(--muted); font-size: 14px; line-height: 1.5; }
 body[data-ui-theme="mica"] #bottomSheet :is(label,.field-label,.settings-form strong) { color: var(--ink); font-size: 14px; line-height: 1.4; }
@@ -6916,7 +6916,7 @@ body[data-ui-theme="mica"] #bottomSheet .secondary-panel .mover :is(strong,b) { 
 body[data-ui-theme="mica"] #bottomSheet .secondary-panel .movers-list { margin-bottom: 24px; }
 body[data-ui-theme="mica"] #bottomSheet .secondary-panel .insight-feature { padding: 16px; background: var(--mint); border: 0; }
 body[data-ui-theme="mica"] .saved-grade-report .grading-report-top { color: var(--report-text); background: var(--report-bg); border-color: var(--report-line); }
-body[data-ui-theme="mica"] .saved-grade-report .grading-report-top strong { color: var(--report-text); font: 650 22px/1.2 var(--font-sans); }
+body[data-ui-theme="mica"] .saved-grade-report .grading-report-top strong { color: var(--report-text); font: 600 22px/1.2 var(--font-sans); }
 body[data-ui-theme="mica"] .saved-grade-report .grading-report-top :is(span,small) { color: var(--report-muted); text-transform: none; letter-spacing: 0; }
 body[data-ui-theme="mica"] #bottomSheet[data-experience="grading"] .compact-report { --report-bg: var(--paper); --report-panel: var(--canvas); --report-panel-raised: var(--mint); --report-text: var(--ink); --report-muted: var(--muted); --report-soft: var(--muted); --report-line: var(--line); --report-gold: var(--pine-2); }
 body[data-ui-theme="mica"] #bottomSheet[data-experience="grading"] .saved-grade-report.compact-report,
@@ -6969,3 +6969,167 @@ body[data-ui-theme="mica"] #appShell #detailContent :is(.detail-tool-group,.iden
 body[data-ui-theme="mica"] #appShell #detailContent :is(.detail-tool-group,.identity-details,.single-copy-details)>summary::after { content: "⌄"; color: var(--muted); }
 body[data-ui-theme="mica"] #appShell #detailContent :is(.detail-tool-group,.identity-details,.single-copy-details)[open]>summary::after { transform: rotate(180deg); }
 body[data-ui-theme="mica"] #appShell .ledger-row .price-cell:empty { display: none; }
+
+/* Whole-app craft pass. Direction: calm, precise, collectible.
+ * Adapted from unslop by Damir Sokolovsky (@heydamir), CC BY 4.0.
+ * Neutral chrome leaves the color to card artwork and the value chart.
+ */
+body[data-ui-theme="mica"] {
+  --canvas: #f7f8f7;
+  --paper: #ffffff;
+  --paper-strong: #f0f2f0;
+  --ink: #202620;
+  --muted: #59635c;
+  --faint: #69736b;
+  --line: #e0e5e1;
+  --line-dark: #bdc7bf;
+  --pine: #315c43;
+  --pine-2: #315c43;
+  --mint: #eaf0eb;
+  --copper: var(--pine-2);
+  --shadow: 0 4px 16px #18201c0a;
+  --radius: 16px;
+  --panel-radius: 16px;
+  --control-radius: 10px;
+  --ease: cubic-bezier(.22,1,.36,1);
+  font-weight: 400;
+  letter-spacing: 0;
+  color-scheme: light;
+}
+body[data-ui-theme="mica"][data-appearance="dark"] {
+  --canvas: #141715;
+  --paper: #1b1e1c;
+  --paper-strong: #242825;
+  --ink: #eef1ee;
+  --muted: #b2bbb4;
+  --faint: #9aa59d;
+  --line: #303731;
+  --line-dark: #505d53;
+  --pine: #a8c8af;
+  --pine-2: #a8c8af;
+  --mint: #29372d;
+  --copper: var(--pine-2);
+  --shadow: none;
+  color-scheme: dark;
+}
+
+/* 1. Spacing: one rhythm for browsing, settings and editing. */
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.form-grid,.auth-form) { gap: 16px; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .field { gap: 8px; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-heading { gap: 16px; margin-bottom: 24px; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-actions { gap: 8px; padding-top: 16px; }
+body[data-ui-theme="mica"] #appShell .desktop-sidebar { padding-top: 16px; }
+body[data-ui-theme="mica"] #appShell .sidebar-item { min-height: 40px; margin-block: 4px; padding: 8px 16px; gap: 12px; }
+body[data-ui-theme="mica"] #appShell :is(.dashboard-card-row,.activity-row) { padding-block: 12px; gap: 12px; }
+body[data-ui-theme="mica"] #appShell #view-profile .settings-group { padding: 8px 20px; margin-bottom: 20px; border-radius: 16px; }
+body[data-ui-theme="mica"] #appShell #view-profile .settings-group>h2 { margin: 8px 0; }
+body[data-ui-theme="mica"] #appShell #view-profile .settings-group>label,
+body[data-ui-theme="mica"] #appShell #view-profile .settings-group>button:not(.primary):not(.danger-action) { min-height: 56px; padding-block: 12px; gap: 16px; }
+
+/* 2. Color: content carries the accent; controls have neutral depth. */
+body[data-ui-theme="mica"] #appShell :is(.app-header,.bottom-nav,.desktop-sidebar,.sidebar-account) { background: var(--paper); background-image: none; box-shadow: none; border-color: var(--line); backdrop-filter: none; }
+body[data-ui-theme="mica"] #appShell :is(.add-search-panel,.add-capture-panel,.find-search-card,.find-photo-card,.ledger-row,.settings-group,.profile-card,.catalog-result,.unavailable-panel,.collection-grade-modes>button),
+body[data-ui-theme="mica"] :is(#authGate .auth-card,#bottomSheet .secondary-panel) { background: var(--paper); background-image: none; box-shadow: none; border-color: var(--line); color: var(--ink); }
+body[data-ui-theme="mica"] #appShell #accountSettings { background: var(--paper); border: 1px solid var(--line); }
+body[data-ui-theme="mica"] #appShell :is(.portfolio-value,.exact-sold-value>strong,.market-hero>strong,.position-price-grid.compact>span:first-child strong) { color: var(--ink); }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button.primary,.primary-action,.quick-add,.scan-add-action #addLibraryButton) { background: #315c43; color: #fff; border: 1px solid transparent; box-shadow: none; }
+body[data-ui-theme="mica"][data-appearance="dark"] :is(#appShell,#authGate,#bottomSheet) :is(button.primary,.primary-action,.quick-add,.scan-add-action #addLibraryButton) { background: #e5ece6; color: #18241c; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button.secondary,.secondary-action,.tool-button,.inline-retry,.position-new-state,.ledger-quick-add,.ledger-grade-action) { background: var(--paper); color: var(--ink); border: 1px solid var(--line-dark); box-shadow: none; }
+body[data-ui-theme="mica"] #appShell .exact-sold-value .inline-source-link { background: var(--mint); color: var(--pine-2); border-color: transparent; box-shadow: none; }
+body[data-ui-theme="mica"] #appShell :is(.sidebar-item.active,.view-tab.active,.history-range-buttons button[aria-pressed="true"]) { background: var(--mint); color: var(--pine-2); box-shadow: none; }
+
+/* 3. Icons: retain the existing line set and the real Mica mark. */
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.sidebar-item,.nav-item,.tool-button,.icon-button)>svg { width: 18px; height: 18px; flex-shrink: 0; stroke-width: 1.5; }
+body[data-ui-theme="mica"] #appShell .sidebar-item>svg { color: currentColor; }
+body[data-ui-theme="mica"] #appShell .sidebar-item>span { min-width: 0; }
+
+/* 4–5. Copy and type: concise labels, native type, readable small text. */
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(h1,h2,h3) { font-weight: 500; letter-spacing: 0; line-height: 1.2; text-transform: none; }
+body[data-ui-theme="mica"] #appShell :is(.collection-heading,.add-cards-heading,.screen-heading) h1 { font-size: clamp(28px,3vw,36px); font-weight: 500; letter-spacing: -.02em; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.eyebrow,.field>label,.settings-group>h2,.micro-tag,.status-label,.card-rarity) { text-transform: none; letter-spacing: 0; font-weight: 500; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(small,.help-text,.price-provenance,.legal-copy,.card-meta) { letter-spacing: 0; }
+body[data-ui-theme="mica"] #appShell :is(.portfolio-value,.exact-sold-value>strong,.market-hero>strong) { font-weight: 500; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
+body[data-ui-theme="mica"] #appShell .ledger-row .card-name { font-weight: 500; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.position-price-grid,.row-move,.history-summary,.history-tooltip,.card-history-stat) { font-variant-numeric: tabular-nums; }
+body[data-ui-theme="mica"] #appShell :is(.history-chart-head,.portfolio-history-head) { color: var(--muted); }
+body[data-ui-theme="mica"] #authGate #authTitle { font-size: 32px; font-weight: 500; letter-spacing: -.02em; }
+body[data-ui-theme="mica"] #authGate #authDescription { color: var(--muted); margin: 8px 0 24px; font-size: 15px; }
+body[data-ui-theme="mica"] #appShell .micro-tag { color: var(--muted); background: var(--paper-strong); border-color: var(--line); border-radius: 4px; padding: 4px 8px; }
+
+/* 6. Layout: fluid charts, consistent gutters, compact identity and forms. */
+body[data-ui-theme="mica"] #appShell .view { padding-inline: 32px; }
+body[data-ui-theme="mica"] #appShell :is(#view-dashboard,#view-detail) { padding-inline: 24px; }
+body[data-ui-theme="mica"] #appShell #detailContent .detail-identity { align-items: center; gap: 32px; }
+body[data-ui-theme="mica"] #appShell #portfolioHistory .portfolio-chart-shell { height: clamp(280px,36dvh,400px); }
+body[data-ui-theme="mica"] #appShell .history-chart-shell { min-width: 0; }
+body[data-ui-theme="mica"] #authGate .auth-card { width: min(100%,420px); padding: 32px; border-radius: 16px; }
+body[data-ui-theme="mica"] #appShell #view-collection .ledger-row { padding: 16px; gap: 12px; border-radius: 12px; }
+body[data-ui-theme="mica"] #appShell .add-cards-layout { gap: 32px; }
+
+/* 7. Details: shared controls, predictable focus and selected states. */
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.primary,.secondary,.primary-action,.secondary-action,.quick-add,.tool-button,.inline-retry,.position-new-state,.ledger-quick-add,.ledger-grade-action) { min-height: 44px; padding: 12px 16px; border-radius: 10px; font-weight: 500; line-height: 20px; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) { border-radius: 10px; background-color: var(--paper); color: var(--ink); border-color: var(--line-dark); box-shadow: none; }
+body[data-ui-theme="mica"] #appShell .history-range-buttons { padding: 4px; gap: 4px; border-radius: 12px; background: var(--paper); }
+body[data-ui-theme="mica"] #appShell .history-range-buttons button { min-height: 44px; min-width: 44px; border-radius: 8px; padding: 8px; font-weight: 500; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button,a,input,select,textarea,summary):focus-visible { outline: 2px solid var(--pine-2); outline-offset: 3px; }
+body[data-ui-theme="mica"] #appShell .collection-grade-modes>button:hover:not([aria-disabled="true"]) { transform: none; box-shadow: none; border-color: var(--line-dark); }
+body[data-ui-theme="mica"] #appShell .view-tab>span { background: transparent; color: var(--muted); }
+body[data-ui-theme="mica"] #appShell .detail-sticky-action { background: var(--paper); border-color: var(--line); box-shadow: none; backdrop-filter: none; }
+body[data-ui-theme="mica"] #appShell .detail-sticky-action button { border-radius: 10px; }
+body[data-ui-theme="mica"] #appShell .history-tooltip { background: var(--paper); color: var(--ink); border: 1px solid var(--line-dark); border-radius: 10px; box-shadow: var(--shadow); }
+@media (hover:hover) {
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) button.secondary:hover:not(:disabled) { background: var(--paper-strong); color: var(--ink); border-color: var(--line-dark); }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) button.primary:hover:not(:disabled) { filter: brightness(.95); box-shadow: none; }
+}
+
+/* 8. Visuals: keep actual artwork and charts, no generated decoration. */
+body[data-ui-theme="mica"] #appShell :is(.card-thumb,.detail-card-image) { box-shadow: none; }
+body[data-ui-theme="mica"] #appShell :is(.collection-grade-modes>button,.add-search-panel,.add-capture-panel)::before,
+body[data-ui-theme="mica"] #appShell :is(.collection-grade-modes>button,.add-search-panel,.add-capture-panel)::after { content: none; }
+
+/* 9. Motion: feedback only; preserve chart drawing and reduced motion. */
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button,a,input,select,textarea,summary) { transition: color 160ms var(--ease), background-color 160ms var(--ease), border-color 160ms var(--ease), opacity 160ms var(--ease), transform 160ms var(--ease); }
+body[data-ui-theme="mica"] #appShell .view { animation: none; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) button:not(:disabled):hover { transform: none; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) button:not(:disabled):active { transform: scale(.99); }
+@media (max-width:759px) {
+  body[data-ui-theme="mica"] #appShell .view,
+  body[data-ui-theme="mica"] #appShell :is(#view-dashboard,#view-detail) { padding-inline: 16px; }
+  body[data-ui-theme="mica"] #appShell :is(.collection-heading,.add-cards-heading,.screen-heading) h1 { font-size: 28px; }
+  body[data-ui-theme="mica"] #appShell #view-dashboard .collection-heading h1 { font-size: 20px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-identity { gap: 16px; }
+  body[data-ui-theme="mica"] #appShell #portfolioHistory .portfolio-chart-shell { height: clamp(240px,36dvh,360px); }
+  body[data-ui-theme="mica"] #appShell #view-collection .ledger-row { padding: 12px; gap: 8px; }
+  body[data-ui-theme="mica"] #appShell .bottom-nav { border-radius: 16px; box-shadow: var(--shadow); }
+  body[data-ui-theme="mica"] #appShell .bottom-nav .nav-item { border-radius: 12px; font-weight: 500; }
+  body[data-ui-theme="mica"] #authGate .auth-card { padding: 24px; }
+  body[data-ui-theme="mica"] #appShell .add-cards-layout { gap: 24px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button,a,input,select,textarea,summary) { transition: none; }
+}
+
+/* Explicit shared variants also cover controls without primary/secondary classes. */
+body[data-ui-theme="mica"] #appShell #view-scan .add-capture-panel { align-self: start; margin-top: 0; transform: none; }
+body[data-ui-theme="mica"] #appShell #view-scan .find-action { min-height: 56px; border-radius: 10px; box-shadow: none; background: var(--paper); color: var(--ink); }
+body[data-ui-theme="mica"] #appShell #view-scan .find-action.primary-find { background: #315c43; color: #fff; border-color: transparent; box-shadow: none; }
+body[data-ui-theme="mica"][data-appearance="dark"] #appShell #view-scan .find-action.primary-find { background: #e5ece6; color: #18241c; }
+body[data-ui-theme="mica"] #appShell #view-scan .find-action svg { width: 24px; height: 24px; stroke-width: 1.5; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .search-examples { gap: 8px; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .search-examples button { border-radius: 8px; background: var(--paper-strong); color: var(--muted); box-shadow: none; }
+body[data-ui-theme="mica"] #appShell .add-search-panel .find-search input { background: transparent; border-radius: 0; padding-inline: 0; }
+body[data-ui-theme="mica"] #appShell .owned-banner .owned-actions { background: var(--paper); backdrop-filter: none; box-shadow: none; border-radius: 12px; }
+body[data-ui-theme="mica"] #appShell #detailContent .owned-actions button { color: var(--ink); background: var(--paper); border: 1px solid var(--line-dark); font-weight: 500; }
+body[data-ui-theme="mica"] #appShell #detailContent .owned-actions #duplicateCopyButton { background: #315c43; color: #fff; border-color: transparent; }
+body[data-ui-theme="mica"][data-appearance="dark"] #appShell #detailContent .owned-actions #duplicateCopyButton { background: #e5ece6; color: #18241c; }
+body[data-ui-theme="mica"] #appShell #detailContent .owned-actions .favorite-heart.selected { color: var(--pine-2); background: var(--mint); border-color: transparent; }
+body[data-ui-theme="mica"] #appShell .ledger-row:hover { transform: none; box-shadow: none; }
+
+body[data-ui-theme="mica"] #authGate .auth-form { margin-top: 0; gap: 12px; }
+body[data-ui-theme="mica"] #authGate .auth-form button { margin-top: 0; }
+body[data-ui-theme="mica"] #authGate .password-input { border-radius: 10px; }
+body[data-ui-theme="mica"] #authGate .auth-form .password-input input { border: 0; background: transparent; }
+body[data-ui-theme="mica"] #authGate .password-input button { border-radius: 0; background: transparent; }
+body[data-ui-theme="mica"] #appShell .ledger-tools .search-field input { background: transparent; border: 0; border-radius: 0; }
+
+body[data-ui-theme="mica"] #appShell #portfolioPnlRange { border-radius: 12px; }

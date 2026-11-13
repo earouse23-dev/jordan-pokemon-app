@@ -199,7 +199,7 @@ test('account creation is explicit, password-manager friendly, and preserves ema
   await expect(page.locator('#authPassword')).toHaveValue('');
   await expect(page.locator('#authEmail')).toHaveValue(user.email);
   await page.locator('#passwordSignUp').click();
-  await expect(page.locator('#authTitle')).toHaveText('Welcome back');
+  await expect(page.locator('#authTitle')).toHaveText('Sign in to Mica');
   await expect(page.locator('#authPassword')).toHaveAttribute('autocomplete','current-password');
   await expect(page.locator('#authEmail')).toHaveValue(user.email);
 });

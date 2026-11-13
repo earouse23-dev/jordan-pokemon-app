@@ -2995,7 +2995,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
             align: "inner",
             maxRotation: 0,
             callback: (value) => dateLabel(value),
-            font: { size: 12 },
+            font: { size: 12, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
           },
         },
         y: {
@@ -3010,7 +3010,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
             color: muted,
             padding: 4,
             callback: value => new Intl.NumberFormat("en-US", { style: "currency", currency: model.currency, notation: "compact", maximumFractionDigits: 2 }).format(value),
-            font: { size: 12 },
+            font: { size: 12, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
           },
           grid: { color: line, drawTicks: false, lineWidth: 0.5 },
         },
@@ -4254,7 +4254,7 @@ function routeTo(route, options = {}) {
 }
 
 const workspaceCopy = Object.freeze({
-  dashboard: ["Portfolio", "Welcome back", "Here’s your collection overview."],
+  dashboard: ["Portfolio", "Portfolio", "Your collection value"],
   collection: [
     "Collection",
     "Collection",
@@ -5511,7 +5511,7 @@ async function mountPortfolioHistoryChart({
             align: "inner",
             maxRotation: 0,
             padding: 4,
-            font: { size: 11, weight: 500 },
+            font: { size: 12, weight: 400, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
             callback(value) {
               return shortPortfolioDate(new Date(value).toISOString().slice(0, 10), (dateDomain?.start || chartDates[0]).slice(0,4) !== (dateDomain?.end || chartDates.at(-1)).slice(0,4));
             },
@@ -5529,7 +5529,7 @@ async function mountPortfolioHistoryChart({
             includeBounds: false,
             mirror: true,
             padding: 4,
-            font: { size: 11, weight: 500 },
+            font: { size: 12, weight: 400, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
             callback(value) {
               return compactCurrency.format(value);
             },
@@ -7642,7 +7642,7 @@ export function gradingReportImageBlob({
   context.fillStyle = colors.emphasis;
   context.fillRect(42, 42, 1116, 168);
   context.fillStyle = "#FFFFFF";
-  context.font = "700 58px system-ui, -apple-system, sans-serif";
+  context.font = "600 58px system-ui, -apple-system, sans-serif";
   context.fillText("MICA", 92, 120);
   context.font = "600 28px system-ui, -apple-system, sans-serif";
   context.fillText("DIGITAL CONDITION REPORT", 92, 168);
@@ -7661,7 +7661,7 @@ export function gradingReportImageBlob({
   context.textAlign = "left";
 
   context.fillStyle = colors.text;
-  context.font = "700 46px system-ui, -apple-system, sans-serif";
+  context.font = "600 46px system-ui, -apple-system, sans-serif";
   const identityBottom = canvasWrappedText(
     context,
     item?.name || "Card identity unavailable",
@@ -7714,7 +7714,7 @@ export function gradingReportImageBlob({
   context.fillStyle = "#FFFFFF";
   context.font = "600 26px system-ui, -apple-system, sans-serif";
   context.fillText("MICA PREGRADE", 130, panelTop + 62);
-  context.font = "800 142px system-ui, -apple-system, sans-serif";
+  context.font = "600 142px system-ui, -apple-system, sans-serif";
   context.fillText(scoreValue, 126, panelTop + 220);
   context.font = "500 22px system-ui, -apple-system, sans-serif";
   context.fillText(
@@ -7730,7 +7730,7 @@ export function gradingReportImageBlob({
   context.fillStyle = colors.text;
   context.font = "600 26px system-ui, -apple-system, sans-serif";
   context.fillText("MOST LIKELY PSA OUTCOME", 470, panelTop + 68);
-  context.font = "750 62px system-ui, -apple-system, sans-serif";
+  context.font = "600 62px system-ui, -apple-system, sans-serif";
   context.fillText(likelyGrade, 470, panelTop + 140);
   context.font = "600 26px system-ui, -apple-system, sans-serif";
   context.fillText(`EVIDENCE SEEN  ${confidence}%`, 470, panelTop + 214);
@@ -7747,7 +7747,7 @@ export function gradingReportImageBlob({
     : [];
   const subscoreTop = panelTop + 392;
   context.fillStyle = colors.text;
-  context.font = "700 30px system-ui, -apple-system, sans-serif";
+  context.font = "600 30px system-ui, -apple-system, sans-serif";
   context.fillText("VISIBLE CONDITION AREAS", 92, subscoreTop);
   const categories = ["centering", "corners", "edges", "surface"];
   categories.forEach((category, index) => {
@@ -7760,7 +7760,7 @@ export function gradingReportImageBlob({
     context.font = "600 23px system-ui, -apple-system, sans-serif";
     context.fillText(category.toUpperCase(), x + 28, y + 42);
     context.fillStyle = colors.text;
-    context.font = "750 40px system-ui, -apple-system, sans-serif";
+    context.font = "600 40px system-ui, -apple-system, sans-serif";
     const low = Number(entry.scoreLow ?? entry.score_low);
     const high = Number(entry.scoreHigh ?? entry.score_high);
     const exact = Number(entry.score ?? entry.decimalScore);
@@ -7780,7 +7780,7 @@ export function gradingReportImageBlob({
   context.fillStyle = colors.sage;
   context.fillRect(92, methodTop, 1016, 182);
   context.fillStyle = colors.text;
-  context.font = "700 28px system-ui, -apple-system, sans-serif";
+  context.font = "600 28px system-ui, -apple-system, sans-serif";
   context.fillText("HOW MICA MEASURED THIS", 124, methodTop + 48);
   context.font = "500 24px system-ui, -apple-system, sans-serif";
   canvasWrappedText(
@@ -7794,7 +7794,7 @@ export function gradingReportImageBlob({
   );
 
   context.fillStyle = colors.warning;
-  context.font = "700 26px system-ui, -apple-system, sans-serif";
+  context.font = "600 26px system-ui, -apple-system, sans-serif";
   context.fillText("ESTIMATE — NOT AN OFFICIAL GRADE", 92, 1480);
   context.fillStyle = colors.secondary;
   context.font = "500 21px system-ui, -apple-system, sans-serif";
@@ -20344,8 +20344,8 @@ function bindAuthUI() {
   const switchMode = $("#passwordSignUp");
   const setAuthMode = creating => {
     creatingAccount = creating;
-    $("#authTitle").textContent = creating ? "Create your collection" : "Welcome back";
-    $("#authDescription").textContent = creating ? "Save your cards. Track their value." : "Sign in to your collection.";
+    $("#authTitle").textContent = creating ? "Create your collection" : "Sign in to Mica";
+    $("#authDescription").textContent = creating ? "Save your cards and track their value" : "Your collection, in one place";
     submit.textContent = creating ? "Create account" : "Sign in";
     switchMode.textContent = creating ? "Sign in instead" : "Create account";
     $("#authPassword").autocomplete = creating ? "new-password" : "current-password";
