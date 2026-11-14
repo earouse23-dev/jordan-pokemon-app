@@ -855,11 +855,9 @@ test("corrected slab pixels reach approved identification without inventory save
     image.close();
     return { width: canvas.width, height: canvas.height, label, card };
   }, source);
-  // The approved recognizer receives corrected document pixels, not a report screenshot.
-  expect(pixels.width).toBe(407);
-  // Platform image decoders differ by up to two pixels at this detected edge.
-  expect(pixels.height).toBeGreaterThanOrEqual(832);
-  expect(pixels.height).toBeLessThanOrEqual(834);
+  // The recognizer receives full corrected slab, enlarged label and card in one image.
+  expect(pixels.width).toBe(1536);
+  expect(pixels.height).toBe(1024);
   expect(pixels.label).toBeGreaterThan(1000);
   expect(pixels.card).toBeGreaterThan(1000);
   expect(
@@ -1323,3 +1321,25 @@ test("automatic raw match hydrates photo, price and history without saving a gue
   await expect(page.locator("#detailTitle")).not.toBeVisible();
   expect(await page.locator(".bottom-nav > button").evaluateAll(nodes=>nodes.map(n=>n.dataset.route||n.dataset.sidebarTarget))).toEqual(["dashboard","scan","collection"]);
  });
+
+for(const [grader,grade,qualifier] of [['CGC',10,'Pristine'],['BGS',10,'Black Label'],['CGC',8.5,''],['CGC',10,null]]) test(`slab scan preserves ${grader} ${grade} ${qualifier} through detail and save form`,async({page},testInfo)=>{
+ const requests=await setup(page,{recognition:true,experience:'intake',visionPayload:{analysis:{quality:{usable:true},identity:{name:'Pikachu',collectorNumber:'025/165',language:'en',cardState:'graded',grader,grade,gradeQualifier:qualifier,finish:'holofoil',edition:'unlimited',promoType:'none',certificationNumber:'0012345678',confidence:.98}},catalogResolution:{cards:[{id:'fixture-pikachu',name:'Pikachu',set:'151',number:'025/165',language:'en',variant:'Holofoil',finish:'holofoil',edition:'unlimited',promoType:'none',identityStatus:'exact',thumb:'/icons/icon.svg'}],resolution:{status:'exact',recommendedId:'fixture-pikachu'}}}});
+ await installSyntheticDocument(page);
+ await page.evaluate(()=>{const input=document.querySelector('#deviceCameraUpload');input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
+ await expect(page.locator('#detailTitle')).toContainText('Pikachu');
+ const context=await page.evaluate(()=>({context:__documentCaptureApp.state.detailValuationContext,card:__documentCaptureApp.state.detailCard}));
+ expect(context.context.gradeQualifier).toBe(qualifier);expect(context.card.certificationNumber).toBe('0012345678');
+ expect(context.card.finish).toBe('holofoil');expect(context.card.edition).toBe('unlimited');
+ await page.locator('#addLibraryButton').click();
+ await expect(page.locator('#positionGrader')).toHaveValue(grader);
+ await expect(page.locator('#positionGrade')).toHaveValue(String(grade));
+ await expect(page.locator('#positionQualifier')).toHaveValue(qualifier ?? '');
+ await expect(page.locator('#positionCertification')).toHaveValue('0012345678');
+ if(qualifier === 'Pristine') { await page.locator('details:has(#positionQualifier) > summary').click(); await page.locator('#positionQualifier').scrollIntoViewIfNeeded(); await page.screenshot({path:testInfo.outputPath('slab-label-save.png')}); }
+ expect(requests.vision).toHaveLength(1);expect(requests.vision[0].images).toHaveLength(1);
+ // The single identification input includes the already-built full document,
+ // enlarged label and card crops, without another AI request.
+ const dimensions=await page.evaluate(async source=>{const im=new Image();im.src=source;await im.decode();return[im.naturalWidth,im.naturalHeight];},requests.vision[0].images[0]);
+ expect(dimensions).toEqual([1536,1024]);
+ expect(requests.writes.filter(r=>!r.path.endsWith('/rpc/record_ingestion_event'))).toHaveLength(0);
+});

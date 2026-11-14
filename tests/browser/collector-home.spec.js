@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, chartInstance, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet, watchAppUpdates, beginDigitalGrading, continueGradingActivity, analyzeCardImages, renderGradingActivity, openFilterSheet }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, chartInstance, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet, watchAppUpdates, beginDigitalGrading, continueGradingActivity, analyzeCardImages, renderGradingActivity, openFilterSheet, restorePortfolioPricing, hasSavedInventoryPrices, loadOwnedDetailPricing }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -1261,4 +1261,41 @@ test("audit shared layouts fit both themes across available screen sizes", async
     await assertFits(page);
     if ([390,1440].includes(width)) await page.screenshot({animations:"disabled", path:info.outputPath(`audit-add-${appearance}-${width}.png`)});
   }
+});
+
+
+test('cold saved prices survive normalized hydration, empty updates and repeated detail opens',async({page})=>{
+ await openDetail(page,{price:240,referencePrice:240,pricingStatus:'stale',retainedPrice:true,quotes:[]});
+ await page.evaluate(()=>{const app=globalThis.fixtureApp,item=app.state.items[0];app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'}};const key=app.portfolioPricingKey({...item,rawCondition:undefined,condition:'Near Mint'});item.rawCondition='near_mint';item.condition='Like new';item.price=null;item.referencePrice=null;app.restorePortfolioPricing({updatedAt:new Date().toISOString(),pricing:[{uid:item.uid,key,price:240,referencePrice:240,pricingStatus:'stale',checkedAt:new Date().toISOString()}]});app.renderCollection();app.renderDetail();});
+ await expect(page.locator('.market-hero>strong')).toContainText('240');
+ expect(await page.evaluate(()=>{const app=globalThis.fixtureApp,item=app.state.items[0];app.state.portfolioView={pricing:[{uid:item.uid,key:app.portfolioPricingKey(item),price:240}]};return [app.hasSavedInventoryPrices([item]),app.hasSavedInventoryPrices([{...item,currency:'EUR'}]),app.hasSavedInventoryPrices([{...item,uid:'another'}])];})).toEqual([true,false,false]);
+ await page.evaluate(()=>{const app=globalThis.fixtureApp,item=app.state.items[0];app.restorePortfolioPricing({updatedAt:new Date().toISOString(),pricing:[{uid:item.uid,key:app.portfolioPricingKey(item),price:null,pricingStatus:'missing'}]});app.renderDetail();});
+ await expect(page.locator('.market-hero>strong')).toContainText('240');
+ let paid=0;await page.route('**/api/cards?**',r=>{paid++;return r.fulfill({status:503,json:{}});});
+ await page.evaluate(async()=>{const app=globalThis.fixtureApp;await app.loadOwnedDetailPricing(app.state.items[0]);await app.loadOwnedDetailPricing(app.state.items[0]);});
+ expect(paid).toBe(0);
+ await page.evaluate(()=>{const app=globalThis.fixtureApp;app.state.items[0].checkedAt='2020-01-01';});
+ await page.evaluate(async()=>{const app=globalThis.fixtureApp;await app.loadOwnedDetailPricing(app.state.items[0]);app.renderDetail();});
+ expect(paid).toBe(1);await expect(page.locator('.market-hero>strong')).toContainText('240');
+});
+
+test('compact saved prices hydrate full saved history without a provider price request',async({page},testInfo)=>{
+ await openDetail(page,{price:240,referencePrice:240,pricingStatus:'stale',retainedPrice:true,displayOnly:true,quotes:[],priceHistory:[]});
+ await page.evaluate(()=>{const app=globalThis.fixtureApp,item=app.state.items[0];app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'fixture'};item.key=app.portfolioPricingKey(item);item.pricingOwner=app.state.session.user.id;item.checkedAt=new Date().toISOString();});
+ let savedReads=0,providerReads=0;
+ await page.route('**/api/cards?**',r=>{providerReads++;return r.fulfill({status:503,json:{}});});
+ await page.route('**/api/capabilities?surface=portfolio',async r=>{savedReads++;const pricing=await page.evaluate(()=>{const app=globalThis.fixtureApp,item=app.state.items[0];return {...item,displayOnly:false,historyStatus:'live',priceHistory:[1,2].map(day=>({recordedAt:new Date(Date.now()-day*86400000).toISOString(),amount:240-day,currency:'USD',finish:'holofoil',condition:'Near Mint',provider:'tcgplayer'}))};});return r.fulfill({json:{view:{updatedAt:new Date().toISOString(),pricing:[pricing]}}});});
+ await page.evaluate(async()=>{const app=globalThis.fixtureApp;await app.loadOwnedDetailPricing(app.state.items[0]);await app.loadOwnedDetailPricing(app.state.items[0]);});
+ await expect(page.locator('#positionChart')).toBeVisible();
+ await expect(page.locator('.market-hero>strong')).toContainText('240');
+ expect(savedReads).toBe(1);expect(providerReads).toBe(0);
+ await page.evaluate(()=>globalThis.fixtureApp.chartInstance.update("none"));
+ await page.locator("#positionChart").scrollIntoViewIfNeeded();
+ await page.screenshot({path:testInfo.outputPath("saved-price-history.png")});
+});
+
+test('published comp withdrawals use the correction publication time, not an old price-check time',async({page})=>{
+ await openDetail(page,{cardState:'graded',gradingCompany:'PSA',grade:'10',gradeQualifier:'',price:240,retainedPrice:true,checkedAt:'2026-11-13T12:00:00Z',exactSaleEvidence:{sales:[{providerSaleId:'withdrawn-sale'}]}});
+ const values=await page.evaluate(()=>{const app=globalThis.fixtureApp,item=app.state.items[0],key=app.portfolioPricingKey(item);const pricing=[{uid:item.uid,key,price:null,checkedAt:'2026-11-12T12:00:00Z',exactSaleEvidence:{sales:[],correctedSaleIds:['withdrawn-sale']}}];app.restorePortfolioPricing({updatedAt:'2026-11-12T13:00:00Z',pricing});const older=app.state.items[0].price;app.restorePortfolioPricing({updatedAt:'2026-11-13T13:00:00Z',pricing});return[older,app.state.items[0].price];});
+ expect(values).toEqual([240,null]);
 });

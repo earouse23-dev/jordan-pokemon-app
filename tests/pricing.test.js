@@ -2160,11 +2160,13 @@ test("sold evidence never mixes grader, grade, or named grade tiers", async () =
     sold_at: "2026-09-01",
     listing_url: "https://www.ebay.com/itm/123",
   };
+  const requestedTiers = [];
   globalThis.fetch = async (input) => {
     const url = new URL(input);
     assert.equal(url.searchParams.get("graded"), "true");
     assert.equal(url.searchParams.get("grader"), "CGC");
     assert.equal(url.searchParams.get("grade"), "10");
+    requestedTiers.push(url.searchParams.get("grade_qualifier"));
     return new Response(
       JSON.stringify({
         data: [
@@ -2198,6 +2200,7 @@ test("sold evidence never mixes grader, grade, or named grade tiers", async () =
       ["2"],
     );
     assert.equal(pristine.sales[0].gradeQualifier, "Pristine");
+    assert.deepEqual(requestedTiers, [null, "pristine"], "premium label is filtered upstream; ordinary legacy labels remain locally matched");
   } finally {
     globalThis.fetch = originalFetch;
   }

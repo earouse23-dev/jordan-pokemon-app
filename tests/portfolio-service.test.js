@@ -343,3 +343,53 @@ for (const {interrupted,withdrawn} of [{interrupted:false,withdrawn:true},{inter
  assert.deepEqual(result.pricing[0].matchedHistory,[]);
  assert.deepEqual(result.pricing[0].exactSaleEvidence.correctedSaleIds,['sale-1']);
 });
+
+test('expired raw prices survive empty refresh without renewing TTL, then publish a replacement once', async t => {
+  const {createClient}=await import('@supabase/supabase-js');
+  const {refreshPortfolioView}=await import('../lib/portfolio-service.js');
+  const {loadPortfolio}=await import('../lib/supabase-data.js');
+  const {buildPortfolioView,portfolioPricingKey}=await import('../lib/portfolio-view.js');
+  const {pkmnPricesRequests}=await import('../lib/pkmnprices-requests.js');
+  pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
+  for(const method of ['claim','saveCache','releaseCache']) t.mock.method(pkmnPricesRequests,method,async()=>{});
+  t.mock.method(pkmnPricesRequests,'claimCache',async()=>true);
+  t.mock.method(pkmnPricesRequests,'readCache',async()=>null);
+  const uid='77777777-7777-4777-8777-777777777777',day=new Date().toISOString().slice(0,10),now=day+'T12:00:00Z',previous=new Date(Date.parse(now)-86400001).toISOString();
+  let stored,priced=false,paid=0;
+  t.mock.method(globalThis,'fetch',async(input,init={})=>{
+    const u=new URL(typeof input==='string'?input:input.url||input),table=u.pathname.split('/').at(-1);
+    if(u.hostname==='api.pkmnprices.com'){
+      paid++;
+      if(table==='history')return Response.json({data:[],pagination:{page:1,total_pages:1}});
+      return Response.json({id:123,name:'Fixture',number:'1',set:{name:'Fixture'},language:'en',prices:priced?[{source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',market_price:260}]:[]});
+    }
+    assert.equal(u.hostname,'portfolio-retention-fixture.supabase.co');
+    if(table==='portfolio_views')return Response.json({view:stored,inventory_revision:0});
+    if(table==='claim_portfolio_refresh')return Response.json(true);
+    if(table==='publish_saved_portfolio'){stored=JSON.parse(init.body).p_view;return Response.json(true);}
+    if(table==='collection_items')return Response.json([{id:uid,user_id:owner,quantity:1,currency:'USD',card_state:'raw',status:'owned',raw_condition:'near_mint',identity_snapshot:{id:'fixture',name:'Fixture',set:'Fixture',number:'1',variant:'Holofoil',externalIds:{pkmnprices:'123'}}}]);
+    if(table==='purchase_lots')return Response.json([{id:uid,user_id:owner,collection_item_id:uid,acquired_at:day,quantity_acquired:1,quantity_remaining:1,currency:'USD'}]);
+    return Response.json([]);
+  });
+  const db=createClient('https://portfolio-retention-fixture.supabase.co','fixture',{auth:{persistSession:false}});
+  const [base]=await loadPortfolio(db,owner,{serverOwnerRead:true});
+  const prior={uid,key:portfolioPricingKey(base),checkedAt:previous,price:240,pricingStatus:'live',historyStatus:'live',priceHistory:[{recordedAt:previous,amount:240,currency:'USD',finish:'holofoil',condition:'Near Mint',provider:'tcgplayer'}]};
+  stored={...buildPortfolioView([{...base,...prior}],previous),pricing:[prior],dailyVersion:1,checkedAt:previous,inventoryRevision:0};
+  const empty=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'retention-fixture'},{now});
+  assert.equal(empty.pricing[0].price,240);
+  assert.equal(empty.pendingPricing[0].checkedAt,previous,'empty response cannot renew a successful price TTL');
+  assert.equal(empty.pendingPricing[0].pricingReason,'matching_quote_unavailable');
+  assert.equal(empty.summaries[0].total,240);
+  assert.deepEqual(empty.pricing[0].priceHistory,prior.priceHistory);
+  assert.ok(paid>0);
+  priced=true;pkmnPricesRequests.cache.clear();
+  const retryTime=day+'T12:06:00Z';
+  const replacement=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'retention-fixture'},{now:retryTime});
+  assert.equal(replacement.pricing[0].price,260);
+  assert.equal(replacement.pricing[0].checkedAt,retryTime);
+  assert.equal(replacement.pricing[0].retainedPrice,true);
+  assert.equal(stored.pricing[0].price,260,'replacement is durably published');
+  const requests=paid;
+  await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'retention-fixture'},{now:day+'T13:00:00Z'});
+  assert.equal(paid,requests,'fresh saved replacement makes zero provider requests');
+});

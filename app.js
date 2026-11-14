@@ -1987,6 +1987,9 @@ function quotePricingFields(quote, card, item) {
   return {
     price: Number(quote.amount),
     referencePrice: Number(quote.amount),
+    retainedPrice: true,
+    key: portfolioPricingKey(item),
+    resolvedKey: portfolioPricingKey({ ...item, externalIds: { ...item.externalIds, ...card?.externalIds } }),
     pricingStatus: freshness.status,
     pricingReason: freshness.reason,
     pricingUpdatedAt: freshness.observedAt,
@@ -3131,7 +3134,7 @@ function portfolioItems() {
 function portfolioUnitPrice(item) {
   if (item.cardState === "graded" || item.gradingCompany)
     return soldValuationForItem(item)?.estimate ?? null;
-  if (["live", "manual", "manual_override"].includes(item.pricingStatus) && item.price != null) return item.price;
+  if ((["live", "manual", "manual_override"].includes(item.pricingStatus) || item.retainedPrice) && item.price != null) return item.price;
   const quote = selectPositionQuote(item.quotes || [], item);
   return quote ? Number(quote.amount) : null;
 }
@@ -7474,10 +7477,12 @@ function openCardDetail(card, preferOwned = false, initialContext = null, scanDr
     void loadOwnedDetailPricing(
       owned,
       beginDetailRequest(owned, state.detailValuationContext),
-    );
+    ).then(() => {
+      if (state.session?.access_token && state.detailId === owned.uid && (owned.cardState === "graded" || owned.gradingCompany))
+        void loadSales(state.items.find(item => item.uid === owned.uid) || owned);
+    });
     void loadOwnedGradingReports(owned);
     void loadOwnedCollectionAttachments(owned);
-    if (state.session?.access_token && (owned.cardState === "graded" || owned.gradingCompany)) void loadSales(owned);
   } else if (detailContextReady(state.detailValuationContext))
     void loadCardPreviewPricing(
       card,
@@ -7971,6 +7976,10 @@ function gradingReportHistoryMarkup(item) {
 async function loadSealedDetailPricing(item, guard = beginDetailRequest(item)) {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
+  if (item.uid) {
+    item = await loadSavedDetailPricing(item, guard);
+    if (!accountRequestIsCurrent(ownerId, loadVersion) || !detailRequestIsCurrent(guard)) return;
+  }
   if (item.uid && portfolioPricingRequest?.owner === ownerId && portfolioPricingRequest.version === loadVersion) {
     await portfolioPricingRequest.promise;
     if (!accountRequestIsCurrent(ownerId, loadVersion) || !detailRequestIsCurrent(guard)) return;
@@ -8191,16 +8200,36 @@ async function loadCardPreviewPricing(
   }
 }
 
+async function loadSavedDetailPricing(item, guard) {
+  if (!item.displayOnly || !state.session?.access_token) return item;
+  const owner = state.session.user.id, version = sessionLoadVersion;
+  try {
+    const response = await fetch("/api/capabilities?surface=portfolio", {
+      headers: providerRequestHeaders(), signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return item;
+    const { view } = await response.json();
+    if (!accountRequestIsCurrent(owner, version) || !detailRequestIsCurrent(guard)) return item;
+    restorePortfolioPricing(view);
+    const restored = state.items.find(copy => copy.uid === item.uid) || item;
+    state.detailCard = restored;
+    renderDetail();
+    return restored;
+  } catch { return item; }
+}
+
 async function loadOwnedDetailPricing(
   item,
   guard = beginDetailRequest(item, valuationContextForItem(item)),
 ) {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
+  item = await loadSavedDetailPricing(item, guard);
+  if (!accountRequestIsCurrent(ownerId, loadVersion) || !detailRequestIsCurrent(guard)) return;
   const historyKey = JSON.stringify([ownerId, loadVersion, guard.selectionKey, guard.contextKey]);
   const reusable = copy => copy.cardState === "graded" || copy.gradingCompany
     ? freshSaleEvidence(copy, valuationContextForItem(copy), savedSaleEvidenceForContext(copy, valuationContextForItem(copy)))
-    : !copy.displayOnly && (copy.pricingOwner === ownerId && portfolioPricingKeyMatches(portfolioPricingKey(copy), copy) || copy.historyLoadedKey === historyKey) && copy.historyStatus === "live" && portfolioPriceIsFresh(copy, Date.now(), selectPositionQuote(copy.quotes || [], copy)?.retrievedAt) && Boolean(selectPositionQuote(copy.quotes || [], copy));
+    : (copy.pricingOwner === ownerId && portfolioPricingKeyMatches(portfolioPricingKey(copy), copy) || !copy.key && copy.historyLoadedKey === historyKey) && portfolioPriceIsFresh(copy, Date.now(), selectPositionQuote(copy.quotes || [], copy)?.retrievedAt) && (copy.retainedPrice && copy.price != null || Boolean(selectPositionQuote(copy.quotes || [], copy)));
   if (reusable(item)) return;
   if (portfolioPricingRequest?.owner === ownerId && portfolioPricingRequest.version === loadVersion) {
     await portfolioPricingRequest.promise;
@@ -8245,7 +8274,7 @@ async function loadOwnedDetailPricing(
       },
       metadata: priced.metadata || item.metadata || null,
       priceCapabilities: priced.capabilities || null,
-      ...(item.cardState === "graded" || item.gradingCompany ? {} : pricing),
+      ...(item.cardState === "graded" || item.gradingCompany || !quote && item.retainedPrice ? {} : pricing),
       quotes: quote ? priced.quotes : item.quotes || [],
       checkedAt: quote ? payload.retrievedAt || new Date().toISOString() : item.checkedAt,
       pricingOwner: ownerId,
@@ -8780,7 +8809,9 @@ function renderDetail() {
     pricingStatus === "live"
       ? (valuationItem.price ?? tcgQuote?.amount ?? null)
       : null;
-  const displayPrice = ["live", "stale"].includes(pricingStatus)
+  const displayPrice = valuationItem.retainedPrice && valuationItem.price != null
+    ? valuationItem.price
+    : ["live", "stale"].includes(pricingStatus)
     ? (valuationPrice ??
       valuationItem.referencePrice ??
       tcgQuote?.amount ??
@@ -9237,6 +9268,8 @@ function renderDetail() {
             : null,
         grader: context.cardState === "graded" ? context.gradingCompany : "",
         grade: context.cardState === "graded" ? context.grade : "",
+        gradeQualifier: context.cardState === "graded" ? context.gradeQualifier : "",
+        certificationNumber: baseItem.certificationNumber || "",
         variantId: baseItem.variantId,
         variant: baseItem.variant,
       },
@@ -11423,7 +11456,7 @@ async function reloadPortfolio(
       const quote = preview && selectPositionQuote(preview.quotes, item);
       return quote && quoteStatus(quote) === "live" ? { ...item, ...quotePricingFields(quote, preview, item), quotes: preview.quotes, priceHistory: mergePriceHistory(item.priceHistory || [], preview.priceHistory || []), historyStatus: preview.historyStatus } : item;
     }
-    const fields = ["price", "referencePrice", "quotes", "priceCapabilities", "historyStatus", "priceHistory", "pricingStatus", "pricingReason", "pricingUpdatedAt", "historyLoadedAt", "historyLoadedKey", "exactSaleEvidence", "gradedValuations"];
+    const fields = ["price", "referencePrice", "retainedPrice", "checkedAt", "pricingOwner", "key", "resolvedKey", "quotes", "priceCapabilities", "historyStatus", "priceHistory", "pricingStatus", "pricingReason", "pricingUpdatedAt", "historyLoadedAt", "historyLoadedKey", "exactSaleEvidence", "gradedValuations"];
     return { ...item, ...Object.fromEntries(fields.filter(key => previous[key] !== undefined).map(key => [key, previous[key]])) };
   });
   restorePortfolioPricing(state.portfolioView);
@@ -14190,7 +14223,7 @@ async function requestVisionAnalysis(
     },
     body: JSON.stringify({
       mode,
-      images: preparedImages.map((image) => image.dataUrl),
+      images: preparedImages.map((image) => mode === "identify" ? image.identityDataUrl || image.dataUrl : image.dataUrl),
       ...(mode === "grade"
         ? {
             captureDescriptors: preparedImages.map((image, index) => ({
@@ -14529,6 +14562,11 @@ function visionPrefill(analysis, mode) {
         : "",
     grade: graded && identity.grade != null ? String(identity.grade) : "",
     certificationNumber: graded ? identity.certificationNumber || "" : "",
+    gradeQualifier: graded ? Object.hasOwn(identity, "gradeQualifier") ? identity.gradeQualifier : grader === "PSA" || String(identity.grade) !== "10" ? "" : null : "",
+    variant: identity.variant || "",
+    finish: identity.finish || "",
+    edition: identity.edition || "",
+    promoType: identity.promoType || "",
     aiEstimate:
       mode === "grade" && analysis.condition?.estimatedGradeLow != null
         ? `${analysis.condition.estimatedGradeLow}–${analysis.condition.estimatedGradeHigh}`
@@ -15431,8 +15469,9 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
           },
         };
         if (mode === "identify") {
-          const identified = { ...card, cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, condition: prefill.rawCondition || null };
-          openCardDetail(identified, false, valuationContextForItem(identified), { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(card), options: scanOptions });
+          const scannedPrinting = normalizeVariantOption({ ...selectedPrinting(card), ...Object.fromEntries(["finish", "edition", "promoType"].filter(field => prefill[field]).map(field => [field, prefill[field]])) });
+          const identified = { ...card, finish: scannedPrinting.finish, edition: scannedPrinting.edition, promoType: scannedPrinting.promoType, cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, gradeQualifier: prefill.gradeQualifier, certificationNumber: prefill.certificationNumber, condition: prefill.rawCondition || null };
+          openCardDetail(identified, false, valuationContextForItem(identified), { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(identified), options: scanOptions });
         } else openPositionSheet(card, scanOptions);
       }),
     );
@@ -15754,9 +15793,8 @@ function catalogItem(item, selectedVariant = "") {
         normalizeVariantOption(option, { language: item.language }),
       )
     : [
-        normalizeVariantOption(item.variant || "Unknown", {
+        normalizeVariantOption({ ...item, label: item.variant || "Unknown", id: item.variantId || null, status: item.identityStatus || "needs_review" }, {
           language: item.language,
-          id: item.variantId || null,
         }),
       ];
   const variant = selectVariantOption(
@@ -17456,15 +17494,25 @@ function renderPortfolioRetry() {
   if (waiting) portfolioRetryTimer = setTimeout(renderPortfolioRetry, Math.min(retryAt - Date.now() + 10, 2_147_483_647));
 }
 
+function hasSavedInventoryPrices(items) {
+  const prices = new Map((state.portfolioView?.pricing || state.portfolioView?.displayPricing || []).map(price => [price.uid, price]));
+  return items.every(item => {
+    const price = prices.get(item.uid);
+    return price?.price != null && portfolioPricingKeyMatches(portfolioPricingKey(item), price);
+  });
+}
+
 function restorePortfolioPricing(view) {
   const pricing = new Map((view?.pricing || view?.displayPricing || []).map(item => [item.uid, item]));
   state.items = state.items.map(item => {
     const saved = pricing.get(item.uid);
-    if (view?.refreshIncomplete && saved?.price == null && item.price != null) return item;
+    const withdrawn = saved?.price == null && saved?.exactSaleEvidence?.correctedSaleIds?.some(id => item.exactSaleEvidence?.sales?.some(sale => sale.providerSaleId === id));
+    if (saved?.price == null && item.price != null && !withdrawn) return item;
     if (!saved || !portfolioPricingKeyMatches(portfolioPricingKey(item), saved)) return item;
+    if (item.price != null && Date.parse(item.checkedAt) > Date.parse(withdrawn ? view.updatedAt : saved.checkedAt || view.updatedAt)) return item;
     // A delayed compact response must not replace full evidence already loaded.
     if (saved.displayOnly && !item.displayOnly && item.price != null) return item;
-    const restored = { ...item, ...saved, checkedAt: saved.checkedAt || view.updatedAt, displayOnly: Boolean(saved.displayOnly), pricingOwner: state.session?.user?.id, quantity:item.quantity, lots:item.lots, transactions:item.transactions };
+    const restored = { ...item, ...saved, retainedPrice: saved.price != null, checkedAt: saved.checkedAt || view.updatedAt, displayOnly: Boolean(saved.displayOnly), pricingOwner: state.session?.user?.id, quantity:item.quantity, lots:item.lots, transactions:item.transactions };
     if (state.detailId === item.uid && state.detailSelectionKey === detailIdentityKey(item))
       state.detailSelectionKey = detailIdentityKey(restored);
     return restored;
@@ -17661,7 +17709,7 @@ async function updateLivePricing(positionIds = null) {
         ? sealedProcessed.has(item.id)
         : processedIds.has(lookupId);
       if (!processed && failedIds.has(lookupId)) {
-        const pricing = quotePricingFields(selectPositionQuote(item.quotes || [], item), item, item);
+        const pricing = item.retainedPrice && item.price != null ? {} : quotePricingFields(selectPositionQuote(item.quotes || [], item), item, item);
         return { ...item, ...pricing, pricingStatus: pricing.price == null ? rateLimited ? "rate_limited" : "error" : pricing.pricingStatus, pricingReason: failedReasons.get(lookupId) || "provider_refresh_failed" };
       }
       if (!processed)
@@ -17767,7 +17815,7 @@ async function updateLivePricing(positionIds = null) {
     state.items = state.items.map((item) => {
       if (selectedPositions && !selectedPositions.has(item.uid)) return item;
       const quote = selectPositionQuote(item.quotes, item);
-      const pricing = quotePricingFields(quote, item, item);
+      const pricing = !quote && item.retainedPrice && item.price != null ? {} : quotePricingFields(quote, item, item);
       return {
         ...item,
         ...pricing,
@@ -21220,7 +21268,7 @@ async function retryAccountLoad() {
   state.accountLoading = true;
   renderCollection();
   try {
-    void loadSavedPortfolio(ownerId, loadVersion);
+    const savedPortfolioRead = loadSavedPortfolio(ownerId, loadVersion);
     const [organization, watchlist, history, profile, actionCenter] =
       await Promise.all([
         loadCollectionOrganization(supabase, ownerId),
@@ -21245,6 +21293,8 @@ async function retryAccountLoad() {
     restoreModeCollectionView(workspaceMode);
     applyLoadedOrganization(organization);
     const inventory = await loadCollectionInventory(ownerId, organization);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    if (!hasSavedInventoryPrices(inventory.items)) await savedPortfolioRead;
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = inventory.items;
     restorePortfolioPricing(state.portfolioView);
@@ -21538,7 +21588,7 @@ async function applySession(session) {
     { instant: true, history: "replace" },
   );
   try {
-    void loadSavedPortfolio(ownerId, loadVersion);
+    const savedPortfolioRead = loadSavedPortfolio(ownerId, loadVersion);
     const [organization, watchlist, history, profile, actionCenter] =
       await Promise.all([
         loadCollectionOrganization(supabase, ownerId),
@@ -21563,6 +21613,8 @@ async function applySession(session) {
     restoreModeCollectionView(workspaceMode);
     applyLoadedOrganization(organization);
     const inventory = await loadCollectionInventory(ownerId, organization);
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    if (!hasSavedInventoryPrices(inventory.items)) await savedPortfolioRead;
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     state.items = inventory.items;
     restorePortfolioPricing(state.portfolioView);

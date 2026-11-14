@@ -358,3 +358,23 @@ test('saved pricing accepts partial validated enrichment but rejects a different
  for(const patch of [{id:'another'},{grade:'9'},{gradingCompany:'CGC'},{edition:'first_edition'},{currency:'EUR'},{externalIds:{pkmnprices:999}}])assert.equal(portfolioPricingKeyMatches(portfolioPricingKey({...resolved,...patch}),saved),false);
  assert.equal(portfolioPricingKeyMatches(undefined,undefined),false);
 });
+
+test('saved pricing matches normalized conditions without crossing grade, printing or owner context', async () => {
+  const {portfolioPricingKey,portfolioPricingKeyMatches}=await import('../lib/portfolio-view.js');
+  const card={id:'same-card',variant:'Holofoil',language:'en',condition:'Near Mint',currency:'USD',cardState:'raw'};
+  const saved={key:portfolioPricingKey(card),price:240};
+  assert.equal(portfolioPricingKeyMatches(portfolioPricingKey({...card,rawCondition:'near_mint',condition:'Like new'}),saved),true);
+  for(const change of [{rawCondition:'damaged'},{condition:'Lightly Played',rawCondition:'near_mint'},{currency:'EUR'},{variant:'Reverse Holofoil'},{cardState:'graded',gradingCompany:'PSA',grade:10},{edition:'first_edition'}])
+    assert.equal(portfolioPricingKeyMatches(portfolioPricingKey({...card,...change}),saved),false);
+  const slab={...card,cardState:'graded',gradingCompany:'CGC',grade:10,gradeQualifier:''};
+  assert.equal(portfolioPricingKeyMatches(portfolioPricingKey({...slab,gradeQualifier:null}),{key:portfolioPricingKey(slab)}),false);
+});
+
+test('retained matching prices keep current totals while history stays dated',()=>{
+  const old=item('retained','2026-01-01',240);
+  old.pricingStatus='error';old.retainedPrice=true;
+  const view=buildPortfolioView([old],'2026-01-10T00:00:00Z');
+  assert.equal(view.summaries[0].total,240);
+  assert.equal(view.summaries[0].missingUnits,0);
+  assert.equal(buildPortfolioView([{...old,price:null}],'2026-01-10T00:00:00Z').summaries[0].total,null);
+});

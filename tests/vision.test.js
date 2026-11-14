@@ -1041,3 +1041,14 @@ test("PSA holdout evaluation measures exact half-grade labels and rejects card l
 test("printed language names normalize before catalog lookup",()=>{for(const [language,code] of [["English","en"],["Japanese","ja"],["German","de"],["ko","ko"]]){const a=normalizeVisionOutput("identify",{quality:{usable:true},identity:{isPokemonCard:true,name:"Pikachu",collectorNumber:"025/165",language,confidence:.9}});assert.equal(a.identity.language,code);}});
 
 test("separately printed EX tag completes catalog title without inventing a collector number",()=>{const a=normalizeVisionOutput("identify",{quality:{usable:true},identity:{isPokemonCard:true,name:"M Charizard",language:"English",printingHints:["EX"],collectorNumber:null,confidence:.7}});assert.equal(a.searchQuery,"M Charizard EX");assert.equal(a.identity.collectorNumber,null);});
+
+test('slab identity retains exact label tiers, printing facts and unknown-versus-none',()=>{
+  for(const [grader,grade,qualifier] of [['CGC',10,'Pristine'],['BGS',10,'Black Label'],['CGC',8.5,''],['PSA',9,'OC'],['CGC',10,null]]) {
+    const result=normalizeVisionOutput('identify',{quality:{usable:true},identity:{isPokemonCard:true,name:'Espeon',collectorNumber:'1/75',language:'English',cardState:'graded',grader,grade,gradeQualifier:qualifier,finish:'holofoil',edition:'first_edition',promoType:'none',certificationNumber:'0012345678'}});
+    assert.equal(result.identity.gradeQualifier,qualifier);
+    assert.equal(result.identity.grade,grade);
+    assert.equal(result.identity.edition,'first_edition');
+    assert.equal(result.identity.promoType,'none');
+    assert.equal(result.identity.certificationNumber,'0012345678');
+  }
+});
