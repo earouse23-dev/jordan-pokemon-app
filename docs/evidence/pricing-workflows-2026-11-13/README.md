@@ -26,3 +26,14 @@
 No schema migration, new dependency or paid service. No customer records were modified by tests; providers and writes use isolated fixtures. Real camera/label recognition across arbitrary photographs and provider coverage are not certified by synthetic tests. Missing first-ever evidence is not fabricated; retained prices require a matching saved price, and officially withdrawn evidence is invalidated.
 
 The broad browser run found an existing mobile chart placement assertion (chart top must be below 520px on a 375×667 viewport). It also fails with the original pre-task app source and current styles; the chart is lower than that bound. The current pricing changes do not change layout/CSS. This assertion is isolated from the pricing regression matrix and remains a separate layout follow-up. The older slab pixels assertion was updated to verify the intended single-image collage and still checks both label/card pixels.
+
+## Publication
+
+- Source: `93fba3a`, pushed to the existing `codex/mica-baseline-reconciliation` branch.
+- Production: https://jordan-pokemon-app.vercel.app/
+- Deployment: https://vercel.com/earouse23-devs-projects/jordan-pokemon-app/P3hLKHrxm5NGztb4tMCbJWbjfWg9 — READY / production.
+- Built from an isolated archive of the source commit using the existing prebuilt release workflow. Unrelated working-tree changes were excluded.
+- Routing verification: 9 functions; held-route, origin, authentication and independent deletion checks passed; zero real outbound provider calls.
+- Production Git branch remains `main`; source was pushed to the existing working branch, then the verified prebuilt artifact was published directly. Existing cron schedules and provider budgets are unchanged.
+- Live index, app bundle, service worker and stylesheets match the verified artifact SHA-256 hashes. Health is 200 / healthy; unauthenticated card pricing, sales, graded valuation and saved portfolio endpoints return 401. See `production-verification.json`.
+- No migration, new dependency, native/store submission or customer write test was performed. A first-ever missing matching price is still shown honestly; it is not fabricated from an unrelated listing.
