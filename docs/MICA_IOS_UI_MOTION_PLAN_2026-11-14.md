@@ -1,6 +1,6 @@
 # Mica interface and motion plan
 
-Status: design plan, not a claim that this redesign shipped. Recognition repairs remain the current engineering priority. No added features, dependencies, paid services, platform conversion or App Store action.
+Status: shared UI and motion implementation completed locally; verification and publication evidence is recorded in `docs/evidence/ios-polish-2026-11-15/README.md`. This does not certify universal recognition, physical-device acceptance or App Store readiness. No added features, dependencies, paid services, platform conversion or App Store action.
 
 ## Direction
 

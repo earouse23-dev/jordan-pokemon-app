@@ -1071,7 +1071,7 @@ test("price history draws from left to right and respects reduced motion", async
   ] });
   await expect.poll(() => page.evaluate(() => !!globalThis.fixtureApp.chartInstance)).toBe(true);
   expect(await page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal?.progress)).toBeLessThan(1);
-  await page.evaluate(() => { globalThis.revealTestTime = 425; });
+  await page.evaluate(() => { globalThis.revealTestTime = 150; });
   await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal?.progress)).toBe(0.5);
   await page.evaluate(() => { globalThis.revealTestTime = 1000; });
   await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal?.progress)).toBe(1);

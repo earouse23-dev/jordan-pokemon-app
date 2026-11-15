@@ -2138,7 +2138,7 @@ test("settings use grouped rows, direct appearance choices and an isolated sign-
   for (const selector of ['.settings-fees', '#motionPreferenceSelect', '#collectionDataSettings', '#deviceSettings']) await expect(page.locator(selector)).toBeHidden();
   await expect(page.locator('.profile-card strong')).toHaveText('Fixture Collector');
   await expect(page.locator('.profile-card span').first()).toHaveText('fixture@example.test');
-  await expect(page.locator('#appearanceSettings #appearanceSelect')).toBeVisible();
+  await expect(page.locator('#everydaySettings #appearanceSelect')).toBeVisible();
   await expect(page.locator('#targetAlertHelp')).not.toContainText('per channel');
   await expect(page.locator('#accountSettings #signOutButton')).toHaveCount(0);
   await expect(page.locator('#accountActions #signOutButton')).toBeVisible();

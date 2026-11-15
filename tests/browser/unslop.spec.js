@@ -9,7 +9,7 @@ test.use({ serviceWorkers: 'block' });
 test.beforeAll(async () => {
   const source = await readFile(new URL('../../app.js', import.meta.url), 'utf8');
   bundle = (await build({ stdin: {
-    contents: source.replace('void bootstrap();', '') + '\nexport { state, bindEvents, bindAuthUI, routeTo, renderCollection, renderDetail, openFilterSheet, openPositionEditSheet, openSaleSheet, chartInstance, portfolioChartInstance };',
+    contents: source.replace('void bootstrap();', '') + '\nexport { state, bindEvents, bindAuthUI, routeTo, renderCollection, renderDetail, openFilterSheet, openPositionEditSheet, openSaleSheet, openSheet, closeSheet, openPasswordResetDialog, chartInstance, portfolioChartInstance };',
     resolveDir: fileURLToPath(new URL('../../', import.meta.url)), sourcefile: 'app.js',
   }, bundle: true, format: 'esm', platform: 'browser', target: 'es2022', write: false })).outputFiles[0].text;
 });
@@ -69,3 +69,59 @@ for (const appearance of ['light', 'dark']) {
     await page.screenshot({path:info.outputPath('auth.png')});
   });
 }
+
+
+for (const appearance of ['light', 'dark']) test(`${appearance} shared controls cover editing, recovery and account setup`, async ({page}, info) => {
+  await boot(page);
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  await page.evaluate(a=>document.body.dataset.appearance=a,appearance);
+  for (const width of [320,402,599,844,1440]) {
+    await page.setViewportSize({width,height:width===844?390:844});
+    await page.evaluate(()=>polishApp.openPositionEditSheet(polishApp.state.items[0]));
+    await expect(page.locator('#editNotes')).toBeVisible();
+    await page.locator('#editNotes').fill('Retained draft');
+    const field = await page.locator('#editNotes').evaluate(el=>({font:parseFloat(getComputedStyle(el).fontSize),radius:getComputedStyle(el).borderRadius}));
+    expect(field.font).toBeGreaterThanOrEqual(16);
+    expect(field.radius).toBe('10px');
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+    await page.locator('#editNotes').scrollIntoViewIfNeeded();
+    await expect(page.locator('#editNotes')).toHaveValue('Retained draft');
+    if(width===402) await page.screenshot({path:info.outputPath(`edit-${appearance}.png`),animations:"disabled"});
+    await page.evaluate(()=>polishApp.closeSheet({discardHistory:true}));
+  }
+  await page.setViewportSize({width:402,height:874});
+  // Use the actual recovery dialog, not a separately styled fixture.
+  await page.evaluate(()=>{document.querySelector('#authGate').hidden=false;document.body.classList.remove('authenticated');});
+  await page.evaluate(()=>polishApp.openPasswordResetDialog());
+  await expect(page.locator('#passwordResetDialog')).toBeVisible();
+  const recovery=await page.locator('#passwordResetDialog').evaluate(el=>({animation:getComputedStyle(el).animationDuration,color:getComputedStyle(el).color}));
+  expect(recovery.animation).toBe('0.16s');
+  await page.screenshot({path:info.outputPath(`recovery-${appearance}.png`),animations:"disabled"});
+  await page.locator('[data-close-reset-dialog]').first().click();
+  await page.evaluate(()=>{document.querySelector('#authGate').hidden=true;document.body.classList.add('authenticated');polishApp.openOnboarding();});
+  await expect(page.locator('#onboardingDialog')).toBeVisible();
+  await expect(page.locator('#onboardingError')).toContainText('Couldn’t finish');
+  const setup=await page.locator('.onboarding-card').evaluate(el=>({width:el.getBoundingClientRect().width,animation:getComputedStyle(el).animationDuration}));
+  expect(setup.width).toBeLessThanOrEqual(440);
+  expect(setup.animation).toBe('0.16s');
+  await page.screenshot({path:info.outputPath(`setup-${appearance}.png`),animations:"disabled"});
+  // Enlarged text must grow the dialog without clipping its retry action.
+  await page.addStyleTag({content:'#onboardingDialog {font-size:200%} #onboardingDialog h1 {font-size:2em}'});
+  await expect(page.locator('#onboardingForm button')).toBeInViewport();
+  await page.emulateMedia({reducedMotion:'reduce'});
+  expect(await page.locator('.onboarding-card').evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+});
+
+
+test('portfolio change label stays readable in both themes', async ({page}) => {
+  await boot(page);
+  for(const appearance of ['light','dark']) {
+    await page.evaluate(a=>{document.body.dataset.appearance=a;polishApp.routeTo('dashboard',{instant:true});},appearance);
+    await expect.poll(()=>page.locator('.portfolio-pnl-picker summary').evaluate(el=>{
+      const luminance=value=>value.match(/[\d.]+/g).slice(0,3).map(Number).map(c=>{c/=255;return c<=.04045?c/12.92:((c+.055)/1.055)**2.4;}).reduce((s,c,i)=>s+c*[.2126,.7152,.0722][i],0);
+      const foreground=luminance(getComputedStyle(el).color);
+      const background=luminance(getComputedStyle(document.querySelector('#view-dashboard')).backgroundColor);
+      return (Math.max(foreground,background)+.05)/(Math.min(foreground,background)+.05);
+    })).toBeGreaterThanOrEqual(4.5);
+  }
+});

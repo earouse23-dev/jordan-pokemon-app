@@ -6991,7 +6991,16 @@ body[data-ui-theme="mica"] {
   --radius: 16px;
   --panel-radius: 16px;
   --control-radius: 10px;
-  --ease: cubic-bezier(.22,1,.36,1);
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --feedback-duration: 120ms;
+  --popover-duration: 160ms;
+  --sheet-duration: 240ms;
+  --space-group: 16px;
+  --space-section: 24px;
+  --type-meta: 13px;
+  --type-label: 15px;
+  font-size: 17px;
+  line-height: 1.45;
   font-weight: 400;
   letter-spacing: 0;
   color-scheme: light;
@@ -7014,48 +7023,76 @@ body[data-ui-theme="mica"][data-appearance="dark"] {
 }
 
 /* 1. Spacing: one rhythm for browsing, settings and editing. */
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.form-grid,.auth-form) { gap: 16px; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) .field { gap: 8px; }
-body[data-ui-theme="mica"] #bottomSheet .sheet-heading { gap: 16px; margin-bottom: 24px; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.form-grid,.auth-form) { gap: var(--space-group); }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) .field { gap: 8px; }
+body[data-ui-theme="mica"] #bottomSheet .sheet-heading { gap: 16px; margin-bottom: var(--space-group); }
 body[data-ui-theme="mica"] #bottomSheet .sheet-actions { gap: 8px; padding-top: 16px; }
 body[data-ui-theme="mica"] #appShell .desktop-sidebar { padding-top: 16px; }
-body[data-ui-theme="mica"] #appShell .sidebar-item { min-height: 40px; margin-block: 4px; padding: 8px 16px; gap: 12px; }
+body[data-ui-theme="mica"] #appShell .sidebar-item { min-height: 44px; margin-block: 4px; padding: 8px 16px; gap: 12px; }
 body[data-ui-theme="mica"] #appShell :is(.dashboard-card-row,.activity-row) { padding-block: 12px; gap: 12px; }
-body[data-ui-theme="mica"] #appShell #view-profile .settings-group { padding: 8px 20px; margin-bottom: 20px; border-radius: 16px; }
+body[data-ui-theme="mica"] #appShell #view-profile .settings-group { padding: 8px 20px; margin-bottom: var(--space-section); border-radius: 16px; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group>h2 { margin: 8px 0; }
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group>label,
 body[data-ui-theme="mica"] #appShell #view-profile .settings-group>button:not(.primary):not(.danger-action) { min-height: 56px; padding-block: 12px; gap: 16px; }
 
+body[data-ui-theme="mica"] :is(.auth-dialog,.onboarding-card) { padding: 24px; }
+body[data-ui-theme="mica"] :is(.auth-dialog-head,.onboarding-card h1) { margin: 0 0 16px; }
+body[data-ui-theme="mica"] :is(.auth-dialog,.onboarding-card) :is(form,.onboarding-actions) { gap: var(--space-group); }
+body[data-ui-theme="mica"] #bottomSheet .sheet-handle { width: 36px; margin: 8px auto 16px; background: var(--line-dark); }
+body[data-ui-theme="mica"] :is(#appShell,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.simple-note,.vision-local-check,.unavailable-panel) { padding: 16px; margin-block: 16px; }
+body[data-ui-theme="mica"] #appShell :is(.catalog-result,.vision-card-option) { gap: 12px; padding: 16px; }
 /* 2. Color: content carries the accent; controls have neutral depth. */
 body[data-ui-theme="mica"] #appShell :is(.app-header,.bottom-nav,.desktop-sidebar,.sidebar-account) { background: var(--paper); background-image: none; box-shadow: none; border-color: var(--line); backdrop-filter: none; }
 body[data-ui-theme="mica"] #appShell :is(.add-search-panel,.add-capture-panel,.find-search-card,.find-photo-card,.ledger-row,.settings-group,.profile-card,.catalog-result,.unavailable-panel,.collection-grade-modes>button),
 body[data-ui-theme="mica"] :is(#authGate .auth-card,#bottomSheet .secondary-panel) { background: var(--paper); background-image: none; box-shadow: none; border-color: var(--line); color: var(--ink); }
 body[data-ui-theme="mica"] #appShell #accountSettings { background: var(--paper); border: 1px solid var(--line); }
 body[data-ui-theme="mica"] #appShell :is(.portfolio-value,.exact-sold-value>strong,.market-hero>strong,.position-price-grid.compact>span:first-child strong) { color: var(--ink); }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button.primary,.primary-action,.quick-add,.scan-add-action #addLibraryButton) { background: #315c43; color: #fff; border: 1px solid transparent; box-shadow: none; }
-body[data-ui-theme="mica"][data-appearance="dark"] :is(#appShell,#authGate,#bottomSheet) :is(button.primary,.primary-action,.quick-add,.scan-add-action #addLibraryButton) { background: #e5ece6; color: #18241c; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button.secondary,.secondary-action,.tool-button,.inline-retry,.position-new-state,.ledger-quick-add,.ledger-grade-action) { background: var(--paper); color: var(--ink); border: 1px solid var(--line-dark); box-shadow: none; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(button.primary,.primary-action,.quick-add,.scan-add-action #addLibraryButton) { background: #315c43; color: #fff; border: 1px solid transparent; box-shadow: none; }
+body[data-ui-theme="mica"][data-appearance="dark"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(button.primary,.primary-action,.quick-add,.scan-add-action #addLibraryButton) { background: #e5ece6; color: #18241c; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(button.secondary,.secondary-action,.tool-button,.inline-retry,.position-new-state,.ledger-quick-add,.ledger-grade-action) { background: var(--paper); color: var(--ink); border: 1px solid var(--line-dark); box-shadow: none; }
 body[data-ui-theme="mica"] #appShell .exact-sold-value .inline-source-link { background: var(--mint); color: var(--pine-2); border-color: transparent; box-shadow: none; }
 body[data-ui-theme="mica"] #appShell :is(.sidebar-item.active,.view-tab.active,.history-range-buttons button[aria-pressed="true"]) { background: var(--mint); color: var(--pine-2); box-shadow: none; }
 
+body[data-ui-theme="mica"] :is(.auth-dialog,.onboarding-card,#bottomSheet) { background: var(--paper); color: var(--ink); border-color: var(--line); box-shadow: var(--shadow); }
+body[data-ui-theme="mica"] :is(.sheet-backdrop,.onboarding-dialog),
+body[data-ui-theme="mica"] .auth-dialog::backdrop { background: #10131166; backdrop-filter: none; }
+body[data-ui-theme="mica"] #bottomSheet :is(.vision-local-check,.simple-note,.vision-prefill-note,.photo-assist) { color: var(--muted); background: var(--paper-strong); border-color: var(--line); box-shadow: none; }
+body[data-ui-theme="mica"] .precision-prepare>div { background: var(--paper-strong); border-color: var(--line); padding: 12px 16px; }
+body[data-ui-theme="mica"] .precision-prepare :is(span,strong) { color: var(--muted); }
+body[data-ui-theme="mica"] .precision-prepare>div[data-state="complete"] strong { color: var(--pine-2); }
+body[data-ui-theme="mica"] .precision-prepare i { background: var(--line); }
+body[data-ui-theme="mica"] .precision-prepare i b { background: var(--pine-2); }
+body[data-ui-theme="mica"] .precision-prepare>div[data-state="complete"] i b { background: var(--pine-2); }
+body[data-ui-theme="mica"] #appShell .portfolio-pnl-picker summary { color: var(--muted); font-weight: 400; }
 /* 3. Icons: retain the existing line set and the real Mica mark. */
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.sidebar-item,.nav-item,.tool-button,.icon-button)>svg { width: 18px; height: 18px; flex-shrink: 0; stroke-width: 1.5; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.sidebar-item,.nav-item,.tool-button,.icon-button)>svg { width: 18px; height: 18px; flex-shrink: 0; stroke-width: 1.5; }
 body[data-ui-theme="mica"] #appShell .sidebar-item>svg { color: currentColor; }
 body[data-ui-theme="mica"] #appShell .sidebar-item>span { min-width: 0; }
 
 /* 4–5. Copy and type: concise labels, native type, readable small text. */
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(h1,h2,h3) { font-weight: 500; letter-spacing: 0; line-height: 1.2; text-transform: none; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(h1,h2,h3) { font-weight: 500; letter-spacing: 0; line-height: 1.2; text-transform: none; }
 body[data-ui-theme="mica"] #appShell :is(.collection-heading,.add-cards-heading,.screen-heading) h1 { font-size: clamp(28px,3vw,36px); font-weight: 500; letter-spacing: -.02em; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.eyebrow,.field>label,.settings-group>h2,.micro-tag,.status-label,.card-rarity) { text-transform: none; letter-spacing: 0; font-weight: 500; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(small,.help-text,.price-provenance,.legal-copy,.card-meta) { letter-spacing: 0; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.eyebrow,.field>label,.settings-group>h2,.micro-tag,.status-label,.card-rarity) { text-transform: none; letter-spacing: 0; font-weight: 500; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(small,.help-text,.price-provenance,.legal-copy,.card-meta) { letter-spacing: 0; }
 body[data-ui-theme="mica"] #appShell :is(.portfolio-value,.exact-sold-value>strong,.market-hero>strong) { font-weight: 500; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
 body[data-ui-theme="mica"] #appShell .ledger-row .card-name { font-weight: 500; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.position-price-grid,.row-move,.history-summary,.history-tooltip,.card-history-stat) { font-variant-numeric: tabular-nums; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.position-price-grid,.row-move,.history-summary,.history-tooltip,.card-history-stat) { font-variant-numeric: tabular-nums; }
 body[data-ui-theme="mica"] #appShell :is(.history-chart-head,.portfolio-history-head) { color: var(--muted); }
 body[data-ui-theme="mica"] #authGate #authTitle { font-size: 32px; font-weight: 500; letter-spacing: -.02em; }
 body[data-ui-theme="mica"] #authGate #authDescription { color: var(--muted); margin: 8px 0 24px; font-size: 15px; }
 body[data-ui-theme="mica"] #appShell .micro-tag { color: var(--muted); background: var(--paper-strong); border-color: var(--line); border-radius: 4px; padding: 4px 8px; }
 
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(p,li,dd,dt) { overflow-wrap: break-word; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.field>label,.field>span,.auth-text-action,.settings-group button,.settings-group>label) { font-size: var(--type-label); font-weight: 400; line-height: 1.45; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(small,.help-text,.price-provenance,.legal-copy,.card-meta,.form-error,.auth-message,.sheet-heading p,.optional-label) { font-size: var(--type-meta); line-height: 1.45; }
+body[data-ui-theme="mica"] #appShell :is(.dashboard-card-row small,.ledger-row .card-meta,.settings-group button small,.detail-title-context) { font-size: var(--type-meta); font-weight: 400; }
+body[data-ui-theme="mica"] :is(.auth-dialog,.onboarding-card) h1 { font-size: 28px; font-weight: 500; line-height: 1.2; letter-spacing: 0; }
+body[data-ui-theme="mica"] :is(.auth-dialog,.onboarding-card) p:not(.form-error):not(.auth-message) { color: var(--muted); font-size: 15px; line-height: 1.45; }
+body[data-ui-theme="mica"] #appShell :is(.micro-tag,.detail-grade-badge) { font-variant-numeric: tabular-nums; font-size: 13px; line-height: 20px; font-weight: 500; letter-spacing: 0; }
+body[data-ui-theme="mica"] #appShell .detail-grade-badge { padding: 2px 8px; }
+body[data-ui-theme="mica"] #appShell :is(.history-period-change,.portfolio-return-summary) { font-size: 15px; }
+body[data-ui-theme="mica"] #bottomSheet :is(.sheet-heading h2,.section-heading) { font-size: 20px; font-weight: 500; letter-spacing: 0; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(input,select,textarea) { font-size: 16px; line-height: 1.45; font-variant-numeric: tabular-nums; }
 /* 6. Layout: fluid charts, consistent gutters, compact identity and forms. */
 body[data-ui-theme="mica"] #appShell .view { padding-inline: 32px; }
 body[data-ui-theme="mica"] #appShell :is(#view-dashboard,#view-detail) { padding-inline: 24px; }
@@ -7066,20 +7103,38 @@ body[data-ui-theme="mica"] #authGate .auth-card { width: min(100%,420px); paddin
 body[data-ui-theme="mica"] #appShell #view-collection .ledger-row { padding: 16px; gap: 12px; border-radius: 12px; }
 body[data-ui-theme="mica"] #appShell .add-cards-layout { gap: 32px; }
 
+body[data-ui-theme="mica"] .onboarding-dialog { padding: max(16px,var(--safe-top)) 16px max(16px,var(--safe-bottom)); }
+body[data-ui-theme="mica"] .onboarding-card { width: min(100%,440px); max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px); border-radius: 20px; }
+body[data-ui-theme="mica"] .onboarding-actions { display: flex; flex-wrap: wrap; }
+body[data-ui-theme="mica"] .onboarding-actions>button { flex: 1; }
+body[data-ui-theme="mica"] .auth-dialog { max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 32px); overflow-y: auto; }
+body[data-ui-theme="mica"] #appShell :is(.history-chart-head,.portfolio-history-head) { align-items: center; gap: 16px; flex-wrap: wrap; }
+body[data-ui-theme="mica"] #bottomSheet .photo-assist img { max-height: min(40dvh,320px); object-fit: contain; }
+body[data-ui-theme="mica"] #appShell .detail-title-context { overflow-wrap: anywhere; }
+body[data-ui-theme="mica"] #appShell .settings-group>label { flex-wrap: wrap; }
+body[data-ui-theme="mica"] #appShell .settings-group select { min-width: 100px; }
 /* 7. Details: shared controls, predictable focus and selected states. */
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(.primary,.secondary,.primary-action,.secondary-action,.quick-add,.tool-button,.inline-retry,.position-new-state,.ledger-quick-add,.ledger-grade-action) { min-height: 44px; padding: 12px 16px; border-radius: 10px; font-weight: 500; line-height: 20px; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) { border-radius: 10px; background-color: var(--paper); color: var(--ink); border-color: var(--line-dark); box-shadow: none; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.primary,.secondary,.primary-action,.secondary-action,.quick-add,.tool-button,.inline-retry,.position-new-state,.ledger-quick-add,.ledger-grade-action) { min-height: 44px; padding: 12px 16px; border-radius: 10px; font-weight: 500; line-height: 20px; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(input:not([type="checkbox"]):not([type="radio"]),select,textarea) { border-radius: 10px; background-color: var(--paper); color: var(--ink); border-color: var(--line-dark); box-shadow: none; }
 body[data-ui-theme="mica"] #appShell .history-range-buttons { padding: 4px; gap: 4px; border-radius: 12px; background: var(--paper); }
 body[data-ui-theme="mica"] #appShell .history-range-buttons button { min-height: 44px; min-width: 44px; border-radius: 8px; padding: 8px; font-weight: 500; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button,a,input,select,textarea,summary):focus-visible { outline: 2px solid var(--pine-2); outline-offset: 3px; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(button,a,input,select,textarea,summary):focus-visible { outline: 2px solid var(--pine-2); outline-offset: 3px; }
 body[data-ui-theme="mica"] #appShell .collection-grade-modes>button:hover:not([aria-disabled="true"]) { transform: none; box-shadow: none; border-color: var(--line-dark); }
 body[data-ui-theme="mica"] #appShell .view-tab>span { background: transparent; color: var(--muted); }
 body[data-ui-theme="mica"] #appShell .detail-sticky-action { background: var(--paper); border-color: var(--line); box-shadow: none; backdrop-filter: none; }
 body[data-ui-theme="mica"] #appShell .detail-sticky-action button { border-radius: 10px; }
 body[data-ui-theme="mica"] #appShell .history-tooltip { background: var(--paper); color: var(--ink); border: 1px solid var(--line-dark); border-radius: 10px; box-shadow: var(--shadow); }
+body[data-ui-theme="mica"] #bottomSheet { border-radius: 20px 20px 0 0; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(input:not([type="checkbox"]):not([type="radio"]),select) { min-height: 48px; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) textarea { min-height: 96px; padding: 12px; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.primary,.secondary):disabled { opacity: .55; cursor: default; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.primary,.primary-action):active:not(:disabled) { filter: brightness(.92); }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(.field-choice,.sheet-actions>button,.auth-form>button) { min-height: 48px; }
+body[data-ui-theme="mica"] #appShell :is(.ledger-row,.dashboard-card-row,.catalog-result):focus-within { outline: 2px solid var(--pine-2); outline-offset: 3px; }
+body[data-ui-theme="mica"] :is(.auth-dialog,.onboarding-card) :is(button,input,select,textarea):focus-visible { outline: 2px solid var(--pine-2); outline-offset: 3px; }
 @media (hover:hover) {
-  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) button.secondary:hover:not(:disabled) { background: var(--paper-strong); color: var(--ink); border-color: var(--line-dark); }
-  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) button.primary:hover:not(:disabled) { filter: brightness(.95); box-shadow: none; }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) button.secondary:hover:not(:disabled) { background: var(--paper-strong); color: var(--ink); border-color: var(--line-dark); }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) button.primary:hover:not(:disabled) { filter: brightness(.95); box-shadow: none; }
 }
 
 /* 8. Visuals: keep actual artwork and charts, no generated decoration. */
@@ -7088,10 +7143,19 @@ body[data-ui-theme="mica"] #appShell :is(.collection-grade-modes>button,.add-sea
 body[data-ui-theme="mica"] #appShell :is(.collection-grade-modes>button,.add-search-panel,.add-capture-panel)::after { content: none; }
 
 /* 9. Motion: feedback only; preserve chart drawing and reduced motion. */
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button,a,input,select,textarea,summary) { transition: color 160ms var(--ease), background-color 160ms var(--ease), border-color 160ms var(--ease), opacity 160ms var(--ease), transform 160ms var(--ease); }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(button,a,input,select,textarea,summary) { transition: color var(--feedback-duration) var(--ease), background-color var(--feedback-duration) var(--ease), border-color var(--feedback-duration) var(--ease), opacity var(--feedback-duration) var(--ease), transform var(--feedback-duration) var(--ease); }
 body[data-ui-theme="mica"] #appShell .view { animation: none; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) button:not(:disabled):hover { transform: none; }
-body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) button:not(:disabled):active { transform: scale(.99); }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) button:not(:disabled):hover { transform: none; }
+body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) button:not(:disabled):active { transform: none; opacity: .82; }
+body[data-ui-theme="mica"] #bottomSheet { animation: mica-sheet-enter var(--sheet-duration) var(--ease) both; }
+body[data-ui-theme="mica"] :is(.auth-dialog[open],.onboarding-card) { animation: mica-menu-enter var(--popover-duration) var(--ease) both; }
+body[data-ui-theme="mica"] .toast { animation: mica-menu-enter var(--popover-duration) var(--ease) both; }
+body[data-ui-theme="mica"] .precision-prepare i b { transition: none; transform-origin: left; width: 100%; transform: scaleX(0); }
+body[data-ui-theme="mica"] .precision-prepare>div[data-state="active"] i b { width: 100%; transform: scaleX(1); opacity: .35; animation: none; }
+body[data-ui-theme="mica"] .precision-prepare>div[data-state="complete"] i b { transform: scaleX(1); opacity: 1; }
+body[data-ui-theme="mica"] :is(.grade-processing i::after,.camera-scan-line,.card-loading-skeleton [aria-hidden]) { animation: none; }
+@keyframes mica-sheet-enter { from { opacity: 0; translate: 0 16px; } to { opacity: 1; translate: 0 0; } }
+@keyframes mica-menu-enter { from { opacity: 0; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }
 @media (max-width:759px) {
   body[data-ui-theme="mica"] #appShell .view,
   body[data-ui-theme="mica"] #appShell :is(#view-dashboard,#view-detail) { padding-inline: 16px; }
@@ -7105,8 +7169,14 @@ body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) button:not(:dis
   body[data-ui-theme="mica"] #authGate .auth-card { padding: 24px; }
   body[data-ui-theme="mica"] #appShell .add-cards-layout { gap: 24px; }
 }
+@media (max-height:500px) and (orientation:landscape) {
+  body[data-ui-theme="mica"] #appShell #portfolioHistory .portfolio-chart-shell,
+  body[data-ui-theme="mica"] #appShell #cardPriceHistory .chart-wrap { height: 240px; min-height: 240px; }
+}
+
 @media (prefers-reduced-motion:reduce) {
-  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet) :is(button,a,input,select,textarea,summary) { transition: none; }
+  body[data-ui-theme="mica"] :is(#appShell,#authGate,#bottomSheet,.auth-dialog,#onboardingDialog) :is(button,a,input,select,textarea,summary) { transition: none; }
+  body[data-ui-theme="mica"] :is(#bottomSheet,.auth-dialog,.onboarding-card,.toast) { animation: none !important; }
 }
 
 /* Explicit shared variants also cover controls without primary/secondary classes. */

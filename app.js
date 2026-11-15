@@ -2830,7 +2830,7 @@ const historyChartReveal = {
     if (!reveal || reveal.progress === 1) return;
     reveal.startedAt ??= performance.now();
     reveal.progress = motionPreference === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches
-      ? 1 : Math.min(1, (performance.now() - reveal.startedAt) / 850);
+      ? 1 : Math.min(1, (performance.now() - reveal.startedAt) / 300);
     if (reveal.progress === 1) return;
     const { left, top, width, height } = chart.chartArea;
     chart.ctx.save();
@@ -15775,7 +15775,7 @@ async function showProcessing(file) {
     `<img src="${previewUrl}" alt="Selected card photograph">`;
   $("#qualityChip").innerHTML = "<span></span> Preparing photo";
   openSheet(
-    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find this card</h2><p>Read the printed name and bottom number</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p><strong>Nothing is saved automatically.</strong> Mica opens an exact match automatically.</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Checking photo quality…</div><div class="sheet-actions"><button class="primary" id="photoAssistRetry" type="button" hidden>Adjust or retake</button><button class="secondary" id="photoAssistSearch" type="button" hidden>Search myself</button></div>`,
+    `<div class="sheet-heading"><div><h2 id="sheetTitle">Find this card</h2><p>Checking the card and slab label</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="photo-assist vision-photo"><img id="photoAssistImage" src="${previewUrl}" alt="Selected card front"><p>Review the match before adding</p></div><div class="vision-local-check" id="visionLocalCheck" aria-live="polite">Checking photo quality…</div><div class="sheet-actions"><button class="primary" id="photoAssistRetry" type="button" hidden>Adjust or retake</button><button class="secondary" id="photoAssistSearch" type="button" hidden>Search myself</button></div>`,
   );
   $("#bottomSheet").dataset.sensitive = "true";
   $("#bottomSheet").dataset.visionOperation = operationId;
