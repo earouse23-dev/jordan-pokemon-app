@@ -1052,3 +1052,10 @@ test('slab identity retains exact label tiers, printing facts and unknown-versus
     assert.equal(result.identity.certificationNumber,'0012345678');
   }
 });
+
+
+test("slab label number stays searchable without a guessed denominator", () => {
+ const result = normalizeVisionOutput("identify", {quality:{usable:true}, identity:{isPokemonCard:true, name:"Ninetales",setName:"Dragon Frontiers",collectorNumber:"8",language:"en",cardState:"graded",grader:"PSA",grade:9,certificationNumber:"132008880",confidence:.95}});
+ assert.equal(result.searchQuery, "Ninetales Dragon Frontiers #8");
+ assert.equal(result.identity.certificationNumber, "132008880");
+});

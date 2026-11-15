@@ -8677,8 +8677,13 @@ function restoreDetailValuationFocus(focusId) {
 function renderDetailPreservingValuationFocus() {
   const focusedId = document.activeElement?.id || "";
   const preserveFocus = focusedId.startsWith("detailValuation");
+  const draftValue = preserveFocus ? document.activeElement.value : null;
   renderDetail();
-  if (preserveFocus) restoreDetailValuationFocus(`#${focusedId}`);
+  if (preserveFocus) {
+    const control = document.getElementById(focusedId);
+    if (control && draftValue != null) control.value = draftValue;
+    restoreDetailValuationFocus(`#${focusedId}`);
+  }
 }
 
 function renderDetail() {
@@ -8986,7 +8991,7 @@ function renderDetail() {
   const releaseYear = /^(\d{4})(?:$|-\d{2}-\d{2}(?:T|$))/.exec(String(item.release || item.releaseYear || ""))?.[1] || "Unknown";
   const identityDetails = sealed
     ? `<details class="identity-details"><summary>Product details</summary><div class="detail-meta">${detailMeta}</div></details>`
-    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span>${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && owned ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
+    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span>${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
   const listingTitle = sealed ? item.name : cardListingTitle(item, printing, context);
   const nameAt = listingTitle.indexOf(item.name);
   const gradeLabel = context.cardState === "graded" && context.gradingCompany && context.grade ? `${context.gradingCompany} ${context.grade}` : "";
@@ -9059,7 +9064,7 @@ function renderDetail() {
       ? history.back()
       : routeTo(state.detailReturnRoute || (owned ? "collection" : "scan")),
   );
-  $("#confirmPrintingButton")?.addEventListener("click", () => openPrintingConfirmationSheet(owned));
+  $("#confirmPrintingButton")?.addEventListener("click", () => openPrintingConfirmationSheet(owned || item));
   $("#editCopyButton")?.addEventListener("click", () =>
     openPositionEditSheet(item),
   );
@@ -9979,6 +9984,7 @@ function openWatchlistSheet(card, existing = null, defaults = {}) {
       state.detailId = null;
       state.detailCard = null;
     state.detailScanDraft = null;
+    pendingVisionSearch = null;
       state.detailCanPop = false;
       state.ledgerView = "watchlist";
       syncTabs();
@@ -11532,6 +11538,7 @@ function openDeleteCopySheet(item) {
       state.detailId = null;
       state.detailCard = null;
     state.detailScanDraft = null;
+    pendingVisionSearch = null;
       state.detailCanPop = false;
       routeTo("collection");
       await reloadPortfolio();
@@ -11545,7 +11552,7 @@ function openDeleteCopySheet(item) {
 
 function openPrintingConfirmationSheet(item) {
   const choices = (id, label, values) => `<div class="field"><label for="${id}">${label}</label><select id="${id}" name="${id}" required><option value="">Choose from your card</option>${values.map(([value,text]) => `<option value="${value}">${text}</option>`).join("")}</select></div>`;
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm card version</h2><p>${esc(item.name)} · ${esc(item.set)} · ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="confirmPrintingForm"><div class="form-grid">${choices("printingFinish","Finish",[["holofoil","Holofoil"],["non_holo","Non-holo"],["reverse_holofoil","Reverse holofoil"]])}${choices("printingEdition","Edition / stamp",[["unlimited","Regular / unlimited"],["first_edition","1st Edition"],["shadowless","Shadowless"]])}${choices("printingPromo","Promo marking",[["none","No promo marking"],["black_star","Black Star promo"],["prerelease","Prerelease"],["staff","Staff"],["league","League"]])}${item.gradingCompany ? choices("printingQualifier","Grade qualifier",[["none","No qualifier on label"],["OC","OC"],["MC","MC"],["ST","ST"],["PD","PD"],["OF","OF"],["MK","MK"]]) : ""}<p class="form-error" id="printingError" role="alert"></p></div><p>Check the actual card or slab. Purchases, sales and notes stay with this copy; previous price observations remain in correction history.</p><div class="sheet-actions"><button class="secondary" type="button" id="printingCancel">Cancel</button><button class="primary" type="submit">Confirm version</button></div></form>`);
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm card version</h2><p>${esc(item.name)} · ${esc(item.set)} · ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="confirmPrintingForm"><div class="form-grid">${choices("printingFinish","Finish",[["holofoil","Holofoil"],["non_holo","Non-holo"],["reverse_holofoil","Reverse holofoil"]])}${choices("printingEdition","Edition / stamp",[["unlimited","Regular / unlimited"],["first_edition","1st Edition"],["shadowless","Shadowless"]])}${choices("printingPromo","Promo marking",[["none","No promo marking"],["black_star","Black Star promo"],["prerelease","Prerelease"],["staff","Staff"],["league","League"]])}${item.gradingCompany ? choices("printingQualifier","Grade qualifier",[["none","No qualifier on label"],["Pristine","Pristine"],["Black Label","Black Label"],["OC","OC"],["MC","MC"],["ST","ST"],["PD","PD"],["OF","OF"],["MK","MK"]]) : ""}<p class="form-error" id="printingError" role="alert"></p></div><p>Check the actual card or slab. Purchases, sales and notes stay with this copy; previous price observations remain in correction history.</p><div class="sheet-actions"><button class="secondary" type="button" id="printingCancel">Cancel</button><button class="primary" type="submit">Confirm version</button></div></form>`);
   $("#printingCancel").addEventListener("click", closeSheet);
   $("#confirmPrintingForm").addEventListener("submit", async event => {
     event.preventDefault(); const owner = state.session?.user?.id, version = sessionLoadVersion;
@@ -11557,6 +11564,15 @@ function openPrintingConfirmationSheet(item) {
     option.label = (option.edition === "first_edition" ? "1st Edition " : "") + printingLabel;
     const identity = { ...identitySnapshot(item, option), variantId: null, collectibleId: null, gradeQualifier: data.printingQualifier === "none" ? "" : data.printingQualifier || item.gradeQualifier || "" };
     try {
+      if (!item.uid) {
+        const card = { ...item, ...identity, variantOptions: [option], variant: option.label, finish: option.finish, edition: option.edition, promoType: option.promoType };
+        const scan = state.detailScanDraft;
+        closeSheet({ discardHistory: true });
+        if (scan && accountRequestIsCurrent(scan.ownerId, scan.loadVersion)) {
+          openScannedCardDetail(card, { ...scan.options, prefill: { ...scan.options.prefill, finish: option.finish, edition: option.edition, promoType: option.promoType, variant: option.label, gradeQualifier: identity.gradeQualifier } });
+        } else openCardDetail(card, false, valuationContextForItem(card));
+        return;
+      }
       await remapCollectionPosition(supabase, { collectionItemId: item.uid, identity });
       if (!accountRequestIsCurrent(owner, version)) return;
       state.portfolioHistory = [];
@@ -13743,9 +13759,9 @@ async function identityEvidenceDataUrl(source, documentKind = "card") {
   context.drawImage(
     source,
     card.x,
-    card.y + card.height * 0.7,
+    slab ? card.y : card.y + card.height * 0.7,
     card.width,
-    card.height * 0.3,
+    slab ? card.height : card.height * 0.3,
     734,
     570,
     774,
@@ -13998,7 +14014,7 @@ async function prepareVisionImage(file, options = {}) {
   if (
     !originalWidth ||
     !originalHeight ||
-    Math.min(originalWidth, originalHeight) < 600
+    Math.min(originalWidth, originalHeight) < (options.purpose === "collectible" ? 256 : 600)
   ) {
     decoded.close?.();
     throw new Error("image_resolution_low");
@@ -14059,6 +14075,9 @@ async function prepareVisionImage(file, options = {}) {
       : null;
   const acceptedGeometry = Boolean(correctedCanvas);
   const detectedBounds = acceptedGeometry ? isolatedCard.bounds : null;
+  const identitySource = options.purpose === "collectible"
+    ? sourceEvidenceCanvas(decoded, originalWidth, originalHeight, null)
+    : null;
   const evidenceCanvas = sourceEvidenceCanvas(
     decoded,
     originalWidth,
@@ -14127,7 +14146,7 @@ async function prepareVisionImage(file, options = {}) {
         ? "slab"
         : "card";
   const identityDataUrl = await identityEvidenceDataUrl(
-    correctedCanvas || evidenceCanvas,
+    identitySource || correctedCanvas || evidenceCanvas,
     documentKind,
   );
   const uploadCanvas = options.purpose === "card" ? evidenceCanvas : canvas;
@@ -14531,7 +14550,17 @@ async function gradingReportThumbnailBlob(preparedImages = []) {
   return blob;
 }
 
-function openVisionSearchFallback(query = "", language = "en") {
+let pendingVisionSearch = null;
+
+function openScannedCardDetail(card, options) {
+  const prefill = options.prefill;
+  const printing = normalizeVariantOption({ ...selectedPrinting(card), ...Object.fromEntries(["finish", "edition", "promoType"].filter(field => prefill[field]).map(field => [field, prefill[field]])) });
+  const identified = { ...card, finish: printing.finish, edition: printing.edition, promoType: printing.promoType, cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, gradeQualifier: prefill.gradeQualifier, certificationNumber: prefill.certificationNumber, condition: prefill.rawCondition || null };
+  openCardDetail(identified, false, valuationContextForItem(identified), { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(identified), options });
+}
+
+function openVisionSearchFallback(query = "", language = "en", options = null) {
+  pendingVisionSearch = options ? { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, options } : null;
   closeSheet({ discardHistory: true, force: true });
   routeTo("scan");
   const input = $("#quickCardSearch");
@@ -15115,7 +15144,11 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
     closeSheet({ force: true });
   });
   $("#visionManualSearch").addEventListener("click", () =>
-    openVisionSearchFallback(analysis.searchQuery, identity.language),
+    openVisionSearchFallback(analysis.searchQuery, identity.language, mode === "identify" ? {
+      prefill: visionPrefill(analysis, mode),
+      photoDataUrl: preparedImages[0]?.previewDataUrl || preparedImages[0]?.dataUrl,
+      ingestionChannel: "upload",
+    } : null),
   );
   $("#deleteGradingReport")?.addEventListener("click", async (event) => {
     if (
@@ -15469,9 +15502,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
           },
         };
         if (mode === "identify") {
-          const scannedPrinting = normalizeVariantOption({ ...selectedPrinting(card), ...Object.fromEntries(["finish", "edition", "promoType"].filter(field => prefill[field]).map(field => [field, prefill[field]])) });
-          const identified = { ...card, finish: scannedPrinting.finish, edition: scannedPrinting.edition, promoType: scannedPrinting.promoType, cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, gradeQualifier: prefill.gradeQualifier, certificationNumber: prefill.certificationNumber, condition: prefill.rawCondition || null };
-          openCardDetail(identified, false, valuationContextForItem(identified), { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(identified), options: scanOptions });
+          openScannedCardDetail(card, scanOptions);
         } else openPositionSheet(card, scanOptions);
       }),
     );
@@ -15718,6 +15749,7 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
 }
 
 async function showProcessing(file) {
+  pendingVisionSearch = null;
   const operationId = crypto.randomUUID();
   const previewUrl = URL.createObjectURL(file);
   $("#capturePreview").innerHTML =
@@ -19699,12 +19731,21 @@ function bindQuickCardSearch() {
       }),
     );
     $$("[data-quick-card]", resultsNode).forEach((button, index) =>
-      button.addEventListener("click", () => openCardDetail(visible[index])),
+      button.addEventListener("click", () => {
+        const scan = pendingVisionSearch;
+        pendingVisionSearch = null;
+        if (scan && accountRequestIsCurrent(scan.ownerId, scan.loadVersion)) openScannedCardDetail(visible[index], scan.options);
+        else openCardDetail(visible[index]);
+      }),
     );
     $$("[data-add-search-card]", resultsNode).forEach((button, index) =>
       button.addEventListener("click", () => {
         const card = visible[index];
-        if (card) openPositionSheet(card, { ingestionChannel: "search" });
+        if (card) {
+          const scan = pendingVisionSearch;
+          pendingVisionSearch = null;
+          openPositionSheet(card, scan && accountRequestIsCurrent(scan.ownerId, scan.loadVersion) ? scan.options : { ingestionChannel: "search" });
+        }
       }),
     );
     $$("[data-queue-search-card]", resultsNode).forEach((button, index) =>
@@ -21517,6 +21558,7 @@ async function applySession(session) {
     state.detailId = null;
     state.detailCard = null;
     state.detailScanDraft = null;
+    pendingVisionSearch = null;
     state.movementStatus = "idle";
     state.accountLoading = false;
     state.accountLoadError = "";
@@ -21568,6 +21610,7 @@ async function applySession(session) {
   state.detailId = null;
   state.detailCard = null;
   state.detailScanDraft = null;
+    pendingVisionSearch = null;
   state.pricingStatus = "idle";
   state.pricingRetrievedAt = null;
   state.movementStatus = "idle";

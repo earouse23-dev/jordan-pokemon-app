@@ -109,6 +109,7 @@ import {
   fetchPkmnPricesSales,
   fetchPkmnPricesSealedSearch,
   fetchPkmnPricesLookup,
+  searchPkmnPricesCatalog,
   matchesPkmnPricesIdentity,
   normalizePkmnPricesCard,
   normalizePkmnPricesOffer,
@@ -3041,4 +3042,18 @@ test("exact first-edition Espeon accepts a cosmetic swirl annotation while rejec
     saleMatchesPrinting(sale, { ...lookup, edition: "unlimited" }),
     false,
   );
+});
+
+
+test("slab catalog recovery is bounded, cached, language-specific and requires confirmation", async t => {
+ const urls=[];
+ t.mock.method(globalThis,"fetch",async input=>{urls.push(new URL(input));return Response.json({data:[{id:99991,name:"Charizard",number:"092",total_set_number:"092",language:"Japanese",set:{name:"Intense Fight in the Destroyed Sky"},image_url:"https://example.com/card.jpg"},{id:99992,name:"Charizard",number:"092",language:"English",set:{name:"Stormfront"}}]});});
+ const identity={name:"Charizard",collectorNumber:"092/092",language:"ja",setName:"Stormfront"};
+ const first=await searchPkmnPricesCatalog("catalog-fixture",identity);
+ const second=await searchPkmnPricesCatalog("catalog-fixture",identity);
+ assert.equal(urls.length,1);assert.equal(urls[0].searchParams.get("per_page"),"8");
+ assert.equal(urls[0].searchParams.get("language"),"Japanese");
+ assert.equal(first.length,1);assert.equal(first[0].externalIds.pkmnprices,"99991");
+ assert.equal(first[0].identityStatus,"needs_review");assert.equal(first[0].number,"092/092");
+ assert.deepEqual(second,first);assert.equal(urls[0].pathname,"/v1/cards");
 });

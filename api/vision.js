@@ -1,3 +1,4 @@
+import { searchPkmnPricesCatalog } from "../lib/providers/pkmnprices.js";
 import { releaseHold } from "../lib/release-hold.js";
 import { withNativeCors } from "../lib/native-cors.js";
 import { createHash } from "node:crypto";
@@ -642,7 +643,7 @@ export async function visionHandler(
         const language = String(analysis.identity?.language || "en").toLowerCase();
         const internal = await searchInternalCatalog(
           database,
-          analysis.searchQuery,
+          analysis.identity,
           language,
           12,
         );
@@ -654,12 +655,12 @@ export async function visionHandler(
           };
         } else {
           const cards = await searchTcgdexCards(
-            analysis.searchQuery,
+            analysis.identity,
             language,
             12,
             controller.signal,
-          );
-          const parsedQuery = parseCatalogQuery(analysis.searchQuery);
+          ).catch(() => []);
+          const parsedQuery = parseCatalogQuery(analysis.identity);
           catalogResolution = {
             cards,
             parsedQuery,
@@ -673,6 +674,21 @@ export async function visionHandler(
         console.warn("[api/vision] catalog resolution unavailable", {
           name: error?.name || "Error",
         });
+      }
+    }
+    if (input.mode === "identify" && analysis.quality?.usable && !catalogResolution?.cards?.length && config.pkmnpricesApiKey) {
+      try {
+        const cards = await searchPkmnPricesCatalog(config.pkmnpricesApiKey, analysis.identity, controller.signal);
+        if (cards.length) catalogResolution = {
+          cards,
+          parsedQuery: parseCatalogQuery(analysis.identity),
+          resolution: { status: "review", recommendedId: null, requiresConfirmation: true, ambiguity: ["provider_catalog_confirmation"] },
+          source: "pkmnprices_catalog",
+          language: analysis.identity.language,
+          retrievedAt: new Date().toISOString(),
+        };
+      } catch (error) {
+        console.warn("[api/vision] provider catalog unavailable", { name: error?.name || "Error" });
       }
     }
     let referenceSelection = null;

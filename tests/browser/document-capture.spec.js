@@ -1343,3 +1343,44 @@ for(const [grader,grade,qualifier] of [['CGC',10,'Pristine'],['BGS',10,'Black La
  expect(dimensions).toEqual([1536,1024]);
  expect(requests.writes.filter(r=>!r.path.endsWith('/rpc/record_ingestion_event'))).toHaveLength(0);
 });
+
+
+test("readable phone screenshots can identify without passing grading resolution", async ({page}) => {
+ await setup(page);
+ const result = await page.evaluate(async () => {
+  const canvas=document.createElement("canvas"); canvas.width=360;canvas.height=782;
+  const ctx=canvas.getContext("2d");ctx.fillStyle="#bbb";ctx.fillRect(0,0,360,782);ctx.fillStyle="#fff";ctx.fillRect(15,80,330,120);ctx.fillStyle="#111";ctx.font="18px sans-serif";ctx.fillText("PSA GEM MT 10 #003",20,110);
+  const blob=await new Promise(r=>canvas.toBlob(r,"image/jpeg"));const file=new File([blob],"phone-screenshot.jpg",{type:"image/jpeg"});
+  const prepared=await __documentCaptureApp.prepareVisionImage(file,{purpose:"collectible"});
+  let gradingError=null;try{await __documentCaptureApp.prepareVisionImage(file,{purpose:"card"});}catch(e){gradingError=e.message;}
+  return {width:prepared.width,gradingError};
+ });
+ expect(result.width).toBeGreaterThan(0);expect(result.gradingError).toBe("image_resolution_low");
+});
+
+
+for (const recover of [false,true]) test(`slab ${recover ? "manual recovery" : "preview confirmation"} retains grade and certificate`,async({page})=>{
+ const card={id:"fixture-ninetales",name:"Ninetales δ",set:"Dragon Frontiers",number:"8/101",language:"en",variant:"Holofoil",finish:"holofoil",edition:"unknown",promoType:"unknown",identityStatus:"needs_review",thumb:"/icons/icon.svg"};
+ const payload={analysis:{quality:{usable:true},searchQuery:"Ninetales #8",identity:{name:"Ninetales",setName:"Dragon Frontiers",collectorNumber:"8",language:"en",cardState:"graded",grader:"PSA",grade:9,gradeQualifier:"",certificationNumber:"132008880",confidence:.98}},catalogResolution:{cards:recover?[]:[card],resolution:{status:recover?"no_match":"exact",recommendedId:recover?null:card.id}}};
+ await setup(page,{recognition:true,experience:"intake",visionPayload:payload});
+ if(recover) await page.evaluate(()=>__documentCaptureApp.bindEvents());
+ await installSyntheticDocument(page);
+ await page.evaluate(()=>{const input=document.querySelector('#deviceCameraUpload');input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
+ if(recover){
+  await expect(page.locator("#visionManualSearch")).toBeVisible();
+  await page.route("**/api/catalog**",route=>route.fulfill({contentType:"application/json",body:JSON.stringify({cards:[card],hasMore:false})}));
+  await page.locator("#visionManualSearch").click();
+  await page.locator("[data-quick-card]").first().click();
+ }
+ await expect(page.locator("#detailTitle")).toContainText("PSA 9");
+ await page.locator("#confirmPrintingButton").click();
+ await page.locator("#printingFinish").selectOption("holofoil");
+ await page.locator("#printingEdition").selectOption("unlimited");
+ await page.locator("#printingPromo").selectOption("none");
+ await page.locator("#printingQualifier").selectOption("none");
+ await page.getByRole("button",{name:"Confirm version",exact:true}).click();
+ await expect(page.locator("#detailTitle")).toContainText("PSA 9");
+ await page.locator("#addLibraryButton").click();
+ await expect(page.locator("#positionGrade")).toHaveValue("9");
+ await expect(page.locator("#positionCertification")).toHaveValue("132008880");
+});

@@ -604,3 +604,17 @@ test("internal catalog paging applies exact filters before range and stable orde
   assert.deepEqual(operations.at(-1), ["range", 12, 24]);
   assert.deepEqual(operations.at(-2), ["order", "id", { ascending: true }]);
 });
+
+
+test("slab observations preserve unfamiliar sets and label-only numbers", () => {
+  const parsed = parseCatalogQuery({name:"Ninetales δ", setName:"Dragon Frontiers", collectorNumber:"8", language:"en"});
+  assert.equal(parsed.name, "Ninetales");
+  assert.equal(parsed.localId, "8");
+  assert.equal(parsed.total, "");
+  assert.equal(parsed.setName, "Dragon Frontiers");
+  assert.equal(parsed.providerId, null);
+  const japanese = parseCatalogQuery({name:"Charizard", setName:"Intense Fight in the Destroyed Sky", collectorNumber:"092/092", language:"ja"});
+  assert.equal(japanese.localId, "92");
+  assert.equal(japanese.setName, "Intense Fight in the Destroyed Sky");
+  assert.equal(parseCatalogQuery({name:"M Charizard", language:"en", printingHints:["EX"]}).name, "M Charizard EX");
+});
