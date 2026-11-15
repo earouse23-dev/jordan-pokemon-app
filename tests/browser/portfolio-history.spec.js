@@ -948,6 +948,10 @@ for (const appearance of ['light', 'dark']) {
   await expect(retry).toBeHidden();
   await expect(page.locator('.status-label')).not.toContainText('Update incomplete');
   expect(calls).toBe(3);
+  await page.evaluate(async appUrl=>{const a=await import(appUrl);a.state.portfolioView={...a.state.portfolioView,historyRefreshIncomplete:true};a.renderCollection();},appUrl);
+  await expect(page.locator('.portfolio-chart-coverage>summary')).toContainText('History incomplete');
+  await expect(page.locator('.status-label')).not.toContainText('Update incomplete');
+  await expect(retry).toBeHidden();
   await page.evaluate(async ({appUrl,saved})=>{const a=await import(appUrl);a.state.portfolioView={...saved,refreshIncomplete:true,refreshReason:'provider_daily_budget_reached',attemptDay:'2026-01-03'};a.renderCollection();},{appUrl,saved});
   await expect(retry).toBeHidden();
   await expect(page.locator('#portfolioRetryNote')).toHaveText('Try again tomorrow');
