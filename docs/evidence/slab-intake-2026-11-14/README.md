@@ -22,7 +22,7 @@
 
 ## Live acceptance
 
-Pending real-photo retest after publication. Automated fixtures do not certify recognition or external sales coverage. Original photos and private audit evidence remain excluded from Git. No customer inventory write testing is authorized.
+Real-photo results are recorded in the final acceptance section below. Automated fixtures do not certify universal recognition or external sales coverage. Original photos and private audit evidence remain excluded from Git. No customer inventory records were written during testing.
 
 UI/motion work in this task is a plan only: `docs/MICA_IOS_UI_MOTION_PLAN_2026-11-14.md`.
 
@@ -51,3 +51,21 @@ Latest Node run: 610 passed, 3 skipped. The explicit preview-to-save browser tes
 The real Rayquaza request reached the provider successfully but returned no eligible value. Its exact-attributed November 2 PSA 10 row is labelled `Unlimited`, not `Normal`. The existing matcher already treated the provider's `1st Edition` label as the non-holo edition but lacked its unlimited counterpart. Added an explicit `Unlimited` → `unlimited normal` comparison alias. Original evidence keeps the provider's original label. Holo, first edition and unknown attribution remain excluded by separate checks.
 
 The normalized archive cache advances to v6 so previously screened-out rows can be reprocessed. Raw provider-response cache and saved owner histories remain intact; no SQL or destructive invalidation is involved. Tests reproduce the Rayquaza title/set/number match and reject another finish, edition and unknown attribution. Final Node suite: 611 passed, 3 skipped. Final UI/source matrix before this alias: 175 passed, 2 skipped; all 36 price-evidence browser cases passed again with the final alias across all three browser projects.
+
+## Final publication and real-photo acceptance
+
+Published source `e5f3ca2` to production deployment `dpl_Eg7dcS8jUhfXTxbKGTHtRoxC3mzP`. The production HTML, app, service worker and style hashes match the isolated release artifact. Health is healthy; unauthenticated cards, sales, graded valuation and portfolio requests return 401. See `production-verification.json`. Existing crons and provider budgets are unchanged.
+
+Original files were uploaded through the live app's normal photo chooser, without mocked recognition. Three TCG slab photos now resolve the correct card and PSA grade; their printed certificates were retained in the add forms, which were cancelled without saving inventory:
+
+| Original photo | Live result | Pricing result |
+| --- | --- | --- |
+| Japanese Sky's Rayquaza 003/019, PSA 10 | Correct Japanese card and certificate retained; non-holo version explicitly confirmed | $1,776, November 2, 2026, exact matching eBay item 366763283580 |
+| Japanese Charizard 092/092, PSA 10 | Correct Japanese card and certificate retained; first-edition holo version explicitly confirmed | $6,500, August 3, 2026, older matching eBay item 407034319577 |
+| Ninetales delta, Dragon Frontiers 8/101, PSA 9 | Correct card, grade and certificate retained | $453.13, May 31, 2026, older matching eBay item 336589909441 |
+| Sideways Topps Trying Out the New Toy foil, PSA 10 | Title and grade read; no catalog match, including on final production retest | Unresolved; no invented value |
+| Japanese Pokemon XD back-only photo | Negative control: no invented grade or price | No invented value |
+
+The newer Ninetales $1,175 provider row has unknown attribution and missing printing/language evidence. It remains excluded rather than silently substituting a newer but unverified match. Vision can still leave finish uncertain, so candidate/version confirmation remains necessary. Certificate transcription is not official PSA certificate authentication. Topps catalog coverage remains an open requirement: this is not a claim that all slabs now work or that the beta is fully accepted. Actual production save/database persistence and physical camera acceptance were not write-tested in this run.
+
+Private screenshots are under the ignored `benchmarks/private/slab-retest-2026-11-14/` directory. The whole-app iOS UI/motion document is a plan, not an implemented redesign. No photos, private account data or credentials were committed.
