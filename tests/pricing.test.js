@@ -2464,6 +2464,7 @@ test("sold API passes exact context and validates it even with direct provider I
       set: "Test Set",
       number: "1/10",
       variant: "reverse_holofoil",
+      finish: "reverse_holofoil",
     };
     await salesHandler(
       { method: "GET", query: { lookup: JSON.stringify(lookup) } },
@@ -3074,4 +3075,14 @@ test("delta species sold title can omit the symbol without changing the printing
  assert.equal(saleMatchesCanonicalIdentity({title:"2006 Pokemon Ninetales 8/101 Dragon Frontiers Holo PSA 9"},card,lookup),true);
  assert.equal(saleMatchesCanonicalIdentity({title:"2006 Pokemon Ninetales Delta Species 8/101 Dragon Frontiers Holo PSA 9"},card,lookup),true);
  assert.equal(saleMatchesCanonicalIdentity({title:"2006 Pokemon Ninetales 9/101 Dragon Frontiers Holo PSA 9"},card,lookup),false);
+});
+
+
+test("canonical non-holo and reverse-holo finishes match without collapsing printings",()=>{
+ for(const [printing,finish] of [["Normal","non_holo"],["Reverse Holofoil","reverse_holofoil"]]){
+  const sale={sourceUrl:"https://www.ebay.com/itm/123456789010",currency:"USD",attribution:"exact",printing,title:`Pikachu 1/10 ${printing}`,language:"English"};
+  assert.equal(saleMatchesLookup(sale,{variant:printing,finish,language:"en"}),true);
+  assert.equal(saleMatchesLookup(sale,{variant:printing,finish:"holofoil",language:"en"}),false);
+  assert.equal(saleMatchesLookup({...sale,attribution:"unknown"},{variant:printing,finish,language:"en"}),false);
+ }
 });

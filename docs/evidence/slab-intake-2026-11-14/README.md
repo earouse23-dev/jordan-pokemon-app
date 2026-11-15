@@ -35,3 +35,13 @@ Ninetales now opens the correct Dragon Frontiers 8/101 PSA 9 preview and retains
 The sideways Topps photo is now read as Trying Out the New Toy #7 rather than a generic Mewtwo search. Catalog/provider coverage remains unconfirmed. Back-only photo produced no guessed grade or price. The final live coverage result must be recorded after follow-up deployment; these partial observations are not acceptance.
 
 Follow-up browser subset: 30 passed, zero failures, including label-tier preservation, Japanese intake, manual recovery, preview confirmation and late-owner guards. UI no-match state retains recognized slab facts rather than implying every catalog gap needs a better photo.
+
+## Scan-to-price handoff correction
+
+A further live trace found that unowned graded previews loaded the reference index but did not automatically request exact sold comps. The primary value waited behind Check sales. Graded previews now start the exact-context sales lookup, keep an owner/context-bound reusable result for 24 hours, retain that value through saving, and skip a redundant legacy collection refresh for fresh graded evidence. The normal server valuation path still publishes the durable owner record; cached browser evidence does not bypass server validation.
+
+A real non-holo lookup exposed another contract mismatch: canonical `non_holo` and `reverse_holofoil` values were rejected by the sales endpoint's text validator, and its adapter compared canonical finishes against legacy camel-case/Normal labels. Both layers now accept and normalize these supported contexts while continuing to reject another finish or unknown-attribution sale.
+
+The printing-confirmation form starts from recognized known facts and leaves unknown choices open. Its preview copy no longer describes nonexistent purchase/correction history.
+
+Latest Node run: 610 passed, 3 skipped. The explicit preview-to-save browser test passes on desktop Chromium, mobile Chromium and mobile WebKit: automatic sold-price load, no duplicate lookup on reopening, value retained in the new owned copy, and an independent lookup for another owner.

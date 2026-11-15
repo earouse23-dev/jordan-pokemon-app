@@ -496,3 +496,39 @@ test('saving a preview carries its validated price into the new owned copy befor
     expect(cardRequests).toBe(0);
   } finally {releaseRefresh();}
 });
+
+test('graded preview automatically loads exact sold comps and reuses them for 24 hours',async({page})=>{
+ const calls=[];
+ await page.route('**/api/cards?*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({cards:[]})}));
+ await page.route('**/api/sales?*',route=>{
+  const lookup=JSON.parse(new URL(route.request().url()).searchParams.get('lookup'));calls.push(lookup);
+  return route.fulfill({contentType:'application/json',body:JSON.stringify({retrievedAt:new Date().toISOString(),hasMore:false,salesStatus:'live',validatedContext:{...lookup,providerCardId:'99999',canonicalValidated:true,completedSaleValidated:true},sales:[{provider:'pkmnprices',providerSaleId:'123456789010',source:'ebay',sourceUrl:'https://www.ebay.com/itm/123456789010',attribution:'exact',evidenceKind:'completed_sale',gradingCompany:'PSA',grade:'9',gradeQualifier:'',printing:'Holofoil',language:'English',currency:'USD',amount:1175,soldAt:new Date().toISOString()}]})});
+ });
+ await openDetail(page);
+ await page.evaluate(()=>{
+  const app=fixtureApp,card={...app.state.items[0],cardState:'graded',gradingCompany:'PSA',grade:'9',gradeQualifier:'',variantOptions:[{label:'Holofoil',finish:'holofoil',edition:'unlimited',promoType:'none',language:'en',status:'exact'}]};delete card.uid;
+  app.state.items=[];app.state.session={user:{id:'11111111-1111-4111-8111-111111111112'},access_token:'fixture'};app.openCardDetail(card,false,{cardState:'graded',gradingCompany:'PSA',grade:'9',gradeQualifier:'',currency:'USD'});
+ });
+ await expect(page.locator('.exact-sold-value')).toContainText('$1,175.00');
+ expect(calls).toHaveLength(1);expect(calls[0].grader).toBe('PSA');expect(calls[0].grade).toBe('9');
+ await page.evaluate(()=>{const app=fixtureApp;app.openCardDetail(app.state.detailCard);});
+ await expect(page.locator('.exact-sold-value')).toContainText('$1,175.00');expect(calls).toHaveLength(1);
+ const savedId='44444444-4444-4444-8444-444444444445';
+ await page.route('https://mica-detail-test.supabase.co/**',route=>{
+  const url=new URL(route.request().url());
+  if(url.pathname.endsWith('/rpc/create_graded_copy_position'))return route.fulfill({contentType:'application/json',body:JSON.stringify(savedId)});
+  if(url.pathname.endsWith('/rest/v1/collection_items'))return route.fulfill({contentType:'application/json',headers:{'content-range':'0-0/1'},body:JSON.stringify([{id:savedId,user_id:'11111111-1111-4111-8111-111111111112',identity_snapshot:{id:'base1-4',providerCardId:'base1-4',name:'Charizard',set:'Base Set',number:'4/102',language:'en',variant:'Holofoil',finish:'holofoil',edition:'unlimited',promoType:'none',gradeQualifier:'',identityStatus:'exact'},card_state:'graded',grader:'PSA',grade:9,status:'owned',quantity:1,currency:'USD',tags:[],custom_fields:{}}])});
+  return route.fulfill({contentType:'application/json',body:'[]'});
+ });
+ await page.route('**/api/capabilities?surface=portfolio',route=>route.fulfill({status:503,contentType:'application/json',body:'{}'}));
+ await page.evaluate(async savedId=>{
+  const app=fixtureApp,card=app.state.detailCard;
+  await app.saveCardAddDraft({card,input:{cardState:'graded',grader:'PSA',grade:9,gradeQualifier:'',quantity:1,transactionDate:new Date().toISOString().slice(0,10),unitPrice:300,currency:'USD',variant:'Holofoil'},acquisitionCostKnown:true,acquisitionDateKnown:true,idempotencyKey:crypto.randomUUID()},null,{refreshAfterSave:false,closeAfterSave:false});
+  await app.reloadPortfolio(savedId,{backgroundPricing:true});
+  app.openCardDetail(app.state.items[0],true);
+ },savedId);
+ await expect(page.locator('.exact-sold-value')).toContainText('$1,175.00');
+ expect(calls).toHaveLength(1);
+ await page.evaluate(()=>{const app=fixtureApp,card={...app.state.detailCard};delete card.uid;delete card.exactSaleEvidence;app.state.items=[];app.state.session={user:{id:'another-slab-owner'},access_token:'other-fixture'};app.openCardDetail(card);});
+ await expect.poll(()=>calls.length).toBe(2);
+});

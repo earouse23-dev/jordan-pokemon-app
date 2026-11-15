@@ -4,6 +4,7 @@ import { fetchPkmnPricesSales, fetchPkmnPricesSalesHistory } from "../lib/provid
 import { serverEnvironment } from "../lib/env.js";
 
 const SAFE_TEXT = /^[\p{L}\p{N} .:'&+\-/()#]{1,120}$/u;
+const SAFE_CONTEXT_TEXT = /^[\p{L}\p{N} .:'&+\-/()#_]{1,120}$/u;
 
 function send(response, status, body, headers = {}) {
   response.setHeader("Cache-Control", "no-store");
@@ -63,7 +64,7 @@ function parseLookup(request) {
       /^[\p{L}\p{N} .:'&+\-/()#_·]{1,120}$/u.test(lookup.variant)) &&
     (!lookup.gradeQualifier || SAFE_TEXT.test(lookup.gradeQualifier)) &&
     [lookup.finish, lookup.promoType].every(
-      (value) => !value || SAFE_TEXT.test(value),
+      (value) => !value || SAFE_CONTEXT_TEXT.test(value),
     ) &&
     (!lookup.edition ||
       lookup.edition === "first_edition" ||

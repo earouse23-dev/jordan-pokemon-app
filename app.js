@@ -3994,7 +3994,7 @@ async function loadSales(item, force = false) {
     detailIdentityKey(savedCopy) === selectionKey &&
     detailContextKey(valuationContextForItem(savedCopy)) === contextKey
       ? savedSaleEvidenceForContext(savedCopy, context)
-      : null;
+      : previewPricingCache.get(previewPricingKey(item, context))?.sales || null;
   const previous = retainedSaleEvidence(item, context, currentEvidence || savedEvidence);
   if (!force && freshSaleEvidence(item, context, previous)) {
     state.detailSales = { ...previous, selectionKey, contextKey, requestId };
@@ -4138,6 +4138,11 @@ async function loadSales(item, force = false) {
   };
   if (owned && (owned.cardState === "graded" || owned.gradingCompany))
     owned.exactSaleEvidence = { ...result, selectionKey, contextKey };
+  else if (matchingSaleEvidence(item, context, result)) {
+    const cacheKey = previewPricingKey(item, context);
+    previewPricingCache.set(cacheKey, { ...previewPricingCache.get(cacheKey), sales: { ...result, selectionKey, contextKey }, expires: Date.now() + 86_400_000 });
+    if (previewPricingCache.size > 50) previewPricingCache.delete(previewPricingCache.keys().next().value);
+  }
   if (state.route === "detail") renderDetail();
 }
 
@@ -7465,7 +7470,7 @@ function openCardDetail(card, preferOwned = false, initialContext = null, scanDr
   state.detailPricing = null;
   state.detailSales = null;
   state.detailValuationContext = initialContext || valuationContextForItem(owned || card, {
-    catalogPreview: !owned,
+    catalogPreview: !owned && card.cardState !== "graded",
   });
   // A catalog reference is not a condition assessment of the photographed copy.
   if (!owned && state.detailValuationContext.cardState === "raw" && !state.detailValuationContext.condition)
@@ -7490,6 +7495,8 @@ function openCardDetail(card, preferOwned = false, initialContext = null, scanDr
       state.detailValuationContext,
       beginDetailRequest(card, state.detailValuationContext),
     );
+  if (!owned && state.detailValuationContext.cardState === "graded")
+    void loadSales({ ...card, gradingCompany: state.detailValuationContext.gradingCompany, grade: state.detailValuationContext.grade, gradeQualifier: state.detailValuationContext.gradeQualifier, cardState: "graded" });
 }
 
 async function loadOwnedCollectionAttachments(item) {
@@ -8063,7 +8070,7 @@ async function loadCardPreviewPricing(
   if (!detailContextReady(context)) return;
   const cacheKey = previewPricingKey(card, context);
   const cached = previewPricingCache.get(cacheKey);
-  if (!includeHistory && cached?.expires > Date.now() && portfolioPriceIsFresh(cached.pricing)) {
+  if (!includeHistory && cached?.pricing && cached.expires > Date.now() && portfolioPriceIsFresh(cached.pricing)) {
     state.detailPricing = { ...cached.pricing, selectionKey: guard.selectionKey, contextKey: guard.contextKey };
     renderDetailPreservingValuationFocus();
     if (cached.pricing.historyStatus === "live" || context.cardState === "graded") return;
@@ -8180,7 +8187,7 @@ async function loadCardPreviewPricing(
         : item);
     }
     state.detailCard = { ...state.detailCard, ...identityUpdate };
-    previewPricingCache.set(cacheKey, { pricing: state.detailPricing, expires: Date.now() + 86_400_000 });
+    previewPricingCache.set(cacheKey, { ...previewPricingCache.get(cacheKey), pricing: state.detailPricing, expires: Date.now() + 86_400_000 });
     if (previewPricingCache.size > 50) previewPricingCache.delete(previewPricingCache.keys().next().value);
     renderDetailPreservingValuationFocus();
     if (!includeHistory && context.cardState !== "graded") void loadCardPreviewPricing(state.detailCard, context, guard, true);
@@ -8699,7 +8706,7 @@ function renderDetail() {
     state.detailSelectionKey = detailIdentityKey(baseItem);
   if (!state.detailValuationContext)
     state.detailValuationContext = valuationContextForItem(baseItem, {
-      catalogPreview: !owned,
+      catalogPreview: !owned && baseItem.cardState !== "graded",
     });
   const context = state.detailValuationContext;
   const pricing =
@@ -10202,6 +10209,11 @@ async function saveCardAddDraft(
   }
   const { card, input, acquisitionCostKnown, acquisitionDateKnown } = draft;
   const preview = state.detailPricing?.selectionKey === detailIdentityKey(card) ? state.detailPricing : null;
+  const savingItem = { ...card, ...identitySnapshot(card, input.variantId || input.variant), cardState: input.cardState, gradingCompany: input.grader || "", grade: input.grade, gradeQualifier: input.gradeQualifier ?? "", currency: input.currency || "USD" };
+  const savingContext = valuationContextForItem(savingItem);
+  const previewSales = input.cardState === "graded"
+    ? [state.detailSales, previewPricingCache.get(previewPricingKey(card, savingContext))?.sales].find(evidence => matchingSaleEvidence(savingItem, savingContext, evidence))
+    : null;
   let itemId;
   try {
     itemId = await createPosition(supabase, {
@@ -10278,8 +10290,8 @@ async function saveCardAddDraft(
     sessionLoadVersion !== loadVersion
   )
     return { itemId, staleSession: true };
-  if (preview?.quotes?.length) {
-    savedCopyPricing.set(JSON.stringify([ownerId, itemId]), preview);
+  if (preview?.quotes?.length || previewSales) {
+    savedCopyPricing.set(JSON.stringify([ownerId, itemId]), { ...preview, ...(previewSales ? { exactSaleEvidence: previewSales } : {}) });
     if (savedCopyPricing.size > 50) savedCopyPricing.delete(savedCopyPricing.keys().next().value);
   }
   let digitalGradeWarning = false;
@@ -11460,6 +11472,7 @@ async function reloadPortfolio(
     const previous = state.items.find(copy => copy.uid === item.uid && detailIdentityKey(copy) === detailIdentityKey(item) && detailContextKey(valuationContextForItem(copy)) === detailContextKey(valuationContextForItem(item)));
     if (!previous) {
       const preview = savedCopyPricing.get(JSON.stringify([ownerId, item.uid]));
+      if (preview?.exactSaleEvidence && matchingSaleEvidence(item, valuationContextForItem(item), preview.exactSaleEvidence)) return { ...item, exactSaleEvidence: preview.exactSaleEvidence };
       const quote = preview && selectPositionQuote(preview.quotes, item);
       return quote && quoteStatus(quote) === "live" ? { ...item, ...quotePricingFields(quote, preview, item), quotes: preview.quotes, priceHistory: mergePriceHistory(item.priceHistory || [], preview.priceHistory || []), historyStatus: preview.historyStatus } : item;
     }
@@ -11553,7 +11566,12 @@ function openDeleteCopySheet(item) {
 
 function openPrintingConfirmationSheet(item) {
   const choices = (id, label, values) => `<div class="field"><label for="${id}">${label}</label><select id="${id}" name="${id}" required><option value="">Choose from your card</option>${values.map(([value,text]) => `<option value="${value}">${text}</option>`).join("")}</select></div>`;
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm card version</h2><p>${esc(item.name)} · ${esc(item.set)} · ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="confirmPrintingForm"><div class="form-grid">${choices("printingFinish","Finish",[["holofoil","Holofoil"],["non_holo","Non-holo"],["reverse_holofoil","Reverse holofoil"]])}${choices("printingEdition","Edition / stamp",[["unlimited","Regular / unlimited"],["first_edition","1st Edition"],["shadowless","Shadowless"]])}${choices("printingPromo","Promo marking",[["none","No promo marking"],["black_star","Black Star promo"],["prerelease","Prerelease"],["staff","Staff"],["league","League"]])}${item.gradingCompany ? choices("printingQualifier","Grade qualifier",[["none","No qualifier on label"],["Pristine","Pristine"],["Black Label","Black Label"],["OC","OC"],["MC","MC"],["ST","ST"],["PD","PD"],["OF","OF"],["MK","MK"]]) : ""}<p class="form-error" id="printingError" role="alert"></p></div><p>Check the actual card or slab. Purchases, sales and notes stay with this copy; previous price observations remain in correction history.</p><div class="sheet-actions"><button class="secondary" type="button" id="printingCancel">Cancel</button><button class="primary" type="submit">Confirm version</button></div></form>`);
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm card version</h2><p>${esc(item.name)} · ${esc(item.set)} · ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="confirmPrintingForm"><div class="form-grid">${choices("printingFinish","Finish",[["holofoil","Holofoil"],["non_holo","Non-holo"],["reverse_holofoil","Reverse holofoil"]])}${choices("printingEdition","Edition / stamp",[["unlimited","Regular / unlimited"],["first_edition","1st Edition"],["shadowless","Shadowless"]])}${choices("printingPromo","Promo marking",[["none","No promo marking"],["black_star","Black Star promo"],["prerelease","Prerelease"],["staff","Staff"],["league","League"]])}${item.gradingCompany ? choices("printingQualifier","Grade qualifier",[["none","No qualifier on label"],["Pristine","Pristine"],["Black Label","Black Label"],["OC","OC"],["MC","MC"],["ST","ST"],["PD","PD"],["OF","OF"],["MK","MK"]]) : ""}<p class="form-error" id="printingError" role="alert"></p></div><p>${item.uid ? "Check the actual card or slab. Purchases, sales and notes stay with this copy; previous price observations remain in correction history." : "Check the card or slab label"}</p><div class="sheet-actions"><button class="secondary" type="button" id="printingCancel">Cancel</button><button class="primary" type="submit">Confirm version</button></div></form>`);
+  const observed = selectedPrinting(item);
+  for (const [id, value] of Object.entries({ printingFinish: observed.finish, printingEdition: observed.edition, printingPromo: observed.promoType, printingQualifier: item.gradeQualifier === "" ? "none" : item.gradeQualifier })) {
+    const control = document.getElementById(id);
+    if (control && value && [...control.options].some(option => option.value === value)) control.value = value;
+  }
   $("#printingCancel").addEventListener("click", closeSheet);
   $("#confirmPrintingForm").addEventListener("submit", async event => {
     event.preventDefault(); const owner = state.session?.user?.id, version = sessionLoadVersion;
@@ -17655,7 +17673,9 @@ async function updateLivePricing(positionIds = null) {
   if (!ownerId) return;
   const originalItems = state.items;
   let updatedItems = [...originalItems];
-  const uniqueItems = originalItems.filter(item => item.id && (!selectedPositions || selectedPositions.has(item.uid)) && !(item.historyStatus === "live" && portfolioPriceIsFresh(item)));
+  const uniqueItems = originalItems.filter(item => item.id && (!selectedPositions || selectedPositions.has(item.uid)) && !(item.cardState === "graded" || item.gradingCompany
+    ? freshSaleEvidence(item, valuationContextForItem(item), savedSaleEvidenceForContext(item, valuationContextForItem(item)))
+    : item.historyStatus === "live" && portfolioPriceIsFresh(item)));
   if (!uniqueItems.length) return;
   const rawPricingKey = item => JSON.stringify([item.id, item.variant || "", valuationContextForItem(item).condition, item.currency || "USD"]);
   const rawContexts = new Map();
