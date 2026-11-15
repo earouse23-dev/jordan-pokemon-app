@@ -618,3 +618,9 @@ test("slab observations preserve unfamiliar sets and label-only numbers", () => 
   assert.equal(japanese.setName, "Intense Fight in the Destroyed Sky");
   assert.equal(parseCatalogQuery({name:"M Charizard", language:"en", printingHints:["EX"]}).name, "M Charizard EX");
 });
+
+
+test("PSA label annotations are not a card name or set name", () => {
+ const parsed=parseCatalogQuery({name:"Charizard-Holo",setName:"Stormfront-1st Ed.",collectorNumber:"092",language:"ja"});
+ assert.equal(parsed.name,"Charizard");assert.equal(parsed.setName,"Stormfront");assert.equal(parsed.localId,"92");
+});

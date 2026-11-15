@@ -4192,6 +4192,7 @@ async function loadOffers(item, force = false) {
 }
 
 function routeTo(route, options = {}) {
+  if (route !== "scan" && route !== "detail") pendingVisionSearch = null;
   if (state.route === "collection") saveCollectionViewState();
   if (route === "insights") {
     route = "dashboard";
@@ -15412,7 +15413,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
         : "";
     node.innerHTML = cards.length
       ? `${mode === "identify" ? "" : `<div class="vision-match-instruction">${guidance}${comparisonAction}</div>`}${cards.map((card) => `<button class="catalog-result${card.id === recommendedId ? " recommended" : ""}" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Version unknown")}</small>${matchReason(card)}</span><b>${card.id === recommendedId ? "Best match" : "Choose this"}</b></button>`).join("")}`
-      : '<div class="unavailable-panel">No reliable catalog match was found. Retake the card closer or search the printed details manually.</div>';
+      : `<div class="unavailable-panel"><strong>${analysis.quality?.issues?.some(issue => issue.code === "wrong_side") ? "Show the card front" : "No catalog match"}</strong>${identity.name ? `<p>${esc([identity.labelName || identity.name, identity.setName, identity.collectorNumber, identity.cardState === "graded" ? [identity.grader, identity.grade].filter(Boolean).join(" ") : ""].filter(Boolean).join(" · "))}</p>` : ""}<span>${identity.cardState === "graded" && identity.name ? "Slab details kept · search for the matching card" : "Try another photo or search by name"}</span></div>`;
     $("#visionCompareCandidates")?.addEventListener("click", async (event) => {
       const button = event.currentTarget;
       const status = $("#visionCompareStatus");
@@ -21610,7 +21611,7 @@ async function applySession(session) {
   state.detailId = null;
   state.detailCard = null;
   state.detailScanDraft = null;
-    pendingVisionSearch = null;
+  pendingVisionSearch = null;
   state.pricingStatus = "idle";
   state.pricingRetrievedAt = null;
   state.movementStatus = "idle";

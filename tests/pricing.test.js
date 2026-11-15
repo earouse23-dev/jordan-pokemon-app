@@ -3048,7 +3048,7 @@ test("exact first-edition Espeon accepts a cosmetic swirl annotation while rejec
 test("slab catalog recovery is bounded, cached, language-specific and requires confirmation", async t => {
  const urls=[];
  t.mock.method(globalThis,"fetch",async input=>{urls.push(new URL(input));return Response.json({data:[{id:99991,name:"Charizard",number:"092",total_set_number:"092",language:"Japanese",set:{name:"Intense Fight in the Destroyed Sky"},image_url:"https://example.com/card.jpg"},{id:99992,name:"Charizard",number:"092",language:"English",set:{name:"Stormfront"}}]});});
- const identity={name:"Charizard",collectorNumber:"092/092",language:"ja",setName:"Stormfront"};
+ const identity={name:"リザードン",labelName:"Charizard-Holo",collectorNumber:"092/092",language:"ja",setName:"Stormfront"};
  const first=await searchPkmnPricesCatalog("catalog-fixture",identity);
  const second=await searchPkmnPricesCatalog("catalog-fixture",identity);
  assert.equal(urls.length,1);assert.equal(urls[0].searchParams.get("per_page"),"8");
@@ -3056,4 +3056,22 @@ test("slab catalog recovery is bounded, cached, language-specific and requires c
  assert.equal(first.length,1);assert.equal(first[0].externalIds.pkmnprices,"99991");
  assert.equal(first[0].identityStatus,"needs_review");assert.equal(first[0].number,"092/092");
  assert.deepEqual(second,first);assert.equal(urls[0].pathname,"/v1/cards");
+});
+
+
+test("delta species label and provider title normalize only within exact printing boundaries", () => {
+ const card={name:"Ninetales (Delta Species)",number:"8",total_set_number:"101",set:{name:"Dragon Frontiers"},language:"English"};
+ const lookup={name:"Ninetales δ",number:"8/101",set:"Dragon Frontiers",language:"en"};
+ assert.equal(matchesPkmnPricesIdentity(card,lookup),true);
+ assert.equal(matchesPkmnPricesIdentity({...card,number:"9"},lookup),false);
+ assert.equal(matchesPkmnPricesIdentity({...card,set:{name:"Power Keepers"}},lookup),false);
+});
+
+
+test("delta species sold title can omit the symbol without changing the printing",()=>{
+ const card={name:"Ninetales (Delta Species)",number:"8",total_set_number:"101",set:{name:"Dragon Frontiers"},language:"English"};
+ const lookup={name:"Ninetales δ",number:"8/101",set:"Dragon Frontiers",language:"en"};
+ assert.equal(saleMatchesCanonicalIdentity({title:"2006 Pokemon Ninetales 8/101 Dragon Frontiers Holo PSA 9"},card,lookup),true);
+ assert.equal(saleMatchesCanonicalIdentity({title:"2006 Pokemon Ninetales Delta Species 8/101 Dragon Frontiers Holo PSA 9"},card,lookup),true);
+ assert.equal(saleMatchesCanonicalIdentity({title:"2006 Pokemon Ninetales 9/101 Dragon Frontiers Holo PSA 9"},card,lookup),false);
 });

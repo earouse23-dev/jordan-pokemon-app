@@ -13,7 +13,7 @@
 
 ## Automated verification before publication
 
-- Node suite: 605 passed, 3 skipped, zero failed.
+- Node suite: 609 passed, 3 skipped, zero failed.
 - Relevant browser matrix (intake, detail recovery, price evidence, collection continuity): 175 passed, 2 skipped, zero failed across desktop Chromium, mobile Chromium and mobile WebKit.
 - Added manual-recovery and preview-confirmation regressions: 6 passed across the same projects. They verify PSA 9 and the certificate survive through the add-copy form.
 - Readable 360×782 screenshot identification regression passes while grading correctly rejects that resolution.
@@ -25,3 +25,13 @@
 Pending real-photo retest after publication. Automated fixtures do not certify recognition or external sales coverage. Original photos and private audit evidence remain excluded from Git. No customer inventory write testing is authorized.
 
 UI/motion work in this task is a plan only: `docs/MICA_IOS_UI_MOTION_PLAN_2026-11-14.md`.
+
+## Real-photo follow-up findings
+
+The initial repaired build accepts both 360px screenshots and reads their Japanese/PSA identity evidence, but catalog resolution still failed. Live recovery showed Japanese printed names, `Charizard-Holo` and `Stormfront-1st Ed.` being passed as canonical catalog fields. A follow-up preserves the actually visible English label title separately, removes only known label annotations for lookup, and permits at most two observed-name metadata searches through the same budget/cache path.
+
+Ninetales now opens the correct Dragon Frontiers 8/101 PSA 9 preview and retains printed certificate 132008880 in the add form without manual re-entry. The live price was unavailable; inspection identified delta-species title formatting differences between the catalog and provider. The follow-up normalizes that label/title equivalence for lookup and sale validation while retaining set/number/language/context exclusions. Regression tests accept the same printing with or without a delta suffix and reject a different collector number.
+
+The sideways Topps photo is now read as Trying Out the New Toy #7 rather than a generic Mewtwo search. Catalog/provider coverage remains unconfirmed. Back-only photo produced no guessed grade or price. The final live coverage result must be recorded after follow-up deployment; these partial observations are not acceptance.
+
+Follow-up browser subset: 30 passed, zero failures, including label-tier preservation, Japanese intake, manual recovery, preview confirmation and late-owner guards. UI no-match state retains recognized slab facts rather than implying every catalog gap needs a better photo.

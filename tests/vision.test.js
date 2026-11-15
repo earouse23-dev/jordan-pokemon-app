@@ -1059,3 +1059,9 @@ test("slab label number stays searchable without a guessed denominator", () => {
  assert.equal(result.searchQuery, "Ninetales Dragon Frontiers #8");
  assert.equal(result.identity.certificationNumber, "132008880");
 });
+
+
+test("Japanese printed title and readable English slab label remain separate", () => {
+ const result=normalizeVisionOutput("identify", {quality:{usable:true},identity:{name:"天空のレックウザ",labelName:"Sky's Rayquaza",setName:"Movie Commemoration VS Pack",collectorNumber:"003",language:"ja",cardState:"graded",grader:"PSA",grade:10,certificationNumber:"169394969",confidence:.95}});
+ assert.equal(result.identity.name,"天空のレックウザ");assert.equal(result.identity.labelName,"Sky's Rayquaza");assert.equal(result.identity.language,"ja");
+});
