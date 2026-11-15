@@ -393,3 +393,56 @@ test('expired raw prices survive empty refresh without renewing TTL, then publis
   await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'retention-fixture'},{now:day+'T13:00:00Z'});
   assert.equal(paid,requests,'fresh saved replacement makes zero provider requests');
 });
+
+test('current prices publish despite partial history, resume history without renewing the quote TTL and release an old history-only retry lock', async t => {
+  const {createClient}=await import('@supabase/supabase-js');
+  const {refreshPortfolioView}=await import('../lib/portfolio-service.js');
+  const {loadPortfolio}=await import('../lib/supabase-data.js');
+  const {buildPortfolioView,portfolioPricingKey}=await import('../lib/portfolio-view.js');
+  const {pkmnPricesRequests}=await import('../lib/pkmnprices-requests.js');
+  pkmnPricesRequests.cache.clear();pkmnPricesRequests.pending.clear();
+  for(const [method,fn] of Object.entries({claim:async()=>{},claimCache:async()=>true,readCache:async()=>null,saveCache:async()=>{},releaseCache:async()=>{}})) t.mock.method(pkmnPricesRequests,method,fn);
+  const day=new Date().toISOString().slice(0,10), now=day+'T12:00:00Z', uid='33333333-3333-4333-8333-333333333333';
+  let stored=null, detailCalls=0, historyCalls=0;
+  t.mock.method(globalThis,'fetch',async(input,init={})=>{
+    const url=new URL(typeof input==='string'?input:input.url||input),table=url.pathname.split('/').at(-1);
+    if(url.hostname==='api.pkmnprices.com') {
+      if(table==='history') {
+        historyCalls++;
+        const page=Number(url.searchParams.get('page'));
+        return Response.json({data:[{date:new Date(Date.parse(day)-page*86400000).toISOString().slice(0,10),source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',avg:70+page}],pagination:{page,total_pages:10}});
+      }
+      detailCalls++;
+      return Response.json({id:123,name:'Fixture',number:'1',set:{name:'Fixture'},language:'en',prices:[{source:'tcgplayer',currency:'USD',condition:'Near Mint',variant:'Holofoil',market_price:100}]});
+    }
+    assert.equal(url.hostname,'portfolio-history-fixture.supabase.co');
+    if(table==='portfolio_views')return Response.json({view:stored,inventory_revision:0,attempted_at:now});
+    if(table==='claim_portfolio_refresh')return Response.json(true);
+    if(table==='publish_saved_portfolio'){stored=JSON.parse(init.body).p_view;return Response.json(true);}
+    if(table==='collection_items')return Response.json([{id:uid,user_id:owner,quantity:1,currency:'USD',card_state:'raw',status:'owned',raw_condition:'near_mint',identity_snapshot:{id:'fixture',name:'Fixture',set:'Fixture',number:'1',variant:'Holofoil',externalIds:{pkmnprices:'123'}}}]);
+    if(table==='purchase_lots')return Response.json([{id:uid,user_id:owner,collection_item_id:uid,acquired_at:day,quantity_acquired:1,quantity_remaining:1,currency:'USD'}]);
+    return Response.json([]);
+  });
+  const db=createClient('https://portfolio-history-fixture.supabase.co','fixture-service',{auth:{persistSession:false}});
+  const [item]=await loadPortfolio(db,owner,{serverOwnerRead:true});
+  const prior={uid,key:portfolioPricingKey(item),price:50,pricingStatus:'live',historyStatus:'partial',priceHistory:[]};
+  stored={...buildPortfolioView([{...item,...prior}],now),pricingVersion:2,pricing:[prior],pendingPricing:[prior],dailyVersion:1,inventoryRevision:0,refreshIncomplete:true,attemptDay:day,attemptRevision:0,attemptCount:3};
+  const first=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'history-isolation-fixture'},{now});
+  assert.equal(first.summaries[0].total,100,'A validated current quote is published even while history pages remain');
+  assert.equal(first.refreshIncomplete,false);
+  assert.equal(first.historyRefreshIncomplete,true);
+  assert.equal(first.historyBackfillPending,true);
+  assert.equal(first.pricing[0].checkedAt,now);
+  assert.equal(first.attemptCount,0);
+  assert.equal(historyCalls,4,'Existing bounded page limit remains');
+  const second=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'history-isolation-fixture'},{now:day+'T12:06:00Z'});
+  assert.equal(second.pricing[0].checkedAt,now,'History continuation cannot slide the 24-hour quote expiry');
+  assert.equal(detailCalls,1,'History continuation reuses the cached current card response');
+  assert.equal(historyCalls,8,'History resumes at its saved cursor');
+  const third=await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'history-isolation-fixture'},{now:day+'T12:12:00Z'});
+  assert.equal(third.historyBackfillPending,false);
+  assert.equal(third.historyRefreshIncomplete,false);
+  const calls=detailCalls+historyCalls;
+  await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'history-isolation-fixture'},{now:day+'T12:13:00Z'});
+  assert.equal(detailCalls+historyCalls,calls,'Completed view is reused for the remainder of the quote TTL');
+});
