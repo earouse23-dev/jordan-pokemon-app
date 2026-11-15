@@ -3086,3 +3086,14 @@ test("canonical non-holo and reverse-holo finishes match without collapsing prin
   assert.equal(saleMatchesLookup({...sale,attribution:"unknown"},{variant:printing,finish,language:"en"}),false);
  }
 });
+
+
+test("provider Unlimited non-holo sales stay separate from holo and first edition",()=>{
+ const sale={printing:"Unlimited",title:"2004 POKEMON JAPANESE MOVIE COMMEMORATION VS PACK #003 SKY'S RAYQUAZA PSA 10",sourceUrl:"https://www.ebay.com/itm/123456789010",currency:"USD",attribution:"exact",gradingCompany:"PSA",grade:"10",gradeQualifier:"",language:"Japanese"};
+ const lookup={name:"Sky's Rayquaza",set:"Movie Commemoration VS Pack: Sky-Splitting Deoxys",number:"003/019",language:"ja",variant:"Normal",finish:"non_holo",edition:"unlimited",grader:"PSA",grade:"10",gradeQualifier:""};
+ assert.equal(saleMatchesLookup(sale,lookup),true);
+ assert.equal(saleMatchesCanonicalIdentity(sale,{name:lookup.name,number:"003",total_set_number:"019",set:{name:lookup.set}},lookup),true);
+ assert.equal(saleMatchesLookup(sale,{...lookup,variant:"Holofoil",finish:"holofoil"}),false);
+ assert.equal(saleMatchesLookup(sale,{...lookup,edition:"first_edition"}),false);
+ assert.equal(saleMatchesLookup({...sale,attribution:"unknown"},lookup),false);
+});

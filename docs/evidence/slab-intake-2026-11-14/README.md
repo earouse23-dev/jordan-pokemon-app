@@ -45,3 +45,9 @@ A real non-holo lookup exposed another contract mismatch: canonical `non_holo` a
 The printing-confirmation form starts from recognized known facts and leaves unknown choices open. Its preview copy no longer describes nonexistent purchase/correction history.
 
 Latest Node run: 610 passed, 3 skipped. The explicit preview-to-save browser test passes on desktop Chromium, mobile Chromium and mobile WebKit: automatic sold-price load, no duplicate lookup on reopening, value retained in the new owned copy, and an independent lookup for another owner.
+
+## Final provider-label correction
+
+The real Rayquaza request reached the provider successfully but returned no eligible value. Its exact-attributed November 2 PSA 10 row is labelled `Unlimited`, not `Normal`. The existing matcher already treated the provider's `1st Edition` label as the non-holo edition but lacked its unlimited counterpart. Added an explicit `Unlimited` → `unlimited normal` comparison alias. Original evidence keeps the provider's original label. Holo, first edition and unknown attribution remain excluded by separate checks.
+
+The normalized archive cache advances to v6 so previously screened-out rows can be reprocessed. Raw provider-response cache and saved owner histories remain intact; no SQL or destructive invalidation is involved. Tests reproduce the Rayquaza title/set/number match and reject another finish, edition and unknown attribution. Final Node suite: 611 passed, 3 skipped. Final UI/source matrix before this alias: 175 passed, 2 skipped; all 36 price-evidence browser cases passed again with the final alias across all three browser projects.
