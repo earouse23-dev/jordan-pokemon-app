@@ -1,0 +1,53 @@
+{
+  "commit": "dfcc15b",
+  "deployment": "dpl_GEntyMeqDRHSKyhYZK8wNUyNM1qX",
+  "verifiedAt": "2026-11-15T05:08:34.122Z",
+  "checks": [
+    {
+      "path": "/",
+      "status": 200,
+      "sha256": "5017a9112311dc0462c25f9c83ef18afb09317e9f8ffe01ebb0d38ae4dce327b"
+    },
+    {
+      "path": "/app.js?v=121",
+      "status": 200,
+      "sha256": "84a69e5908a16f077392bdf15863f7d08c40418861e443fe3cbdc15e270589d2"
+    },
+    {
+      "path": "/sw.js",
+      "status": 200,
+      "sha256": "fbb41717a3b0df9d666fac55b6f131bdf996c4f0918c5fb639a555cea1363434"
+    },
+    {
+      "path": "/styles.css?v=95",
+      "status": 200,
+      "sha256": "cfba5a2f54bda36d00956200e863b13290fbd82503b5729ab94ae791d9c2c03d"
+    },
+    {
+      "path": "/themes.css?v=117",
+      "status": 200,
+      "sha256": "887b7800d9136c23b5229ab2953816d7a349d4e9135272c396b9bc485b60d18c"
+    },
+    {
+      "path": "/api/health",
+      "status": 200,
+      "health": "healthy"
+    },
+    {
+      "path": "/api/cards",
+      "status": 401
+    },
+    {
+      "path": "/api/sales",
+      "status": 401
+    },
+    {
+      "path": "/api/graded-valuation",
+      "status": 401
+    },
+    {
+      "path": "/api/capabilities",
+      "status": 401
+    }
+  ]
+}

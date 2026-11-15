@@ -42,3 +42,13 @@ Xcode compiled both unsigned and ordinary Simulator builds in an isolated source
  Browser tests use existing isolated fixtures and stubbed providers; they do not write customer inventory or demonstrate universal slab coverage. The Topps catalog gap from the prior task is unchanged. Physical camera/hardware and App Store acceptance remain separate. No whiteboard publication is included in this request.
 
 Process adapted from [Unslop by Damir Sokolovsky](https://github.com/heydamir/unslop), [@heydamir](https://x.com/heydamir), CC BY 4.0. Retain attribution with adaptations.
+
+## Publication receipt
+
+- Source commit: `dfcc15b`, pushed to the existing `codex/mica-baseline-reconciliation` branch. Production Git branch remains `main`; the reviewed prebuilt artifact was explicitly published to the existing project.
+- Production deployment: `dpl_GEntyMeqDRHSKyhYZK8wNUyNM1qX`, READY, alias https://jordan-pokemon-app.vercel.app/.
+- Isolated release build and routing verification passed: 9 functions, 64 deploy entries, existing held routes/auth/origin boundaries, zero real provider calls in the routing checks. Existing two cron definitions and schedules are unchanged.
+- Production HTML, app, service worker and CSS hashes match the release artifact. Health is healthy. Unauthenticated pricing, sales, graded valuation and portfolio requests return 401. See `production-verification.json`.
+- Live authenticated UI confirms 17px base text, 120ms feedback token and zero horizontal overflow. Settings alerts settle to their retained On state after account loading. Portfolio retains its previous prices/chart while reporting its existing incomplete refresh honestly. One-month and All-time chart controls both visibly update their selection.
+- Native screenshot after the final correction confirms the Gain/loss label is readable; app install retained its existing demo session. No customer inventory edits, native/store submission, provider budget change or new feature was performed.
+- Native Simulator interaction control remained unavailable. Physical-device and full native touch acceptance are not claimed. Existing Topps catalog coverage is unchanged.
