@@ -56,6 +56,7 @@ for (const appearance of ['light', 'dark']) {
             return [...el.children].filter(child=>getComputedStyle(child).display!=='none').every(child=>{const r=child.getBoundingClientRect();return r.top>=box.top && r.bottom<=box.bottom+1;});
           });
           expect(contained, `${appearance} ${width} capture/search panels stay inside their workspace`).toBe(true);
+          await expect.poll(()=>page.locator('#autoCaptureButton').evaluate(el=>getComputedStyle(el.querySelector('svg')).color===getComputedStyle(el).color)).toBe(true);
           if(width<760) {
             const spare=await page.locator('.add-cards-layout').evaluate(el=>el.clientWidth-parseFloat(getComputedStyle(el).paddingLeft)-parseFloat(getComputedStyle(el).paddingRight)-el.querySelector('.add-search-panel').getBoundingClientRect().width);
             expect(spare, 'empty search results must not create an implicit phone column').toBeLessThanOrEqual(1);

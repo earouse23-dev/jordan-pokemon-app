@@ -7290,7 +7290,7 @@ body[data-ui-theme="mica"] #appShell #view-scan .search-examples { margin-top: 1
 body[data-ui-theme="mica"] #appShell #view-scan .search-examples button { background: transparent; border: 1px solid var(--line); color: var(--muted); }
 body[data-ui-theme="mica"] #appShell #view-scan .find-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 body[data-ui-theme="mica"] #appShell #view-scan .find-action { flex-direction: column; justify-content: center; align-items: center; min-height: 120px; padding: 16px 8px; gap: 12px; text-align: center; background: var(--canvas); border: 1px solid var(--line); }
-body[data-ui-theme="mica"] #appShell #view-scan .find-action svg { width: 28px; height: 28px; }
+body[data-ui-theme="mica"] #appShell #view-scan .find-action svg { width: 28px; height: 28px; color: inherit; }
 body[data-ui-theme="mica"] #appShell #view-scan .find-action.primary-find { background: var(--pine-2); color: var(--canvas); border-color: transparent; }
 body[data-ui-theme="mica"] #appShell #view-scan .sealed-search-launch { min-height: 64px; margin-top: 24px; padding-top: 16px; }
 
