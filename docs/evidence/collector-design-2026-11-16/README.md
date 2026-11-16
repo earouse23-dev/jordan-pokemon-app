@@ -36,3 +36,13 @@ Visual review caught and corrected an inherited `top` offset on the photo panel;
 Fixture screenshots use synthetic prices and placeholder art. They prove layout, not recognition or price accuracy. Actual demo screenshots are separate. Customer inventory was not used for write testing. Existing Topps catalog and physical camera acceptance limits remain. No Canva update is included.
 
 Process adapted from [Unslop by Damir Sokolovsky](https://github.com/heydamir/unslop), [@heydamir](https://x.com/heydamir), CC BY 4.0.
+
+## Publication receipt
+
+- Main visual implementation: `2ed956e`; phone results-grid correction: `64579d5`; final icon/appearance source: `ff42dfd`. All pushed to the existing `codex/mica-baseline-reconciliation` branch. Unrelated working-tree changes and file modes were excluded.
+- Final production deployment: `dpl_FDahdwpjH3davDwoRkzhKoc4fgYe`, READY, alias https://jordan-pokemon-app.vercel.app/. Shell cache: `mica-shell-design-148`.
+- Release built from an isolated Git archive with the existing pinned dependencies: 9 functions, 64 deployment entries. Routing/auth/origin checks passed with zero real provider calls. No cron schedules, provider budgets, dependencies or database records changed.
+- Production HTML, JavaScript, service worker and CSS match the reviewed artifact by SHA-256; health is healthy. Unauthenticated pricing, sales, graded valuation and portfolio requests return 401. See `production-verification.json`.
+- Live demo review confirmed desktop gallery, phone ledger, card art/value hierarchy, settings, light/dark appearances and one-month/all-time chart selection. Phone detail chart measured 374px at a 390px viewport, with zero horizontal overflow. Corrected Add workspace measured 358px, 20px inner gutters and a 318px search panel, with no implicit extra column. Dark capture icon and text both resolve to rgb(24,36,28) on rgb(229,236,230).
+- Native final stylesheet matches the reviewed source; the Simulator app compiled, installed and launched while retaining its isolated demo session. Private proof captures remain under ignored `benchmarks/private/design-2026-11-16/`.
+- Theme preference was restored to System and temporary browser sizing was reset. Customer inventory was not edited. Native touch control timed out; the Mac browser camera reported unavailable/in use during a navigation check. No photo was captured. Physical iPhone camera and full native touch acceptance remain separate.
