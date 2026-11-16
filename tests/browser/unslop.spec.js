@@ -53,9 +53,13 @@ for (const appearance of ['light', 'dark']) {
         if(route==='scan') {
           const contained = await page.locator('.add-cards-layout').evaluate(el=>{
             const box=el.getBoundingClientRect();
-            return [...el.children].every(child=>{const r=child.getBoundingClientRect();return r.top>=box.top && r.bottom<=box.bottom+1;});
+            return [...el.children].filter(child=>getComputedStyle(child).display!=='none').every(child=>{const r=child.getBoundingClientRect();return r.top>=box.top && r.bottom<=box.bottom+1;});
           });
           expect(contained, `${appearance} ${width} capture/search panels stay inside their workspace`).toBe(true);
+          if(width<760) {
+            const spare=await page.locator('.add-cards-layout').evaluate(el=>el.clientWidth-parseFloat(getComputedStyle(el).paddingLeft)-parseFloat(getComputedStyle(el).paddingRight)-el.querySelector('.add-search-panel').getBoundingClientRect().width);
+            expect(spare, 'empty search results must not create an implicit phone column').toBeLessThanOrEqual(1);
+          }
         }
         if(['detail','dashboard'].includes(route)) await page.waitForFunction(r=>{const c=r==='detail'?polishApp.chartInstance:polishApp.portfolioChartInstance; return !c?.$historyReveal || c.$historyReveal.progress>=1;},route);
         if ([390,1440].includes(width)) await page.screenshot({path:info.outputPath(`${process.env.MICA_UNSLOP_BASELINE?'before':'after'}-${route}-${width}.png`)});
