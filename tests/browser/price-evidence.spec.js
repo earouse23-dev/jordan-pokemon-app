@@ -457,14 +457,14 @@ test('preview price appears before history and reopens without a duplicate price
   } finally { releaseHistory(); }
 });
 
-test('iPhone SE keeps the price beside the image and gives the chart usable width', async ({page}) => {
+test('phone card artwork precedes a visible price and gives the chart usable width', async ({page}) => {
   await page.setViewportSize({width:375,height:667});
   await openDetail(page,{price:125,pricingStatus:'live',historyStatus:'live',priceHistory:[1,2].map(days=>({provider:'tcgplayer',currency:'USD',finish:'holofoil',condition:'Near Mint',amount:125,recordedAt:new Date(Date.now()-days*86400000).toISOString()}))});
   const image=await page.locator('.detail-image').boundingBox(),price=await page.locator('.market-hero > strong').boundingBox(),chart=await page.locator('.chart-wrap').boundingBox();
-  expect(image.x+image.width).toBeLessThan(price.x);
-  expect(price.y).toBeLessThan(360);
+  expect(image.y+image.height).toBeLessThan(price.y);
+  expect(price.y+price.height).toBeLessThan(547);
   expect(chart.width).toBeGreaterThan(330);
-  expect(chart.height).toBeGreaterThanOrEqual(290);
+  expect(chart.height).toBeGreaterThanOrEqual(260);
   await expect(page.locator('.history-values')).not.toHaveAttribute('open','');
   await assertFits(page);
   await page.screenshot({path:'/tmp/mica-se-detail-'+test.info().project.name+'.png',fullPage:true});

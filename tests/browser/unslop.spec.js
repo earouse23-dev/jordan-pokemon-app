@@ -50,6 +50,13 @@ for (const appearance of ['light', 'dark']) {
         await page.waitForFunction(r=>Number(getComputedStyle(document.querySelector(`#view-${r}`)).opacity)===1,route);
         if(route==='dashboard') await expect(page.locator('#portfolioHistoryChart')).toBeVisible();
         expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth),`${appearance} ${width} ${route} overflow`).toBeLessThanOrEqual(1);
+        if(route==='scan') {
+          const contained = await page.locator('.add-cards-layout').evaluate(el=>{
+            const box=el.getBoundingClientRect();
+            return [...el.children].every(child=>{const r=child.getBoundingClientRect();return r.top>=box.top && r.bottom<=box.bottom+1;});
+          });
+          expect(contained, `${appearance} ${width} capture/search panels stay inside their workspace`).toBe(true);
+        }
         if(['detail','dashboard'].includes(route)) await page.waitForFunction(r=>{const c=r==='detail'?polishApp.chartInstance:polishApp.portfolioChartInstance; return !c?.$historyReveal || c.$historyReveal.progress>=1;},route);
         if ([390,1440].includes(width)) await page.screenshot({path:info.outputPath(`${process.env.MICA_UNSLOP_BASELINE?'before':'after'}-${route}-${width}.png`)});
       }
