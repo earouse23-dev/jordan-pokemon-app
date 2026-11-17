@@ -36,5 +36,18 @@
     "photoRows": 0,
     "portfolioRows": 0,
     "privateSigningDenied": true
+  },
+  "publishedCollectionUi": {
+    "runtimeCommit": "0db1d6f",
+    "viewport": {
+      "width": 393,
+      "height": 852
+    },
+    "savedSlabPhotoVisible": true,
+    "price": 1776,
+    "grader": "PSA",
+    "grade": 10,
+    "newInventoryWrites": 0,
+    "finalDetailClickReplay": "not completed: browser control rejected dispatch; earlier live reopen and final regression passed"
   }
 }
