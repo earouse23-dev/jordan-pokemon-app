@@ -636,3 +636,13 @@ test("slab year/game/language headers are removed only from lookup titles", () =
   assert.equal(parseCatalogQuery({name:"Pokémon Center Lady",language:"en"}).name,"Pokémon Center Lady");
   assert.equal(parseCatalogQuery({name:"2019 Champions Festival",language:"en"}).name,"2019 Champions Festival");
 });
+
+
+test("structured slab lookup removes only a separately observed duplicate set suffix", () => {
+  for (const name of ["2008 POKEMON JAPANESE CHARIZARD-HOLO STORMFRONT-1ST ED.", "CHARIZARD-HOLO STORMFRONT", "CHARIZARD-HOLO - STORMFRONT-1ST EDITION"]) {
+    assert.equal(parseCatalogQuery({name,setName:"STORMFRONT-1ST ED.",collectorNumber:"092",language:"ja"}).name,"CHARIZARD");
+  }
+  assert.equal(parseCatalogQuery({name:"Detective Pikachu",setName:"Detective Pikachu",collectorNumber:"10"}).name,"Detective Pikachu");
+  assert.equal(parseCatalogQuery({name:"Darkrai",setName:"rai",collectorNumber:"1"}).name,"Darkrai");
+  assert.equal(parseCatalogQuery({name:"Charizard-Holo OTHER SET",setName:"STORMFRONT",collectorNumber:"092"}).name,"Charizard-Holo OTHER SET");
+});

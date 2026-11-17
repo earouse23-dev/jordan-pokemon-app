@@ -3102,7 +3102,7 @@ test("provider Unlimited non-holo sales stay separate from holo and first editio
 test("provider slab recovery normalizes a full PSA header without losing language or number", async t => {
   const urls=[];
   t.mock.method(globalThis,"fetch",async input=>{urls.push(new URL(input));return Response.json({data:[{id:99993,name:"Charizard",number:"092",total_set_number:"092",language:"Japanese",set:{name:"Intense Fight in the Destroyed Sky"}},{id:99994,name:"Charizard",number:"092",language:"English",set:{name:"Stormfront"}},{id:99995,name:"Charizard",number:"001",language:"Japanese",set:{name:"Other"}}]});});
-  const cards=await searchPkmnPricesCatalog("header-recovery-fixture",{name:"2008 POKEMON JAPANESE CHARIZARD-HOLO",labelName:"2008 POKEMON JAPANESE CHARIZARD-HOLO",setName:"STORMFRONT-1ST ED.",collectorNumber:"092",language:"ja"});
+  const cards=await searchPkmnPricesCatalog("header-recovery-fixture",{name:"2008 POKEMON JAPANESE CHARIZARD-HOLO STORMFRONT-1ST ED.",labelName:"2008 POKEMON JAPANESE CHARIZARD-HOLO STORMFRONT-1ST ED.",setName:"STORMFRONT-1ST ED.",collectorNumber:"092",language:"ja"});
   assert.equal(urls.length,1);assert.equal(urls[0].searchParams.get("name"),"CHARIZARD");
   assert.equal(urls[0].searchParams.get("language"),"Japanese");assert.equal(urls[0].searchParams.get("per_page"),"8");
   assert.deepEqual(cards.map(card=>card.externalIds.pkmnprices),["99993"]);
