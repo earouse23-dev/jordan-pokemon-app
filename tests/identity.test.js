@@ -236,3 +236,11 @@ test("listing titles distinguish finish, edition, language and exact slab grade 
  assert.match(cardListingTitle(item, { ...printing, finish: "non_holo", edition: "first_edition" }), /Non-Holo · 1st Edition/);
  assert.match(cardListingTitle(item, {}), /Finish unconfirmed · Edition unconfirmed/);
 });
+
+
+test("PSA abbreviated first-edition labels use the same printing context", () => {
+  for (const edition of ["1st Ed", "1ST ED.", "first ed.", "1st Ed Holofoil", "first_edition"]) assert.equal(canonicalEdition(edition),"first_edition");
+  assert.equal(canonicalEdition("unlimited"),"unlimited");
+  assert.notEqual(canonicalEdition("limited edition"),"first_edition");
+  assert.equal(normalizeVariantOption({label:"Holofoil",finish:"holofoil",edition:"1st Ed",language:"ja"}).edition,"first_edition");
+});

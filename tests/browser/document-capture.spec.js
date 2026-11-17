@@ -1384,3 +1384,18 @@ for (const recover of [false,true]) test(`slab ${recover ? "manual recovery" : "
  await expect(page.locator("#positionGrade")).toHaveValue("9");
  await expect(page.locator("#positionCertification")).toHaveValue("132008880");
 });
+
+
+test("abbreviated PSA edition survives scan and prefills the canonical printing", async ({page}) => {
+  const card={id:"fixture-jp-charizard",name:"Charizard",set:"Intense Fight in the Destroyed Sky",number:"092/092",language:"ja",variant:"Holofoil",finish:"holofoil",edition:"unknown",promoType:"unknown",identityStatus:"needs_review",thumb:"/icons/icon.svg"};
+  const payload={analysis:{quality:{usable:true},identity:{name:"Charizard",setName:"Stormfront",collectorNumber:"092",language:"ja",finish:"holofoil",edition:"1st Ed",promoType:"none",cardState:"graded",grader:"PSA",grade:10,gradeQualifier:"",certificationNumber:"152559922",confidence:.98}},catalogResolution:{cards:[card],resolution:{status:"review",recommendedId:null}}};
+  await setup(page,{recognition:true,experience:"intake",visionPayload:payload});
+  await installSyntheticDocument(page);
+  await page.evaluate(()=>{const input=document.querySelector('#deviceCameraUpload');input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
+  const candidate=page.getByRole("button",{name:/Choose this/});
+  await candidate.click();
+  await expect(page.locator("#detailTitle")).toContainText("PSA 10");
+  await page.locator("#confirmPrintingButton").click();
+  await expect(page.locator("#printingEdition")).toHaveValue("first_edition");
+  await expect(page.locator("#printingFinish")).toHaveValue("holofoil");
+});

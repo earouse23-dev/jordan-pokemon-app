@@ -25,3 +25,5 @@ Public sold search includes November 10 item 800872709991 at $6,300 (38 bids), N
 ## Resolution acceptance
 
 Recheck each canonical record using the existing budget/cache path. Include exact context only; retain original amount/currency and known sale type. Reopen saved card/portfolio views without a second paid lookup inside 24 hours. Keep ambiguous and active listings outside the estimate, and preserve prior legitimate history. No manual customer-record writes or new paid service is authorized by this report.
+
+Official contracts checked during the follow-up: [Cards](https://www.pkmnprices.com/docs/cards) documents partial name lookup and leading-zero number equivalence. [eBay sold listings](https://www.pkmnprices.com/docs/ebay-listings) defines unknown attribution as missing historical printing provenance, shared attribution as group evidence, row-specific currencies, and nullable legacy sale types. It also distinguishes accepted-offer paid amounts from eBay search asking prices. These contracts support retaining context exclusions while reporting the concrete coverage gaps above.
