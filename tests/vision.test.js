@@ -1065,3 +1065,12 @@ test("Japanese printed title and readable English slab label remain separate", (
  const result=normalizeVisionOutput("identify", {quality:{usable:true},identity:{name:"天空のレックウザ",labelName:"Sky's Rayquaza",setName:"Movie Commemoration VS Pack",collectorNumber:"003",language:"ja",cardState:"graded",grader:"PSA",grade:10,certificationNumber:"169394969",confidence:.95}});
  assert.equal(result.identity.name,"天空のレックウザ");assert.equal(result.identity.labelName,"Sky's Rayquaza");assert.equal(result.identity.language,"ja");
 });
+
+
+test("ordinary PSA grade words do not become premium qualifiers", () => {
+  for (const [grader,grade,gradeQualifier,expected] of [["PSA",10,"GEM MT",""],["PSA",10,"Gem Mint",""],["PSA",9,"MINT",""],["PSA",9,"GEM MT","GEM MT"],["PSA",10,"OC","OC"],["PSA",10,null,null],["CGC",10,"Pristine","Pristine"],["BGS",10,"Black Label","Black Label"]]) {
+    const result=normalizeVisionOutput("identify",{quality:{usable:true},identity:{name:"Charizard",cardState:"graded",grader,grade,gradeQualifier}});
+    assert.equal(result.identity.gradeQualifier,expected);
+    assert.equal(result.identity.grade,grade);
+  }
+});
