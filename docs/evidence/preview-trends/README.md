@@ -21,3 +21,14 @@ User request: simplified green/red price-history previews in collection and cata
 - Unit suite: 613 passed, 3 skipped. Lint: 101 source files. Syntax checks passed. Publication/live verification is recorded below.
 
 The complete brainstorm is in `docs/MICA_NEXT_POLISH_IDEAS.md`. Those proposals are not implemented by this task. Actual provider coverage and physical camera acceptance remain independent from the mini-chart UI.
+
+## Publication and live checks
+
+- Source commit `b2ab895`, pushed to `codex/mica-baseline-reconciliation`. Final production deployment `dpl_DNVXQ2m3mbbXsPooJC15J1dQqHVu`, READY, alias https://jordan-pokemon-app.vercel.app/. Shell cache `mica-shell-design-149`.
+- Isolated Git-archive release/routing checks passed: 9 functions, 64 deployment entries and zero real outbound provider calls during routing verification. Existing production Git branch remains main; this reviewed prebuilt release was published explicitly. Existing two cron schedules and provider budgets were unchanged.
+- Production HTML/JS/CSS/service-worker hashes match the artifact. Health is healthy; unauthenticated card pricing, sales, graded valuation and portfolio requests return 401. See `production-verification.json`.
+- Live demo collection: 14 entries, 13 genuine saved trend plots (12 down, 1 up), 1 insufficient-history placeholder. Phone width 390px had zero horizontal overflow. Actual PSA 9 preview described the saved Aug 24–Nov 5 series rather than borrowing raw/other-grade prices.
+- Live catalog: Mew ex 151/165 Holofoil initially had no saved reference. Opening its existing detail workflow loaded its NM reference; returning to retained search results then showed the saved -12.7% trend. Non-holo stayed a dash. No inventory save or forced historical recheck was used to populate the preview. Search context remained intact.
+- Real light/dark phone and desktop captures remain in ignored `benchmarks/private/preview-trends/`. Browser theme was restored to System and temporary viewport sizing was reset. Customer inventory was not edited.
+- Native Xcode build passed and contains the reviewed preview stylesheet. Simulator installation was not completed because the selected iPhone 17 device was shut down. No full native touch or physical camera acceptance is claimed by this task.
+- The brainstorm document is a proposal inventory only; none of its additional feature/workflow suggestions was implemented in this release.
