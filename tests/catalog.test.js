@@ -646,3 +646,9 @@ test("structured slab lookup removes only a separately observed duplicate set su
   assert.equal(parseCatalogQuery({name:"Darkrai",setName:"rai",collectorNumber:"1"}).name,"Darkrai");
   assert.equal(parseCatalogQuery({name:"Charizard-Holo OTHER SET",setName:"STORMFRONT",collectorNumber:"092"}).name,"Charizard-Holo OTHER SET");
 });
+
+
+test("EX-era slab headers retain the card title and its real suffix", () => {
+  assert.equal(parseCatalogQuery({name:"2006 POKEMON EX NINETALES-HOLO DRAGON FRONTIERS",setName:"DRAGON FRONTIERS",collectorNumber:"8",language:"en"}).name,"NINETALES");
+  assert.equal(parseCatalogQuery({name:"2005 POKEMON EX RAYQUAZA EX",setName:"Deoxys",collectorNumber:"97",language:"en"}).name,"RAYQUAZA EX");
+});
