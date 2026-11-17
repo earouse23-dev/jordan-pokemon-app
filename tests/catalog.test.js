@@ -624,3 +624,15 @@ test("PSA label annotations are not a card name or set name", () => {
  const parsed=parseCatalogQuery({name:"Charizard-Holo",setName:"Stormfront-1st Ed.",collectorNumber:"092",language:"ja"});
  assert.equal(parsed.name,"Charizard");assert.equal(parsed.setName,"Stormfront");assert.equal(parsed.localId,"92");
 });
+
+
+test("slab year/game/language headers are removed only from lookup titles", () => {
+  const observed={name:"2008 POKEMON JAPANESE CHARIZARD-HOLO",labelName:"2008 POKEMON JAPANESE CHARIZARD-HOLO",setName:"STORMFRONT-1ST ED.",collectorNumber:"092",language:"ja"};
+  const parsed=parseCatalogQuery(observed);
+  assert.equal(parsed.name,"CHARIZARD");
+  assert.equal(parsed.setName,"STORMFRONT");
+  assert.equal(parsed.localId,"92");
+  assert.equal(observed.name,"2008 POKEMON JAPANESE CHARIZARD-HOLO");
+  assert.equal(parseCatalogQuery({name:"Pokémon Center Lady",language:"en"}).name,"Pokémon Center Lady");
+  assert.equal(parseCatalogQuery({name:"2019 Champions Festival",language:"en"}).name,"2019 Champions Festival");
+});

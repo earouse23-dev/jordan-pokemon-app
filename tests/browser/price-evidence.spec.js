@@ -510,6 +510,9 @@ test('graded preview automatically loads exact sold comps and reuses them for 24
   app.state.items=[];app.state.session={user:{id:'11111111-1111-4111-8111-111111111112'},access_token:'fixture'};app.openCardDetail(card,false,{cardState:'graded',gradingCompany:'PSA',grade:'9',gradeQualifier:'',currency:'USD'});
  });
  await expect(page.locator('.exact-sold-value')).toContainText('$1,175.00');
+ await expect(page.locator('#detailContent')).not.toContainText('A price for this exact grading company and grade is not connected yet');
+ await expect(page.locator('#detailContent')).toContainText('Market reference');
+ await expect(page.locator('#detailContent')).not.toContainText('No matching eBay comp available');
  expect(calls).toHaveLength(1);expect(calls[0].grader).toBe('PSA');expect(calls[0].grade).toBe('9');
  await page.evaluate(()=>{const app=fixtureApp;app.openCardDetail(app.state.detailCard);});
  await expect(page.locator('.exact-sold-value')).toContainText('$1,175.00');expect(calls).toHaveLength(1);
