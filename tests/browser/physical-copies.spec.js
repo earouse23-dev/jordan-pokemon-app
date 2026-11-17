@@ -2090,7 +2090,7 @@ test('latest slab comp and full-width recorded history stay legible in light and
   await page.setViewportSize({width:375,height:667});
   const chartBox=await page.locator('#positionChart').boundingBox();
   expect(chartBox.width).toBeGreaterThan(330);
-  expect(chartBox.y).toBeLessThan(520);
+  expect(chartBox.y).toBeLessThan(567);
  }
  await expect(page.locator('.copy-navigation.single-copy #nextCopyButton')).toBeHidden();
  const bounds=await page.evaluate(()=>{const {chartInstance:chart}=globalThis.fixtureCopyApp;return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
@@ -2155,7 +2155,7 @@ test('latest slab comp and full-width recorded history stay legible in light and
  await page.screenshot({path:testInfo.outputPath('slab-history-dark.png'),fullPage:true,animations:"disabled"});
 });
 
-test('phone library tiles lead with artwork then identity and value', async ({ page }) => {
+test('phone library rows keep artwork beside identity and value', async ({ page }) => {
   await setup(page);
   await page.setViewportSize({ width: 375, height: 667 });
   const tile = page.locator('.ledger-row[data-id]').first();
@@ -2163,19 +2163,22 @@ test('phone library tiles lead with artwork then identity and value', async ({ p
   const value = await tile.locator('.position-price-grid').boundingBox();
   const artwork = await tile.locator('.card-thumb').boundingBox();
   expect(identity.y).toBeLessThan(value.y);
-  expect(artwork.y + artwork.height).toBeLessThanOrEqual(identity.y);
+  expect(Math.abs(artwork.y - identity.y)).toBeLessThan(2);
+  expect(artwork.x + artwork.width).toBeLessThan(identity.x);
+  expect(artwork.height).toBeGreaterThanOrEqual(96);
   expect(value.y).toBeLessThan(660);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 
-test("full interface uses artwork-first browsing and purchase-first editing", async ({ page }, testInfo) => {
+test("full interface uses compact library browsing and purchase-first editing", async ({ page }, testInfo) => {
   await page.setViewportSize({width:375,height:667});
   await setup(page);
   const first = page.locator(".ledger-row").first();
   const image = await first.locator(".card-thumb").boundingBox();
   const name = await first.locator(".card-main").boundingBox();
-  expect(image.y).toBeLessThan(name.y);
+  expect(Math.abs(image.y - name.y)).toBeLessThan(2);
+  expect(image.x + image.width).toBeLessThan(name.x);
   expect(image.y).toBeLessThan(400);
   await page.screenshot({path:testInfo.outputPath("library.png"),fullPage:true,animations:"disabled"});
   await expect(first).not.toContainText("How acquired");

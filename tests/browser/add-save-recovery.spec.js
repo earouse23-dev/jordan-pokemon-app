@@ -394,3 +394,31 @@ test("Free (trade) saves explicit zero cost and preserves a typed paid amount wh
   expect(requests.writes[0].p_acquisition_method).toBe("free_card");
   expect(requests.writes[0].p_unit_price).toBe("0.00");
 });
+
+
+test("duplicate slab certificate preserves the draft and opens the existing copy without another write", async ({ page }) => {
+  const requests = await setup(page);
+  const existingId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  await page.route("**/rest/v1/rpc/create_graded_copy_position", route => {
+    requests.writes.push(route.request().postDataJSON());
+    return route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ code: "23505", message: `duplicate_active_certificate:${existingId}` }) });
+  });
+  await page.evaluate(async ({ appUrl, existingId }) => {
+    const app = await import(appUrl);
+    const card = { id: "fixture-pikachu", name: "Pikachu", set: "Base Set", number: "58/102", language: "en", variant: "Normal" };
+    app.state.items = [{ ...card, uid: existingId, cardState: "graded", gradingCompany: "PSA", grade: "10", certificationNumber: "00123456", quantity: 1, status: "owned", currency: "USD", price: null, priceHistory: [], quotes: [], lots: [], transactions: [] }];
+    app.openPositionSheet(card, { ingestionChannel: "search", prefill: { cardState: "graded", grader: "PSA", grade: "10", certificationNumber: "00123456" } });
+  }, { appUrl, existingId });
+  await page.locator("#positionTotalCost").fill("125");
+  await submit(page);
+  await expect(page.locator("#positionError")).toContainText("already");
+  await expect(page.locator("#positionTotalCost")).toHaveValue("125");
+  await page.locator("#positionCardDetails>summary").click();
+  await expect(page.locator("#positionCertification")).toHaveValue("00123456");
+  await expect(page.locator("#positionGrade")).toHaveValue("10");
+  await page.getByRole("button", { name: "Open existing copy" }).click();
+  await expect(page.locator("#bottomSheet")).toBeHidden();
+  await expect(page.locator("#detailTitle")).toContainText("Pikachu");
+  expect(requests.writes).toHaveLength(1);
+  expect(await page.evaluate(async url => (await import(url)).state.items.length, appUrl)).toBe(1);
+});

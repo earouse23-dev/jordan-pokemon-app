@@ -7352,10 +7352,20 @@ body[data-ui-theme="mica"] #bottomSheet .sheet-heading h2 { font-size: 24px; let
   body[data-ui-theme="mica"] #appShell #view-collection .ledger-grade-icon { display: block; width: 20px; height: 20px; margin: auto; fill: none; stroke: currentColor; stroke-width: 1.5; }
   body[data-ui-theme="mica"] #appShell #view-collection .ledger-row.bulk-mode { padding-left: 32px; grid-template-columns: 64px minmax(0,1fr) 44px; }
   body[data-ui-theme="mica"] #appShell #view-collection .ledger-row.bulk-mode>.card-thumb { width: 64px; height: 96px; }
-  body[data-ui-theme="mica"] #appShell #detailContent .detail-identity { grid-template-columns: minmax(0,1fr); gap: 24px; margin-bottom: 24px; }
-  body[data-ui-theme="mica"] #appShell #detailContent .detail-image { min-height: 0; padding: 20px; border-radius: 16px; }
-  body[data-ui-theme="mica"] #appShell #detailContent .detail-image img { height: clamp(160px,22dvh,216px); max-height: none; }
-  body[data-ui-theme="mica"] #appShell #detailContent .detail-title-name { font-size: 30px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-identity { grid-template-columns: 104px minmax(0,1fr); align-items: start; gap: 12px 16px; margin-bottom: 16px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-back { margin-bottom: 4px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-identity-content { display: contents; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-title-block { grid-column: 2; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-identity-content>:is(.market-hero,.exact-sold-value) { grid-column: 1 / -1; margin-top: 0; padding-top: 12px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-image { min-height: 0; padding: 8px; border-radius: 12px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-image img { height: 136px; max-height: none; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-image img[src$="icon.svg"] { width: 80px; height: 80px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-image>span { display: none; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-section { margin-block: 12px; padding-top: 8px; }
+
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-title-name { font-size: clamp(24px,6vw,30px); }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-title-context { font-size: 13px; line-height: 1.5; }
+  body[data-ui-theme="mica"] #appShell #detailContent :is(.market-hero,.exact-sold-value)>strong { font-size: clamp(28px,7.5vw,40px); margin-block: 4px 8px; overflow-wrap: anywhere; }
   body[data-ui-theme="mica"] #appShell #detailContent :is(.market-hero,.exact-sold-value) { margin-top: 16px; padding-top: 16px; }
   body[data-ui-theme="mica"] #appShell #detailContent .chart-wrap { height: clamp(260px,36dvh,360px); }
   body[data-ui-theme="mica"] #appShell #detailContent .chart-wrap canvas { height: 100% !important; }
@@ -7389,10 +7399,16 @@ body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend polyl
 body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend .trend-area { fill: currentColor; fill-opacity: .09; stroke: none; }
 body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend>small { display: flex; width: 100%; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 12px; line-height: 1.4; color: inherit; }
 body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend>small>span:last-child { color: var(--muted); font-weight: 400; }
-body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend.empty { height: 50px; justify-content: center; color: var(--muted); }
+body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend.empty { height: auto; min-height: 24px; flex-direction: row; align-items: baseline; justify-content: center; color: var(--muted); }
 body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) :is(.quick-card-result,.catalog-result) .card-preview-trend { margin-top: 8px; width: 120px; }
 @media (max-width:759px) {
   body[data-ui-theme="mica"] #appShell #view-collection .ledger-row>.position-price-grid { grid-column: 2 / -1; }
   body[data-ui-theme="mica"] #appShell #view-collection .ledger-row-actions { grid-row: 3 / 5; }
   body[data-ui-theme="mica"] #appShell #view-collection .card-preview-trend { flex-basis: 88px; width: 88px; }
 }
+
+/* Horizontal inspection keeps vertical page scrolling and pinch zoom available. */
+body[data-ui-theme="mica"] #appShell :is(#positionChart,#portfolioHistoryChart) { touch-action: pan-y pinch-zoom; }
+
+/* First use has one invitation; empty secondary summaries add no information. */
+body[data-ui-theme="mica"] #appShell #view-dashboard:has(.portfolio-first-card) :is(.portfolio-return-summary,.dashboard-owned-tools) { display: none; }

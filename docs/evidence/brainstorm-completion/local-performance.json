@@ -1,0 +1,50 @@
+{
+  "environment": "Local automated browser fixtures on this Mac; mobile browser engines are not physical-device CPU measurements. No production network timings are inferred.",
+  "results": {
+    "mobile-webkit": {
+      "cold-saved-value": {
+        "restoredMs": 8,
+        "paintReadyMs": 27,
+        "network": "blocked"
+      },
+      "1000-copy-render": {
+        "copies": 1000,
+        "rows": 100,
+        "renderMs": 20,
+        "warmMs": 14,
+        "retained": true,
+        "remaining": "Show 100 more \u00b7 900 remaining"
+      }
+    },
+    "mobile-chromium": {
+      "1000-copy-render": {
+        "copies": 1000,
+        "rows": 100,
+        "renderMs": 15.899999976158142,
+        "warmMs": 12.799999952316284,
+        "retained": true,
+        "remaining": "Show 100 more \u00b7 900 remaining"
+      },
+      "cold-saved-value": {
+        "restoredMs": 5.100000023841858,
+        "paintReadyMs": 20.300000071525574,
+        "network": "blocked"
+      }
+    },
+    "desktop-chromium": {
+      "1000-copy-render": {
+        "copies": 1000,
+        "rows": 100,
+        "renderMs": 14.5,
+        "warmMs": 10.899999976158142,
+        "retained": true,
+        "remaining": "Show 100 more \u00b7 900 remaining"
+      },
+      "cold-saved-value": {
+        "restoredMs": 6.100000023841858,
+        "paintReadyMs": 31.300000071525574,
+        "network": "blocked"
+      }
+    }
+  }
+}

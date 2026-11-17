@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { build } from "esbuild";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
@@ -1077,6 +1077,10 @@ test("price history draws from left to right and respects reduced motion", async
   await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal?.progress)).toBe(1);
   await page.locator("#positionChart").scrollIntoViewIfNeeded();
   await page.screenshot({ path: testInfo.outputPath("price-reveal-complete-synthetic.png") });
+  await page.locator('#cardHistoryRange [data-range="1y"]').click();
+  await expect.poll(() => page.evaluate(() => !!globalThis.fixtureApp.chartInstance)).toBe(true);
+  expect(await page.evaluate(() => globalThis.fixtureApp.chartInstance.$historyReveal)).toBeUndefined();
+  await expect(page.locator('#cardHistoryRange [data-range="1y"]')).toHaveAttribute('aria-pressed','true');
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.evaluate(() => globalThis.fixtureApp.renderDetail());
   await expect.poll(() => page.evaluate(() => !!globalThis.fixtureApp.chartInstance)).toBe(true);
@@ -1188,6 +1192,8 @@ test('new collectors get a direct first-card action without a blank chart or cam
     a.bindEvents(); a.routeTo('dashboard'); a.renderCollection();
   });
   await expect(page.locator('#portfolioHistoryChart')).toHaveCount(0);
+  await expect(page.locator('.portfolio-return-summary')).toBeHidden();
+  await expect(page.locator('.dashboard-owned-tools')).toBeHidden();
   await page.evaluate(() => { const a=globalThis.fixtureApp; a.state.accountLoadError='Saved collection unavailable'; a.renderCollection(); });
   await expect(page.locator('[data-first-card]')).toHaveCount(0);
   await page.evaluate(() => { const a=globalThis.fixtureApp; a.state.accountLoadError=''; a.renderCollection(); });
@@ -1326,7 +1332,7 @@ test('delayed portfolio refresh cannot roll back a newer saved read or its disk 
   expect(await page.evaluate(()=>{const app=globalThis.fixtureApp;return [app.state.portfolioView.summaries[0].total,JSON.parse(localStorage.getItem('mica:portfolio-view:'+app.state.session.user.id)).summaries[0].total];})).toEqual([275,275]);
 });
 
-test('cold portfolio cache paints before the network and survives offline refresh', async ({page}) => {
+test('cold portfolio cache paints before the network and survives offline refresh', async ({page},info) => {
   await openDetail(page, {price:null, referencePrice:null, retainedPrice:false});
   await page.evaluate(()=>{
     const app=globalThis.fixtureApp,item=app.state.items[0],updatedAt='2026-11-15T12:00:00Z';
@@ -1337,11 +1343,52 @@ test('cold portfolio cache paints before the network and survives offline refres
   });
   let release;const delayed=new Promise(resolve=>{release=resolve;});
   await page.route('**/api/capabilities?surface=portfolio&display=summary',async route=>{await delayed;await route.abort('internetdisconnected');});
-  await page.evaluate(()=>{const app=globalThis.fixtureApp;globalThis.coldRead=app.loadSavedPortfolio(app.state.session.user.id,app.sessionLoadVersion);});
+  const timing=await page.evaluate(async()=>{const app=globalThis.fixtureApp,start=performance.now();globalThis.coldRead=app.loadSavedPortfolio(app.state.session.user.id,app.sessionLoadVersion);const restoredMs=performance.now()-start;await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));return {restoredMs,paintReadyMs:performance.now()-start,network:"blocked"};});
+  await writeFile(info.outputPath('cold-saved-value.json'),JSON.stringify(timing,null,2));
+  await info.attach('cold-saved-value.json',{body:JSON.stringify(timing,null,2),contentType:'application/json'});
+  expect(timing.restoredMs).toBeLessThan(200);expect(timing.paintReadyMs).toBeLessThan(500);
   expect(await page.evaluate(()=>globalThis.fixtureApp.state.items[0].price)).toBe(240);
   release();await page.evaluate(()=>globalThis.coldRead);
   await page.route('**/api/capabilities?surface=portfolio',route=>route.abort('internetdisconnected'));
   await page.evaluate(async()=>{const app=globalThis.fixtureApp;await app.refreshSavedPortfolio(app.state.session.user.id,app.sessionLoadVersion);app.renderDetail();});
   await expect(page.locator('.market-hero>strong')).toContainText('240');
   expect(await page.evaluate(()=>globalThis.fixtureApp.state.portfolioView.summaries[0].total)).toBe(240);
+});
+
+
+test("chart inspection dismisses outside the plot and keeps the recorded data", async ({page}, info) => {
+  const history=[0,1,2].map(i=>({recordedAt:`2026-09-0${i+1}`,amount:100+i*10,currency:"USD",finish:"holofoil",condition:"Near Mint",provider:"synthetic"}));
+  await openDetail(page,{condition:"Near Mint",priceHistory:history});
+  await expect.poll(()=>page.evaluate(()=>!!fixtureApp.chartInstance)).toBe(true);
+  await page.locator('#positionChart').scrollIntoViewIfNeeded();
+  const point=await page.evaluate(()=>{const chart=fixtureApp.chartInstance,p=chart.getDatasetMeta(0).data[1],r=chart.canvas.getBoundingClientRect();return{x:r.x+p.x,y:r.y+p.y};});
+  if(info.project.name.startsWith('mobile'))await page.touchscreen.tap(point.x,point.y);
+  else await page.mouse.move(point.x,point.y);
+  await expect.poll(()=>page.evaluate(()=>fixtureApp.chartInstance.tooltip.getActiveElements().length)).toBe(1);
+  await page.getByRole('heading',{name:'Price history',exact:true}).click();
+  await expect.poll(()=>page.evaluate(()=>fixtureApp.chartInstance.tooltip.getActiveElements().length)).toBe(0);
+  expect(await page.evaluate(()=>fixtureApp.chartInstance.data.datasets[0].data.map(point=>point.y))).toEqual([100,110,120]);
+});
+
+test("one thousand individual copies keep the library bounded and warm navigation responsive", async ({page}, info) => {
+  await openDetail(page);
+  let providerReads=0;
+  await page.route('**/api/**',route=>{providerReads++;return route.fulfill({status:503,json:{}});});
+  const measured=await page.evaluate(async()=>{
+    const app=fixtureApp, base=app.state.items[0];
+    app.state.items=Array.from({length:1000},(_,i)=>({...base,id:`fixture-${i}`,uid:`00000000-0000-4000-8000-${String(i).padStart(12,'0')}`,name:`Card ${String(i).padStart(4,'0')}`,quantity:1,price:100+i/100,cardState:'raw',gradingCompany:'',grade:'',priceHistory:[],lots:[],transactions:[]}));
+    app.state.visibleLimit=100;app.state.route='collection';app.state.sort='name';app.state.query='';
+    app.routeTo('collection',{focus:false});
+    const start=performance.now();app.renderCollection();const renderMs=performance.now()-start;
+    const rows=document.querySelectorAll('#cardLedger .ledger-row').length;
+    const first=document.querySelector('#cardLedger [data-open-position]');first.focus();
+    const warmStart=performance.now();app.renderCollection();const warmMs=performance.now()-warmStart;
+    const retained=document.activeElement===first;
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    return {copies:app.state.items.length,rows,renderMs,warmMs,retained,remaining:document.querySelector('#loadMorePositions').textContent};
+  });
+  await writeFile(info.outputPath('1000-copy-render.json'),JSON.stringify(measured,null,2));
+  await info.attach('1000-copy-render.json',{body:JSON.stringify(measured,null,2),contentType:'application/json'});
+  expect(measured.copies).toBe(1000);expect(measured.rows).toBe(100);expect(measured.remaining).toContain('900 remaining');expect(measured.retained).toBe(true);
+  expect(measured.renderMs).toBeLessThan(200);expect(measured.warmMs).toBeLessThan(200);expect(providerReads).toBe(0);
 });

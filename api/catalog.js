@@ -1,6 +1,7 @@
 import { withNativeCors } from "../lib/native-cors.js";
 import { createClient } from "@supabase/supabase-js";
 import { serverEnvironment } from "../lib/env.js";
+import { cachedPkmnPricesCatalogTrends } from "../lib/providers/pkmnprices.js";
 import { searchInternalCatalogPage } from "../lib/catalog-db.js";
 import {
   parseCatalogQuery,
@@ -76,8 +77,11 @@ async function handler(request, response) {
   }
   const source = continuation?.source || requestedSource;
   const page = continuation?.page || 1;
-  const respond = (result, provider) =>
-    send(
+  const respond = async (result, provider) => {
+    try {
+      result = { ...result, cards: await cachedPkmnPricesCatalogTrends(serverEnvironment().pkmnpricesApiKey, result.cards || [], AbortSignal.timeout(750)) };
+    } catch { /* Saved reference previews are optional; never delay or fail search. */ }
+    return send(
       response,
       200,
       {
@@ -106,6 +110,7 @@ async function handler(request, response) {
         "CDN-Cache-Control": "max-age=300",
       },
     );
+  };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
@@ -124,7 +129,7 @@ async function handler(request, response) {
           { limit, offset: (page - 1) * limit, set, signal: controller.signal },
         );
         if (internal.cards.length || internal.hasMore || source === "internal")
-          return respond(internal, "internal");
+          return await respond(internal, "internal");
       } catch (error) {
         if (source === "internal") throw error;
         console.warn("[api/catalog] internal catalog unavailable", {
@@ -139,7 +144,7 @@ async function handler(request, response) {
       { limit, page, set },
       controller.signal,
     );
-    return respond(result, "tcgdex");
+    return await respond(result, "tcgdex");
   } catch (error) {
     console.error("[api/catalog] provider request failed", {
       name: error?.name || "Error",

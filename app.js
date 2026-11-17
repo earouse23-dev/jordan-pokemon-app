@@ -186,6 +186,7 @@ import {
   loadActionCenter,
   loadCollectionOrganization,
   loadCollectionPositionAttachments,
+  loadCollectionIdentificationPhotos,
   loadCollectionSearchPage,
   loadGradingCalibrationSummary,
   loadGradingReports,
@@ -2554,7 +2555,10 @@ function renderCardPreviewTrend(item, { catalogPreview = false, descriptionId = 
     ? completedSaleHistory(source, valuationContextForItem(source), savedSaleEvidenceForContext(source, valuationContextForItem(source)))
     : historyForItem(source);
   const matched = history.length ? history : graded ? historyForItem(source).filter(point => String(point.gradingCompany || "").toUpperCase() === String(source.gradingCompany || "").toUpperCase() && String(point.grade ?? "") === String(source.grade ?? "") && String(point.gradeQualifier || "").toLowerCase() === String(source.gradeQualifier || "").toLowerCase()) : [];
-  const trend = priceTrendPreview(matched, source.currency || "USD");
+  const shared = reference && item.referenceTrend, printing = selectedPrinting(item);
+  const sharedContext = shared?.context;
+  const sharedMatches = sharedContext && sharedContext.language === item.language && sharedContext.variantId === printing.id && sharedContext.finish === printing.finish && sharedContext.edition === printing.edition && sharedContext.promoType === printing.promoType && sharedContext.currency === (source.currency || "USD") && sharedContext.condition === "Near Mint";
+  const trend = priceTrendPreview(matched, source.currency || "USD") || (sharedMatches ? shared : null);
   const period = reference ? "NM · 3M" : "3M";
   const description = descriptionId ? ` id="${esc(descriptionId)}"` : "";
   if (!trend) return `<span class="card-preview-trend empty"${description} role="img" aria-label="No saved matching three-month price history"><span aria-hidden="true">—</span><small aria-hidden="true">${period}</small></span>`;
@@ -2843,10 +2847,31 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
 
 }
 
+// Values change once, with a brief emphasis rather than fabricated intermediate prices.
+function emphasizePriceChange(node, previous) {
+  if (!node || previous === node.textContent || !/\d/.test(previous || "") || !/\d/.test(node.textContent) ||
+      motionPreference === "reduce" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  node.getAnimations().forEach(animation => animation.cancel());
+  node.animate([{ backgroundColor: getComputedStyle(document.body).getPropertyValue("--mint").trim() }, { backgroundColor: "transparent" }], { duration: 320, easing: "ease-out" });
+}
+function setPortfolioPrice(text) {
+  const node = $("#portfolioValue"), previous = node.textContent;
+  node.textContent = text;
+  emphasizePriceChange(node, previous);
+}
+
+// Reveal only the first plot of a context, not every range change or background update.
+const revealedHistoryContexts = new Set();
 // Reveal only the plotted data; keep axes fixed and avoid Chart.js value tweening.
 const historyChartReveal = {
   id: "historyReveal",
   beforeInit(chart) {
+    const key = chart.canvas.dataset.historyRevealKey;
+    if (key && revealedHistoryContexts.has(key)) return;
+    if (key) {
+      revealedHistoryContexts.add(key);
+      if (revealedHistoryContexts.size > 128) revealedHistoryContexts.delete(revealedHistoryContexts.values().next().value);
+    }
     if (motionPreference !== "reduce" && !matchMedia("(prefers-reduced-motion: reduce)").matches)
       chart.$historyReveal = { startedAt: null, progress: 0, frame: null };
   },
@@ -2882,6 +2907,22 @@ const historyChartReveal = {
 };
 const historyChartCursor = {
   id: "historyCursor",
+  afterInit(chart) {
+    const dismiss = event => {
+      if (event.type === "keydown" && event.key !== "Escape") return;
+      if (event.target === chart.canvas || !chart.tooltip?.getActiveElements().length) return;
+      chart.setActiveElements([]);
+      chart.tooltip.setActiveElements([], { x: 0, y: 0 });
+      chart.draw();
+    };
+    chart.$dismissHistoryCursor = dismiss;
+    document.addEventListener("pointerdown", dismiss, true);
+    document.addEventListener("keydown", dismiss);
+  },
+  afterDestroy(chart) {
+    document.removeEventListener("pointerdown", chart.$dismissHistoryCursor, true);
+    document.removeEventListener("keydown", chart.$dismissHistoryCursor);
+  },
   afterDatasetsDraw(chart) {
     const active = chart.tooltip?.getActiveElements?.() || [];
     if (!active.length) return;
@@ -2977,6 +3018,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
             ? { year: "2-digit" }
             : {}),
     });
+  canvas.dataset.historyRevealKey = `card:${state.session?.user?.id || "preview"}:${detailIdentityKey(item)}:${detailContextKey(valuationContextForItem(item))}`;
   chartInstance = new Chart(canvas, {
     type: "line",
     plugins: [historyChartReveal, historyChartCursor],
@@ -5461,6 +5503,7 @@ async function mountPortfolioHistoryChart({
     notation: "compact",
     maximumFractionDigits: 2,
   });
+  canvas.dataset.historyRevealKey = `portfolio:${state.session?.user?.id || "preview"}:${currency}:${marketMode}:${pnlMode}`;
   portfolioChartInstance = new Chart(canvas, {
     type: "line",
     plugins: [historyChartReveal, historyChartCursor],
@@ -6795,6 +6838,71 @@ function openManageCollectionOrganizationSheet() {
   });
 }
 
+let collectionReorderScheduled = false;
+function updateCollectionRows(markup) {
+  const ledger = $("#cardLedger"), template = document.createElement("template");
+  template.innerHTML = markup;
+  let oldChildren = [...ledger.children];
+  const nextChildren = [...template.content.children];
+  const active = document.activeElement, focusedRow = active?.closest(".ledger-row");
+  const focusedId = ledger.contains(focusedRow) ? focusedRow.dataset.id : null;
+  const action = ["data-open-position", "data-toggle-favorite", "data-add-purchase", "data-digital-grade"].find(key => active?.hasAttribute(key));
+  const restoreFocus = () => {
+    const row = [...ledger.querySelectorAll(".ledger-row")].find(node => node.dataset.id === focusedId);
+    (action ? row?.querySelector(`[${action}]`) : row?.matches("[tabindex]") ? row : null)?.focus({ preventScroll: true });
+  };
+  let sameOrder = oldChildren.length === nextChildren.length && oldChildren.every((node, i) =>
+    node.matches(".ledger-row") ? nextChildren[i].matches(".ledger-row") && node.dataset.id === nextChildren[i].dataset.id : node.outerHTML === nextChildren[i].outerHTML);
+  if (!sameOrder && oldChildren.length === nextChildren.length && oldChildren.every(node => node.matches(".ledger-row")) && nextChildren.every(node => node.matches(".ledger-row"))) {
+    const rows = new Map(oldChildren.map(row => [row.dataset.id, row]));
+    if (nextChildren.every(row => rows.has(row.dataset.id))) {
+      // A live value sort must not move the pressed card out from under a finger.
+      if (ledger.querySelector(":active")) {
+        if (!collectionReorderScheduled) {
+          collectionReorderScheduled = true;
+          const released = () => {
+            document.removeEventListener("pointerup", released, true);
+            document.removeEventListener("pointercancel", released, true);
+            collectionReorderScheduled = false;
+            requestAnimationFrame(() => { if (state.route === "collection") renderCollection(); });
+          };
+          document.addEventListener("pointerup", released, true);
+          document.addEventListener("pointercancel", released, true);
+        }
+        return;
+      }
+      for (const row of nextChildren) ledger.append(rows.get(row.dataset.id));
+      oldChildren = [...ledger.children];
+      sameOrder = true;
+      restoreFocus();
+    }
+  }
+  if (!sameOrder) { ledger.replaceChildren(template.content); restoreFocus(); return; }
+  for (const [i, row] of oldChildren.entries()) {
+    if (!row.matches(".ledger-row")) continue;
+    const next = nextChildren[i], comparison = row.cloneNode(true);
+    // Keep card controls mounted during price-only refreshes, including an in-progress press.
+    for (const selector of [".position-price-grid", ".price-cell", ".card-thumb"])
+      comparison.querySelector(selector)?.replaceWith(next.querySelector(selector).cloneNode(true));
+    if (comparison.outerHTML === next.outerHTML) {
+      for (const selector of [".position-price-grid", ".price-cell", ".card-thumb"]) {
+        const current = row.querySelector(selector), replacement = next.querySelector(selector);
+        if (current.outerHTML !== replacement.outerHTML) {
+          // A failed image may already show its fallback. Don't retry that same source on every price paint.
+          if (selector === ".card-thumb" && current.dataset.sourceKey === replacement.dataset.sourceKey) continue;
+          const previous = selector === ".position-price-grid" ? current.querySelector("strong")?.textContent : null;
+          current.replaceWith(replacement);
+          if (previous) emphasizePriceChange(replacement.querySelector("strong"), previous);
+        }
+      }
+    } else {
+      const focused = row.dataset.id === focusedId;
+      row.replaceWith(next);
+      if (focused) restoreFocus();
+    }
+  }
+}
+
 function renderCollection() {
   renderCollectionOrganization();
   $("#filterButton").classList.remove("hidden");
@@ -6900,7 +7008,7 @@ function renderCollection() {
     .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   const portfolioReturn = profitLoss.unrealizedPercent;
   $("#portfolioToplineLabel").textContent = profitLoss.missingUnits ? "Known portfolio value" : "Total portfolio value";
-  $("#portfolioValue").textContent = restoreSnapshot ? money(lastSnapshot.total, selectedCurrency) : profitLoss.pricedUnits
+  let nextPortfolioPrice = restoreSnapshot ? money(lastSnapshot.total, selectedCurrency) : profitLoss.pricedUnits
     ? money(profitLoss.valueMinor / 100, selectedCurrency)
     : profitLoss.knownZeroActive && state.items.length === 0 ? money(0, selectedCurrency) : "—";
   $("#portfolioValue").dataset.savedSnapshot = String(Boolean(restoreSnapshot));
@@ -6908,9 +7016,10 @@ function renderCollection() {
   const savedPortfolio = displayPortfolioView(state.portfolioView, selectedCurrency, lastValidatedFxRate);
   if (savedPortfolio && (savedPortfolio.total !== null || savedPortfolio.knownTotal !== null)) {
     $("#portfolioToplineLabel").textContent = state.portfolioView.legacySnapshot ? "Last saved portfolio value" : savedPortfolio.total === null ? "Known portfolio value" : "Total portfolio value";
-    $("#portfolioValue").textContent = money(savedPortfolio.total ?? savedPortfolio.knownTotal, selectedCurrency);
+    nextPortfolioPrice = money(savedPortfolio.total ?? savedPortfolio.knownTotal, selectedCurrency);
     $("#portfolioValue").dataset.savedSnapshot = "true";
   }
+  setPortfolioPrice(nextPortfolioPrice);
   $("#costBasis").textContent = profitLoss.knownBasisUnits ? money(profitLoss.knownBasisMinor / 100, selectedCurrency) : "—";
   $("#unrealized").textContent = profitLoss.comparableUnits
     ? `${profitLoss.unrealizedMinor >= 0 ? "Up " : "Down "}${money(Math.abs(profitLoss.unrealizedMinor) / 100, selectedCurrency)}${profitLoss.unrealizedPercent === null ? "" : ` (${profitLoss.unrealizedPercent >= 0 ? "+" : ""}${profitLoss.unrealizedPercent.toFixed(1)}%)`}`
@@ -7313,6 +7422,7 @@ function renderCollection() {
       : 0;
     const total = itemValue(item);
     const canDigitalGrade =
+      state.gradingCapability === "active" &&
       item.cardState !== "sealed" &&
       !item.gradingCompany &&
       item.status === "owned";
@@ -7363,19 +7473,20 @@ function renderCollection() {
       ${state.bulkMode ? `<span class="bulk-select-indicator" aria-hidden="true">${selected ? "✓" : ""}</span>` : ""}
       ${state.bulkMode ? "" : `<button class="ledger-open-overlay" type="button" data-open-position="${esc(item.uid)}" aria-label="Open ${esc(item.name)} details"></button>`}
       ${state.bulkMode ? "" : `<button class="ledger-favorite${favorite ? " selected" : ""}" type="button" data-toggle-favorite="${esc(item.uid)}" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button>`}
-      <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
-      <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${activeCopies > 1 ? `<span class="quantity">×${activeCopies}</span>` : ""}</div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
+      <img class="card-thumb" data-source-key="${esc(privateCollectionPhoto(item) || item.thumb || item.image || "./icons/icon.svg")}"${privateCollectionPhoto(item) ? " data-private-photo" : ""} src="${esc(privateCollectionPhoto(item) || item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
+      <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${activeCopies > 1 ? `<span class="quantity">×${activeCopies}</span>` : ""}</div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""}">${esc(tag)}</span>`).join("")}</div></div>
       <div class="position-price-grid compact" aria-label="Card value"><span><small class="${copyGroup?.copies.length > 1 || activeCopies > 1 ? "" : "sr-only"}">${copyGroup?.copies.length > 1 ? "Each" : activeCopies > 1 ? "Total" : "Value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span>${renderCardPreviewTrend(item)}</div>
       <div class="price-cell">${item.pricingStatus === "stale" || total == null ? `<span class="row-unit price-provenance">${item.pricingStatus === "stale" ? "Older price" : "Price unavailable"}</span>` : ""}${movementLabel ? `<span class="row-move ${moveClass}" title="Gain/loss since purchase">P/L ${esc(movementLabel)}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}"><svg class="ledger-grade-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg><span>${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</span></button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
     </article>`;
   };
   const groups = groupCollectionOrganization(displayedRows, state.groupBy);
-  $("#cardLedger").innerHTML = groups
+  updateCollectionRows(groups
     .map(
       (group) =>
         `${state.groupBy === "none" ? "" : `<h3 class="collection-group-heading"><span>${esc(group.label)}</span><small>${group.items.length.toLocaleString()} saved entr${group.items.length === 1 ? "y" : "ies"}</small></h3>`}${group.items.map(itemMarkup).join("")}`,
     )
-    .join("");
+    .join(""));
+  if (state.route === "collection") void loadOwnedCollectionPhotos(displayedRows);
   renderGradingAvailability();
   $("#collectionEmpty").classList.toggle("hidden", visible.length > 0);
   const trulyEmpty = state.largeInventory.active
@@ -7416,23 +7527,22 @@ function renderCollection() {
   syncBulkControls();
   $$(".ledger-row").forEach((row) => {
     if (!state.bulkMode) return;
-    row.addEventListener("click", () => toggleBulkPosition(row.dataset.id));
-    row.addEventListener("keydown", (event) => {
+    row.onclick = () => toggleBulkPosition(row.dataset.id);
+    row.onkeydown = (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       toggleBulkPosition(row.dataset.id);
-    });
+    };
   });
   $$("[data-open-position]").forEach((button) =>
-    button.addEventListener("click", () =>
+    button.onclick = () =>
       openCardDetail(
         state.items.find((item) => item.uid === button.dataset.openPosition),
         true,
       ),
-    ),
   );
   $$("[data-add-purchase]").forEach((button) =>
-    button.addEventListener("click", (event) => {
+    button.onclick = (event) => {
       event.stopPropagation();
       const item = state.items.find(
         (candidate) => candidate.uid === button.dataset.addPurchase,
@@ -7440,25 +7550,25 @@ function renderCollection() {
       if (!item) return;
       if (item.cardState === "graded") openAnotherPhysicalCopy(item);
       else openPurchaseLotSheet(item);
-    }),
+    },
   );
   $$("[data-digital-grade]").forEach((button) =>
-    button.addEventListener("click", (event) => {
+    button.onclick = (event) => {
       event.stopPropagation();
       const item = state.items.find(
         (candidate) => candidate.uid === button.dataset.digitalGrade,
       );
       if (item) void openDigitalGrader(item);
-    }),
+    },
   );
   $$("[data-toggle-favorite]").forEach((button) =>
-    button.addEventListener("click", (event) => {
+    button.onclick = (event) => {
       event.stopPropagation();
       const item = state.items.find(
         (candidate) => candidate.uid === button.dataset.toggleFavorite,
       );
       if (item) void toggleFavorite(item);
-    }),
+    },
   );
 }
 
@@ -7554,6 +7664,7 @@ async function loadOwnedCollectionAttachments(item) {
     });
   }
   if (state.route === "detail" && state.detailId === item.uid) renderDetail();
+  void loadOwnedCollectionPhotos([item]);
 }
 
 function collectionAttachmentMarkup(item) {
@@ -8084,6 +8195,48 @@ async function loadSealedDetailPricing(item, guard = beginDetailRequest(item)) {
 }
 
 const previewPricingCache = new Map();
+// Short-lived private URLs stay in memory, outside items and persisted price snapshots.
+const privateCollectionPhotos = new Map();
+function clearPrivateCollectionPhotos() {
+  privateCollectionPhotos.clear();
+  document.querySelectorAll("img[data-private-photo]").forEach(image => {
+    image.src = image.dataset.fallback || "./icons/icon.svg";
+    image.removeAttribute("data-private-photo");
+    delete image.dataset.sourceKey;
+    delete image.dataset.imageAttempts;
+  });
+}
+function privateCollectionPhoto(item) {
+  const photo = privateCollectionPhotos.get(item.uid);
+  return photo && photo.ownerId === state.session?.user?.id && photo.expiresAt > Date.now() ? photo.url || "" : "";
+}
+async function loadOwnedCollectionPhotos(items) {
+  const ownerId = state.session?.user?.id, loadVersion = sessionLoadVersion;
+  if (!supabase || !ownerId || state.accountLoading || state.accountLoadError) return;
+  const pending = items.filter(item => {
+    const current = privateCollectionPhotos.get(item.uid);
+    return UUID_PATTERN.test(item.uid || "") && (current?.ownerId !== ownerId || current.expiresAt <= Date.now() || (current.pending && current.loadVersion !== loadVersion));
+  }).slice(0, 100);
+  if (!pending.length) return;
+  const entries = new Map(pending.map(item => [item.uid, { ownerId, loadVersion, pending: true, expiresAt: Date.now() + 240_000, url: privateCollectionPhoto(item) }]));
+  for (const [id, entry] of entries) privateCollectionPhotos.set(id, entry);
+  try {
+    const photos = new Map((await loadCollectionIdentificationPhotos(supabase, ownerId, [...entries.keys()])).map(photo => [photo.uid, photo.url]));
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    for (const [id, entry] of entries) if (privateCollectionPhotos.get(id) === entry) entry.url = photos.get(id) || "";
+  } catch {
+    if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
+    for (const [id, entry] of entries) if (privateCollectionPhotos.get(id) === entry) entry.expiresAt = Date.now() + 60_000;
+  }
+  if (!accountRequestIsCurrent(ownerId, loadVersion)) {
+    for (const [id, entry] of entries) if (privateCollectionPhotos.get(id) === entry) privateCollectionPhotos.delete(id);
+    return;
+  }
+  for (const [id, entry] of entries) if (privateCollectionPhotos.get(id) === entry) entry.pending = false;
+  if (state.route === "collection") renderCollection();
+  if (state.route === "detail" && entries.has(state.detailId)) renderDetail();
+}
+
 const savedCopyPricing = new Map();
 const previewPricingKey = (card, context) => JSON.stringify([state.session?.user?.id, detailIdentityKey(card), detailContextKey(context)]);
 
@@ -9034,7 +9187,7 @@ function renderDetail() {
   const marketHero = `<section class="market-hero" data-price-state="${displayPrice == null ? "empty" : "ready"}" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}${displayPrice != null ? `<details class="price-source-details"><summary>Source</summary><small class="price-provenance">${esc(provenance)}</small></details>` : ""}${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button" aria-label="View recent eBay sales">eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><div class="detail-image"><img src="${esc(item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><div class="detail-title-block"><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="sr-only" aria-live="polite">Copy title</span></button></div>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
+    <div class="detail-identity"><div class="detail-image"><img${privateCollectionPhoto(item) ? " data-private-photo" : ""} src="${esc(privateCollectionPhoto(item) || item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div class="detail-identity-content"><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><div class="detail-title-block"><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="sr-only" aria-live="polite">Copy title</span></button></div>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
     <section class="detail-section">${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
@@ -9132,6 +9285,7 @@ function renderDetail() {
       });
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       state.organization.attachments.delete(item.uid);
+        privateCollectionPhotos.delete(item.uid);
       await loadOwnedCollectionAttachments(item);
       if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
       toast("Private file attached");
@@ -9194,6 +9348,7 @@ function renderDetail() {
         await deleteCollectionPositionAttachment(supabase, attachment, ownerId);
         if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
         state.organization.attachments.delete(item.uid);
+        privateCollectionPhotos.delete(item.uid);
         await loadOwnedCollectionAttachments(item);
         if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
         toast("Private file deleted");
@@ -10381,8 +10536,10 @@ async function saveCardAddDraft(
   if (refreshAfterSave && focusAfterSave && state.session?.access_token) {
     const savedCopy = state.items.find(item => item.uid === itemId);
     if (savedCopy?.cardState === "graded") {
-      // The confirmed new copy gets one exact sold-based check, not raw/reference pricing.
-      void loadSales(savedCopy, true);
+      // Reuse a fresh preview; an unpriced new slab still needs its targeted durable check.
+      const context = valuationContextForItem(savedCopy);
+      const fresh = [previewSales, savedSaleEvidenceForContext(savedCopy, context)].some(evidence => freshSaleEvidence(savedCopy, context, evidence));
+      void loadSales(savedCopy, !fresh);
     }
   }
   logIngestionEvent({
@@ -10429,6 +10586,7 @@ function showSavedScanPhotoRetry(itemId, photoFile, ownerId, loadVersion, refres
       await uploadCollectionPositionAttachment(supabase, { positionId: itemId, ownerId, file: photoFile, caption: sealed ? "Unopened product identification photo" : "Front identification photo · user confirmed" });
       if (state.session?.user?.id !== ownerId || sessionLoadVersion !== loadVersion) return;
       state.organization.attachments.delete(itemId);
+      privateCollectionPhotos.delete(itemId);
       if (nativeBuild && nativePositionDraft?.idempotencyKey === draft.idempotencyKey) {
         nativePositionDraft = null;
         await nativeRuntime().clearDraft(ownerId, "position-draft").catch(() => toast("Copy saved. Interrupted-work cleanup will retry after restart."));
@@ -17618,7 +17776,7 @@ function renderSavedPortfolio() {
   if (saved.total === null && saved.knownTotal === null) return false;
   renderSoftwareModeHome();
   $("#portfolioToplineLabel").textContent = saved.total === null ? "Known portfolio value" : "Total portfolio value";
-  $("#portfolioValue").textContent = money(saved.total ?? saved.knownTotal, saved.currency);
+  setPortfolioPrice(money(saved.total ?? saved.knownTotal, saved.currency));
   $("#portfolioValue").dataset.savedSnapshot = "true";
   $("#portfolioChange").textContent = saved.missingUnits ? `${saved.missingUnits} unpriced ${saved.missingUnits === 1 ? "copy" : "copies"} excluded` : "";
   $(".status-label").innerHTML = `<i></i> Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}`;
@@ -21496,6 +21654,8 @@ async function applySession(session) {
       summary: {},
       attachments: new Map(),
     };
+    clearPrivateCollectionPhotos();
+    revealedHistoryContexts.clear();
     state.actionCenter = emptyActionCenter(session ? "idle" : "local");
     state.gradingCapability = null;
     if (session) void refreshCapabilityStatus();

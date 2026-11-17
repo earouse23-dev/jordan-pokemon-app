@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase };`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, applySession, supabase as testSupabase };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -352,4 +352,97 @@ test('leaving Settings clears its path and back/forward preserves the selected w
   await page.goForward();
   await expect(page.locator('#view-collection')).toBeVisible();
   expect(new URL(page.url()).pathname).toBe('/');
+});
+
+for (const capability of ['active','held']) test(`background pricing retains focused collection actions (${capability})`, async ({page}) => {
+  await openCollection(page);
+  await page.evaluate(async ({url,capability})=>{const app=await import(url);app.state.gradingCapability=capability;app.renderCollection();},{url:appUrl,capability});
+  const action=page.getByRole('button',{name:'Open Blastoise details',exact:true});
+  await action.focus();
+  const original=await action.elementHandle();
+  const before=await page.evaluate(()=>window.scrollY);
+  await page.evaluate(async url=>{const app=await import(url);app.state.items[1].price=275;app.state.items[1].retainedPrice=true;app.renderCollection();},appUrl);
+  await expect(action).toBeFocused();
+  expect(await original.evaluate(node=>node.isConnected)).toBe(true);
+  expect(Math.abs(await page.evaluate(()=>window.scrollY)-before)).toBeLessThanOrEqual(2);
+});
+
+
+test('a price arriving during a card press does not swallow the open action', async ({page}) => {
+  await openCollection(page);
+  const action=page.getByRole('button',{name:'Open Blastoise details',exact:true});
+  const box=await action.boundingBox();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);
+  await page.mouse.down();
+  await page.evaluate(async url=>{const app=await import(url);app.state.items[1].price=275;app.state.items[1].retainedPrice=true;app.renderCollection();},appUrl);
+  await page.mouse.up();
+  await expect(page.locator('#detailTitle')).toContainText('Blastoise');
+});
+
+
+test("saved identification photos replace artwork privately without rebuilding controls or persisting signed URLs", async ({ page }) => {
+  await openCollection(page);
+  const owner = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  let reads = 0, signs = 0;
+  await page.route("**/rest/v1/collection_item_attachments?*", route => {
+    reads++;
+    const url = new URL(route.request().url());
+    expect(url.searchParams.get("user_id")).toBe(`eq.${owner}`);
+    return route.fulfill({contentType:"application/json",body:JSON.stringify([{collection_item_id:"11111111-1111-4111-8111-111111111111",storage_path:`${owner}/11111111-1111-4111-8111-111111111111/front.jpg`,caption:"Front identification photo · user confirmed"}])});
+  });
+  await page.route("**/storage/v1/object/sign/collection-item-files", route => {
+    signs++;
+    const body = route.request().postDataJSON();
+    expect(body.paths).toHaveLength(1);
+    expect(body.expiresIn).toBe(300);
+    return route.fulfill({contentType:"application/json",body:JSON.stringify(body.paths.map(path=>({path,signedURL:`/object/sign/collection-item-files/${path}?token=private-fixture`})))});
+  });
+  await page.route("**/storage/v1/object/sign/collection-item-files/**", route => route.fulfill({status:200,contentType:"image/svg+xml",body:'<svg xmlns="http://www.w3.org/2000/svg" width="63" height="88"><rect width="63" height="88" fill="green"/></svg>'}));
+  const button=page.getByRole("button",{name:"Open Charizard details",exact:true});
+  await button.focus();
+  const original=await button.elementHandle();
+  await page.evaluate(async({appUrl,owner})=>{const app=await import(appUrl);app.state.session={user:{id:owner},access_token:"fixture"};app.renderCollection();},{appUrl,owner});
+  await expect(page.locator('.ledger-row[data-id="11111111-1111-4111-8111-111111111111"]>.card-thumb')).toHaveAttribute("src",/private-fixture/);
+  expect(await original.evaluate(el=>el.isConnected)).toBe(true);
+  await expect(button).toBeFocused();
+  await page.evaluate(async url=>(await import(url)).renderCollection(),appUrl);
+  expect(reads).toBe(1);expect(signs).toBe(1);
+  expect(await page.evaluate(async url=>JSON.stringify((await import(url)).state.items),appUrl)).not.toContain("private-fixture");
+  await page.evaluate(async url=>(await import(url)).applySession(null),appUrl);
+  expect(await page.locator('img[src*="private-fixture"]').count()).toBe(0);
+  expect(await page.locator('body').evaluate(el=>el.innerHTML)).not.toContain('private-fixture');
+});
+
+
+for(const reduced of [false,true])test(`background value feedback keeps the real value and respects reduced motion (${reduced})`,async({page})=>{
+  await openCollection(page);
+  await page.emulateMedia({reducedMotion:reduced?'reduce':'no-preference'});
+  await page.evaluate(async url=>{const app=await import(url);app.state.items[0].price=100;app.state.items[0].retainedPrice=true;app.renderCollection();},appUrl);
+  await page.evaluate(async url=>{const app=await import(url);app.state.items[0].price=125;app.renderCollection();},appUrl);
+  const value=page.locator('.ledger-row[data-id="11111111-1111-4111-8111-111111111111"] .position-price-grid strong');
+  await expect(value).toHaveText('$125.00');
+  const animations=await value.evaluate(el=>el.getAnimations().length);
+  expect(animations).toBe(reduced?0:1);
+});
+
+
+test("background values do not repeatedly reload a failed artwork source",async({page})=>{
+  await openCollection(page);
+  let failed=0;
+  await page.route('**/missing-artwork.jpg',route=>{failed++;return route.fulfill({status:404,body:''});});
+  await page.evaluate(async url=>{const app=await import(url);app.state.items[0].thumb='/missing-artwork.jpg';app.state.items[0].image='/icons/icon.svg';app.renderCollection();},appUrl);
+  const image=page.locator('.ledger-row[data-id="11111111-1111-4111-8111-111111111111"]>.card-thumb');
+  await expect(image).toHaveAttribute('src',/icon.svg$/);
+  const original=await image.elementHandle();
+  await page.evaluate(async url=>{const app=await import(url);app.state.items[0].price=126;app.state.items[0].retainedPrice=true;app.renderCollection();},appUrl);
+  expect(await original.evaluate(el=>el.isConnected)).toBe(true);expect(failed).toBe(1);
+});
+
+
+test('a background value sort waits until the pressed card has opened',async({page})=>{
+  await openCollection(page);
+  const action=page.getByRole('button',{name:'Open Charizard details',exact:true}),box=await action.boundingBox();
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();
+  await page.evaluate(async url=>{const app=await import(url);app.state.items[0].price=300;app.state.items[0].retainedPrice=true;app.renderCollection();},appUrl);
+  await page.mouse.up();await expect(page.locator('#detailTitle')).toContainText('Charizard');
 });

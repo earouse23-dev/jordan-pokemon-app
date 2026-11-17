@@ -498,7 +498,8 @@ test('saving a preview carries its validated price into the new owned copy befor
 });
 
 test('graded preview automatically loads exact sold comps and reuses them for 24 hours',async({page})=>{
- const calls=[];
+ const calls=[]; let durableLookups=0;
+ await page.route('**/api/graded-valuation',route=>{durableLookups++;return route.fulfill({status:503,json:{error:'fixture'}});});
  await page.route('**/api/cards?*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({cards:[]})}));
  await page.route('**/api/sales?*',route=>{
   const lookup=JSON.parse(new URL(route.request().url()).searchParams.get('lookup'));calls.push(lookup);
@@ -524,13 +525,17 @@ test('graded preview automatically loads exact sold comps and reuses them for 24
   return route.fulfill({contentType:'application/json',body:'[]'});
  });
  await page.route('**/api/capabilities?surface=portfolio',route=>route.fulfill({status:503,contentType:'application/json',body:'{}'}));
- await page.evaluate(async savedId=>{
+ // Keep the workflow promise reachable while Chromium initializes the replacement chart.
+ await page.evaluate(savedId=>{globalThis.savedPreviewPromise=(async()=>{
   const app=fixtureApp,card=app.state.detailCard;
-  await app.saveCardAddDraft({card,input:{cardState:'graded',grader:'PSA',grade:9,gradeQualifier:'',quantity:1,transactionDate:new Date().toISOString().slice(0,10),unitPrice:300,currency:'USD',variant:'Holofoil'},acquisitionCostKnown:true,acquisitionDateKnown:true,idempotencyKey:crypto.randomUUID()},null,{refreshAfterSave:false,closeAfterSave:false});
+  await app.saveCardAddDraft({card,input:{cardState:'graded',grader:'PSA',grade:9,gradeQualifier:'',quantity:1,transactionDate:new Date().toISOString().slice(0,10),unitPrice:300,currency:'USD',variant:'Holofoil'},acquisitionCostKnown:true,acquisitionDateKnown:true,idempotencyKey:crypto.randomUUID()},null,{refreshAfterSave:true,focusAfterSave:true,closeAfterSave:false});
   await app.reloadPortfolio(savedId,{backgroundPricing:true});
   app.openCardDetail(app.state.items[0],true);
- },savedId);
+ })();},savedId);
+ await page.evaluate(()=>globalThis.savedPreviewPromise);
  await expect(page.locator('.exact-sold-value')).toContainText('$1,175.00');
+ await page.waitForLoadState('networkidle');
+ expect(durableLookups).toBe(0);
  expect(calls).toHaveLength(1);
  await page.evaluate(()=>{const app=fixtureApp,card={...app.state.detailCard};delete card.uid;delete card.exactSaleEvidence;app.state.items=[];app.state.session={user:{id:'another-slab-owner'},access_token:'other-fixture'};app.openCardDetail(card);});
  await expect.poll(()=>calls.length).toBe(2);

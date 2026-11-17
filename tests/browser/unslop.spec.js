@@ -178,3 +178,41 @@ test('saved preview trends show true direction in collection and both catalog su
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
   expect(requests).toEqual([]);
 });
+
+
+test('catalog previews use a matching shared cached summary and reject another printing',async({page})=>{
+  await boot(page);
+  const option={id:'holo',label:'Holofoil',finish:'holofoil',edition:'unlimited',promoType:'none',language:'en',status:'exact'};
+  const context={language:'en',variantId:'holo',finish:'holofoil',edition:'unlimited',promoType:'none',currency:'USD',condition:'Near Mint'};
+  const trend={line:'0,36 100,4',change:25,percent:25,direction:'up',firstDate:new Date(Date.now()-2*86400000).toISOString().slice(0,10),lastDate:new Date(Date.now()-86400000).toISOString().slice(0,10),days:2,context};
+  const card={id:'shared-fixture',name:'Shared Pikachu',set:'Base Set',number:'58/102',language:'en',variant:'Holofoil',variantOptions:[option],currency:'USD',thumb:'/icons/icon.svg',referenceTrend:trend};
+  await page.route('**/api/catalog?**',route=>route.fulfill({json:{cards:[card,{...card,id:'wrong-fixture',name:'Other printing',referenceTrend:{...trend,context:{...context,edition:'first_edition'}}}]}}));
+  await page.evaluate(()=>polishApp.routeTo('scan',{instant:true}));
+  await page.locator('#quickCardSearch').fill('Pikachu');await page.locator('#quickCardSearch').press('Enter');
+  await expect(page.locator('#quickSearchResults .card-preview-trend.up')).toHaveCount(1);
+  await expect(page.locator('#quickSearchResults .card-preview-trend.up')).toContainText('+25.0%');
+  await expect(page.locator('#quickSearchResults .card-preview-trend.empty')).toHaveCount(1);
+});
+
+for(const appearance of ['light','dark'])test(`${appearance} empty, filtered and unusually long identity/value states remain usable`,async({page},info)=>{
+  await boot(page);await page.evaluate(a=>document.body.dataset.appearance=a,appearance);
+  await page.evaluate(()=>{const app=polishApp;app.state.items=[];app.routeTo('collection',{instant:true});app.renderCollection();});
+  await expect(page.getByRole('button',{name:'Add your first item',exact:true})).toBeVisible();
+  await page.evaluate(()=>{
+    const app=polishApp;
+    app.state.items=[{uid:'11111111-1111-4111-8111-111111111111',id:'long-fixture',name:'ポケモンカード サンダース InternationalSammleredition',set:'Japanese international anniversary special collection',number:'999/999',language:'ja',variant:'Holofoil',cardState:'raw',condition:'Near Mint',status:'owned',currency:'USD',quantity:1,price:123456789.12,referencePrice:123456789.12,retainedPrice:true,pricingStatus:'stale',cost:0,costBasis:0,quotes:[],priceHistory:[],lots:[],transactions:[],tags:[],thumb:'/icons/icon.svg'}];
+    app.state.query='No matching fixture';app.renderCollection();
+  });
+  await expect(page.locator('#collectionEmptyTitle')).toHaveText('No items match this view');
+  await expect(page.getByRole('button',{name:'Clear filters',exact:true})).toBeVisible();
+  await page.evaluate(()=>{polishApp.state.query='';polishApp.renderCollection();});
+  for(const width of [320,402,768,1440]){
+    await page.setViewportSize({width,height:844});
+    await expect(page.locator('.ledger-row').first()).toContainText('$123,456,789.12');
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+    await page.evaluate(()=>polishApp.routeTo('dashboard',{instant:true}));
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+    await page.evaluate(()=>polishApp.routeTo('collection',{instant:true}));
+  }
+  await page.screenshot({path:info.outputPath(`unusual-states-${appearance}.png`),animations:'disabled'});
+});
