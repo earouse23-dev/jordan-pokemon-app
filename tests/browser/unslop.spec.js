@@ -9,7 +9,7 @@ test.use({ serviceWorkers: 'block' });
 test.beforeAll(async () => {
   const source = await readFile(new URL('../../app.js', import.meta.url), 'utf8');
   bundle = (await build({ stdin: {
-    contents: source.replace('void bootstrap();', '') + '\nexport { state, bindEvents, bindAuthUI, routeTo, renderCollection, renderDetail, openFilterSheet, openPositionEditSheet, openSaleSheet, openSheet, closeSheet, openPasswordResetDialog, chartInstance, portfolioChartInstance };',
+    contents: source.replace('void bootstrap();', '') + '\nexport { state, bindEvents, bindAuthUI, routeTo, renderCollection, renderDetail, openFilterSheet, openPositionEditSheet, openSaleSheet, openSheet, closeSheet, openPasswordResetDialog, chartInstance, portfolioChartInstance, openManualSearch };',
     resolveDir: fileURLToPath(new URL('../../', import.meta.url)), sourcefile: 'app.js',
   }, bundle: true, format: 'esm', platform: 'browser', target: 'es2022', write: false })).outputFiles[0].text;
 });
@@ -136,4 +136,45 @@ test('portfolio change label stays readable in both themes', async ({page}) => {
       return (Math.max(foreground,background)+.05)/(Math.min(foreground,background)+.05);
     })).toBeGreaterThanOrEqual(4.5);
   }
+});
+
+
+test('saved preview trends show true direction in collection and both catalog surfaces without price requests', async ({page}, info) => {
+  await boot(page);
+  const requests=[];
+  page.on('request',request=>{if(/\/api\/(cards|sales|graded-valuation)(?:[?]|$)/.test(request.url())) requests.push(request.url());});
+  await page.setViewportSize({width:390,height:844});
+  await page.evaluate(()=>{
+    const app=polishApp, base=app.state.items[0];
+    const rows=(values)=>values.map((amount,index)=>({recordedAt:new Date(Date.now()-(4-index)*86400000).toISOString(),amount,currency:'USD',finish:'holofoil',condition:'Near Mint',provider:'fixture'}));
+    app.state.items=[{...base,name:'Rising card',priceHistory:rows([100,110,120])},{...base,uid:'33333333-3333-4333-8333-333333333333',name:'Falling card',priceHistory:rows([120,110,100])},{...base,uid:'44444444-4444-4444-8444-444444444444',name:'No history',priceHistory:[]},{...base,uid:'55555555-5555-4555-8555-555555555555',name:'PSA 9 card',cardState:'graded',gradingCompany:'PSA',grade:'9',gradedValuations:[...rows([100,110,120]).map(point=>({...point,contextValidated:true,verifiedExactSold:true,gradingCompany:'PSA',grade:'9'})),...rows([900,800,700]).map(point=>({...point,contextValidated:true,verifiedExactSold:true,gradingCompany:'PSA',grade:'10'})),...rows([600,500,400]).map(point=>({...point,contextValidated:true,verifiedExactSold:true,gradingCompany:'PSA',grade:'9',gradeQualifier:'OC'}))]}];
+    app.renderCollection(); app.routeTo('collection',{instant:true});
+  });
+  await expect(page.locator('#cardLedger .card-preview-trend.up svg')).toHaveCount(2);
+  await expect(page.locator('#cardLedger .card-preview-trend.down svg')).toHaveCount(1);
+  await expect(page.locator('#cardLedger .card-preview-trend.empty svg')).toHaveCount(0);
+  await expect(page.locator('#cardLedger .card-preview-trend.up')).toHaveText(['+20.0%3M','+20.0%3M']);
+  await expect(page.locator('#cardLedger .card-preview-trend.down')).toContainText('-16.7%');
+  await expect(page.locator('#cardLedger .card-preview-trend.up').first()).toHaveAttribute('aria-label',/Up 20.0 percent/);
+  expect(await page.locator('#cardLedger .card-preview-trend.up>small').first().evaluate(el=>getComputedStyle(el).display)).toBe('flex');
+  for(const appearance of ['light','dark']) {
+    await page.evaluate(a=>document.body.dataset.appearance=a,appearance);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({path:info.outputPath('preview-trends-'+appearance+'.png'),animations:'disabled'});
+  }
+  await page.route('**/api/catalog?**', route=>route.fulfill({json:{cards:[{id:'fixture-card',name:'Preview Pikachu',set:'Base Set',number:'58/102',language:'en',variant:'Holofoil',variants:['Holofoil'],currency:'USD',thumb:'/icons/icon.svg',priceHistory:[2,1].map((day)=>({recordedAt:new Date(Date.now()-day*86400000).toISOString(),amount:100-day*10,currency:'USD',finish:'holofoil',condition:'Near Mint',provider:'fixture'}))}]}}));
+  await page.evaluate(()=>polishApp.routeTo('scan',{instant:true}));
+  await page.locator('#quickCardSearch').fill('Pikachu'); await page.locator('#quickCardSearch').press('Enter');
+  await expect(page.locator('#quickSearchResults .card-preview-trend.up svg')).toHaveCount(1);
+  await expect(page.locator('#quickSearchResults .card-preview-trend')).toContainText('NM · 3M');
+  await expect(page.locator('#quickSearchResults [data-quick-card]')).toHaveAccessibleDescription(/Near Mint reference. Up/);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+  await page.evaluate(()=>{polishApp.routeTo('collection',{instant:true});polishApp.routeTo('scan',{instant:true});});
+  await expect(page.locator('#quickSearchResults .card-preview-trend.up svg')).toHaveCount(1);
+  await page.evaluate(()=>polishApp.openManualSearch());
+  await page.locator('#catalogQuery').fill('Pikachu'); await page.locator('#catalogQuery').press('Enter');
+  await expect(page.locator('#manualResults .card-preview-trend.up svg')).toHaveCount(1);
+  await expect(page.locator('#manualResults [data-catalog-id]')).toHaveAccessibleDescription(/Near Mint reference. Up/);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
+  expect(requests).toEqual([]);
 });

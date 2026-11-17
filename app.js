@@ -17,7 +17,7 @@ import {
   replaceRequiredCapture,
 } from "./lib/grading-capture.js";
 import { normalizeCardImageSource } from "./lib/image-source.js";
-import { cardPriceHistoryWindow, displayHistoryCurrency, completedSalePriceHistory } from "./lib/price-history.js";
+import { cardPriceHistoryWindow, displayHistoryCurrency, completedSalePriceHistory, priceTrendPreview } from "./lib/price-history.js";
 import {
   money,
   calculateTotals,
@@ -2539,6 +2539,31 @@ function portfolioHistoryForItem(item) {
   return completedSaleHistory(item, valuationContextForItem(item), evidence).flatMap(point => point.observations || [point]).map(point => ({ ...point, verifiedExactSold: true, contextValidated: true }));
 }
 
+function renderCardPreviewTrend(item, { catalogPreview = false, descriptionId = "" } = {}) {
+  let source = item;
+  // Catalog references are explicitly Near Mint; never borrow a slab's prices.
+  const reference = catalogPreview && !(item.cardState === "graded" || item.gradingCompany || item.cardState === "sealed");
+  if (reference) {
+    const context = { ...valuationContextForItem(item), condition: "Near Mint" };
+    const cached = previewPricingCache.get(previewPricingKey(item, context))?.pricing;
+    const owned = state.items.find(copy => !copy.gradingCompany && copy.cardState !== "graded" && sameCatalogPrinting(copy, item) && valuationContextForItem(copy).condition === "Near Mint" && (copy.currency || "USD") === (item.currency || "USD"));
+    source = { ...item, condition: "Near Mint", rawCondition: "Near Mint", priceHistory: mergePriceHistory(item.priceHistory || [], owned?.priceHistory || [], cached?.priceHistory || []), quotes: cached?.quotes || owned?.quotes || item.quotes || [] };
+  }
+  const graded = source.cardState === "graded" || source.gradingCompany;
+  const history = graded
+    ? completedSaleHistory(source, valuationContextForItem(source), savedSaleEvidenceForContext(source, valuationContextForItem(source)))
+    : historyForItem(source);
+  const matched = history.length ? history : graded ? historyForItem(source).filter(point => String(point.gradingCompany || "").toUpperCase() === String(source.gradingCompany || "").toUpperCase() && String(point.grade ?? "") === String(source.grade ?? "") && String(point.gradeQualifier || "").toLowerCase() === String(source.gradeQualifier || "").toLowerCase()) : [];
+  const trend = priceTrendPreview(matched, source.currency || "USD");
+  const period = reference ? "NM · 3M" : "3M";
+  const description = descriptionId ? ` id="${esc(descriptionId)}"` : "";
+  if (!trend) return `<span class="card-preview-trend empty"${description} role="img" aria-label="No saved matching three-month price history"><span aria-hidden="true">—</span><small aria-hidden="true">${period}</small></span>`;
+  const direction = { up: "Up", down: "Down", flat: "Unchanged" }[trend.direction];
+  const change = trend.percent === null ? `${trend.change > 0 ? "+" : trend.change < 0 ? "−" : ""}${displayCurrencyMoney(Math.abs(trend.change), source.currency)}` : `${trend.percent > 0 ? "+" : ""}${trend.percent.toFixed(1)}%`;
+  const label = `${reference ? "Near Mint reference. " : ""}${direction}${trend.percent === null ? "" : ` ${Math.abs(trend.percent).toFixed(1)} percent`}, recorded prices ${trend.firstDate} to ${trend.lastDate}`;
+  return `<span class="card-preview-trend ${trend.direction}"${description} role="img" aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><polygon class="trend-area" points="0,40 ${trend.line} 100,40"/><polyline points="${trend.line}"/></svg><small aria-hidden="true"><span>${change}</span><span>${period}</span></small></span>`;
+}
+
 function purchaseMarketReference(item, lot) {
   if (!lot?.acquiredAt || lot.marketUnitPriceAtPurchase != null) return null;
   const purchaseTime = new Date(`${lot.acquiredAt}T00:00:00Z`).getTime();
@@ -4240,6 +4265,7 @@ function routeTo(route, options = {}) {
   if ($("#headerSection")) $("#headerSection").textContent = headerCopy[0];
   if ($("#headerSubtitle")) $("#headerSubtitle").textContent = headerCopy[1];
   syncWorkspaceChrome();
+  if (route === "scan") $("#quickSearchResults")?.dispatchEvent(new Event("mica:preview-history-updated"));
   if (route === "profile") void refreshCapabilityStatus();
   if (route === "collection" && state.gradingActivityStatus === "idle")
     void refreshGradingActivity();
@@ -7339,8 +7365,8 @@ function renderCollection() {
       ${state.bulkMode ? "" : `<button class="ledger-favorite${favorite ? " selected" : ""}" type="button" data-toggle-favorite="${esc(item.uid)}" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button>`}
       <img class="card-thumb" src="${esc(item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${activeCopies > 1 ? `<span class="quantity">×${activeCopies}</span>` : ""}</div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""} ${item.price == null ? "warn" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="position-price-grid compact" aria-label="Card value"><span><small class="${copyGroup?.copies.length > 1 || activeCopies > 1 ? "" : "sr-only"}">${copyGroup?.copies.length > 1 ? "Each" : activeCopies > 1 ? "Total" : "Value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span></div>
-      <div class="price-cell">${item.pricingStatus === "stale" || total == null ? `<span class="row-unit price-provenance">${item.pricingStatus === "stale" ? "Older price" : "Price unavailable"}</span>` : ""}${movementLabel ? `<span class="row-move ${moveClass}">${esc(movementLabel)}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}"><svg class="ledger-grade-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg><span>${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</span></button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
+      <div class="position-price-grid compact" aria-label="Card value"><span><small class="${copyGroup?.copies.length > 1 || activeCopies > 1 ? "" : "sr-only"}">${copyGroup?.copies.length > 1 ? "Each" : activeCopies > 1 ? "Total" : "Value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span>${renderCardPreviewTrend(item)}</div>
+      <div class="price-cell">${item.pricingStatus === "stale" || total == null ? `<span class="row-unit price-provenance">${item.pricingStatus === "stale" ? "Older price" : "Price unavailable"}</span>` : ""}${movementLabel ? `<span class="row-move ${moveClass}" title="Gain/loss since purchase">P/L ${esc(movementLabel)}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}"><svg class="ledger-grade-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg><span>${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</span></button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
     </article>`;
   };
   const groups = groupCollectionOrganization(displayedRows, state.groupBy);
@@ -16004,7 +16030,7 @@ function openManualSearch({ returnToCamera = null } = {}) {
             const owned = ownedCardSummary(item, state.items, {
               exactPrinting: true,
             });
-            return `<button class="catalog-result" type="button" data-catalog-id="${esc(item.id)}" aria-label="Review ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}, ${esc(languageName(item.language || language.value))}, ${esc(item.variant)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong>${esc(item.set || "Set unavailable")} · ${esc(item.number)}<small>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant)}</small>${ownedSearchStatus(item)}${matchReason(item)}</span><b>${owned.quantity ? "Owned" : "Review"}</b></button>`;
+            return `<button class="catalog-result" type="button" data-catalog-id="${esc(item.id)}" aria-describedby="catalog-trend-${esc(encodeURIComponent(item.id))}" aria-label="Review ${esc(item.name)} from ${esc(item.set)}, number ${esc(item.number)}, ${esc(languageName(item.language || language.value))}, ${esc(item.variant)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong>${esc(item.set || "Set unavailable")} · ${esc(item.number)}<small>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant)}</small>${ownedSearchStatus(item)}${matchReason(item)}${renderCardPreviewTrend(item, { catalogPreview: true, descriptionId: `catalog-trend-${encodeURIComponent(item.id)}` })}</span><b>${owned.quantity ? "Owned" : "Review"}</b></button>`;
           })
           .join("")}`
       : '<div class="unavailable-panel">No matches. Check the name or language.</div>';
@@ -19718,7 +19744,7 @@ function bindQuickCardSearch() {
               exactPrinting: true,
             });
             const identityLabel = `${item.name} from ${item.set}, number ${item.number}, ${languageName(item.language || language.value)}, ${item.variant || "Version unknown"}`;
-            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-label="View ${esc(identityLabel)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Version unknown")}</em>${ownedSearchStatus(item)}</span></button><div class="quick-card-actions"><button type="button" data-add-search-card="${esc(item.id)}" aria-label="${owned.quantity ? "Add another" : "Add"} ${esc(identityLabel)}">${owned.quantity ? "Add another" : "Add"}</button><button type="button" data-queue-search-card="${esc(item.id)}" aria-label="Queue ${esc(identityLabel)} for batch review">Queue</button></div></div>`;
+            return `<div class="quick-card-result-wrap"><button class="quick-card-result" type="button" data-quick-card="${esc(item.id)}" aria-describedby="quick-trend-${esc(encodeURIComponent(item.id))}" aria-label="View ${esc(identityLabel)}${owned.quantity ? `, ${owned.quantity} already owned` : ""}"><img src="${esc(item.thumb || item.image || "")}" alt="${esc(item.name)} card"><span><strong>${esc(item.name)}</strong><small>${esc(item.set || "Set unavailable")} · ${esc(item.number || "Number unavailable")}</small><em>${esc(item.rarity || "Rarity unavailable")} · ${esc(languageName(item.language || language.value))} · ${esc(item.variant || "Version unknown")}</em>${ownedSearchStatus(item)}${renderCardPreviewTrend(item, { catalogPreview: true, descriptionId: `quick-trend-${encodeURIComponent(item.id)}` })}</span></button><div class="quick-card-actions"><button type="button" data-add-search-card="${esc(item.id)}" aria-label="${owned.quantity ? "Add another" : "Add"} ${esc(identityLabel)}">${owned.quantity ? "Add another" : "Add"}</button><button type="button" data-queue-search-card="${esc(item.id)}" aria-label="Queue ${esc(identityLabel)} for batch review">Queue</button></div></div>`;
           })
           .join("")}`
       : '<div class="find-empty"><strong>No matching cards</strong><span>Try a name, set or collector number.</span></div>';
@@ -19783,7 +19809,7 @@ function bindQuickCardSearch() {
       $(".search-examples");
     if (examples) examples.hidden = input.value.trim().length > 0;
   };
-  document.addEventListener("mica:collection-updated", () => {
+  const refreshSavedResults = () => {
     if (allResults.length && resultsNode.getAttribute("aria-busy") !== "true") {
       const resultScroll = resultsNode.scrollTop;
       const pageScroll = { top: window.scrollY, left: window.scrollX };
@@ -19791,7 +19817,9 @@ function bindQuickCardSearch() {
       resultsNode.scrollTop = resultScroll;
       window.scrollTo({ ...pageScroll, behavior: "instant" });
     }
-  });
+  };
+  document.addEventListener("mica:collection-updated", refreshSavedResults);
+  resultsNode.addEventListener("mica:preview-history-updated", refreshSavedResults);
   const search = async (append = false) => {
     const focusBeforeSearch = document.activeElement;
     const restoreSearchFocus = preserveSearchResultFocus(resultsNode);

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cardPriceHistoryWindow, displayHistoryCurrency, completedSalePriceHistory } from "../lib/price-history.js";
+import { cardPriceHistoryWindow, displayHistoryCurrency, completedSalePriceHistory, priceTrendPreview } from "../lib/price-history.js";
 test("history ranges reject false dates and prices and count distinct days", () => {
   const now = Date.parse("2026-09-06T12:00:00Z");
   const rows = [
@@ -125,4 +125,21 @@ test("card ranges fit available history without inventing a year of prices", () 
  const single=cardPriceHistoryWindow({currency:'USD'},[{...rows[0],recordedAt:'2026-10-23'}],'1y',now);
  assert.equal(single.end-single.start,86400000);
  assert.equal(cardPriceHistoryWindow({currency:'USD'},[],'1y',now).points.length,0);
+});
+
+test("preview trends use daily medians, elapsed time and one currency without inventing history", () => {
+  const now = Date.parse("2026-11-16T12:00:00Z");
+  const point = (recordedAt, amount, currency = "USD") => ({ recordedAt, amount, currency });
+  const rows = [point("2026-11-15", 30), point("2026-11-01", 10), point("2026-11-01T12:00:00Z", 20), point("2026-11-01T18:00:00Z", 1000), point("2026-11-08", 25), point("2026-11-17", 900), point("2025-01-01", 900), point("2026-11-02", 900, "EUR"), point("2026-02-30", 900), point("2026-11-04", null)];
+  const model = priceTrendPreview(rows, "USD", now);
+  assert.equal(model.direction, "up");
+  assert.equal(model.percent, 50);
+  assert.equal(model.days, 3);
+  assert.equal(model.firstDate, "2026-11-01");
+  assert.equal(model.lastDate, "2026-11-15");
+  assert.match(model.line, /50.00,20.00/);
+  assert.equal(priceTrendPreview(rows.slice(0, 1), "USD", now), null);
+  assert.equal(priceTrendPreview([point("2026-11-01", 30), point("2026-11-02", 10)], "USD", now).direction, "down");
+  assert.equal(priceTrendPreview([point("2026-11-01", 30), point("2026-11-02", 30)], "USD", now).line, "0.00,20.00 100.00,20.00");
+  assert.equal(priceTrendPreview([point("2026-11-01", 0), point("2026-11-02", 30)], "USD", now).percent, null);
 });
