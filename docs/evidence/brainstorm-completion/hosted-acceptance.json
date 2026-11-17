@@ -1,0 +1,40 @@
+{
+  "verifiedAt": "2026-11-17T12:30:34.703Z",
+  "isolatedOwnerOnly": true,
+  "activeCopyCount": 1,
+  "savedRows": 1,
+  "recognizedContext": [
+    {
+      "cardState": "graded",
+      "grader": "PSA",
+      "grade": 10,
+      "certificateMatchesSuppliedPhoto": true,
+      "name": "Sky's Rayquaza",
+      "language": "ja",
+      "finish": "non_holo",
+      "edition": "unlimited"
+    }
+  ],
+  "identificationPhotoCount": 1,
+  "durablePrices": [
+    {
+      "price": 1776,
+      "checkedAt": "2026-11-17T11:35:14.025Z",
+      "historyPoints": 0,
+      "exactSales": 6
+    }
+  ],
+  "summaries": [
+    {
+      "currency": "USD",
+      "total": 1776,
+      "missingUnits": 0
+    }
+  ],
+  "crossOwner": {
+    "inventoryRows": 0,
+    "photoRows": 0,
+    "portfolioRows": 0,
+    "privateSigningDenied": true
+  }
+}

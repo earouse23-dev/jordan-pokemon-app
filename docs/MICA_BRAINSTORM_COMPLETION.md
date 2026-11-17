@@ -6,33 +6,33 @@ Design direction: a collector's working library; calm, exact, tactile; quiet war
 
 | ID | Acceptance item | Current state / evidence |
 |---|---|---|
-| B01 | Original slab photo → correct context → save once → cold reopen | Recognition fixes shipped; live hosted disposable-owner write/reopen still open |
-| B02 | Saved-first cold/warm/offline pricing; 24h TTL; concurrent tabs | Verified pricing-reliability evidence; rerun in final demo suite |
+| B01 | Original slab photo → correct context → save once → cold reopen | Verified original Rayquaza upload → PSA 10/Japanese/non-holo confirmation → one saved copy → cold reopen; durable $1,776 and same checkedAt retained. Other original-photo recognition/source cases recorded in slab-acceptance-followup. |
+| B02 | Saved-first cold/warm/offline pricing; 24h TTL; concurrent tabs | Verified cold/warm/offline, rolling TTL and cross-tab suites; hosted saved quote remains unchanged after cold reopen. |
 | B03 | Exact comp identity/URL, corrections vs timeout, sparse history | Existing pricing/source tests; provider coverage cases remain open |
 | B04 | Collection filter/sort/search/scroll/focus survives detail and background updates | Implemented stable row controls for price/photo updates; focus, in-progress press, filters, sort and scroll regressions pass |
 | B05 | Physical camera permission/cancel/background/repeat/low-light | Owner response requested; cannot certify with desktop fixtures |
-| B06 | Add/edit/lot/sale/import/save interruption and idempotent recovery | Add/edit/lot/sale/import and native interruption suites mapped and verified; final combined run in progress |
+| B06 | Add/edit/lot/sale/import/save interruption and idempotent recovery | Add/edit/lot/sale/import and native interruption suites mapped and verified in combined browser run. |
 | B07 | Duplicate certificate recovery, no destructive deduplication | Verified existing server uniqueness + inline open-existing recovery; draft and leading-zero certificate retained; one write |
 | B08 | Cache-only catalog reference trend coverage, no paid tile fanout | Implemented public cache-only batch summaries, exact raw NM printing/language/currency; no provider calls/writes or owner data |
 | B09 | Cold/warm timing and input responsiveness measured honestly | Measured local saved-value restore 5–8ms; paint-ready 20–32ms with network blocked; see evidence/brainstorm-completion/local-performance.json |
 | B10 | 1,000-copy paging/render profile and unnecessary work removed | Verified 1,000 distinct copies, 100 DOM rows, 900 remaining, retained focus and no provider fanout; measured render below 200ms in local browsers |
 | B11 | Resume history backfills without renewing price TTL/downloading again | Verified resumed cursors/checkpoints, missing-days updates, retained evidence and rolling TTL in unit suite |
-| B12 | Prefer actual saved slab photo, authorized owner-only source, artwork fallback | Implemented batched private identification-photo access; short-lived memory-only URLs; owner reset and failed-source artwork fallback verified |
-| B13 | 3M market trend remains separate from purchase P/L | Shipped; final responsive/a11y check pending |
+| B12 | Prefer actual saved slab photo, authorized owner-only source, artwork fallback | Verified batched private identification-photo access, memory-only URLs and logout/fallback guards. Hosted save exposed a direct-detail entry-path omission; shared detail loading now covers it, with a before-failing/after-passing regression. |
+| B13 | 3M market trend remains separate from purchase P/L | Verified shared previews across collection/search, screen classes and themes; signed percentage provides a non-color cue. |
 | B14 | Touch chart inspection, date/value labels and dismissal | Verified actual mobile taps and outside dismissal; original date/value data retained; keyboard Escape cleanup supported |
 | B15 | Shared identity hierarchy, concise errors/copy | Reviewed shared identity hierarchy and copy; phone identity/photo/value layout compacted; primary screens stay concise |
 | B16 | Empty/filtered/zero/sold/unknown date/image/huge value/long language/FX states | Verified empty/filtered, zero/unknown cost/date, sold/FX/image fallbacks and very large value/long international identity fixtures |
 | B17 | Currency/date defaults and no inherited cert/grade | Verified current date/currency defaults, unknown/free cost, new printing/cert context and stable retries |
 | B18 | Rapid add context, keyboard/rotation/enlarged text | Browser/native fixture queue, interrupted form, rotation/large-text checks pass; physical software-keyboard acceptance remains in B05 |
-| B19 | Screen reader names and workflow focus; real assistive technology | Fixture AX checks pending; physical acceptance open |
+| B19 | Screen reader names and workflow focus; real assistive technology | Fixture accessibility names/focus and live card/price/source/range semantics verified; actual VoiceOver and physical-keyboard acceptance remain open. |
 | B20 | Press/sheet/navigation motion consistent and interruptible | Existing shared brief press/sheet motion retained; pointer press survives background updates; native/background interruption fixtures pass |
 | B21 | Subtle actual-price replacement feedback, no fake counting | Implemented 320ms value-only emphasis on actual collection/portfolio replacements; no synthetic values, focus loss or Reduce Motion animation |
 | B22 | Chart first draw vs range transitions preserve context | Implemented first-context reveal; range/background changes do not replay intro. Reduce Motion and unchanged observations verified |
 | B23 | Native completion haptic if existing capability permits | Conditional proposal not applicable: existing native bridge/plugins have no haptic capability. No new dependency/platform action added |
 | B24 | Reduced Motion everywhere, equivalent feedback | Verified first-draw, range, controls/dialog/sheet and actual price replacement paths with Reduce Motion |
-| B25 | Two-owner cache/photo/logout/recovery isolation | Verified two-owner price/cache/draft guards; added private-photo owner filters, signing-path checks and logout DOM cleanup |
+| B25 | Two-owner cache/photo/logout/recovery isolation | Verified two-owner fixtures and actual hosted RLS: second isolated owner sees zero inventory/photo/portfolio rows and cannot sign the first owner’s photo; logout DOM cleanup covered. |
 | B26 | Held integrations stay honest and secondary | Verified held grading fails closed, saved reports remain accessible; OCR remains distinct from official authentication |
-| B27 | Repeatable full demo script: sizes/themes/loading/interrupted save | Pending |
+| B27 | Repeatable full demo script: sizes/themes/loading/interrupted save | Implemented and executed; see evidence/brainstorm-completion/README.md. Physical-device steps explicitly remain open. |
 | B28 | Provider data gaps: Ninetales recent attribution, Charizard archive, Topps metadata | Concrete report prepared; permission to reply to existing support thread requested |
 
 Execution order: workflow/data continuity → saved imagery and catalog efficiency → responsive/a11y/copy → motion/performance → complete repeatable demo/security checks. Provider and owner-device requests proceed while independent engineering continues. Never mark their external acceptance passed merely because local tests pass.

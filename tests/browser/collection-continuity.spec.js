@@ -413,6 +413,23 @@ test("saved identification photos replace artwork privately without rebuilding c
   expect(await page.locator('body').evaluate(el=>el.innerHTML)).not.toContain('private-fixture');
 });
 
+test("a saved copy opened directly after save loads its private photo without an attachment-panel visit", async ({ page }) => {
+  await openCollection(page);
+  const owner = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const uid = "11111111-1111-4111-8111-111111111111";
+  await page.route("**/rest/v1/collection_item_attachments?*", route => route.fulfill({ contentType: "application/json", body: JSON.stringify([{ collection_item_id: uid, storage_path: `${owner}/${uid}/front.jpg`, caption: "Front identification photo · user confirmed" }]) }));
+  await page.route("**/storage/v1/object/sign/collection-item-files", route => route.fulfill({ contentType: "application/json", body: JSON.stringify(route.request().postDataJSON().paths.map(path => ({ path, signedURL: `/object/sign/collection-item-files/${path}?token=direct-private-fixture` }))) }));
+  await page.route("**/storage/v1/object/sign/collection-item-files/**", route => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="63" height="88"/>' }));
+  await page.evaluate(async ({ appUrl, owner }) => {
+    const app = await import(appUrl);
+    app.state.session = { user: { id: owner }, access_token: "fixture" };
+    app.state.detailId = app.state.items[0].uid;
+    app.state.detailCard = app.state.items[0];
+    app.routeTo("detail");
+  }, { appUrl, owner });
+  await expect(page.locator('.detail-image img[data-private-photo]')).toHaveAttribute("src", /direct-private-fixture/);
+});
+
 
 for(const reduced of [false,true])test(`background value feedback keeps the real value and respects reduced motion (${reduced})`,async({page})=>{
   await openCollection(page);

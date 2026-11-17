@@ -9243,6 +9243,7 @@ function renderDetail() {
     }
   }
   bindDetailValuationControls(baseItem);
+  if (item.uid) void loadOwnedCollectionPhotos([item]);
   detailRoot.querySelectorAll("details[data-detail-tool]").forEach((tool) => {
     tool.open = openTools.has(tool.dataset.detailTool);
   });
@@ -10486,6 +10487,7 @@ async function saveCardAddDraft(
       if (state.session?.user?.id !== ownerId || sessionLoadVersion !== loadVersion) return { itemId, staleSession: true };
       draft.photoFile = new File([blob], "slab-identification.jpg", { type: blob.type });
       await uploadCollectionPositionAttachment(supabase, { positionId: itemId, ownerId, file: draft.photoFile, caption: "Front identification photo · user confirmed" });
+      privateCollectionPhotos.delete(itemId);
     } catch { photoPending = true; }
   }
   if (nativeBuild && !photoPending && nativePositionDraft?.idempotencyKey === draft.idempotencyKey) {
