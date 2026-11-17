@@ -17673,6 +17673,8 @@ async function refreshSavedPortfolio(owner, version) {
     if (inventoryAtStart !== currentInventory) return true;
     if (attempt === 0 && view?.refreshIncomplete && !(Date.parse(view.retryAt) > Date.now()) && view.refreshReason !== "provider_daily_budget_reached" && view.pendingPricing?.some(p => p.price != null)) continue;
     if (!hasPortfolioValue(view)) return true;
+    // A refresh can finish after a newer saved read; never roll the chart or disk cache back.
+    if (Date.parse(view.updatedAt) < Date.parse(state.portfolioView?.updatedAt)) return true;
     state.portfolioView = view;
     restorePortfolioPricing(view);
     state.pricingStatus = view.complete ? "live" : "partial";

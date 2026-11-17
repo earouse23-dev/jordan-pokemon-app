@@ -1,6 +1,6 @@
 # Mica: next polish ideas
 
-Owner request: add saved price-history previews, then brainstorm improvements across reliability, efficiency, workflows, quality of life, UI, UX and motion. Only the previews are implemented in this task. The ideas below are proposals to validate, not a claim that every listed defect currently exists, and not authorization to add all of them.
+Owner request: add saved price-history previews, then brainstorm improvements across reliability, efficiency, workflows, quality of life, UI, UX and motion. The previews are shipped; the owner subsequently authorized starting the prioritized follow-up work. The ideas below are proposals to validate, not a claim that every listed defect currently exists, and not authorization to add all of them.
 
 ## What shipped with this task
 
@@ -74,3 +74,10 @@ These are Mica-specific engineering proposals, informed by public guidance, not 
 - Google's performance guidance prioritizes measured interaction latency and reducing work that blocks input/rendering. Use the 200ms INP threshold as a measurement target, not an unmeasured claim about Mica: [Optimize INP](https://web.dev/articles/optimize-inp).
 
 All suggestions should use the existing stack and included credits first. Purchases, new production dependencies, destructive migrations and store/platform actions retain their existing approval boundaries.
+
+
+## Pricing reliability follow-up
+
+Fixed an out-of-order response race: an older background refresh could overwrite a newer saved portfolio read, rolling back the total, chart and on-device snapshot even while individual card prices retained the newer value. Both read and refresh paths now reject an older published snapshot. Existing owner/session and inventory checks remain in force.
+
+Regression coverage includes saved prices painted before a blocked network read, offline read/refresh recovery, normalized identity restoration, empty refresh retention, exact evidence withdrawals, current saved-history reuse without provider requests, and a second tab denied the existing server refresh lease. The server rolling 24-hour test includes crossing midnight without buying a fresh price again. No new cache, background job, migration, dependency or provider budget is introduced. Physical camera/slab acceptance and later brainstorm items remain separate work.

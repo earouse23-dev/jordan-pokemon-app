@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, chartInstance, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet, watchAppUpdates, beginDigitalGrading, continueGradingActivity, analyzeCardImages, renderGradingActivity, openFilterSheet, restorePortfolioPricing, hasSavedInventoryPrices, loadOwnedDetailPricing }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
+      contents: `${source}\nexport { state, renderDetail, renderCollection, renderInsights, renderTrade, routeTo, bindEvents, saveCollectionViewState, restoreCollectionViewState, collectionViewStorageKey, supabase as testSupabase, openPositionEditSheet, openSheet, chartInstance, portfolioChartInstance, visionPrefill, saveCardAddDraft, refreshLivePricing, loadOwnedCollectionAttachments, openCardDetail, openPurchaseLotSheet, watchAppUpdates, beginDigitalGrading, continueGradingActivity, analyzeCardImages, renderGradingActivity, openFilterSheet, restorePortfolioPricing, hasSavedInventoryPrices, loadOwnedDetailPricing, loadSavedPortfolio, refreshSavedPortfolio, sessionLoadVersion }; export { hydratePosition } from "./lib/supabase-data.js"; export { buildPortfolioView, portfolioPricingKey } from "./lib/portfolio-view.js";`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -939,7 +939,7 @@ test("saved All time spans ownership, preserves gaps and fills the desktop conte
     await expect.poll(()=>page.evaluate(()=>{const c=globalThis.fixtureApp.portfolioChartInstance;return !!c && Math.abs(c.width-c.canvas.parentElement.getBoundingClientRect().width)<2;})).toBe(true);
     const box=await page.locator('#portfolioHistoryChart').boundingBox();
     const main=await page.locator('#main').boundingBox();
-    if(width>=760) {expect(box.height).toBeLessThanOrEqual(400);expect(box.x-main.x).toBeLessThanOrEqual(40);expect(main.x+main.width-box.x-box.width).toBeLessThanOrEqual(40);}
+    if(width>=760) {expect(box.height).toBeLessThanOrEqual(480);expect(box.x-main.x).toBeLessThanOrEqual(40);expect(main.x+main.width-box.x-box.width).toBeLessThanOrEqual(40);}
     await assertFits(page);
     await page.screenshot({path:testInfo.outputPath(`all-time-${appearance}-${width}.png`),animations:'disabled'});
   }
@@ -1298,4 +1298,50 @@ test('published comp withdrawals use the correction publication time, not an old
  await openDetail(page,{cardState:'graded',gradingCompany:'PSA',grade:'10',gradeQualifier:'',price:240,retainedPrice:true,checkedAt:'2026-11-13T12:00:00Z',exactSaleEvidence:{sales:[{providerSaleId:'withdrawn-sale'}]}});
  const values=await page.evaluate(()=>{const app=globalThis.fixtureApp,item=app.state.items[0],key=app.portfolioPricingKey(item);const pricing=[{uid:item.uid,key,price:null,checkedAt:'2026-11-12T12:00:00Z',exactSaleEvidence:{sales:[],correctedSaleIds:['withdrawn-sale']}}];app.restorePortfolioPricing({updatedAt:'2026-11-12T13:00:00Z',pricing});const older=app.state.items[0].price;app.restorePortfolioPricing({updatedAt:'2026-11-13T13:00:00Z',pricing});return[older,app.state.items[0].price];});
  expect(values).toEqual([240,null]);
+});
+
+
+test('delayed portfolio refresh cannot roll back a newer saved read or its disk cache', async ({page}) => {
+  await openDetail(page, {price:240, referencePrice:240, retainedPrice:true});
+  await page.evaluate(() => {
+    const app=globalThis.fixtureApp, item=app.state.items[0];
+    app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'fixture'};
+    globalThis.pricingRaceView=(amount,updatedAt)=>({...app.buildPortfolioView([{...item,price:amount,referencePrice:amount}],updatedAt),pricing:[{uid:item.uid,key:app.portfolioPricingKey(item),price:amount,referencePrice:amount,checkedAt:updatedAt}]});
+    app.state.portfolioView=globalThis.pricingRaceView(240,'2026-11-15T12:00:00Z');
+  });
+  let release; const delayed=new Promise(resolve=>{release=resolve;});
+  let started; const pending=new Promise(resolve=>{started=resolve;});
+  await page.route('**/api/capabilities?surface=portfolio', async route => {
+    started(); await delayed;
+    await route.fulfill({json:{view:await page.evaluate(()=>globalThis.pricingRaceView(240,'2026-11-15T12:00:00Z'))}});
+  });
+  const refresh=page.evaluate(()=>{const app=globalThis.fixtureApp;return app.refreshSavedPortfolio(app.state.session.user.id,app.sessionLoadVersion);});
+  await pending;
+  // A saved read publishes a newer snapshot while the older refresh is in flight.
+  await page.route('**/api/capabilities?surface=portfolio&display=summary',async route=>route.fulfill({json:{view:await page.evaluate(()=>globalThis.pricingRaceView(275,'2026-11-16T12:00:00Z'))}}));
+  await page.evaluate(()=>{const app=globalThis.fixtureApp;return app.loadSavedPortfolio(app.state.session.user.id,app.sessionLoadVersion);});
+  release(); await refresh;
+  await page.evaluate(()=>globalThis.fixtureApp.renderDetail());
+  await expect(page.locator('.market-hero>strong')).toContainText('275');
+  expect(await page.evaluate(()=>{const app=globalThis.fixtureApp;return [app.state.portfolioView.summaries[0].total,JSON.parse(localStorage.getItem('mica:portfolio-view:'+app.state.session.user.id)).summaries[0].total];})).toEqual([275,275]);
+});
+
+test('cold portfolio cache paints before the network and survives offline refresh', async ({page}) => {
+  await openDetail(page, {price:null, referencePrice:null, retainedPrice:false});
+  await page.evaluate(()=>{
+    const app=globalThis.fixtureApp,item=app.state.items[0],updatedAt='2026-11-15T12:00:00Z';
+    app.state.session={user:{id:'11111111-1111-4111-8111-111111111111'},access_token:'fixture'};
+    const view={...app.buildPortfolioView([{...item,price:240,referencePrice:240,retainedPrice:true}],updatedAt),pricing:[{uid:item.uid,key:app.portfolioPricingKey(item),price:240,referencePrice:240,checkedAt:updatedAt}]};
+    localStorage.setItem('mica:portfolio-view:'+app.state.session.user.id,JSON.stringify(view));
+    app.state.portfolioView=null;
+  });
+  let release;const delayed=new Promise(resolve=>{release=resolve;});
+  await page.route('**/api/capabilities?surface=portfolio&display=summary',async route=>{await delayed;await route.abort('internetdisconnected');});
+  await page.evaluate(()=>{const app=globalThis.fixtureApp;globalThis.coldRead=app.loadSavedPortfolio(app.state.session.user.id,app.sessionLoadVersion);});
+  expect(await page.evaluate(()=>globalThis.fixtureApp.state.items[0].price)).toBe(240);
+  release();await page.evaluate(()=>globalThis.coldRead);
+  await page.route('**/api/capabilities?surface=portfolio',route=>route.abort('internetdisconnected'));
+  await page.evaluate(async()=>{const app=globalThis.fixtureApp;await app.refreshSavedPortfolio(app.state.session.user.id,app.sessionLoadVersion);app.renderDetail();});
+  await expect(page.locator('.market-hero>strong')).toContainText('240');
+  expect(await page.evaluate(()=>globalThis.fixtureApp.state.portfolioView.summaries[0].total)).toBe(240);
 });

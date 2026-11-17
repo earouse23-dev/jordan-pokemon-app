@@ -446,3 +446,27 @@ test('current prices publish despite partial history, resume history without ren
   await refreshPortfolioView(db,owner,{pkmnpricesApiKey:'history-isolation-fixture'},{now:day+'T12:13:00Z'});
   assert.equal(detailCalls+historyCalls,calls,'Completed view is reused for the remainder of the quote TTL');
 });
+
+test('a second tab serves the saved portfolio while another refresh holds the lease', async t => {
+  const {createClient}=await import('@supabase/supabase-js');
+  const {refreshPortfolioView}=await import('../lib/portfolio-service.js');
+  const saved={version:4,updatedAt:'2026-11-14T12:00:00Z',summaries:[{currency:'USD',total:240}],pricing:[]};
+  let claims=0,reads=0;
+  t.mock.method(globalThis,'fetch',async(input,init={})=>{
+    const url=new URL(typeof input==='string'?input:input.url||input);
+    assert.equal(url.hostname,'portfolio-tab-fixture.supabase.co','A waiting tab must not contact a provider');
+    const table=url.pathname.split('/').at(-1);
+    if(table==='claim_portfolio_refresh') {
+      assert.equal(JSON.parse(init.body).p_user_id,owner); claims++;
+      return Response.json(false);
+    }
+    assert.equal(table,'portfolio_views','A waiting tab must not reload inventory or publish');
+    assert.equal(url.searchParams.get('user_id'),'eq.'+owner);reads++;
+    return Response.json({view:saved,inventory_revision:1,attempted_at:null});
+  });
+  const db=createClient('https://portfolio-tab-fixture.supabase.co','fixture-service',{auth:{persistSession:false}});
+  const result=await refreshPortfolioView(db,owner,{}, {now:'2026-11-16T12:00:00Z'});
+  assert.equal(result.summaries[0].total,240);
+  assert.equal(result.updatedAt,saved.updatedAt);
+  assert.equal(claims,1);assert.equal(reads,2);
+});
