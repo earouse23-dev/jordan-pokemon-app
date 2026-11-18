@@ -166,10 +166,12 @@ function installCatalogFetch({ ignoreName = false, catalog = cards } = {}) {
   };
 }
 
-test("slab expansion codes recover a candidate despite a misread denominator", async () => {
+test("slab expansion codes recover candidates with incomplete printed details", async () => {
   const entries = [
     ["me02.5", "Ascended Heroes", "238", 217, "Team Rocket’s Mimikyu", "ASC", "238/237"],
+    ["me02.5", "Ascended Heroes", "238", 217, "Team Rocket’s Mimikyu", "POKEMON ASC", "#238"],
     ["me01", "Mega Evolution", "140", 132, "Snover", "2025 POKEMON MEG EN", "140/172"],
+    ["sv03.5", "151", "181", 165, "Dragonair", "MEW", "181/165"],
   ];
   const mock = installCatalogFetch({ catalog: entries.map(([setId, set, localId, official, name]) => ({
     id: `${setId}-${localId}`, localId, name, set: { id: setId, name: set, cardCount: { official } },
@@ -185,7 +187,7 @@ test("slab expansion codes recover a candidate despite a misread denominator", a
       assert.equal(await findGradedExpansionCandidate({ ...identity, language: "ja" }), null);
       assert.equal(await findGradedExpansionCandidate({ ...identity, cardState: "raw" }), null);
     }
-    assert.equal(mock.requested.length, 4);
+    assert.equal(mock.requested.length, entries.length * 2);
   } finally {
     mock.restore();
   }
