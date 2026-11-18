@@ -29,6 +29,7 @@ import {
   selectGatewayVisionModels,
 } from "../lib/gateway-models.js";
 import {
+  findGradedExpansionCandidate,
   parseCatalogQuery,
   searchTcgdexCards,
 } from "../lib/providers/tcgdex.js";
@@ -654,7 +655,10 @@ export async function visionHandler(
             retrievedAt: new Date().toISOString(),
           };
         } else {
-          const cards = await searchTcgdexCards(
+          const candidate = input.mode === "identify"
+            ? await findGradedExpansionCandidate(analysis.identity, controller.signal).catch(() => null)
+            : null;
+          const cards = candidate ? [candidate] : await searchTcgdexCards(
             analysis.identity,
             language,
             12,
@@ -664,7 +668,9 @@ export async function visionHandler(
           catalogResolution = {
             cards,
             parsedQuery,
-            resolution: summarizeCatalogResolution(cards, parsedQuery),
+            resolution: candidate
+              ? { status: "review", recommendedId: null, requiresConfirmation: true, ambiguity: ["graded_expansion_review"] }
+              : summarizeCatalogResolution(cards, parsedQuery),
             source: "tcgdex_fallback",
             language,
             retrievedAt: new Date().toISOString(),

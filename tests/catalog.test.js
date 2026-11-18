@@ -7,6 +7,7 @@ import {
 } from "../lib/catalog-db.js";
 import setHandler from "../api/set.js";
 import {
+  findGradedExpansionCandidate,
   fetchTcgdexSet,
   parseCatalogQuery,
   searchTcgdexCards,
@@ -119,7 +120,7 @@ function comparable(value) {
     .replace(/[^a-z0-9]/g, "");
 }
 
-function installCatalogFetch({ ignoreName = false } = {}) {
+function installCatalogFetch({ ignoreName = false, catalog = cards } = {}) {
   const requested = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (rawUrl) => {
@@ -127,7 +128,7 @@ function installCatalogFetch({ ignoreName = false } = {}) {
     requested.push(url);
     const directId = decodeURIComponent(url.pathname.split("/cards/")[1] || "");
     if (directId) {
-      const card = cards.find((candidate) => candidate.id === directId);
+      const card = catalog.find((candidate) => candidate.id === directId);
       return new Response(JSON.stringify(card || {}), {
         status: card ? 200 : 404,
       });
@@ -137,7 +138,7 @@ function installCatalogFetch({ ignoreName = false } = {}) {
     const setName = comparable(url.searchParams.get("set.name"));
     const setId = comparable(url.searchParams.get("set.id"));
     const total = comparable(url.searchParams.get("set.cardCount.official"));
-    const matches = cards.filter(
+    const matches = catalog.filter(
       (card) =>
         (!name || ignoreName || comparable(card.name).includes(name)) &&
         (!localId || comparable(card.localId) === localId) &&
@@ -164,6 +165,31 @@ function installCatalogFetch({ ignoreName = false } = {}) {
     },
   };
 }
+
+test("slab expansion codes recover a candidate despite a misread denominator", async () => {
+  const entries = [
+    ["me02.5", "Ascended Heroes", "238", 217, "Team Rocket’s Mimikyu", "ASC", "238/237"],
+    ["me01", "Mega Evolution", "140", 132, "Snover", "2025 POKEMON MEG EN", "140/172"],
+  ];
+  const mock = installCatalogFetch({ catalog: entries.map(([setId, set, localId, official, name]) => ({
+    id: `${setId}-${localId}`, localId, name, set: { id: setId, name: set, cardCount: { official } },
+  })) });
+  try {
+    for (const [setId, , localId, official, name, setName, collectorNumber] of entries) {
+      const identity = { cardState: "graded", language: "en", name: name.replace("’", "'"), setName, collectorNumber };
+      const candidate = await findGradedExpansionCandidate(identity);
+      assert.equal(candidate?.id, `tcgdex:en:${setId}-${localId}`);
+      assert.equal(candidate.number, `${localId}/${official}`);
+      assert.equal(await findGradedExpansionCandidate({ ...identity, name: "Pikachu" }), null);
+      assert.equal(await findGradedExpansionCandidate({ ...identity, setName: "unknown" }), null);
+      assert.equal(await findGradedExpansionCandidate({ ...identity, language: "ja" }), null);
+      assert.equal(await findGradedExpansionCandidate({ ...identity, cardState: "raw" }), null);
+    }
+    assert.equal(mock.requested.length, 4);
+  } finally {
+    mock.restore();
+  }
+});
 
 test("exact-name search excludes unrelated cards that share a collector number", async () => {
   const mock = installCatalogFetch({ ignoreName: true });
