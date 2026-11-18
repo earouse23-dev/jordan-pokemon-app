@@ -976,6 +976,34 @@ test("saved purchase-price estimates fill early slab history and keep the chart 
   for(const [width,height] of [[375,667],[1440,900]]){await page.setViewportSize({width,height});await assertFits(page);await page.screenshot({path:testInfo.outputPath('estimated-slab-'+width+'.png'),animations:'disabled'});}
 });
 
+test("portfolio keeps the dated copy visible and labels only genuinely older price checks", async ({ page }) => {
+  await openCollection(page);
+  await page.evaluate(() => {
+    const { state, buildPortfolioView, renderCollection, routeTo } = globalThis.fixtureApp;
+    const day = new Date(Date.now() - 4 * 86_400_000).toISOString().slice(0, 10);
+    const dated = { acquiredAt: day, quantityAcquired: 1, quantityRemaining: 1, currency: "USD", totalCost: 60 };
+    const card = { ...state.items[0], cardState: "raw", gradingCompany: null, quantity: 2, currency: "USD", price: 100, retainedPrice: true, pricingStatus: "live", priceHistory: [], lots: [dated, { ...dated, acquiredAt: "", acquisitionDateKnown: false }], transactions: [] };
+    state.items = [card];
+    state.portfolioHistoryMode = "value";
+    state.portfolioHistoryRange = "all";
+    state.portfolioView = buildPortfolioView(state.items);
+    state.portfolioView.pricing = [{ uid: card.uid, price: 100, checkedAt: new Date().toISOString() }];
+    renderCollection();
+    routeTo("dashboard", { focus: false });
+  });
+  await expect(page.locator("#portfolioValue")).toHaveText("$200.00");
+  await expect(page.locator("#portfolioHistory")).toContainText("Known portfolio history");
+  await expect.poll(() => page.evaluate(() => globalThis.fixtureApp.portfolioChartInstance?.data.datasets[0].data[0])).toBe(60);
+  await expect(page.locator("#portfolioChange")).not.toContainText("older");
+  await expect(page.locator("#portfolioChange")).not.toContainText("24h");
+  await page.evaluate(() => {
+    const { state, renderCollection } = globalThis.fixtureApp;
+    state.portfolioView.pricing[0].checkedAt = new Date(Date.now() - 25 * 3_600_000).toISOString();
+    renderCollection();
+  });
+  await expect(page.locator("#portfolioChange")).toContainText("2 copies use prices checked 24h ago or earlier");
+});
+
 test("an app update waits for explicit reload and preserves unfinished work", async ({page})=>{
   await openDetail(page);
   await page.evaluate(async url=>{const app=await import(url); const worker=new EventTarget(); worker.controller={};Object.defineProperty(navigator,'serviceWorker',{configurable:true,value:worker}); app.watchAppUpdates();worker.dispatchEvent(new Event('controllerchange'));},appUrl);

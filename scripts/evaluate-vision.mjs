@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-import { evaluateVisionBenchmark } from "../lib/vision-evaluation.js";
+import { evaluateSlabIdentification, evaluateVisionBenchmark } from "../lib/vision-evaluation.js";
 
 const manifestPath = process.argv[2];
 const live = process.argv.includes("--live");
+const slabsOnly = process.argv.includes("--slabs");
 const outputFlag = process.argv.indexOf("--output");
 const outputPath =
   outputFlag >= 0 ? process.argv[outputFlag + 1] : "vision-evaluation.json";
@@ -15,7 +16,7 @@ const accessToken = process.env.MICA_EVAL_ACCESS_TOKEN;
 
 if (!manifestPath) {
   console.error(
-    "Usage: npm run evaluate:vision -- <private-manifest.json> [--live] [--output report.json]",
+    "Usage: npm run evaluate:vision -- <private-manifest.json> [--live] [--slabs] [--output report.json]",
   );
   process.exit(1);
 }
@@ -91,8 +92,11 @@ async function runCase(entry) {
       `${entry.id || "unnamed"}: vision endpoint returned ${response.status} (${body.code || body.error || "unknown error"})`,
     );
 
-  let candidateIds = [];
-  if (entry.mode === "identify" && body.analysis?.searchQuery) {
+  const resolution = body.catalogResolution?.resolution;
+  let candidateIds = (body.catalogResolution?.cards || []).map(card => card.id);
+  if (candidateIds.includes(resolution?.recommendedId))
+    candidateIds = [resolution.recommendedId, ...candidateIds.filter(id => id !== resolution.recommendedId)];
+  if (!body.catalogResolution && entry.mode === "identify" && body.analysis?.searchQuery) {
     const catalog = await fetch(
       `${baseUrl}/api/catalog?q=${encodeURIComponent(body.analysis.searchQuery)}&language=${encodeURIComponent(entry.language || "en")}`,
       { headers: { Accept: "application/json" } },
@@ -105,6 +109,9 @@ async function runCase(entry) {
     images: undefined,
     analysis: body.analysis,
     candidateIds,
+    catalogStatus: resolution?.status,
+    recommendedCatalogId: resolution?.recommendedId,
+    ...(slabsOnly ? { priceCoverage: "untested" } : {}),
     latencyMs: body.metrics?.latencyMs || Date.now() - startedAt,
     inputTokens: body.metrics?.inputTokens ?? null,
     outputTokens: body.metrics?.outputTokens ?? null,
@@ -120,7 +127,7 @@ const evaluatedCases = live
       return completed;
     }, Promise.resolve([]))
   : cases;
-const evaluation = evaluateVisionBenchmark(evaluatedCases, manifest.thresholds);
+const evaluation = slabsOnly ? evaluateSlabIdentification(evaluatedCases) : evaluateVisionBenchmark(evaluatedCases, manifest.thresholds);
 const report = {
   evaluatedAt: new Date().toISOString(),
   source: live ? baseUrl : "recorded-results",
@@ -131,7 +138,6 @@ const report = {
 await writeFile(resolve(outputPath), `${JSON.stringify(report, null, 2)}\n`, {
   mode: 0o600,
 });
-process.stdout.write(
-  `Vision benchmark: ${evaluation.status} (${evaluation.metrics.cases} cases). Private report: ${resolve(outputPath)}\n`,
-);
-if (evaluation.status !== "pass") process.exitCode = 2;
+const result = slabsOnly ? `slab identification (${evaluation.cases} labeled cases)` : `${evaluation.status} (${evaluation.metrics.cases} cases)`;
+process.stdout.write(`Vision benchmark: ${result}. Private report: ${resolve(outputPath)}\n`);
+if (slabsOnly ? !evaluation.cases : evaluation.status !== "pass") process.exitCode = 2;

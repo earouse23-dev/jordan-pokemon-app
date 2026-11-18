@@ -13,7 +13,7 @@ import {
   requireHighGradeVerification,
   visionLimits,
 } from "../lib/vision.js";
-import { evaluateVisionBenchmark } from "../lib/vision-evaluation.js";
+import { evaluateSlabIdentification, evaluateVisionBenchmark } from "../lib/vision-evaluation.js";
 
 const tinyJpeg = `data:image/jpeg;base64,${Buffer.from("image bytes").toString("base64")}`;
 
@@ -955,6 +955,21 @@ test("vision benchmark fails closed when sample evidence is missing", () => {
   assert.equal(evaluation.status, "not_ready");
   assert.equal(evaluation.checks.identifySample, false);
   assert.equal(evaluation.metrics.topOneAccuracy, null);
+});
+
+test("slab benchmark reports label, catalog and price coverage independently", () => {
+  const result = evaluateSlabIdentification([
+    { mode: "identify", expectedLabel: { collectorNumber: "092", edition: "first_edition", gradeQualifier: "", certificationNumber: "000123", finish: "non_holo" }, expectedCatalogId: "slab", candidateIds: ["slab"], priceCoverage: "older", analysis: { identity: { collectorNumber: "92", edition: "1st Ed", gradeQualifier: null, certificationNumber: "000123", finish: "holofoil" } } },
+    { mode: "identify", expectedLabel: { grade: 10 }, expectedCatalogId: null, catalogStatus: "no_match", candidateIds: [], analysis: { identity: { grade: "10" } } },
+    { mode: "identify", expectedLabel: { grade: 9 }, expectedCatalogId: "unsupported", candidateIds: ["wrong"], catalogStatus: "exact", recommendedCatalogId: "wrong", priceCoverage: "eligible", analysis: { identity: { grade: "9" } } },
+  ]);
+  assert.deepEqual(result.catalog, { scored: 3, correct: 2, falseExact: 1 });
+  assert.deepEqual(result.priceCoverage, { eligible: 0, older: 1, unavailable: 0, untested: 0 });
+  assert.equal(result.fields.edition.accuracy, 1);
+  assert.equal(result.fields.collectorNumber.accuracy, 1);
+  assert.equal(result.fields.certificationNumber.accuracy, 1);
+  assert.equal(result.fields.finish.accuracy, 0);
+  assert.equal(result.fields.gradeQualifier.accuracy, 0);
 });
 
 test("PSA holdout evaluation measures exact half-grade labels and rejects card leakage", () => {

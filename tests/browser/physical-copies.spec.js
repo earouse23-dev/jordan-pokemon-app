@@ -2064,7 +2064,7 @@ for (const [prices, estimate] of [[[100,110,120],100],[[225,215,230.2,219,220.46
 test('latest slab comp and full-width recorded history stay legible in light and dark mode',async({page},testInfo)=>{
  await setup(page);
  let reads=0;
- const dates=['2026-08-01','2026-08-01','2026-08-31'];
+ const dates=['2026-07-01','2026-07-01','2026-08-31'];
  await page.route('**/api/sales?*',route=>{
   reads++;
   const lookup=JSON.parse(new URL(route.request().url()).searchParams.get('lookup'));
@@ -2093,8 +2093,10 @@ test('latest slab comp and full-width recorded history stay legible in light and
   expect(chartBox.y).toBeLessThan(567);
  }
  await expect(page.locator('.copy-navigation.single-copy #nextCopyButton')).toBeHidden();
- const bounds=await page.evaluate(()=>{const {chartInstance:chart}=globalThis.fixtureCopyApp;return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,radius:chart.data.datasets[0].pointRadius};},appUrl);
- expect(bounds).toEqual({min:Date.parse(dates[0]),max:Date.parse(dates[2]),radius:0});
+ const bounds=await page.evaluate(()=>{const {chartInstance:chart}=globalThis.fixtureCopyApp;return {min:chart.options.scales.x.min,max:chart.options.scales.x.max,breakBeforeSecond:chart.getDatasetMeta(0).data[1].stop};},appUrl);
+ expect(bounds).toEqual({min:Date.parse(dates[0]),max:Date.parse(dates[2]),breakBeforeSecond:true});
+ await expect(page.locator('#cardPriceHistory .history-coverage')).toContainText('3 recorded sales');
+ await expect(page.locator('.history-period-change')).toContainText('Jul 1, 2026 → Aug 31, 2026');
  await page.locator(`#cardHistoryRange [data-range="${'1y'}"]`).click();
  expect(await page.evaluate(()=>globalThis.fixtureCopyApp.chartInstance.options.scales.x.min)).toBe(Date.parse(dates[0]));
  await page.locator(`#cardHistoryRange [data-range="${'all'}"]`).click();

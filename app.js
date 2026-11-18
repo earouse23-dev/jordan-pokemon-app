@@ -1,4 +1,4 @@
-import { portfolioPricingKeyMatches, portfolioPricingKey, portfolioPriceIsFresh, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
+import { portfolioPricingKeyMatches, portfolioPricingKey, portfolioPriceIsFresh, portfolioOlderPriceCount, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -840,6 +840,16 @@ function detailContextReady(context = {}) {
       context.gradingCompany && String(context.grade || "").trim(),
     );
   return Boolean(context.condition);
+}
+
+function scanNeedsPrintingReview(item, context, scan = state.detailScanDraft) {
+  if (!scan || scan.selectionKey !== detailIdentityKey(item)) return false;
+  if (scan.options?.printingConflicts?.length) return true;
+  if (context.cardState !== "graded") return false;
+  const printing = selectedPrinting(item);
+  return printing.status !== "exact" ||
+    [printing.finish, printing.edition, printing.promoType].includes("unknown") ||
+    context.gradeQualifier == null;
 }
 
 function beginDetailRequest(item, context = state.detailValuationContext) {
@@ -2559,7 +2569,8 @@ function renderCardPreviewTrend(item, { catalogPreview = false, descriptionId = 
   const sharedContext = shared?.context;
   const sharedMatches = sharedContext && sharedContext.language === item.language && sharedContext.variantId === printing.id && sharedContext.finish === printing.finish && sharedContext.edition === printing.edition && sharedContext.promoType === printing.promoType && sharedContext.currency === (source.currency || "USD") && sharedContext.condition === "Near Mint";
   const trend = priceTrendPreview(matched, source.currency || "USD") || (sharedMatches ? shared : null);
-  const period = reference ? "NM · 3M" : "3M";
+  const spanDays = trend && (Date.parse(trend.lastDate) - Date.parse(trend.firstDate)) / 86_400_000;
+  const period = `${reference ? "NM · " : ""}${spanDays > 0 && spanDays < 90 ? `${spanDays}d` : "3M"}`;
   const description = descriptionId ? ` id="${esc(descriptionId)}"` : "";
   if (!trend) return `<span class="card-preview-trend empty"${description} role="img" aria-label="No saved matching three-month price history"><span aria-hidden="true">—</span><small aria-hidden="true">${period}</small></span>`;
   const direction = { up: "Up", down: "Down", flat: "Unchanged" }[trend.direction];
@@ -2786,6 +2797,8 @@ function bindHistoryRange(root, id, change) {
   };
 }
 
+const MAX_SALE_CHART_GAP = 30 * 86_400_000;
+
 function renderInteractiveHistory(item, currentPrice = item.price, history = historyForItem(item)) {
   const model = displayHistoryCurrency(cardPriceHistoryWindow(item, history, state.chartRange), displayCurrency(), lastValidatedFxRate);
   const supportedCurrency = ["USD", "EUR"].includes(model.nativeCurrency);
@@ -2826,6 +2839,9 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
       minute: "2-digit",
     });
   const dailySales = points.some(point => point.granularity === "daily_median");
+  const saleCount = dailySales ? points.reduce((sum, point) => sum + (point.saleCount || 1), 0) : 0;
+  const salesCoverage = saleCount ? `${saleCount} recorded ${saleCount === 1 ? "sale" : "sales"}` : "";
+  const comparisonDates = dailySales && points.length > 1 ? `${shortPortfolioDate(points[0].recordedAt, true)} → ${shortPortfolioDate(points.at(-1).recordedAt, true)}` : "";
   const rows = (dailySales ? model.observations : points)
     .map(
       (point) =>
@@ -2838,11 +2854,11 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
   const chart = insufficientHistory
     ? '<p class="unavailable-panel" role="status">One price recorded. A trend needs two.</p>'
     : `<div class="chart-wrap"><canvas id="positionChart" role="img" aria-label="${esc(context)} recorded prices over time. Dated values are available below."></canvas></div>`;
-  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}"><div class="detail-section-head history-chart-head"><div><h2>Price history</h2>${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong></div>` : ""}</div>${controls}</div>${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}
-    ${points.length ? `<small class="history-coverage">Available from ${esc(new Date(points[0].x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }))}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
+  return `<div class="card-price-history" id="cardPriceHistory" data-item="${esc(itemKey)}"><div class="detail-section-head history-chart-head"><div><h2>Price history</h2>${summary.change !== null ? `<div class="history-period-change" data-direction="${summary.change < 0 ? "down" : "up"}"><strong>${change}</strong>${comparisonDates ? `<span>${esc(comparisonDates)}</span>` : ""}</div>` : ""}</div>${controls}</div>${points.length ? chart : `<div class="unavailable-panel" role="status">${emptyCopy}</div>`}
+    ${points.length ? `<small class="history-coverage">${salesCoverage ? (points.length === 1 ? `${salesCoverage} · ${esc(shortPortfolioDate(points[0].recordedAt, true))}` : salesCoverage) : `Available from ${esc(shortPortfolioDate(points[0].recordedAt, true))}`}${["partial", "unavailable", "error"].includes(item.historyStatus) ? " · History incomplete" : ""}</small>
     <details class="history-values" data-detail-tool="history-values"><summary>View dated prices</summary>
     <div class="history-summary"><div><span>Change in this range</span><strong>${change}</strong></div><div><span>${dailySales ? "Average daily median" : "Average recorded price"}</span><strong>${money(summary.average, currency)}</strong></div><div><span>Lowest to highest</span><strong>${money(summary.low, currency)}–${money(summary.high, currency)}</strong></div><div><span>Days with prices</span><strong>${summary.days}</strong></div></div>
-    <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. ${dailySales ? "Line: daily median. Individual sales are listed below. The line connects available dates; no price is recorded between sales." : "Recorded prices only. The line connects available records."} Dates in UTC.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
+    <p class="chart-context">${esc(item.variant || "Matching version")} · ${esc(context)} · ${esc(currency)}. ${dailySales ? "Daily median price of recorded sales. The line pauses across gaps longer than 30 days." : "Recorded prices only. The line connects available records."} Dates in UTC.${model.rateRef ? ` Display conversion uses ECB rate ${lastValidatedFxRate.effectiveDate}, not historical exchange rates.` : model.conversionUnavailable ? ` Showing original ${esc(currency)} records; display conversion is unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>` : ""}</p>${purchases}
     <div class="history-table-scroll"><table><caption>Recorded matching prices in ${esc(currency)} · dates in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Source</th><th scope="col">Price</th></tr></thead><tbody>${rows}</tbody></table></div>${model.purchases.length ? `<ul class="history-purchases">${model.purchases.map(({ x, y, transaction }) => `<li>${esc(dateLabel(x))} · Bought ${Number(transaction.quantity)} · ${money(y, currency)} each</li>`).join("")}</ul>` : ""}</details>` : ""}</div>`;
 
 }
@@ -2974,21 +2990,25 @@ async function mountPriceChart(item, history = historyForItem(item)) {
   const line = styles.getPropertyValue("--line").trim() || "#ded8cc";
   const paper = styles.getPropertyValue("--paper").trim() || "#faf7ef";
   const dailySales = model.points.some(point => point.granularity === "daily_median");
+  const isolatedSale = index => {
+    const point = model.points[index];
+    return point && (index === 0 || point.x - model.points[index - 1].x > MAX_SALE_CHART_GAP) &&
+      (index === model.points.length - 1 || model.points[index + 1].x - point.x > MAX_SALE_CHART_GAP);
+  };
   const datasets = [{
     label: dailySales ? "Daily median" : "Recorded price",
     data: model.points.map(point => ({ x: point.x, y: point.amount, point })),
     borderColor: accent,
     borderWidth: 2.25,
     backgroundColor: historyChartFill,
-    fill: "start",
-    pointRadius: model.points.length === 1 ? 3 : 0,
+    fill: dailySales ? false : "start",
+    pointRadius: model.points.length === 1 ? 3 : dailySales && model.points.some((_, i) => isolatedSale(i)) ? model.points.map((_, i) => isolatedSale(i) ? 2.5 : 0) : 0,
     pointHoverRadius: 4,
     pointHoverBackgroundColor: accent,
     pointHoverBorderColor: paper,
     pointHoverBorderWidth: 2,
-    cubicInterpolationMode: dailySales ? "monotone" : undefined,
-    tension: dailySales ? 0.2 : 0,
-    spanGaps: false,
+    tension: 0,
+    spanGaps: dailySales ? MAX_SALE_CHART_GAP : false,
   }];
   const values = model.points.map(point => point.amount);
   const low = Math.min(...values), high = Math.max(...values);
@@ -3246,6 +3266,7 @@ function completedSaleHistory(item, context, sales) {
 }
 
 function renderExactSoldValue(item, context, sales) {
+  const needsPrinting = scanNeedsPrintingReview(item, context);
   sales = sales || savedSaleEvidenceForContext(item, context);
   const result = latestEbaySoldValuation(
     sales?.sales || [],
@@ -3267,7 +3288,7 @@ function renderExactSoldValue(item, context, sales) {
     result.estimate === null
       ? restoring ? "Loading price…" : "Estimate unavailable"
       : displayCurrencyMoney(result.estimate, result.currency);
-  const status = !checked
+  const status = needsPrinting ? "Confirm the card version to see matching sales." : !checked
     ? ""
     : sales.salesStatus === "loading"
       ? "Checking sales…"
@@ -3283,7 +3304,7 @@ function renderExactSoldValue(item, context, sales) {
                 ? "Older completed sales · refresh before relying on this estimate."
                 : `${result.amountVerified ? "Last matching eBay sale" : "Reported eBay comp · sale amount unverified"} · ${result.newestSoldAt?.slice(0, 10)}.`;
   const button =
-    restoring || sales?.salesStatus === "loading"
+    needsPrinting || restoring || sales?.salesStatus === "loading"
       ? ""
       : `<button class="inline-retry" id="checkExactSalesButton" type="button">${!checked ? "Check sales" : ["error", "unconfigured", "plan_required"].includes(sales.salesStatus) ? "Try sales again" : "Refresh sales"}</button>`;
   const otherCurrencies = new Set(
@@ -4016,6 +4037,7 @@ function saleLookupForItem(item) {
 }
 
 async function loadSales(item, force = false) {
+  if (scanNeedsPrintingReview(item, valuationContextForItem(item))) return;
   // Opening a graded copy reads comps; only an explicit refresh persists them.
   let savedCopyAtStart = state.items.find(owned => owned.uid === item.uid);
   let savedContextMatches = savedCopyAtStart && detailContextKey(valuationContextForItem(savedCopyAtStart)) === detailContextKey(valuationContextForItem(item));
@@ -5570,7 +5592,7 @@ async function mountPortfolioHistoryChart({
           padding: 12,
           callbacks: {
             title(items) { return items.length ? money(items[0].parsed.y, currency) : ""; },
-            label(context) { const point = points[context.dataIndex], date = shortPortfolioDate(point?.date || "", true); const notes = [...(point?.estimatedItems ? ["Includes purchase-price estimates"] : []), ...(point?.carriedForward ? [`Saved valuation from ${shortPortfolioDate(point.valuationDate, true)}`] : [])]; return notes.length ? [date, ...notes] : date; },
+            label(context) { const point = points[context.dataIndex], date = shortPortfolioDate(point?.date || "", true); const notes = [...(point?.undatedItems ? [`Excludes ${point.undatedItems} with unknown dates`] : []), ...(point?.estimatedItems ? ["Includes purchase-price estimates"] : []), ...(point?.carriedForward ? [`Saved valuation from ${shortPortfolioDate(point.valuationDate, true)}`] : [])]; return notes.length ? [date, ...notes] : date; },
           },
         },
       },
@@ -5644,17 +5666,21 @@ function renderPortfolioHistory() {
     const points = portfolioHistoryRangePoints(timeline, state.portfolioHistoryRange);
     const allTime = state.portfolioHistoryRange === "all";
     const historyStart = allTime ? saved.acquiredAt || points[0]?.date : points[0]?.date;
-    const pricedFrom = points.find(point => Number.isFinite(point.total))?.date;
-    const missingHistory = (allTime && historyStart && (!pricedFrom || pricedFrom > historyStart)) || points.some(point => point.total === null);
+    const plottedValue = point => point.total ?? (point.undatedItems ? point.knownTotal : null);
+    const pricedFrom = points.find(point => Number.isFinite(plottedValue(point)))?.date;
+    const missingHistory = (allTime && historyStart && (!pricedFrom || pricedFrom > historyStart)) || points.some(point => plottedValue(point) == null);
+    const undatedNotice = saved.unknownDates
+      ? '<small class="history-coverage">The current value includes all priced copies. Earlier values may exclude copies without a known purchase date.</small>'
+      : "";
     const estimateNotice = points.some(point => point.estimatedItems) ? '<small id="portfolioEstimateNote" class="history-coverage history-estimate-note">Includes purchase-price estimates.</small>' : "";
     const historyNotice = missingHistory ? '<p class="history-coverage" role="status">' + (pricedFrom && historyStart && pricedFrom > historyStart ? 'Some historical prices are unavailable before ' + esc(shortPortfolioDate(pricedFrom, true)) + '. Missing values are not counted as zero.' : 'Some historical prices are unavailable. Missing values are not counted as zero.') + '</p>' : '';
     const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, state.portfolioView.refreshIncomplete, state.portfolioView.historyRefreshIncomplete, saved, today, state.portfolioHistoryRange, appearance]);
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><strong>Portfolio value · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(points[0].total) ? esc(money(points[0].total, saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}${historyNotice}${estimateNotice}<details class="portfolio-chart-coverage"><summary>History details${state.portfolioView.historyRefreshIncomplete ? " · History incomplete" : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} excluded` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.historyExcludedPositions ? ` · ${saved.historyExcludedPositions} positions excluded from history` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
+    root.innerHTML = `<div class="portfolio-history-head"><strong>${saved.unknownDates ? "Known portfolio history" : "Portfolio value"} · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(plottedValue(points[0])) ? esc(money(plottedValue(points[0]), saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}${historyNotice}${estimateNotice}${undatedNotice}<details class="portfolio-chart-coverage"><summary>History details${state.portfolioView.historyRefreshIncomplete ? " · History incomplete" : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.unknownDates ? ` · ${saved.unknownDates} without a known purchase date` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
     bindHistoryRange(root, "portfolioChartRange", range => { state.portfolioHistoryRange = range; renderPortfolioHistory(); });
-    if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(point => point.total), currency: saved.currency, marketMode: false, dateDomain: { start: historyStart, end: today }, zeroBaseline: allTime }));
+    if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(plottedValue), currency: saved.currency, marketMode: false, dateDomain: { start: historyStart, end: today }, zeroBaseline: allTime }));
     return;
   }
   const bindControls = () => {
@@ -7058,12 +7084,15 @@ function renderCollection() {
   const partial = missingValueUnits
     ? ` · ${missingValueUnits} unpriced ${missingValueUnits === 1 ? "copy" : "copies"} excluded`
     : "";
+  const olderPricing = savedPortfolio && state.portfolioView.positionValues?.length
+    ? savedPortfolioCoverageNote(savedPortfolio, state.portfolioView)
+    : portfolioPricingNotes(missingValueUnits, portfolioOlderPriceCount(valuedItems.map(item => ({ ...item, price: item.soldValuation?.estimate ?? item.price, checkedAt: item.checkedAt || item.exactSaleEvidence?.retrievedAt })), valuedItems));
   const costCoverage = totals.unknownCost
     ? ` · ${totals.unknownCost} missing purchase cost`
     : "";
   $("#portfolioChange").textContent =
     workspaceMode === "collector"
-      ? `${partial.replace(/^ · /, "")}${valuedItems.some(item => item.retainedPrice) ? " · includes older prices" : ""}${profitLoss.rateRef ? " · converted" : ""}${profitLoss.unconvertedUnits ? ` · ${profitLoss.unconvertedUnits} awaiting conversion` : ""}`
+      ? `${olderPricing}${profitLoss.rateRef ? " · converted" : ""}${profitLoss.unconvertedUnits ? ` · ${profitLoss.unconvertedUnits} awaiting conversion` : ""}`
       : profitLoss.comparableUnits
         ? `${gain >= 0 ? "Up" : "Down"} ${money(Math.abs(gain))}${portfolioReturn === null ? "" : ` (${portfolioReturn >= 0 ? "+" : ""}${portfolioReturn.toFixed(1)}%)`} since purchase${partial}${costCoverage}`
         : hasProviderPricing
@@ -7129,7 +7158,7 @@ function renderCollection() {
           : state.pricingStatus === "error"
             ? "Live pricing is temporarily unavailable"
             : "Waiting for live prices";
-  $(".status-label").innerHTML = `<i></i> ${savedPortfolio && state.portfolioView.updatedAt ? `Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}` : state.pricingStatus === "loading" ? "Updating prices" : pricingLabel}`;
+  $(".status-label").innerHTML = `<i></i> ${savedPortfolio && state.portfolioView.updatedAt ? `Valued ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}` : state.pricingStatus === "loading" ? "Updating prices" : pricingLabel}`;
   renderPortfolioRetry();
   const syncLabels = {
     loading: "Prices updating",
@@ -7611,6 +7640,7 @@ function openCardDetail(card, preferOwned = false, initialContext = null, scanDr
   // A catalog reference is not a condition assessment of the photographed copy.
   if (!owned && state.detailValuationContext.cardState === "raw" && !state.detailValuationContext.condition)
     state.detailValuationContext = { ...state.detailValuationContext, condition: "Near Mint", referenceOnly: true };
+  const waitingForPrinting = scanNeedsPrintingReview(card, state.detailValuationContext);
   routeTo("detail");
   if ((owned || card).cardState === "sealed") {
     void loadSealedDetailPricing(owned || card);
@@ -7625,13 +7655,13 @@ function openCardDetail(card, preferOwned = false, initialContext = null, scanDr
     });
     void loadOwnedGradingReports(owned);
     void loadOwnedCollectionAttachments(owned);
-  } else if (detailContextReady(state.detailValuationContext))
+  } else if (!waitingForPrinting && detailContextReady(state.detailValuationContext))
     void loadCardPreviewPricing(
       card,
       state.detailValuationContext,
       beginDetailRequest(card, state.detailValuationContext),
     );
-  if (!owned && state.detailValuationContext.cardState === "graded")
+  if (!owned && !waitingForPrinting && state.detailValuationContext.cardState === "graded" && detailContextReady(state.detailValuationContext))
     void loadSales({ ...card, gradingCompany: state.detailValuationContext.gradingCompany, grade: state.detailValuationContext.grade, gradeQualifier: state.detailValuationContext.gradeQualifier, cardState: "graded" });
 }
 
@@ -8220,10 +8250,15 @@ async function loadOwnedCollectionPhotos(items) {
   if (!pending.length) return;
   const entries = new Map(pending.map(item => [item.uid, { ownerId, loadVersion, pending: true, expiresAt: Date.now() + 240_000, url: privateCollectionPhoto(item) }]));
   for (const [id, entry] of entries) privateCollectionPhotos.set(id, entry);
+  const changed = new Set();
   try {
     const photos = new Map((await loadCollectionIdentificationPhotos(supabase, ownerId, [...entries.keys()])).map(photo => [photo.uid, photo.url]));
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
-    for (const [id, entry] of entries) if (privateCollectionPhotos.get(id) === entry) entry.url = photos.get(id) || "";
+    for (const [id, entry] of entries) if (privateCollectionPhotos.get(id) === entry) {
+      const url = photos.get(id) || "";
+      if (url !== entry.url) changed.add(id);
+      entry.url = url;
+    }
   } catch {
     if (!accountRequestIsCurrent(ownerId, loadVersion)) return;
     for (const [id, entry] of entries) if (privateCollectionPhotos.get(id) === entry) entry.expiresAt = Date.now() + 60_000;
@@ -8233,8 +8268,8 @@ async function loadOwnedCollectionPhotos(items) {
     return;
   }
   for (const [id, entry] of entries) if (privateCollectionPhotos.get(id) === entry) entry.pending = false;
-  if (state.route === "collection") renderCollection();
-  if (state.route === "detail" && entries.has(state.detailId)) renderDetail();
+  if (state.route === "collection" && changed.size) renderCollection();
+  if (state.route === "detail" && changed.has(state.detailId)) renderDetail();
 }
 
 const savedCopyPricing = new Map();
@@ -8246,7 +8281,7 @@ async function loadCardPreviewPricing(
   guard = beginDetailRequest(card, context),
   includeHistory = false,
 ) {
-  if (!detailContextReady(context)) return;
+  if (!detailContextReady(context) || scanNeedsPrintingReview(card, context)) return;
   const cacheKey = previewPricingKey(card, context);
   const cached = previewPricingCache.get(cacheKey);
   if (!includeHistory && cached?.pricing && cached.expires > Date.now() && portfolioPriceIsFresh(cached.pricing)) {
@@ -8874,6 +8909,7 @@ function renderDetailPreservingValuationFocus() {
 }
 
 function renderDetail() {
+  const focusedCopyId = document.activeElement?.closest("#detailContent [data-copy-id]")?.dataset.copyId;
   const owned =
     state.items.find((candidate) => candidate.uid === state.detailId) || null;
   const baseItem =
@@ -9427,6 +9463,8 @@ function renderDetail() {
   $$("[data-copy-id]").forEach((button) =>
     button.addEventListener("click", () => openCopy(button.dataset.copyId)),
   );
+  if (focusedCopyId && focusedCopyId === state.detailId)
+    $$("[data-copy-id]", detailRoot).find(button => button.dataset.copyId === focusedCopyId)?.focus({ preventScroll: true });
   const copySwipeArea = $(".copy-facts");
   let copyTouch = null;
   copySwipeArea?.addEventListener("touchstart", (event) => {
@@ -9451,7 +9489,11 @@ function renderDetail() {
   $("#addPhysicalCopyButton")?.addEventListener("click", () =>
     openAnotherPhysicalCopy(item),
   );
-  $("#addLibraryButton")?.addEventListener("click", () =>
+  $("#addLibraryButton")?.addEventListener("click", () => {
+    if (state.detailScanDraft?.options?.printingConflicts?.length) {
+      openPrintingConfirmationSheet(baseItem);
+      return;
+    }
     openPositionSheet(baseItem, {
       exactSelection: true,
       profileIntent: true,
@@ -9468,8 +9510,8 @@ function renderDetail() {
         variantId: baseItem.variantId,
         variant: baseItem.variant,
       },
-    }),
-  );
+    });
+  });
   $("#watchCardButton")?.addEventListener("click", () =>
     openWatchlistSheet(baseItem, watched, {
       valuationContext: context.referenceOnly ? { ...context, condition: "" } : context,
@@ -11751,13 +11793,28 @@ function openDeleteCopySheet(item) {
 }
 
 function openPrintingConfirmationSheet(item) {
-  const choices = (id, label, values) => `<div class="field"><label for="${id}">${label}</label><select id="${id}" name="${id}" required><option value="">Choose from your card</option>${values.map(([value,text]) => `<option value="${value}">${text}</option>`).join("")}</select></div>`;
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm card version</h2><p>${esc(item.name)} · ${esc(item.set)} · ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="confirmPrintingForm"><div class="form-grid">${choices("printingFinish","Finish",[["holofoil","Holofoil"],["non_holo","Non-holo"],["reverse_holofoil","Reverse holofoil"]])}${choices("printingEdition","Edition / stamp",[["unlimited","Regular / unlimited"],["first_edition","1st Edition"],["shadowless","Shadowless"]])}${choices("printingPromo","Promo marking",[["none","No promo marking"],["black_star","Black Star promo"],["prerelease","Prerelease"],["staff","Staff"],["league","League"]])}${item.gradingCompany ? choices("printingQualifier","Grade qualifier",[["none","No qualifier on label"],["Pristine","Pristine"],["Black Label","Black Label"],["OC","OC"],["MC","MC"],["ST","ST"],["PD","PD"],["OF","OF"],["MK","MK"]]) : ""}<p class="form-error" id="printingError" role="alert"></p></div><p>${item.uid ? "Check the actual card or slab. Purchases, sales and notes stay with this copy; previous price observations remain in correction history." : "Check the card or slab label"}</p><div class="sheet-actions"><button class="secondary" type="button" id="printingCancel">Cancel</button><button class="primary" type="submit">Confirm version</button></div></form>`);
+  const scan = !item.uid && state.detailScanDraft;
   const observed = selectedPrinting(item);
-  for (const [id, value] of Object.entries({ printingFinish: observed.finish, printingEdition: observed.edition, printingPromo: observed.promoType, printingQualifier: item.gradeQualifier === "" ? "none" : item.gradeQualifier })) {
-    const control = document.getElementById(id);
-    if (control && value && [...control.options].some(option => option.value === value)) control.value = value;
-  }
+  const fields = [
+    { id: "printingFinish", label: "Finish", value: observed.finish, options: [["holofoil", "Holofoil"], ["non_holo", "Non-holo"], ["reverse_holofoil", "Reverse Holofoil"], ["cosmos_holofoil", "Cosmos Holofoil"], ["etched_holofoil", "Etched Holofoil"], ["textured_holofoil", "Textured Holofoil"], ["rainbow_holofoil", "Rainbow Holofoil"], ["radiant_holofoil", "Radiant Holofoil"], ["parallel", "Parallel"]] },
+    { id: "printingEdition", label: "Edition / stamp", value: observed.edition, options: [["unlimited", "Regular / unlimited"], ["first_edition", "1st Edition"], ["shadowless", "Shadowless"], ["parallel", "Parallel"]] },
+    { id: "printingPromo", label: "Promo marking", value: observed.promoType, options: [["none", "No promo marking"], ["black_star", "Black Star promo"], ["prerelease", "Prerelease"], ["staff", "Staff"], ["league", "League"], ["promo", "Promo"], ["deck_exclusive", "Deck exclusive"], ["store_exclusive", "Store exclusive"]] },
+  ];
+  if (item.gradingCompany) fields.push({
+    id: "printingQualifier", label: "Grade qualifier", value: item.gradeQualifier === "" ? "none" : item.gradeQualifier,
+    options: [["none", "No qualifier on label"], ["Pristine", "Pristine"], ["Black Label", "Black Label"], ["OC", "OC"], ["MC", "MC"], ["ST", "ST"], ["PD", "PD"], ["OF", "OF"], ["MK", "MK"]],
+  });
+  const conflicts = scan?.options?.printingConflicts || [];
+  const confirmed = field => !conflicts.includes(field.id) && field.options.find(([value]) => value === field.value);
+  const choices = field => `<div class="field"><label for="${field.id}">${field.label}</label><select id="${field.id}" name="${field.id}" required><option value="">Choose from your card</option>${field.options.map(([value, label]) => `<option value="${value}"${confirmed(field)?.[0] === value ? " selected" : ""}>${label}</option>`).join("")}</select></div>`;
+  const needsChoice = scan ? fields.filter(field => !confirmed(field)) : fields;
+  const prefilled = scan ? fields.filter(confirmed) : [];
+  const known = prefilled.length ? `<details class="field full scan-prefilled-details"><summary>Review filled details</summary><div class="form-grid">${prefilled.map(choices).join("")}</div></details>` : "";
+  const copy = conflicts.length ? "The scan and catalog disagree. Check the highlighted fields on your slab." :
+    needsChoice.length && scan ? "Choose the remaining details from your slab." :
+    item.uid ? "Check the actual card or slab. Purchases, sales and notes stay with this copy." : "Check the card or slab label.";
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm card version</h2><p>${esc(item.name)} · ${esc(item.set)} · ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="confirmPrintingForm"><p>${copy}</p><div class="form-grid">${needsChoice.map(choices).join("")}${known}<p class="form-error" id="printingError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="printingCancel">Cancel</button><button class="primary" type="submit">Confirm version</button></div></form>`);
+  if (scan && needsChoice.length) document.getElementById(needsChoice[0].id)?.focus();
   $("#printingCancel").addEventListener("click", closeSheet);
   $("#confirmPrintingForm").addEventListener("submit", async event => {
     event.preventDefault(); const owner = state.session?.user?.id, version = sessionLoadVersion;
@@ -11765,7 +11822,7 @@ function openPrintingConfirmationSheet(item) {
     const data = Object.fromEntries(new FormData(event.currentTarget));
     const button = event.currentTarget.querySelector('[type="submit"]'); button.disabled = true;
     const option = normalizeVariantOption({ finish: data.printingFinish, edition: data.printingEdition, promoType: data.printingPromo, language: item.language, status: "exact", metadata: { identityEvidence: "owner_confirmed_printing" } });
-    const printingLabel = { holofoil: "Holofoil", non_holo: "Normal", reverse_holofoil: "Reverse Holofoil" }[option.finish];
+    const printingLabel = option.finish === "non_holo" ? "Normal" : fields[0].options.find(([value]) => value === option.finish)?.[1] || identityFieldLabel(option.finish);
     option.label = (option.edition === "first_edition" ? "1st Edition " : "") + printingLabel;
     const identity = { ...identitySnapshot(item, option), variantId: null, collectibleId: null, gradeQualifier: data.printingQualifier === "none" ? "" : data.printingQualifier || item.gradeQualifier || "" };
     try {
@@ -14759,9 +14816,27 @@ let pendingVisionSearch = null;
 
 function openScannedCardDetail(card, options) {
   const prefill = options.prefill;
-  const printing = normalizeVariantOption({ ...selectedPrinting(card), ...Object.fromEntries(["finish", "edition", "promoType"].filter(field => prefill[field]).map(field => [field, prefill[field]])) });
-  const identified = { ...card, finish: printing.finish, edition: printing.edition, promoType: printing.promoType, cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, gradeQualifier: prefill.gradeQualifier, certificationNumber: prefill.certificationNumber, condition: prefill.rawCondition || null };
-  openCardDetail(identified, false, valuationContextForItem(identified), { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(identified), options });
+  const catalogPrinting = selectedPrinting(card);
+  const scanPrinting = normalizeVariantOption({
+    finish: prefill.finish || "unknown",
+    edition: prefill.edition || "unknown",
+    promoType: prefill.promoType || "unknown",
+  });
+  const printingConflicts = [];
+  const printing = {};
+  for (const [field, controlId] of [["finish", "printingFinish"], ["edition", "printingEdition"], ["promoType", "printingPromo"]]) {
+    const scanned = scanPrinting[field];
+    const catalogValue = catalogPrinting[field];
+    if (scanned !== "unknown" && catalogValue !== "unknown" && scanned !== catalogValue) {
+      printingConflicts.push(controlId);
+      printing[field] = "unknown";
+    } else {
+      printing[field] = scanned === "unknown" ? catalogValue : scanned;
+    }
+  }
+  const requiresReview = printingConflicts.length || (prefill.cardState === "graded" && prefill.gradeQualifier == null);
+  const identified = { ...card, ...printing, ...(requiresReview ? { identityStatus: "needs_review" } : {}), cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, gradeQualifier: prefill.gradeQualifier, certificationNumber: prefill.certificationNumber, condition: prefill.rawCondition || null };
+  openCardDetail(identified, false, valuationContextForItem(identified), { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(identified), options: { ...options, printingConflicts } });
 }
 
 function openVisionSearchFallback(query = "", language = "en", options = null) {
@@ -17761,6 +17836,18 @@ function cachePortfolioView(owner, view) {
   try { localStorage.setItem(`mica:portfolio-view:${owner}`, JSON.stringify({ ...compactPortfolioView(view), cachedDisplayCurrency: displayCurrency(), cachedDisplayFx: usableFxRate(lastValidatedFxRate) ? lastValidatedFxRate : null })); } catch {}
 }
 
+function portfolioPricingNotes(missing, older) {
+  return [
+    missing ? `${missing} unpriced ${missing === 1 ? "copy" : "copies"} excluded` : "",
+    older ? `${older} ${older === 1 ? "copy uses a price" : "copies use prices"} checked 24h ago or earlier` : "",
+  ].filter(Boolean).join(" · ");
+}
+
+function savedPortfolioCoverageNote(summary, view) {
+  const pricing = view.pricing || view.displayPricing || [];
+  return portfolioPricingNotes(summary.missingUnits, portfolioOlderPriceCount(pricing, view.positionValues || []));
+}
+
 function renderSavedPortfolio() {
   const saved = displayPortfolioView(state.portfolioView, displayCurrency(), lastValidatedFxRate);
   if (!state.session || !saved) return false;
@@ -17780,8 +17867,8 @@ function renderSavedPortfolio() {
   $("#portfolioToplineLabel").textContent = saved.total === null ? "Known portfolio value" : "Total portfolio value";
   setPortfolioPrice(money(saved.total ?? saved.knownTotal, saved.currency));
   $("#portfolioValue").dataset.savedSnapshot = "true";
-  $("#portfolioChange").textContent = saved.missingUnits ? `${saved.missingUnits} unpriced ${saved.missingUnits === 1 ? "copy" : "copies"} excluded` : "";
-  $(".status-label").innerHTML = `<i></i> Updated ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}`;
+  $("#portfolioChange").textContent = savedPortfolioCoverageNote(saved, state.portfolioView);
+  $(".status-label").innerHTML = `<i></i> Valued ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}`;
   renderPortfolioRetry();
   renderPortfolioHistory();
   renderPortfolioPnl();
@@ -19953,7 +20040,8 @@ function bindQuickCardSearch() {
         if (card) {
           const scan = pendingVisionSearch;
           pendingVisionSearch = null;
-          openPositionSheet(card, scan && accountRequestIsCurrent(scan.ownerId, scan.loadVersion) ? scan.options : { ingestionChannel: "search" });
+          if (scan && accountRequestIsCurrent(scan.ownerId, scan.loadVersion)) openScannedCardDetail(card, scan.options);
+          else openPositionSheet(card, { ingestionChannel: "search" });
         }
       }),
     );

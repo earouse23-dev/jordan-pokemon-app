@@ -6,6 +6,8 @@ import {
   compactPortfolioView,
   portfolioDisplayTimeline,
   portfolioPriceIsFresh,
+  portfolioOlderPriceCount,
+  portfolioPricingKey,
 } from "../lib/portfolio-view.js";
 import { displayNativePortfolioProfitLoss } from "../lib/portfolio.js";
 test("display endpoints retain estimates and distinguish carried valuations without changing saved history", () => {
@@ -135,7 +137,7 @@ test("sales remove holdings, preserve zero, and missing holdings cannot masquera
   assert.equal(summary.total, null);
   assert.equal(summary.history.length, 6);
   assert.ok(summary.history.every((p) => p.total === null && p.knownTotal === 200 && p.unpricedItems === 1));
-  assert.equal(summary.historyExcludedPositions, 0);
+  assert.equal(summary.unknownDates, 0);
   assert.equal(summary.knownTotal, 200);
   assert.equal(buildPortfolioView([]).summaries[0].total, 0);
 });
@@ -147,6 +149,47 @@ test("today ends at the same current market value shown above the chart", () => 
   assert.equal(view.history.find((p) => p.date === "2026-01-04").total, 200);
   assert.equal(view.history.at(-1).total, view.total);
   assert.equal(view.total, 250);
+});
+
+test("an undated copy does not erase a dated copy's history, including after an allocated sale", () => {
+  const card = item("mixed-dates", "2026-01-01", 100);
+  card.quantity = 2;
+  card.lots[0].id = "dated";
+  card.lots.push({ id: "undated", acquisitionDateKnown: false, quantityAcquired: 2, quantityRemaining: 1 });
+  card.transactions = [{ type: "sale", date: "2026-01-03", quantity: 1, lotAllocations: [{ lotId: "undated", quantity: 1, cost: null }] }];
+  const summary = buildPortfolioView([card], "2026-01-06T00:00:00Z").summaries[0];
+  assert.equal(summary.unknownDates, 1);
+  assert.equal(summary.history.length, 6);
+  assert.deepEqual(summary.history[0], { date: "2026-01-01", total: null, knownTotal: 100, pricedItems: 1, unpricedItems: 0, estimatedItems: 0, undatedItems: 2 });
+  assert.equal(summary.history.find(point => point.date === "2026-01-04").knownTotal, 100);
+  assert.equal(summary.history.at(-1).total, 200);
+  delete card.transactions[0].lotAllocations;
+  assert.equal(buildPortfolioView([card], "2026-01-06T00:00:00Z").summaries[0].history.find(point => point.date === "2026-01-04").knownTotal, null);
+});
+
+test("fresh saved prices and sale dates do not inflate the older-price copy count", () => {
+  const rows = [
+    { uid: "fresh", price: 100, checkedAt: "2026-11-17T11:35:00Z", retainedPrice: true, pricingUpdatedAt: "2026-11-02" },
+    { uid: "old", price: 100, checkedAt: "2026-11-16T12:00:00Z" },
+    { uid: "unknown", price: 100 },
+    { uid: "unpriced", price: null, checkedAt: "2026-11-01" },
+  ];
+  assert.equal(portfolioOlderPriceCount(rows, rows.map(row => ({ ...row, quantity: 2 })), Date.parse("2026-11-17T12:00:00Z")), 2);
+});
+
+test("a corrected or withdrawn exact sale repairs only the affected published days", () => {
+  const slab = { ...item("psa", "2026-01-01", 120), cardState: "graded", gradingCompany: "PSA", grade: "10" };
+  const sale = (day, amount) => ({ recordedAt: `2026-01-${day}T00:00:00Z`, amount, currency: "USD", verifiedExactSold: true, contextValidated: true });
+  slab.matchedHistory = [sale("01", 80), sale("05", 100), sale("08", 120)];
+  const now = "2026-01-10T12:00:00Z";
+  const previousView = buildPortfolioView([slab], now);
+  previousView.pricing = [{ uid: slab.uid, key: portfolioPricingKey(slab), matchedHistory: slab.matchedHistory }];
+  const previousSeries = previousView.summaries[0].history;
+  const repaired = buildPortfolioView([{ ...slab, matchedHistory: [sale("01", 80), sale("05", 95)] }], now, { previousView }).summaries[0].history;
+  assert.deepEqual(repaired.slice(0, 4), previousSeries.slice(0, 4));
+  assert.equal(repaired.find(point => point.date === "2026-01-05").total, 95);
+  assert.equal(repaired.find(point => point.date === "2026-01-08").total, 95);
+  assert.deepEqual(buildPortfolioView([slab], now, { previousView }).summaries[0].history, previousSeries);
 });
 
 test("display totals include every native currency and never assume a missing exchange rate", async () => {

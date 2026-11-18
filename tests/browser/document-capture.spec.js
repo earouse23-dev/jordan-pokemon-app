@@ -1374,10 +1374,11 @@ for (const recover of [false,true]) test(`slab ${recover ? "manual recovery" : "
  }
  await expect(page.locator("#detailTitle")).toContainText("PSA 9");
  await page.locator("#confirmPrintingButton").click();
- await page.locator("#printingFinish").selectOption("holofoil");
+ await expect(page.locator("#printingFinish")).toBeHidden();
+ await expect(page.locator("#printingFinish")).toHaveValue("holofoil");
  await page.locator("#printingEdition").selectOption("unlimited");
  await page.locator("#printingPromo").selectOption("none");
- await page.locator("#printingQualifier").selectOption("none");
+ await expect(page.locator("#printingQualifier")).toHaveValue("none");
  await page.getByRole("button",{name:"Confirm version",exact:true}).click();
  await expect(page.locator("#detailTitle")).toContainText("PSA 9");
  await page.locator("#addLibraryButton").click();
@@ -1398,4 +1399,29 @@ test("abbreviated PSA edition survives scan and prefills the canonical printing"
   await page.locator("#confirmPrintingButton").click();
   await expect(page.locator("#printingEdition")).toHaveValue("first_edition");
   await expect(page.locator("#printingFinish")).toHaveValue("holofoil");
+});
+
+test("a conflicting slab finish asks for only that field before using verified pricing context", async ({ page }) => {
+  const card = { id: "fixture-rayquaza", name: "Sky's Rayquaza", set: "Movie VS Pack", number: "003/019", language: "ja", variant: "Normal", finish: "non_holo", edition: "unlimited", promoType: "none", identityStatus: "exact", thumb: "/icons/icon.svg" };
+  const payload = { analysis: { quality: { usable: true }, identity: { name: card.name, collectorNumber: "003", language: "ja", finish: "holofoil", edition: "unlimited", promoType: "none", cardState: "graded", grader: "PSA", grade: 10, gradeQualifier: "", certificationNumber: "000123456", confidence: .98 } }, catalogResolution: { cards: [card], resolution: { status: "exact", recommendedId: card.id } } };
+  await setup(page, { recognition: true, experience: "intake", visionPayload: payload });
+  const sales = [];
+  await page.route("**/api/sales?*", route => {
+    sales.push(JSON.parse(new URL(route.request().url()).searchParams.get("lookup")));
+    return route.fulfill({ contentType: "application/json", body: '{"sales":[]}' });
+  });
+  await installSyntheticDocument(page);
+  await page.evaluate(() => { const input = document.querySelector('#deviceCameraUpload'); input.files = globalThis.__syntheticTransfer.files; input.dispatchEvent(new Event('change', { bubbles: true })); });
+  await page.locator("#addLibraryButton").click();
+  await expect(page.locator("#printingFinish")).toBeFocused();
+  await expect(page.locator("#printingFinish")).toHaveValue("");
+  await expect(page.locator("#printingEdition")).toBeHidden();
+  await expect(page.locator("#printingEdition")).toHaveValue("unlimited");
+  expect(sales).toHaveLength(0);
+  await page.locator("#printingFinish").selectOption("non_holo");
+  await page.getByRole("button", { name: "Confirm version", exact: true }).click();
+  await expect.poll(() => sales[0]?.finish).toBe("non_holo");
+  await page.locator("#addLibraryButton").click();
+  await expect(page.locator("#positionGrade")).toHaveValue("10");
+  await expect(page.locator("#positionCertification")).toHaveValue("000123456");
 });
