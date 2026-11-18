@@ -18,7 +18,9 @@ A replay of four previously documented photo outcomes measured the intended dist
 
 The first live run of three previously unseen public PSA scans read all three names, grades, and cert numbers. It read one of three full collector numbers and found one of three catalog candidates. The other two outputs preserved the individual card numbers and abbreviated expansion codes. The recovery checks those facts against one scoped catalog record and presents the result for manual selection. Both previously rejected observations recovered the expected candidate in a replay against the live catalog. [Dragonair](https://www.psacard.com/cert/100954855/psa), [Team Rocket’s Mimikyu](https://www.psacard.com/cert/160356005/psa), [Snover](https://www.psacard.com/cert/144250291/psa).
 
-The final production rerun returned the correct review candidate for all three photos, with zero false exact matches. Names, grades, cert numbers, grading company, language and ordinary grade qualifiers all matched. Two outputs returned the label's short number only. Mica displayed the full collector numbers from the catalog candidates. This run measured recognition and catalog matching from uploaded photos. Comp prices and physical iPhone camera capture remain unverified for these photos.
+The final production rerun returned the correct review candidate for all three photos, with zero false exact matches. Names, grades, cert numbers, grading company, language and ordinary grade qualifiers all matched. Two outputs returned the label's short number only. Mica displayed the full collector numbers from the catalog candidates. This run used uploaded photos. Physical iPhone camera capture remains unverified.
+
+A separate production sold-listing check used the confirmed English holofoil printing and PSA 10 grade. Dragonair returned 22 sale records and passed current valuation checks. The licensed sold-listing lookup did not validate a provider identity for Mimikyu or Snover, so Mica had no eligible comp price to show for either case. These results measure coverage through Mica's current pricing feed.
 
 ## Release verification
 
