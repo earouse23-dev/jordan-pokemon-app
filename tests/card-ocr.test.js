@@ -1,3 +1,4 @@
+import test from "node:test";
 import assert from "node:assert/strict";
 import { parseCardText, matchOcrCards, packageSearchQuery } from "../lib/card-ocr.js";
 const card = {
@@ -70,3 +71,13 @@ assert.equal(matchOcrCards(parseCardText('リザ ー ド ン 2 々 201/165','ja'
 assert.equal(packageSearchQuery("POKEMON\nTRADING CARD GAME\nCROWN ZENITH\nELITE TRAINER BOX\nAges 6+"), "CROWN ZENITH ELITE TRAINER BOX");
 assert.equal(packageSearchQuery("Surging Sparks Booster Box\nWarning: choking hazard"), "Surging Sparks Booster Box");
 assert.equal(packageSearchQuery(""), "");
+
+
+test("modern PSA headers require a coherent grade, language, expansion and certificate", async () => {
+  const { parseModernSlabLabel } = await import("../lib/card-ocr.js");
+  const text = "2025 POKEMON MEG EN #140\nSNOVER GEM MT\nILLUSTRATION RARE 10\n144250291";
+  assert.equal(parseModernSlabLabel(text).providerId, "me01-140");
+  for (const invalid of [text.replace("EN","JP"), text.replace("MEG","XYZ"), text.replace("GEM MT","MINT"), text.replace("RARE","OC"), text.slice(0,-3)]) {
+    assert.equal(parseModernSlabLabel(invalid), null);
+  }
+});

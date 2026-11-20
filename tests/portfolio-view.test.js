@@ -5,6 +5,8 @@ import {
   portfolioCondition,
   compactPortfolioView,
   portfolioDisplayTimeline,
+  portfolioPeriodDrivers,
+  portfolioRefreshNote,
   portfolioPriceIsFresh,
   portfolioOlderPriceCount,
   portfolioPricingKey,
@@ -420,4 +422,17 @@ test('retained matching prices keep current totals while history stays dated',()
   assert.equal(view.summaries[0].total,240);
   assert.equal(view.summaries[0].missingUnits,0);
   assert.equal(buildPortfolioView([{...old,price:null}],'2026-01-10T00:00:00Z').summaries[0].total,null);
+});
+
+test("period drivers count only comparable positions across the two dates", () => {
+  const held = {...item("old", "2026-01-01", 100, 2), name:"Held"};
+  held.priceHistory.push({...held.priceHistory[0], recordedAt:"2026-01-05T12:00:00Z", amount:130});
+  const added = {...held, lots:item("new","2026-01-04",130).lots};
+  const rows = portfolioPeriodDrivers([held, added, {...held,currency:"EUR"}], "USD", "2026-01-02", "2026-01-06");
+  assert.deepEqual(rows.map(row => [row.name,row.change]), [["Held",60]]);
+});
+test("incomplete match explanation survives the compact dashboard", () => {
+  const saved = {refreshIncomplete:true, pendingPricing:[{pricingReason:"matching_sold_price_unavailable"}]};
+  assert.match(portfolioRefreshNote(compactPortfolioView(saved)), /1 entry awaiting a matching price/);
+  assert.equal(portfolioRefreshNote({...saved,refreshIncomplete:false}), "");
 });

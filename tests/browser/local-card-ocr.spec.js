@@ -146,7 +146,16 @@ test("light and dark mode persist, retaining green primary actions", async ({
   });
   await page.locator("#appearanceSelect").selectOption("dark");
   await expect(page.locator("body")).toHaveAttribute("data-appearance", "dark");
-  expect(await page.locator("#view-profile .simple-note").evaluate(el => ({ background: getComputedStyle(el).backgroundColor, color: getComputedStyle(el).color }))).toEqual({background:"rgb(32, 44, 36)",color:"rgb(237, 242, 235)"});
+  const usesDarkSurface = await page.locator("#view-profile .simple-note").evaluate(el => {
+    const probe = document.createElement("span");
+    probe.style.cssText = "background:var(--paper-strong);color:var(--ink)";
+    el.appendChild(probe);
+    const matches = getComputedStyle(el).backgroundColor === getComputedStyle(probe).backgroundColor &&
+      getComputedStyle(el).color === getComputedStyle(probe).color;
+    probe.remove();
+    return matches;
+  });
+  expect(usesDarkSurface).toBe(true);
   expect(
     await page.evaluate(
       () => getComputedStyle(document.documentElement).colorScheme,

@@ -35,6 +35,7 @@ function parseLookup(request) {
   const lookup = {
     clientId: String(raw?.clientId || "").trim(),
     pkmnpricesId: String(raw?.pkmnpricesId || "").trim(),
+    tcgplayerId: String(raw?.tcgplayerId || "").trim(),
     name: String(raw?.name || "").trim(),
     set: String(raw?.set || "").trim(),
     number: String(raw?.number || "").trim(),
@@ -60,6 +61,7 @@ function parseLookup(request) {
     (!lookup.set || SAFE_TEXT.test(lookup.set)) &&
     (!lookup.number || SAFE_TEXT.test(lookup.number));
   const context =
+    (!lookup.tcgplayerId || /^\d{1,12}$/.test(lookup.tcgplayerId)) &&
     (!lookup.variant ||
       /^[\p{L}\p{N} .:'&+\-/()#_·]{1,120}$/u.test(lookup.variant)) &&
     (!lookup.gradeQualifier || SAFE_TEXT.test(lookup.gradeQualifier)) &&
@@ -105,6 +107,7 @@ async function handler(request, response) {
       apiKey,
       lookup,
       controller.signal,
+      { quoteFirst: requestParameter(request, "phase") === "quote" },
     );
     const sales = result.sales;
     return send(

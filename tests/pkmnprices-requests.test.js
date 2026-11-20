@@ -604,6 +604,10 @@ test("shared slab archive follows short cursor pages once, then polls only new i
     grade: "8.5",
     currency: "USD",
   };
+  const quote = await fetchPkmnPricesSalesHistory("archive-fixture", lookup, undefined, {quoteFirst:true});
+  assert.equal(quote.sales.length, 1);
+  assert.equal(quote.hasMore, true);
+  assert.equal(urls.filter(u => u.pathname.endsWith("/ebay")).length, 1);
   const first = await fetchPkmnPricesSalesHistory("archive-fixture", lookup);
   assert.equal(first.sales.length, 2);
   assert.equal(first.hasMore, false);

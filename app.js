@@ -1,4 +1,4 @@
-import { portfolioPricingKeyMatches, portfolioPricingKey, portfolioPriceIsFresh, portfolioOlderPriceCount, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
+import { portfolioPeriodDrivers, portfolioRefreshNote, portfolioPricingKeyMatches, portfolioPricingKey, portfolioPriceIsFresh, portfolioOlderPriceCount, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -2246,12 +2246,12 @@ function providerRequestHeaders() {
   return { Accept: "application/json", ...(state.session?.access_token ? { Authorization: `Bearer ${state.session.access_token}` } : {}) };
 }
 
-async function fetchSaleEvidence(lookup, signal = null) {
+async function fetchSaleEvidence(lookup, signal = null, quoteFirst = false) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
   try {
     const response = await fetch(
-      `/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}`,
+      `/api/sales?lookup=${encodeURIComponent(JSON.stringify(lookup))}${quoteFirst ? "&phase=quote" : ""}`,
       { headers: providerRequestHeaders(), signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal },
     );
     const payload = await response.json();
@@ -2319,6 +2319,7 @@ async function loadPsaGradeEvidence(item, grade) {
   const lookup = {
     clientId: item.id,
     pkmnpricesId: item.externalIds?.pkmnprices || "",
+    tcgplayerId: item.externalIds?.tcgplayer || "",
     name: item.name,
     set: item.set,
     number: item.number,
@@ -3297,7 +3298,7 @@ function renderExactSoldValue(item, context, sales) {
         : ["unconfigured", "plan_required"].includes(sales.salesStatus)
           ? "Completed-sale access is unavailable."
           : result.status === "unresolved_context"
-            ? "Confirm the printing, grade and label before valuing."
+            ? sales.salesStatus === "live" && !sales.validatedContext ? "No matching price record for this printing yet." : "Confirm the printing, grade and label before valuing."
             : result.status === "insufficient"
               ? "No eligible recent eBay sale for this exact slab."
               : result.status === "stale"
@@ -3334,6 +3335,14 @@ function renderExactSoldValue(item, context, sales) {
     result.evidence.length || result.excluded.length || upstreamSummary
       ? `<details id="exactSaleEvidence"><summary>Sale evidence and exclusions</summary>${upstreamSummary}${upstreamDetails}<p>${result.distinctSaleCount} contributing sales · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}${result.newestSoldAt ? ` · newest sold ${esc(result.newestSoldAt.slice(0, 10))}` : ""}${result.newestRetrievedAt ? ` · retrieved ${esc(result.newestRetrievedAt.slice(0, 10))}` : ""}.</p>${result.estimate === null ? "" : `<p>Comparable sale range ${money(result.rangeLow, result.currency)}–${money(result.rangeHigh, result.currency)}. Median before outlier review ${money(result.medianBeforeOutliers, result.currency)}; after ${money(result.medianAfterOutliers, result.currency)}. This range is not a confidence interval.</p>`}${result.hasMore ? "<p>Limited recent sample; more provider pages were not fetched.</p>" : ""}${otherCurrencies.size ? `<p>${esc([...otherCurrencies].sort().join(", "))} sales are separate and did not enter this ${esc(result.currency)} estimate.</p>` : ""}<ul>${result.evidence.map((row) => `<li><a href="${esc(safeMarketSourceUrl(row.sourceUrl, row.sourceMarket))}" target="_blank" rel="noopener noreferrer">${esc(row.transactionKey)} · ${esc(row.soldAt.slice(0, 10))} · ${money(row.amount, row.currency)}</a>${row.outlierReview.flagged ? " · differs from older comps" : ""}</li>`).join("")}</ul>${result.excluded.length ? `<p>Valuation exclusions: ${result.excluded.map((row) => `${esc(row.id)} (${esc(row.reason.replaceAll("_", " "))})`).join("; ")}</p>` : ""}</details>`
       : "";
+  const eligibleIds = new Set(result.eligibleEvidenceIds);
+  const comps = result.evidence.filter(row => eligibleIds.has(row.transactionKey))
+    .sort((a, b) => String(b.soldAt).localeCompare(String(a.soldAt)));
+  const compList = comps.length ? `<details class="sale-comps" data-detail-tool="comps"><summary>View comps (${comps.length})</summary><ul>${comps.map(row => {
+    const url = safeMarketSourceUrl(row.sourceUrl, row.sourceMarket);
+    const label = `${esc(shortPortfolioDate(row.soldAt, true))} · ${money(row.amount, row.currency)} · ${esc(row.sourceMarket === "ebay" ? "eBay" : row.sourceMarket)}`;
+    return `<li>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${label}</a>` : label}${!row.saleType && row.evidenceKind !== "completed_sale" ? " · reported amount" : ""}</li>`;
+  }).join("")}</ul></details>` : "";
   const strength =
     { limited: 1, stale: 1, moderate: 2, strong: 3 }[result.confidence.level] ||
     0;
@@ -3358,7 +3367,7 @@ function renderExactSoldValue(item, context, sales) {
     : sales?.salesStatus === "error" ? "Couldn’t update · saved price"
       : result.status === "stale" ? "Older price"
         : "";
-  return `<section class="exact-sold-value" data-price-state="${hasEstimate ? "ready" : "empty"}" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(displayCurrency())}</span><strong>${value}</strong>${saleSummary ? `<small class="sold-summary">${esc(saleSummary)}</small>` : ""}<div class="sold-actions">${lastSoldLink}${!hasEstimate ? button : ""}<details class="sold-price-details" data-detail-tool="sold-price"><summary>Price details</summary><div>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${hasEstimate && !result.amountVerified ? "<small>Reported amount; final paid price unverified.</small>" : ""}${!hasEstimate ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${fxLine}${hasEstimate ? button : ""}${details}${history}</div></details></div></section>`;
+  return `<section class="exact-sold-value" data-price-state="${hasEstimate ? "ready" : "empty"}" role="status"><span>${result.amountVerified ? "Last eBay sold" : "eBay comp estimate"} · ${esc(displayCurrency())}</span><strong>${value}</strong>${saleSummary ? `<small class="sold-summary">${esc(saleSummary)}</small>` : ""}<div class="sold-actions">${lastSoldLink}${compList}${!hasEstimate ? button : ""}<details class="sold-price-details" data-detail-tool="sold-price"><summary>Price details</summary><div>${result.estimate !== null && result.currency !== displayCurrency() ? `<small>${esc(displayPriceSource(result.estimate, result.currency))}</small>` : ""}<small>${esc(status)}</small>${hasEstimate && !result.amountVerified ? "<small>Reported amount; final paid price unverified.</small>" : ""}${!hasEstimate ? "" : `<small><meter min="0" max="3" value="${strength}" aria-label="Evidence strength"></meter> ${esc(result.confidence.level)} evidence · ${result.sourceMarketCount} marketplace${result.sourceMarketCount === 1 ? "" : "s"}</small>`}${fxLine}${hasEstimate ? button : ""}${details}${history}</div></details></div></section>`;
 }
 
 let fxMidnightTimer = null;
@@ -4021,6 +4030,7 @@ function saleLookupForItem(item) {
   return {
     clientId: item.id,
     pkmnpricesId: item.externalIds?.pkmnprices || "",
+    tcgplayerId: item.externalIds?.tcgplayer || "",
     name: item.name,
     set: item.set,
     number: item.number,
@@ -4036,12 +4046,12 @@ function saleLookupForItem(item) {
   };
 }
 
-async function loadSales(item, force = false) {
+async function loadSales(item, force = false, continueArchive = false) {
   if (scanNeedsPrintingReview(item, valuationContextForItem(item))) return;
   // Opening a graded copy reads comps; only an explicit refresh persists them.
   let savedCopyAtStart = state.items.find(owned => owned.uid === item.uid);
   let savedContextMatches = savedCopyAtStart && detailContextKey(valuationContextForItem(savedCopyAtStart)) === detailContextKey(valuationContextForItem(item));
-  if (!force && savedContextMatches && portfolioPricingRequest?.owner === state.session?.user?.id && portfolioPricingRequest?.version === sessionLoadVersion) {
+  if (!continueArchive && !force && savedContextMatches && portfolioPricingRequest?.owner === state.session?.user?.id && portfolioPricingRequest?.version === sessionLoadVersion) {
     const owner = state.session.user.id, version = sessionLoadVersion, selected = state.detailId, context = detailContextKey(state.detailValuationContext);
     await portfolioPricingRequest.promise;
     if (!accountRequestIsCurrent(owner, version) || state.detailId !== selected || detailContextKey(state.detailValuationContext) !== context) return;
@@ -4071,7 +4081,7 @@ async function loadSales(item, force = false) {
       : null;
   if (
     currentEvidence?.salesStatus === "loading" ||
-    (currentEvidence?.salesStatus && !force)
+    (currentEvidence?.salesStatus && !force && !continueArchive)
   )
     return;
   const requestId = crypto.randomUUID();
@@ -4085,7 +4095,7 @@ async function loadSales(item, force = false) {
       ? savedSaleEvidenceForContext(savedCopy, context)
       : previewPricingCache.get(previewPricingKey(item, context))?.sales || null;
   const previous = retainedSaleEvidence(item, context, currentEvidence || savedEvidence);
-  if (!force && freshSaleEvidence(item, context, previous)) {
+  if (!force && !continueArchive && freshSaleEvidence(item, context, previous)) {
     state.detailSales = { ...previous, selectionKey, contextKey, requestId };
     if (state.route === "detail") renderDetail();
     return;
@@ -4112,6 +4122,7 @@ async function loadSales(item, force = false) {
   )
     renderDetail();
   const lookup = saleLookupForItem(item);
+  const quoteFirst = Boolean(lookup.grader && !force && !continueArchive);
   let result;
   try {
     const durable = savedGraded && force;
@@ -4134,7 +4145,7 @@ async function loadSales(item, force = false) {
             clearTimeout(timeout);
           }
         })()
-      : await fetchSaleEvidence(lookup);
+      : await fetchSaleEvidence(lookup, null, quoteFirst);
     result =
       response.status === 503
         ? {
@@ -4232,7 +4243,10 @@ async function loadSales(item, force = false) {
     previewPricingCache.set(cacheKey, { ...previewPricingCache.get(cacheKey), sales: { ...result, selectionKey, contextKey }, expires: Date.now() + 86_400_000 });
     if (previewPricingCache.size > 50) previewPricingCache.delete(previewPricingCache.keys().next().value);
   }
-  if (state.route === "detail") renderDetail();
+  if (state.route === "detail") {
+    renderDetail();
+    if (quoteFirst && result.salesStatus === "live" && result.hasMore) void loadSales(item, false, true);
+  }
 }
 
 async function loadOffers(item, force = false) {
@@ -5674,11 +5688,25 @@ function renderPortfolioHistory() {
       : "";
     const estimateNotice = points.some(point => point.estimatedItems) ? '<small id="portfolioEstimateNote" class="history-coverage history-estimate-note">Includes purchase-price estimates.</small>' : "";
     const historyNotice = missingHistory ? '<p class="history-coverage" role="status">' + (pricedFrom && historyStart && pricedFrom > historyStart ? 'Some historical prices are unavailable before ' + esc(shortPortfolioDate(pricedFrom, true)) + '. Missing values are not counted as zero.' : 'Some historical prices are unavailable. Missing values are not counted as zero.') + '</p>' : '';
-    const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, state.portfolioView.refreshIncomplete, state.portfolioView.historyRefreshIncomplete, saved, today, state.portfolioHistoryRange, appearance]);
+    const refreshNote = portfolioRefreshNote(state.portfolioView);
+    const key = JSON.stringify([state.session?.user?.id, state.portfolioView.updatedAt, refreshNote, state.portfolioView.refreshIncomplete, state.portfolioView.historyRefreshIncomplete, saved, today, state.portfolioHistoryRange, appearance]);
     if (portfolioRenderKey === key && $("#portfolioHistoryChart", root)) return;
     portfolioRenderKey = key;
     destroyPortfolioHistoryChart();
-    root.innerHTML = `<div class="portfolio-history-head"><strong>${saved.unknownDates ? "Known portfolio history" : "Portfolio value"} · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(plottedValue(points[0])) ? esc(money(plottedValue(points[0]), saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}${historyNotice}${estimateNotice}${undatedNotice}<details class="portfolio-chart-coverage"><summary>History details${state.portfolioView.historyRefreshIncomplete ? " · History incomplete" : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.unknownDates ? ` · ${saved.unknownDates} without a known purchase date` : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p></details>`;
+    root.innerHTML = `<div class="portfolio-history-head"><strong>${saved.unknownDates ? "Known portfolio history" : "Portfolio value"} · ${esc(saved.currency)}</strong>${rangeControls()}</div>${points.length > 1 ? '<div class="portfolio-chart-shell"><canvas class="portfolio-history-canvas" id="portfolioHistoryChart" role="img" aria-label="Portfolio value by ownership date"></canvas></div>' : `<div class="portfolio-history-empty" role="status">${points.length === 1 ? `${Number.isFinite(plottedValue(points[0])) ? esc(money(plottedValue(points[0]), saved.currency)) : "Historical value unavailable"} · ${esc(shortPortfolioDate(points[0].date, true))}<br>One recorded value. More history will appear as it becomes available.` : "No recorded history in this range."}</div>`}${historyNotice}${estimateNotice}${undatedNotice}<details class="portfolio-chart-coverage"><summary>History details${state.portfolioView.historyRefreshIncomplete ? " · History incomplete" : ""}${state.portfolioView.refreshIncomplete ? " · Update incomplete" : ""}</summary><p>${saved.historyStartsAt ? `Ownership recorded from ${esc(shortPortfolioDate(saved.historyStartsAt, true))}` : ""}${saved.unknownDates ? ` · ${saved.unknownDates} without a known purchase date` : ""}${saved.converted ? " · Indicative currency conversion" : ""}</p>${refreshNote ? `<p>${esc(refreshNote)}</p>` : ""}${state.portfolioView.historyRefreshIncomplete ? "<p>Some historical prices are still missing.</p>" : ""}<div data-period-drivers></div></details>`;
+    const coverage = root.querySelector(".portfolio-chart-coverage");
+    coverage.ontoggle = () => {
+      if (!coverage.open || !points.length) return;
+      if (state.largeInventory.active) {
+        coverage.querySelector("[data-period-drivers]").textContent = "Activity breakdown requires the full collection.";
+        return;
+      }
+      const from = points[0].date, through = points.at(-1).date;
+      const flows = businessSummary(state.items, {from, to:through, currency:saved.currency});
+      if (!flows) return;
+      const drivers = portfolioPeriodDrivers(state.items, saved.currency, from, through);
+      coverage.querySelector("[data-period-drivers]").innerHTML = `<p>Recorded ${esc(saved.currency)} activity · ${flows.unitsPurchased} bought · ${flows.unitsSold} sold</p>${drivers.length ? `<strong>Price changes on cards held throughout</strong><ul>${drivers.map(row => `<li>${esc([row.name, row.number, [row.grader,row.grade].filter(Boolean).join(" ")].filter(Boolean).join(" · "))} · ${row.change > 0 ? "+" : "−"}${money(Math.abs(row.change), saved.currency)}</li>`).join("")}</ul>` : ""}`;
+    };
     bindHistoryRange(root, "portfolioChartRange", range => { state.portfolioHistoryRange = range; renderPortfolioHistory(); });
     if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(plottedValue), currency: saved.currency, marketMode: false, dateDomain: { start: historyStart, end: today }, zeroBaseline: allTime }));
     return;
@@ -7649,10 +7677,8 @@ function openCardDetail(card, preferOwned = false, initialContext = null, scanDr
     void loadOwnedDetailPricing(
       owned,
       beginDetailRequest(owned, state.detailValuationContext),
-    ).then(() => {
-      if (state.session?.access_token && state.detailId === owned.uid && (owned.cardState === "graded" || owned.gradingCompany))
-        void loadSales(state.items.find(item => item.uid === owned.uid) || owned);
-    });
+      true,
+    );
     void loadOwnedGradingReports(owned);
     void loadOwnedCollectionAttachments(owned);
   } else if (!waitingForPrinting && detailContextReady(state.detailValuationContext))
@@ -8443,11 +8469,13 @@ async function loadSavedDetailPricing(item, guard) {
 async function loadOwnedDetailPricing(
   item,
   guard = beginDetailRequest(item, valuationContextForItem(item)),
+  includeSales = false,
 ) {
   const ownerId = state.session?.user?.id;
   const loadVersion = sessionLoadVersion;
   item = await loadSavedDetailPricing(item, guard);
   if (!accountRequestIsCurrent(ownerId, loadVersion) || !detailRequestIsCurrent(guard)) return;
+  if (includeSales && state.session?.access_token && (item.cardState === "graded" || item.gradingCompany)) void loadSales(item);
   const historyKey = JSON.stringify([ownerId, loadVersion, guard.selectionKey, guard.contextKey]);
   const reusable = copy => copy.cardState === "graded" || copy.gradingCompany
     ? freshSaleEvidence(copy, valuationContextForItem(copy), savedSaleEvidenceForContext(copy, valuationContextForItem(copy)))
@@ -14407,6 +14435,7 @@ async function prepareVisionImage(file, options = {}) {
           0.64
         ? "slab"
         : "card";
+  const slabCrop = identitySource ? (await import("./lib/card-ocr.js")).slabLabelCrop(identitySource) : null;
   const identityDataUrl = await identityEvidenceDataUrl(
     identitySource || correctedCanvas || evidenceCanvas,
     documentKind,
@@ -14484,6 +14513,7 @@ async function prepareVisionImage(file, options = {}) {
     side: options.side || "front",
     researchBlob: blob,
     identityDataUrl,
+    slabCrop,
   };
 }
 
@@ -14495,6 +14525,27 @@ async function requestVisionAnalysis(
 ) {
   if (!state.session?.access_token)
     throw new Error("Sign in again before using AI analysis.");
+  if (mode === "identify" && preparedImages[0]?.slabCrop) {
+    const current = () => $("#bottomSheet").dataset.visionOperation === context.requestId && !$("#bottomSheet").hidden && state.session?.user?.id === context.owner && sessionLoadVersion === context.loadVersion;
+    try {
+      const { readModernSlabLabel } = await import("./lib/card-ocr.js");
+      const label = await readModernSlabLabel(preparedImages[0].slabCrop);
+      if (label && current()) {
+        const query = new URLSearchParams({q:label.providerId, language:"en", source:"tcgdex", limit:"1"});
+        const response = await fetch(`/api/catalog?${query}`, {signal:AbortSignal.timeout(2500)});
+        const card = response.ok && (await response.json()).cards?.[0];
+        if (card?.externalIds?.tcgdex === label.providerId && card.language === "en" &&
+            String(card.name).toUpperCase().replace(/’/g, "'") === label.name &&
+            Number(card.number.split("/")[0]) === Number(label.number)) {
+          return { analysis:{ quality:{usable:true}, model:"on-device label", identity:{
+            name:card.name, setName:card.set, collectorNumber:card.number, language:"en", cardState:"graded",
+            grader:"PSA", grade:label.grade, gradeQualifier:"", certificationNumber:label.certificationNumber
+          } }, catalogResolution:{cards:[card],resolution:{status:"review",requiresConfirmation:true}} };
+        }
+      }
+    } catch { /* The full photo remains available for unfamiliar labels or devices. */ }
+    if (!current()) throw new Error("Scan closed");
+  }
   const response = await fetch("/api/vision", {
     method: "POST",
     headers: {
@@ -15691,7 +15742,7 @@ function renderVisionResult(payload, mode, preparedImages, captureDraft = []) {
         ? '<div class="vision-compare-action"><span id="visionCompareStatus">Still unsure? Mica can compare your photo with the closest results.</span><button id="visionCompareCandidates" type="button">Compare with AI</button><small>Optional · uses one more AI scan · you still choose the final card</small></div>'
         : "";
     node.innerHTML = cards.length
-      ? `${mode === "identify" ? "" : `<div class="vision-match-instruction">${guidance}${comparisonAction}</div>`}${cards.map((card) => `<button class="catalog-result${card.id === recommendedId ? " recommended" : ""}" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Version unknown")}</small>${matchReason(card)}</span><b>${card.id === recommendedId ? "Best match" : "Choose this"}</b></button>`).join("")}`
+      ? `${mode === "identify" ? "" : `<div class="vision-match-instruction">${guidance}${comparisonAction}</div>`}${cards.map((card) => `<button class="catalog-result${card.id === recommendedId ? " recommended" : ""}" type="button" data-vision-card="${esc(card.id)}"><img src="${esc(card.thumb || card.image || "./icons/icon.svg")}" alt=""><span><strong>${esc(card.name)}</strong>${esc(card.set)} · ${esc(card.number)}<small>${esc(languageName(card.language))} · ${esc(card.variant || "Version unknown")}${identity.cardState === "graded" && identity.grader && identity.grade ? ` · ${esc(identity.grader)} ${esc(identity.grade)}` : ""}</small>${matchReason(card)}</span><b>${card.id === recommendedId ? "Best match" : "Choose this"}</b></button>`).join("")}`
       : `<div class="unavailable-panel"><strong>${analysis.quality?.issues?.some(issue => issue.code === "wrong_side") ? "Show the card front" : "No catalog match"}</strong>${identity.name ? `<p>${esc([identity.labelName || identity.name, identity.setName, identity.collectorNumber, identity.cardState === "graded" ? [identity.grader, identity.grade].filter(Boolean).join(" ") : ""].filter(Boolean).join(" · "))}</p>` : ""}<span>${identity.cardState === "graded" && identity.name ? "Slab details kept · search for the matching card" : "Try another photo or search by name"}</span></div>`;
     $("#visionCompareCandidates")?.addEventListener("click", async (event) => {
       const button = event.currentTarget;
@@ -15866,7 +15917,7 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
       );
     const payload = applyDeterministicCaptureMeasurements(
       await requestVisionAnalysis(mode, preparedImages, [], {
-        requestId,
+        owner: identificationOwner, loadVersion: identificationLoadVersion, requestId,
         scanSessionId,
       }),
       preparedImages,
@@ -17934,7 +17985,7 @@ async function refreshSavedPortfolio(owner, version) {
     }
   } catch {
     if (accountRequestIsCurrent(owner, version) && hasPortfolioValue(state.portfolioView)) {
-      state.portfolioView = { ...state.portfolioView, refreshIncomplete: true, refreshReason: "incomplete_refresh", retryAt: null };
+      state.portfolioView = { ...state.portfolioView, refreshIncomplete: true, refreshReason: "refresh_connection_failed", retryAt: null };
       renderSavedPortfolio();
     }
     return true;
@@ -20523,6 +20574,7 @@ function bindEvents() {
   $("#sheetBackdrop").addEventListener("click", closeSheet);
   $("#exportButton").addEventListener("click", downloadAccountBackup);
   $("#exportCsvButton").addEventListener("click", downloadCollectionCsv);
+  $("#addImportButton").addEventListener("click", () => $("#csvInput").click());
   $("#importButton").addEventListener("click", () => $("#csvInput").click());
   $("#importHistoryButton").addEventListener("click", openImportHistorySheet);
   $("#reviewIntakeQueue").addEventListener("click", openBatchIntakeSheet);
@@ -20619,7 +20671,7 @@ function bindEvents() {
   $("#moreButton").addEventListener("click", () => {
     if (!requireAccountData()) return;
     openSheet(
-      `<div class="sheet-heading"><div><h2 id="sheetTitle">Collection options</h2><p>Keep copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Collection backup<small>Cards, purchases, sales, and watched cards</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Collection spreadsheet<small>A copy you can import again later</small></span><b>›</b></button></div>`,
+      `<div class="sheet-heading"><div><h2 id="sheetTitle">Collection options</h2><p>Keep copies of your card data.</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="settings-group"><button type="button" id="sheetAccountBackup"><span>Collection backup<small>Cards, purchases, sales, and watched cards</small></span><b>›</b></button><button type="button" id="sheetCollectionCsv"><span>Export collection spreadsheet<small>Download your collection as a CSV</small></span><b>›</b></button></div>`,
     );
   });
   document.addEventListener("click", (event) => {

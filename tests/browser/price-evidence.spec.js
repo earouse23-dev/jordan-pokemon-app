@@ -514,6 +514,10 @@ test('graded preview automatically loads exact sold comps and reuses them for 24
  await expect(page.locator('#detailContent')).not.toContainText('A price for this exact grading company and grade is not connected yet');
  await expect(page.locator('#detailContent')).toContainText('Market reference');
  await expect(page.locator('#detailContent')).not.toContainText('No matching eBay comp available');
+ const comps=page.locator('[data-detail-tool="comps"]');
+ await comps.locator('summary').click();
+ await expect(comps.getByRole('link')).toHaveAttribute('href',/ebay\.com\/itm\/123456789010/);
+ await expect(comps.getByRole('link')).toContainText('$1,175.00');
  expect(calls).toHaveLength(1);expect(calls[0].grader).toBe('PSA');expect(calls[0].grade).toBe('9');
  await page.evaluate(()=>{const app=fixtureApp;app.openCardDetail(app.state.detailCard);});
  await expect(page.locator('.exact-sold-value')).toContainText('$1,175.00');expect(calls).toHaveLength(1);

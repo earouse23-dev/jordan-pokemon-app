@@ -3108,3 +3108,18 @@ test("provider slab recovery normalizes a full PSA header without losing languag
   assert.deepEqual(cards.map(card=>card.externalIds.pkmnprices),["99993"]);
   assert.equal(cards[0].identityStatus,"needs_review");
 });
+
+test("modern Mega Evolution provider prefixes preserve the exact expansion, number and language", () => {
+  for (const [name, set, providerSet, number] of [
+    ["Team Rocket's Mimikyu", "Ascended Heroes", "ME: Ascended Heroes", "238/217"],
+    ["Snover", "Mega Evolution", "ME01: Mega Evolution", "140/132"],
+  ]) {
+    const [local, total] = number.split("/");
+    const card = { name, set: {name: providerSet}, number: local, total_set_number: total, language: "English" };
+    const lookup = { name, set, number, language: "en" };
+    assert.equal(matchesPkmnPricesIdentity(card, lookup), true);
+    assert.equal(matchesPkmnPricesIdentity(card, {...lookup, set: "Prismatic Evolutions"}), false);
+    assert.equal(matchesPkmnPricesIdentity(card, {...lookup, number: local + "/190"}), false);
+    assert.equal(matchesPkmnPricesIdentity(card, {...lookup, language: "ja"}), false);
+  }
+});
