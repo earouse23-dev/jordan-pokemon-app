@@ -430,6 +430,9 @@ test("period drivers count only comparable positions across the two dates", () =
   const added = {...held, lots:item("new","2026-01-04",130).lots};
   const rows = portfolioPeriodDrivers([held, added, {...held,currency:"EUR"}], "USD", "2026-01-02", "2026-01-06");
   assert.deepEqual(rows.map(row => [row.name,row.change]), [["Held",60]]);
+  const report = compactPortfolioView(buildPortfolioView([held], "2026-01-06T00:00:00Z")).summaries[0].periodActivity.all;
+  assert.equal(report.through, "2026-01-06");
+  assert.equal(report.movers[0].change, 60);
 });
 test("incomplete match explanation survives the compact dashboard", () => {
   const saved = {refreshIncomplete:true, pendingPricing:[{pricingReason:"matching_sold_price_unavailable"}]};

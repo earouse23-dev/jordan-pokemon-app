@@ -140,7 +140,7 @@ async function handler(request, response) {
           : null,
         capability: "completed_sales",
         capabilityStatus: sales.length ? "live" : "missing",
-        retrievedAt: new Date().toISOString(),
+        retrievedAt: result.retrievedAt || new Date().toISOString(),
       },
       {
         "Cache-Control": "no-store",

@@ -1,4 +1,4 @@
-import { portfolioPeriodDrivers, portfolioRefreshNote, portfolioPricingKeyMatches, portfolioPricingKey, portfolioPriceIsFresh, portfolioOlderPriceCount, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
+import { portfolioRangeStart, portfolioPeriodDrivers, portfolioRefreshNote, portfolioPricingKeyMatches, portfolioPricingKey, portfolioPriceIsFresh, portfolioOlderPriceCount, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
   initializeNative,
@@ -5479,20 +5479,8 @@ function destroyPortfolioHistoryChart() {
 
 function portfolioHistoryRangePoints(points, range) {
   if (range === "all") return points;
-  // Portfolio observations are UTC calendar days, not rolling intraday timestamps.
-  const latestDate = new Date();
-  const latestTime = Date.UTC(latestDate.getUTCFullYear(), latestDate.getUTCMonth(), latestDate.getUTCDate());
-  if (!Number.isFinite(latestTime)) return points;
-  const cutoff =
-    range === "ytd"
-      ? Date.UTC(latestDate.getUTCFullYear(), 0, 1)
-      : latestTime -
-        ({ "1d": 1, "1w": 7, "1m": 31, "3m": 93, "6m": 186, "1y": 366 }[range] || 31) *
-          86_400_000;
-  const filtered = points.filter(
-    (point) => new Date(`${point.date}T00:00:00Z`).getTime() >= cutoff,
-  );
-  return filtered;
+  const cutoff = portfolioRangeStart(new Date().toISOString().slice(0, 10), range);
+  return points.filter(point => point.date >= cutoff);
 }
 
 function shortPortfolioDate(value, includeYear = false) {
@@ -5701,15 +5689,21 @@ function renderPortfolioHistory() {
     const coverage = root.querySelector(".portfolio-chart-coverage");
     coverage.ontoggle = () => {
       if (!coverage.open || !points.length) return;
-      if (state.largeInventory.active) {
-        coverage.querySelector("[data-period-drivers]").textContent = "Activity breakdown requires the full collection.";
-        return;
+      const target = coverage.querySelector("[data-period-drivers]");
+      const summaries = state.portfolioView.summaries || [];
+      const reports = summaries.flatMap(summary => {
+        const report = summary.periodActivity?.[state.portfolioHistoryRange];
+        return report && Array.isArray(report.movers) ? [{...report, currency:summary.currency}] : [];
+      });
+      if (!reports.length && !state.largeInventory.active) {
+        const from = points[0].date, through = points.at(-1).date;
+        const flows = businessSummary(state.items, {from, to:through, currency:saved.currency});
+        if (flows) reports.push({currency:saved.currency, through, bought:flows.unitsPurchased, sold:flows.unitsSold,
+          movers:portfolioPeriodDrivers(state.items, saved.currency, from, through)});
       }
-      const from = points[0].date, through = points.at(-1).date;
-      const flows = businessSummary(state.items, {from, to:through, currency:saved.currency});
-      if (!flows) return;
-      const drivers = portfolioPeriodDrivers(state.items, saved.currency, from, through);
-      coverage.querySelector("[data-period-drivers]").innerHTML = `<p>Recorded ${esc(saved.currency)} activity · ${flows.unitsPurchased} bought · ${flows.unitsSold} sold</p>${drivers.length ? `<strong>Price changes on cards held throughout</strong><ul>${drivers.map(row => `<li>${esc([row.name, row.number, [row.grader,row.grade].filter(Boolean).join(" ")].filter(Boolean).join(" · "))} · ${row.change > 0 ? "+" : "−"}${money(Math.abs(row.change), saved.currency)}</li>`).join("")}</ul>` : ""}`;
+      target.innerHTML = reports.map(({currency, through, bought, sold, movers}) =>
+        `<p>Recorded ${esc(currency)} activity · ${esc(bought)} bought · ${esc(sold)} sold${through < today ? " · through " + esc(shortPortfolioDate(through, true)) : ""}</p>${movers.length ? `<strong>Price changes on cards held throughout</strong><ul>${movers.map(row => `<li>${esc([row.name, row.number, [row.grader,row.grade].filter(Boolean).join(" ")].filter(Boolean).join(" · "))} · ${row.change > 0 ? "+" : "−"}${money(Math.abs(row.change), currency)}</li>`).join("")}</ul>` : ""}`
+      ).join("") || "<p>Activity breakdown pending the next collection update.</p>";
     };
     bindHistoryRange(root, "portfolioChartRange", range => { state.portfolioHistoryRange = range; renderPortfolioHistory(); });
     if (points.length > 1) requestAnimationFrame(() => void mountPortfolioHistoryChart({ points, values: points.map(plottedValue), currency: saved.currency, marketMode: false, dateDomain: { start: historyStart, end: today }, zeroBaseline: allTime }));
