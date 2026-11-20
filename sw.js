@@ -5,7 +5,7 @@ const CORE_SHELL = [
   "./",
   "./index.html",
   "./styles.css?v=95",
-  "./themes.css?v=117",
+  "./themes.css?v=118",
   "./app-config.js?v=69",
   "./app.js?v=121",
   "./manifest.webmanifest",

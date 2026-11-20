@@ -3269,9 +3269,12 @@ function completedSaleHistory(item, context, sales) {
 function renderExactSoldValue(item, context, sales) {
   const needsPrinting = scanNeedsPrintingReview(item, context);
   sales = sales || savedSaleEvidenceForContext(item, context);
+  const exactContext = exactSaleContext(item, context);
+  const printingKnown = exactContext.identityStatus === "exact" &&
+    ![exactContext.edition, exactContext.finish, exactContext.promoType].includes("unknown") && exactContext.qualifier != null;
   const result = latestEbaySoldValuation(
     sales?.sales || [],
-    exactSaleContext(item, context),
+    exactContext,
     {
       validatedContext: sales?.validatedContext,
       retrievedAt: sales?.retrievedAt,
@@ -3298,14 +3301,15 @@ function renderExactSoldValue(item, context, sales) {
         : ["unconfigured", "plan_required"].includes(sales.salesStatus)
           ? "Completed-sale access is unavailable."
           : result.status === "unresolved_context"
-            ? sales.salesStatus === "live" && !sales.validatedContext ? "No matching price record for this printing yet." : "Confirm the printing, grade and label before valuing."
+            ? printingKnown && sales.salesStatus === "live" && !sales.validatedContext ? "No matching price record for this printing yet." : "Confirm the printing, grade and label before valuing."
             : result.status === "insufficient"
               ? "No eligible recent eBay sale for this exact slab."
               : result.status === "stale"
                 ? "Older completed sales · refresh before relying on this estimate."
                 : `${result.amountVerified ? "Last matching eBay sale" : "Reported eBay comp · sale amount unverified"} · ${result.newestSoldAt?.slice(0, 10)}.`;
-  const button =
-    needsPrinting || restoring || sales?.salesStatus === "loading"
+  const button = needsPrinting
+    ? '<button class="inline-retry" id="reviewScanPrinting" type="button">Confirm card version</button>'
+    : restoring || sales?.salesStatus === "loading"
       ? ""
       : `<button class="inline-retry" id="checkExactSalesButton" type="button">${!checked ? "Check sales" : ["error", "unconfigured", "plan_required"].includes(sales.salesStatus) ? "Try sales again" : "Refresh sales"}</button>`;
   const otherCurrencies = new Set(
@@ -3338,7 +3342,7 @@ function renderExactSoldValue(item, context, sales) {
   const eligibleIds = new Set(result.eligibleEvidenceIds);
   const comps = result.evidence.filter(row => eligibleIds.has(row.transactionKey))
     .sort((a, b) => String(b.soldAt).localeCompare(String(a.soldAt)));
-  const compList = comps.length ? `<details class="sale-comps" data-detail-tool="comps"><summary>View comps (${comps.length})</summary><ul>${comps.map(row => {
+  const compList = comps.length ? `<details class="sale-comps" data-detail-tool="comps"><summary>Comps (${comps.length})</summary><ul>${comps.map(row => {
     const url = safeMarketSourceUrl(row.sourceUrl, row.sourceMarket);
     const label = `${esc(shortPortfolioDate(row.soldAt, true))} · ${money(row.amount, row.currency)} · ${esc(row.sourceMarket === "ebay" ? "eBay" : row.sourceMarket)}`;
     return `<li>${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${label}</a>` : label}${!row.saleType && row.evidenceKind !== "completed_sale" ? " · reported amount" : ""}</li>`;
@@ -9316,6 +9320,7 @@ function renderDetail() {
       ? history.back()
       : routeTo(state.detailReturnRoute || (owned ? "collection" : "scan")),
   );
+  $("#reviewScanPrinting")?.addEventListener("click", () => openPrintingConfirmationSheet(owned || item));
   $("#confirmPrintingButton")?.addEventListener("click", () => openPrintingConfirmationSheet(owned || item));
   $("#editCopyButton")?.addEventListener("click", () =>
     openPositionEditSheet(item),

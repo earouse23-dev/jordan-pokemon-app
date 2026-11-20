@@ -7428,3 +7428,8 @@ body[data-ui-theme="mica"] #appShell :is(#positionChart,#portfolioHistoryChart) 
 
 /* First use has one invitation; empty secondary summaries add no information. */
 body[data-ui-theme="mica"] #appShell #view-dashboard:has(.portfolio-first-card) :is(.portfolio-return-summary,.dashboard-owned-tools) { display: none; }
+
+@media (max-width: 480px) and (max-height: 720px) {
+  body[data-ui-theme="mica"] #appShell #detailContent .sold-actions { gap: 0 8px; }
+  body[data-ui-theme="mica"] #appShell #detailContent .detail-identity-content > .exact-sold-value { padding-top: 6px; }
+}
