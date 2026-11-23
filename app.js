@@ -1,3 +1,4 @@
+import { standardLegacyHolo } from "./lib/psa-label.js";
 import { portfolioRangeStart, portfolioPeriodDrivers, portfolioRefreshNote, portfolioPricingKeyMatches, portfolioPricingKey, portfolioPriceIsFresh, portfolioOlderPriceCount, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
@@ -128,6 +129,7 @@ import {
   sealedProductMatches,
   cardListingTitle,
   normalizeVariantOption,
+  observedScanPrinting,
   selectVariantOption,
   variantOptionSummary,
 } from "./lib/identity.js";
@@ -2821,7 +2823,9 @@ function renderInteractiveHistory(item, currentPrice = item.price, history = his
       ? "—"
       : `${summary.change >= 0 ? "+" : "−"}${money(Math.abs(summary.change), currency)}${summary.changePercent === null ? "" : ` (${summary.changePercent >= 0 ? "+" : ""}${summary.changePercent.toFixed(1)}%)`}`;
   const emptyCopy =
-    item.uid && portfolioPricingRequest?.owner === state.session?.user?.id && portfolioPricingRequest?.version === sessionLoadVersion
+    scanNeedsPrintingReview(item, valuationContextForItem(item)) ? "Waiting for printing confirmation."
+      : state.detailSales?.selectionKey === detailIdentityKey(item) && state.detailSales.salesStatus === "loading" ? "Loading history…"
+      : item.uid && portfolioPricingRequest?.owner === state.session?.user?.id && portfolioPricingRequest?.version === sessionLoadVersion
       ? "Loading history…"
       : model.conversionUnavailable
       ? !supportedCurrency ? "Currency conversion is not available for this record's currency." : state.displayFxStatus === "loading" ? "Loading currency conversion…" : 'Currency conversion unavailable. <button type="button" data-retry-history-fx>Retry conversion</button>'
@@ -3288,11 +3292,14 @@ function renderExactSoldValue(item, context, sales) {
   );
   const restoring = Boolean(item.uid && portfolioPricingRequest?.owner === state.session?.user?.id && portfolioPricingRequest?.version === sessionLoadVersion);
   const checked = Boolean(sales?.salesStatus);
+  const unresolved = needsPrinting ? [ ...["finish", "edition", "promoType"].filter(key => selectedPrinting(item)[key] === "unknown"),
+    ...(context.gradeQualifier == null ? ["qualifier"] : []) ] : [];
+  const confirmLabel = unresolved.length === 1 ? ({ finish: "Confirm finish", edition: "Confirm edition", promoType: "Confirm promo marking", qualifier: "Confirm grade qualifier" })[unresolved[0]] : "Confirm card version";
   const value =
     result.estimate === null
-      ? restoring ? "Loading price…" : "Estimate unavailable"
+      ? needsPrinting ? "Printing confirmation needed" : restoring || sales?.salesStatus === "loading" ? "Loading price…" : "Estimate unavailable"
       : displayCurrencyMoney(result.estimate, result.currency);
-  const status = needsPrinting ? "Confirm the card version to see matching sales." : !checked
+  const status = needsPrinting ? "" : !checked
     ? ""
     : sales.salesStatus === "loading"
       ? "Checking sales…"
@@ -3308,7 +3315,7 @@ function renderExactSoldValue(item, context, sales) {
                 ? "Older completed sales · refresh before relying on this estimate."
                 : `${result.amountVerified ? "Last matching eBay sale" : "Reported eBay comp · sale amount unverified"} · ${result.newestSoldAt?.slice(0, 10)}.`;
   const button = needsPrinting
-    ? '<button class="inline-retry" id="reviewScanPrinting" type="button">Confirm card version</button>'
+    ? `<button class="inline-retry" id="reviewScanPrinting" type="button">${confirmLabel}</button>`
     : restoring || sales?.salesStatus === "loading"
       ? ""
       : `<button class="inline-retry" id="checkExactSalesButton" type="button">${!checked ? "Check sales" : ["error", "unconfigured", "plan_required"].includes(sales.salesStatus) ? "Try sales again" : "Refresh sales"}</button>`;
@@ -4231,7 +4238,7 @@ async function loadSales(item, force = false, continueArchive = false) {
   const owned = state.items.find((row) => row.uid === item.uid);
   if (owned && (detailIdentityKey(owned) !== selectionKey || detailContextKey(valuationContextForItem(owned)) !== contextKey)) return;
   // A delayed incomplete response must not erase a newer published snapshot.
-  const retained = retainedSaleEvidence(owned || item, context, result);
+  const retained = retainedSaleEvidence(owned || { ...item, exactSaleEvidence: previous }, context, result);
   if (retained !== result && matchingSaleEvidence(owned || item, context, retained))
     result = { ...retained, salesStatus: matchingSaleEvidence(owned || item, context, result) ? retained.salesStatus : ["error", "unconfigured", "plan_required"].includes(result.salesStatus) ? result.salesStatus : "error" };
   state.detailSales = {
@@ -9240,7 +9247,7 @@ function renderDetail() {
   const releaseYear = /^(\d{4})(?:$|-\d{2}-\d{2}(?:T|$))/.exec(String(item.release || item.releaseYear || ""))?.[1] || "Unknown";
   const identityDetails = sealed
     ? `<details class="identity-details"><summary>Product details</summary><div class="detail-meta">${detailMeta}</div></details>`
-    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span>${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
+    : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span>${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && !scanNeedsPrintingReview(baseItem, context) ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
   const listingTitle = sealed ? item.name : cardListingTitle(item, printing, context);
   const nameAt = listingTitle.indexOf(item.name);
   const gradeLabel = context.cardState === "graded" && context.gradingCompany && context.grade ? `${context.gradingCompany} ${context.grade}` : "";
@@ -14524,12 +14531,14 @@ async function requestVisionAnalysis(
 ) {
   if (!state.session?.access_token)
     throw new Error("Sign in again before using AI analysis.");
+  let legacyLabelText;
   if (mode === "identify" && preparedImages[0]?.slabCrop) {
     const current = () => $("#bottomSheet").dataset.visionOperation === context.requestId && !$("#bottomSheet").hidden && state.session?.user?.id === context.owner && sessionLoadVersion === context.loadVersion;
     try {
       const { readModernSlabLabel } = await import("./lib/card-ocr.js");
       const label = await readModernSlabLabel(preparedImages[0].slabCrop);
-      if (label && current()) {
+      if (label?.legacyText && current()) legacyLabelText = label.legacyText;
+      else if (label && current()) {
         const query = new URLSearchParams({q:label.providerId, language:"en", source:"tcgdex", limit:"1"});
         const response = await fetch(`/api/catalog?${query}`, {signal:AbortSignal.timeout(2500)});
         const card = response.ok && (await response.json()).cards?.[0];
@@ -14554,6 +14563,7 @@ async function requestVisionAnalysis(
     },
     body: JSON.stringify({
       mode,
+      ...(legacyLabelText ? { legacyLabelText } : {}),
       images: preparedImages.map((image) => mode === "identify" ? image.identityDataUrl || image.dataUrl : image.dataUrl),
       ...(mode === "grade"
         ? {
@@ -14867,11 +14877,7 @@ let pendingVisionSearch = null;
 function openScannedCardDetail(card, options) {
   const prefill = options.prefill;
   const catalogPrinting = selectedPrinting(card);
-  const scanPrinting = normalizeVariantOption({
-    finish: prefill.finish || "unknown",
-    edition: prefill.edition || "unknown",
-    promoType: prefill.promoType || "unknown",
-  });
+  const scanPrinting = observedScanPrinting(prefill);
   const printingConflicts = [];
   const printing = {};
   for (const [field, controlId] of [["finish", "printingFinish"], ["edition", "printingEdition"], ["promoType", "printingPromo"]]) {
@@ -14884,8 +14890,19 @@ function openScannedCardDetail(card, options) {
       printing[field] = scanned === "unknown" ? catalogValue : scanned;
     }
   }
+  if (printing.promoType === "unknown" && printing.finish === "holofoil" && printing.edition === "first_edition" && standardLegacyHolo(prefill.labelEvidence || {}, card)) printing.promoType = "none";
+  const resolvedScan = prefill.cardState === "graded" && !printingConflicts.length && prefill.gradeQualifier != null &&
+    Object.values(printing).every(value => value !== "unknown") &&
+    !["missing_detailed_variant", "tcgdex_detailed_variant"].includes(catalogPrinting.metadata.identityEvidence) &&
+    (catalogPrinting.status === "exact" || card.variantOptions?.length === 1);
+  const option = resolvedScan ? normalizeVariantOption({
+    ...printing, id: catalogPrinting.id, collectibleId: catalogPrinting.collectibleId,
+    label: catalogPrinting.status === "exact" ? catalogPrinting.label : undefined,
+    language: card.language, status: "exact", metadata: { ...catalogPrinting.metadata, identityEvidence: "scan_and_catalog" },
+  }) : null;
+  if (option && catalogPrinting.status !== "exact") option.label = option.label.replaceAll(" · ", " ");
   const requiresReview = printingConflicts.length || (prefill.cardState === "graded" && prefill.gradeQualifier == null);
-  const identified = { ...card, ...printing, ...(requiresReview ? { identityStatus: "needs_review" } : {}), cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, gradeQualifier: prefill.gradeQualifier, certificationNumber: prefill.certificationNumber, condition: prefill.rawCondition || null };
+  const identified = { ...card, ...printing, ...(option ? { variant: option.label, variantOptions: [option], variantId: option.id, collectibleId: option.collectibleId, variantMetadata: option.metadata, identityStatus: "exact" } : {}), ...(requiresReview ? { identityStatus: "needs_review" } : {}), cardState: prefill.cardState, gradingCompany: prefill.grader || null, grade: prefill.grade || null, gradeQualifier: prefill.gradeQualifier, certificationNumber: prefill.certificationNumber, condition: prefill.rawCondition || null };
   openCardDetail(identified, false, valuationContextForItem(identified), { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, selectionKey: detailIdentityKey(identified), options: { ...options, printingConflicts } });
 }
 
@@ -14922,6 +14939,7 @@ function visionPrefill(analysis, mode) {
     grade: graded && identity.grade != null ? String(identity.grade) : "",
     certificationNumber: graded ? identity.certificationNumber || "" : "",
     gradeQualifier: graded ? Object.hasOwn(identity, "gradeQualifier") ? identity.gradeQualifier : grader === "PSA" || String(identity.grade) !== "10" ? "" : null : "",
+    labelEvidence: identity,
     variant: identity.variant || "",
     finish: identity.finish || "",
     edition: identity.edition || "",
@@ -16155,7 +16173,7 @@ function catalogItem(item, selectedVariant = "") {
         normalizeVariantOption(option, { language: item.language }),
       )
     : [
-        normalizeVariantOption({ ...item, label: item.variant || "Unknown", id: item.variantId || null, status: item.identityStatus || "needs_review" }, {
+        normalizeVariantOption({ ...item, ...(Array.isArray(item.variantOptions) && !item.variantOptions.length ? { finish: item.finish || "unknown", edition: item.edition || "unknown", promoType: item.promoType || "unknown" } : {}), label: item.variant || "Unknown", id: item.variantId || null, status: item.identityStatus || "needs_review" }, {
           language: item.language,
         }),
       ];

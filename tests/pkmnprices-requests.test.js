@@ -608,6 +608,11 @@ test("shared slab archive follows short cursor pages once, then polls only new i
   assert.equal(quote.sales.length, 1);
   assert.equal(quote.hasMore, true);
   assert.equal(urls.filter(u => u.pathname.endsWith("/ebay")).length, 1);
+  const reads = urls.length;
+  const repeated = await fetchPkmnPricesSalesHistory("archive-fixture", { ...lookup, pkmnpricesId: quote.cardId }, undefined, { quoteFirst:true });
+  assert.equal(repeated.retrievedAt, quote.retrievedAt);
+  assert.equal(repeated.hasMore, true);
+  assert.equal(urls.length, reads, "an exact archived quote paints before provider resolution or older pages");
   const first = await fetchPkmnPricesSalesHistory("archive-fixture", lookup);
   assert.equal(first.sales.length, 2);
   assert.equal(first.hasMore, false);

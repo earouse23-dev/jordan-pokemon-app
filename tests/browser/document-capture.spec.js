@@ -1373,7 +1373,7 @@ for (const recover of [false,true]) test(`slab ${recover ? "manual recovery" : "
   await page.locator("[data-quick-card]").first().click();
  }
  await expect(page.locator("#detailTitle")).toContainText("PSA 9");
- await page.locator("#confirmPrintingButton").click();
+ await page.locator("#reviewScanPrinting").click();
  await expect(page.locator("#printingFinish")).toBeHidden();
  await expect(page.locator("#printingFinish")).toHaveValue("holofoil");
  await page.locator("#printingEdition").selectOption("unlimited");
@@ -1387,18 +1387,27 @@ for (const recover of [false,true]) test(`slab ${recover ? "manual recovery" : "
 });
 
 
-test("abbreviated PSA edition survives scan and prefills the canonical printing", async ({page}) => {
-  const card={id:"fixture-jp-charizard",name:"Charizard",set:"Intense Fight in the Destroyed Sky",number:"092/092",language:"ja",variant:"Holofoil",finish:"holofoil",edition:"unknown",promoType:"unknown",identityStatus:"needs_review",thumb:"/icons/icon.svg"};
-  const payload={analysis:{quality:{usable:true},identity:{name:"Charizard",setName:"Stormfront",collectorNumber:"092",language:"ja",finish:"holofoil",edition:"1st Ed",promoType:"none",cardState:"graded",grader:"PSA",grade:10,gradeQualifier:"",certificationNumber:"152559922",confidence:.98}},catalogResolution:{cards:[card],resolution:{status:"review",recommendedId:null}}};
+test("Japanese PSA label and provider card without variants open the exact price and history", async ({page}) => {
+  const card={id:"fixture-jp-charizard",name:"Charizard",set:"Intense Fight in the Destroyed Sky",number:"092/092",language:"ja",variantOptions:[],externalIds:{pkmnprices:"40000"},identityStatus:"needs_review",thumb:"/icons/icon.svg"};
+  const payload={analysis:{quality:{usable:true},identity:{name:"Charizard",labelName:"CHARIZARD-HOLO",setName:"Stormfront",collectorNumber:"092",language:"ja",finish:"holofoil",edition:"1st Ed",promoType:null,cardState:"graded",grader:"PSA",grade:10,gradeQualifier:"",certificationNumber:"152559922",confidence:.98}},catalogResolution:{cards:[card],resolution:{status:"review",recommendedId:null}}};
   await setup(page,{recognition:true,experience:"intake",visionPayload:payload});
+  const sales = [];
+  await page.route("**/api/sales?*", route => {
+    const lookup = JSON.parse(new URL(route.request().url()).searchParams.get("lookup"));
+    sales.push(lookup);
+    const rows = [1,2].map((n) => ({ provider:"pkmnprices",providerSaleId:"12345678901"+n,source:"ebay",sourceUrl:"https://www.ebay.com/itm/12345678901"+n,attribution:"exact",evidenceKind:"completed_sale",gradingCompany:"PSA",grade:"10",gradeQualifier:"",language:"Japanese",printing:"1st Edition Holofoil",currency:"USD",amount:6500-n+1,soldAt:new Date(Date.now()-n*86400000).toISOString() }));
+    return route.fulfill({json:{retrievedAt:new Date().toISOString(),sales:rows,validatedContext:{...lookup,providerCardId:"40000",canonicalValidated:true,completedSaleValidated:true}}});
+  });
   await installSyntheticDocument(page);
   await page.evaluate(()=>{const input=document.querySelector('#deviceCameraUpload');input.files=globalThis.__syntheticTransfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));});
   const candidate=page.getByRole("button",{name:/Choose this/});
   await candidate.click();
   await expect(page.locator("#detailTitle")).toContainText("PSA 10");
-  await page.locator("#confirmPrintingButton").click();
-  await expect(page.locator("#printingEdition")).toHaveValue("first_edition");
-  await expect(page.locator("#printingFinish")).toHaveValue("holofoil");
+  await expect.poll(() => sales[0]?.edition).toBe("first_edition");
+  expect(sales[0]).toMatchObject({variant:"1st Edition Holofoil",finish:"holofoil",promoType:"none",grader:"PSA",grade:"10",language:"ja"});
+  await expect(page.locator(".exact-sold-value > strong")).toHaveText("$6,500.00");
+  await expect(page.getByRole("img",{name:/PSA grade 10 recorded prices/})).toBeVisible();
+  await expect(page.locator("#reviewScanPrinting,#confirmPrintingButton")).toHaveCount(0);
 });
 
 test("a conflicting slab finish asks for only that field before using verified pricing context", async ({ page }) => {

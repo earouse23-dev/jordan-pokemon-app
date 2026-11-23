@@ -1,3 +1,4 @@
+import { parseLegacyPsaLabel, matchesLegacyPsaCard, legacyCatalogIdentity } from "../lib/psa-label.js";
 import { searchPkmnPricesCatalog } from "../lib/providers/pkmnprices.js";
 import { releaseHold } from "../lib/release-hold.js";
 import { withNativeCors } from "../lib/native-cors.js";
@@ -418,6 +419,23 @@ export async function visionHandler(
   const fetchGateway = (options) =>
     fetch("https://ai-gateway.vercel.sh/v1/responses", options);
   try {
+    let catalogMs = 0;
+    const legacy = input.mode === "identify" && parseLegacyPsaLabel(request.body?.legacyLabelText);
+    if (legacy && config.pkmnpricesApiKey) {
+      const lookupStart = Date.now();
+      const cards = await searchPkmnPricesCatalog(config.pkmnpricesApiKey, legacy, controller.signal)
+        .catch(() => []);
+      catalogMs = Date.now() - lookupStart;
+      const matches = cards.filter(card => matchesLegacyPsaCard(legacy, card));
+      if (matches.length === 1) {
+        const metrics = { latencyMs: Date.now() - startedAt, modelMs: 0, catalogMs, independentReviews: 0 };
+        console.info("[api/vision] legacy label resolved", metrics);
+        return send(response, 200, { mode: "identify", provider: "on-device", model: "on-device label", metrics,
+          analysis: { model: "on-device label", quality: { usable: true }, identity: legacy },
+          catalogResolution: { cards: matches, resolution: {status: "exact", recommendedId: matches[0].id} },
+          privacy: { imagePersisted: false, resultPersisted: false } });
+      }
+    }
     let modelCatalogVerified = false;
     let modelPlan = advisorMode
       ? [config.advisorModel]
@@ -506,6 +524,7 @@ export async function visionHandler(
         };
       }
     };
+    const modelStartedAt = Date.now();
     const firstModels = modelPlan.slice(0, desiredResponseCount);
     const firstResults = await Promise.all(firstModels.map(runModel));
     firstResults.forEach((result) => {
@@ -540,6 +559,7 @@ export async function visionHandler(
           payload: result.payload,
         });
     }
+    const modelMs = Date.now() - modelStartedAt;
     if (failedResponses.length)
       console.warn(
         "[api/vision] one or more verified models were unavailable",
@@ -634,9 +654,17 @@ export async function visionHandler(
         ? combineIndependentGradeAnalyses(normalizedAnalyses)
         : normalizedAnalyses[0];
     modelUsed = successfulResponses.map((entry) => entry.model).join("+");
+    const catalogStartedAt = Date.now();
     let catalogResolution = null;
+    const knownSet = input.mode === "identify" && analysis.quality?.usable && legacyCatalogIdentity(analysis.identity);
+    if (knownSet && config.pkmnpricesApiKey) {
+      const candidates = await searchPkmnPricesCatalog(config.pkmnpricesApiKey, knownSet, controller.signal).catch(() => []);
+      const matches = candidates.filter(card => matchesLegacyPsaCard(knownSet, card));
+      if (matches.length === 1) catalogResolution = { cards: matches, source: "pkmnprices_catalog", language: knownSet.language,
+        resolution: {status: "exact", recommendedId: matches[0].id}, retrievedAt: new Date().toISOString() };
+    }
     if (
-      ["identify", "grade"].includes(input.mode) &&
+      !catalogResolution && ["identify", "grade"].includes(input.mode) &&
       analysis.quality?.usable &&
       analysis.searchQuery?.length >= 2
     ) {
@@ -697,6 +725,7 @@ export async function visionHandler(
         console.warn("[api/vision] provider catalog unavailable", { name: error?.name || "Error" });
       }
     }
+    catalogMs += Date.now() - catalogStartedAt;
     let referenceSelection = null;
     let comparisonResponses = [];
     if (input.mode === "grade") {
@@ -762,6 +791,8 @@ export async function visionHandler(
       .filter(Number.isFinite);
     const metrics = {
       latencyMs: Date.now() - startedAt,
+      modelMs,
+      catalogMs,
       inputTokens: inputTokenValues.length
         ? inputTokenValues.reduce((sum, value) => sum + value, 0)
         : null,

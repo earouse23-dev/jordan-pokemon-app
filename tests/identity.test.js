@@ -244,3 +244,10 @@ test("PSA abbreviated first-edition labels use the same printing context", () =>
   assert.notEqual(canonicalEdition("limited edition"),"first_edition");
   assert.equal(normalizeVariantOption({label:"Holofoil",finish:"holofoil",edition:"1st Ed",language:"ja"}).edition,"first_edition");
 });
+
+test("unknown and free-text scanner fields cannot become exact printing facts", async () => {
+  const {observedScanPrinting} = await import("../lib/identity.js");
+  assert.deepEqual(observedScanPrinting({finish:"Holo",edition:"2006",promoType:null}),
+    {finish:"holofoil",edition:"unknown",promoType:"unknown"});
+  assert.equal(observedScanPrinting({edition:"1ST ED."}).edition,"first_edition");
+});

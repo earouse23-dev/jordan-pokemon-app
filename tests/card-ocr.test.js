@@ -81,3 +81,16 @@ test("modern PSA headers require a coherent grade, language, expansion and certi
     assert.equal(parseModernSlabLabel(invalid), null);
   }
 });
+
+test("vintage PSA labels need a complete standard layout and matching issue", async () => {
+  const { parseLegacyPsaLabel, matchesLegacyPsaCard } = await import("../lib/psa-label.js");
+  const text = "2008 POKEMON JAPANESE #092\nCHARIZARD-HOLO GEM MT\nSTORMFRONT-1ST ED. 10\n123456789";
+  const label = parseLegacyPsaLabel(text);
+  const card = { name:"Charizard", set:"Intense Fight in the Destroyed Sky", number:"092/092", language:"ja" };
+  assert.equal(label.edition, "first_edition");
+  assert.equal(matchesLegacyPsaCard(label, card), true);
+  for (const change of [{language:"en"},{set:"Stormfront"},{number:"091/092"},{name:"Charizard ex"}])
+    assert.equal(matchesLegacyPsaCard(label, {...card,...change}), false);
+  for (const invalid of [text.replace("HOLO","REVERSE"),text.replace("10\n","9\n"),text.replace("ED.","ED. OC"),text.replace("STORMFRONT","STORM"),text+"\nSTAFF"])
+    assert.equal(parseLegacyPsaLabel(invalid), null);
+});

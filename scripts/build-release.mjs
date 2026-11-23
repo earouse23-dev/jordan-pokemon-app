@@ -56,6 +56,7 @@ const changes = [
   "styles.css",
   "assets/ocr/README.md",
   "lib/card-ocr.js",
+  "lib/psa-label.js",
   "lib/vision.js",
   "lib/capture-precision.js",
   "package-lock.json",

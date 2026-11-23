@@ -112,6 +112,8 @@ async function runCase(entry) {
     catalogStatus: resolution?.status,
     recommendedCatalogId: resolution?.recommendedId,
     ...(slabsOnly ? { priceCoverage: "untested" } : {}),
+    modelMs: body.metrics?.modelMs ?? null,
+    catalogMs: body.metrics?.catalogMs ?? null,
     latencyMs: body.metrics?.latencyMs || Date.now() - startedAt,
     inputTokens: body.metrics?.inputTokens ?? null,
     outputTokens: body.metrics?.outputTokens ?? null,
