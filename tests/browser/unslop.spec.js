@@ -180,6 +180,28 @@ test('saved preview trends show true direction in collection and both catalog su
 });
 
 
+test('portfolio rows retain the trend for a slab with only older sales', async ({page}, info) => {
+  await boot(page);
+  await page.evaluate(() => {
+    const app = polishApp, card = app.state.items[0];
+    card.cardState = "graded";
+    card.gradingCompany = "PSA";
+    card.grade = "9";
+    card.gradedValuations = [220, 120].map((ago,i) => ({
+      recordedAt:new Date(Date.now()-ago*86400000).toISOString(), amount:200-i*50, currency:"USD",
+      gradingCompany:"PSA",grade:"9",verifiedExactSold:true,contextValidated:true
+    }));
+    app.state.items = [card];
+    app.renderCollection();
+    app.routeTo("dashboard",{instant:true});
+  });
+  const row = page.locator("#dashboardHighestCards .dashboard-card-row").first();
+  await expect(row.locator(".card-preview-trend.down")).toHaveAccessibleName(/Down 25.0 percent/);
+  await expect(row.locator(".card-preview-trend.down")).toContainText("All");
+  await expect(row).toContainText("PSA 9");
+  await row.screenshot({path:info.outputPath("portfolio-preview.png")});
+});
+
 test('catalog previews use a matching shared cached summary and reject another printing',async({page})=>{
   await boot(page);
   const option={id:'holo',label:'Holofoil',finish:'holofoil',edition:'unlimited',promoType:'none',language:'en',status:'exact'};

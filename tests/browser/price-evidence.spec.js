@@ -529,14 +529,14 @@ test('graded preview automatically loads exact sold comps and reuses them for 24
   return route.fulfill({contentType:'application/json',body:'[]'});
  });
  await page.route('**/api/capabilities?surface=portfolio',route=>route.fulfill({status:503,contentType:'application/json',body:'{}'}));
- // Keep the workflow promise reachable while Chromium initializes the replacement chart.
- await page.evaluate(savedId=>{globalThis.savedPreviewPromise=(async()=>{
+ // Observe completion across chart remounts without holding a remote promise in Chromium.
+ await page.evaluate(savedId=>{void (async()=>{
   const app=fixtureApp,card=app.state.detailCard;
   await app.saveCardAddDraft({card,input:{cardState:'graded',grader:'PSA',grade:9,gradeQualifier:'',quantity:1,transactionDate:new Date().toISOString().slice(0,10),unitPrice:300,currency:'USD',variant:'Holofoil'},acquisitionCostKnown:true,acquisitionDateKnown:true,idempotencyKey:crypto.randomUUID()},null,{refreshAfterSave:true,focusAfterSave:true,closeAfterSave:false});
   await app.reloadPortfolio(savedId,{backgroundPricing:true});
   app.openCardDetail(app.state.items[0],true);
- })();},savedId);
- await page.evaluate(()=>globalThis.savedPreviewPromise);
+ })().then(()=>{document.body.dataset.saveCheck="done"},error=>{document.body.dataset.saveCheck=String(error)});},savedId);
+ await expect(page.locator("body")).toHaveAttribute("data-save-check","done");
  await expect(page.locator('.exact-sold-value')).toContainText('$1,175.00');
  await page.waitForLoadState('networkidle');
  expect(durableLookups).toBe(0);

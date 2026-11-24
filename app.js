@@ -2564,16 +2564,20 @@ function renderCardPreviewTrend(item, { catalogPreview = false, descriptionId = 
     source = { ...item, condition: "Near Mint", rawCondition: "Near Mint", priceHistory: mergePriceHistory(item.priceHistory || [], owned?.priceHistory || [], cached?.priceHistory || []), quotes: cached?.quotes || owned?.quotes || item.quotes || [] };
   }
   const graded = source.cardState === "graded" || source.gradingCompany;
-  const history = graded
-    ? completedSaleHistory(source, valuationContextForItem(source), savedSaleEvidenceForContext(source, valuationContextForItem(source)))
-    : historyForItem(source);
-  const matched = history.length ? history : graded ? historyForItem(source).filter(point => String(point.gradingCompany || "").toUpperCase() === String(source.gradingCompany || "").toUpperCase() && String(point.grade ?? "") === String(source.grade ?? "") && String(point.gradeQualifier || "").toLowerCase() === String(source.gradeQualifier || "").toLowerCase()) : [];
+  const context = valuationContextForItem(source);
+  const evidence = savedSaleEvidenceForContext(source, context) || (graded && (source.gradedValuations || []).find(row =>
+    row.contextValidated && matchingSaleEvidence(source, context, row.saleEvidence))?.saleEvidence);
+  const sold = completedSaleHistory(source, context, evidence);
+  const matched = graded && sold.length >= 2 ? sold : historyForItem(source).filter(point => !graded ||
+    (String(point.gradingCompany || "").toUpperCase() === String(source.gradingCompany || "").toUpperCase() &&
+     String(point.grade ?? "") === String(source.grade ?? "") &&
+     String(point.gradeQualifier || "").toLowerCase() === String(source.gradeQualifier || "").toLowerCase()));
   const shared = reference && item.referenceTrend, printing = selectedPrinting(item);
   const sharedContext = shared?.context;
   const sharedMatches = sharedContext && sharedContext.language === item.language && sharedContext.variantId === printing.id && sharedContext.finish === printing.finish && sharedContext.edition === printing.edition && sharedContext.promoType === printing.promoType && sharedContext.currency === (source.currency || "USD") && sharedContext.condition === "Near Mint";
-  const trend = priceTrendPreview(matched, source.currency || "USD") || (sharedMatches ? shared : null);
+  const trend = priceTrendPreview(matched, source.currency || "USD") || (matched !== sold && priceTrendPreview(sold, source.currency || "USD")) || (sharedMatches ? shared : null);
   const spanDays = trend && (Date.parse(trend.lastDate) - Date.parse(trend.firstDate)) / 86_400_000;
-  const period = `${reference ? "NM · " : ""}${trend?.savedRange ? "Saved" : spanDays > 0 && spanDays < 90 ? `${spanDays}d` : "3M"}`;
+  const period = `${reference ? "NM · " : ""}${trend?.savedRange ? "All" : spanDays > 0 && spanDays < 90 ? `${spanDays}d` : "3M"}`;
   const description = descriptionId ? ` id="${esc(descriptionId)}"` : "";
   if (!trend && omitEmpty) return "";
   if (!trend) return `<span class="card-preview-trend empty"${description} role="img" aria-label="Insufficient matching price history"><span aria-hidden="true">—</span></span>`;
@@ -5111,6 +5115,13 @@ function bindSetSheet(group) {
   const render = () => {
     const query = $("#setChecklistSearch").value;
     const missingOnly = $("#missingOnly").checked;
+    const knownPrintings = new Map();
+    for (const item of [...group.items.filter(copy => valuationContextForItem(copy).condition === "Near Mint"), ...catalog]) {
+      const id = item.externalIds?.tcgdex;
+      if (!id || item.language !== group.language || item.cardState === "graded" || item.gradingCompany) continue;
+      if (knownPrintings.has(id) && !sameCatalogPrinting(knownPrintings.get(id) || {}, item)) knownPrintings.set(id, null);
+      else if (!knownPrintings.has(id)) knownPrintings.set(id, item);
+    }
     const cards = group.catalog.cards.filter(
       (card) =>
         (!missingOnly || !group.ownedIds.has(collectorKey(card.localId))) &&
@@ -5120,7 +5131,8 @@ function bindSetSheet(group) {
       ? cards
           .map((card) => {
             const owned = group.ownedIds.has(collectorKey(card.localId));
-            return `<button type="button" data-set-card="${esc(card.externalIds.tcgdex)}"><img src="${esc(card.thumb || "./icons/icon.svg")}" alt="" loading="lazy"><span><strong>${esc(card.name)}</strong><small>#${esc(card.localId)} · ${owned ? "In your library" : "Missing"}</small></span><b>${owned ? "View" : "Find"}</b></button>`;
+            const known = knownPrintings.get(card.externalIds.tcgdex);
+            return `<button type="button" data-set-card="${esc(card.externalIds.tcgdex)}"><img src="${esc(card.thumb || "./icons/icon.svg")}" alt="" loading="lazy"><span><strong>${esc(card.name)}</strong><small>#${esc(card.localId)} · ${owned ? "In your library" : "Missing"}</small>${known ? renderCardPreviewTrend(known, { catalogPreview: true, omitEmpty: true }) : ""}</span><b>${owned ? "View" : "Find"}</b></button>`;
           })
           .join("")
       : '<div class="find-empty"><strong>No cards in this view</strong><span>Clear the search or show owned cards too.</span></div>';
@@ -6292,7 +6304,7 @@ function renderDashboardHighlights() {
           const holding = savedHoldings ? state.items.find(copy => copy.uid === item.uid) : item;
           return `<button class="dashboard-card-row" type="button" data-detail="${esc(item.uid)}"${savedHoldings && !state.items.some(candidate => candidate.uid === item.uid) ? ' disabled aria-label="Collection loading"' : ""}>
             <img loading="lazy" decoding="async" width="40" height="56" src="${esc(item.thumb || item.image)}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="" />
-            <span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number || "Number unavailable")}</small></span>
+            <span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number || "Number unavailable")}${holding?.gradingCompany && holding.grade != null ? ` · ${esc(holding.gradingCompany)} ${esc(holding.grade)}` : ""}</small></span>
             <span>${collector ? `<strong>${value === null ? "—" : displayCurrencyMoney(value, item.currency)}${Number(item.quantity) > 1 ? ` <small style="display:inline;color:var(--muted);font-weight:400">×${Number(item.quantity).toLocaleString()}</small>` : ""}</strong>` : `<strong>${displayCurrencyMoney(itemValue(item), item.currency)}</strong><small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${change == null ? "Performance unavailable" : `${change >= 0 ? "+" : ""}${money(change, item.currency)}`}</small><small class="price-provenance">${esc(priceProvenanceText(item))}</small>`}${holding ? renderCardPreviewTrend(holding, { omitEmpty: true }) : ""}</span>
           </button>`;
         })
