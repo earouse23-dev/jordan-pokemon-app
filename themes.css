@@ -7439,3 +7439,14 @@ body[data-ui-theme="mica"] #appShell .dashboard-card-row > span:last-child { jus
 body[data-ui-theme="mica"] #appShell .dashboard-card-row .card-preview-trend { width: 96px; }
 body[data-ui-theme="mica"] #appShell .dashboard-card-row .card-preview-trend svg { height: 24px; }
 body[data-ui-theme="mica"] #appShell .dashboard-card-row .card-preview-trend > small { margin: 0; color: inherit; }
+
+#bottomSheet[data-experience="identification"] .card-loading-skeleton {
+  align-items: center;
+  grid-template-columns: minmax(80px, 112px) minmax(0, 1fr);
+}
+.card-loading-skeleton img.skeleton-card {
+  width: 100%; aspect-ratio: 3 / 4; object-fit: contain; border-radius: 8px;
+}
+#scanProgress { color: var(--ink); font-size: 1rem; }
+
+#scanSearchInstead:not([hidden]) { display: block; margin-top: 12px; }

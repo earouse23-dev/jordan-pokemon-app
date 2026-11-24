@@ -1,11 +1,11 @@
-const SHELL_CACHE = "mica-shell-design-160";
+const SHELL_CACHE = "mica-shell-design-161";
 const RUNTIME_CACHE = "mica-runtime-v2";
 const RUNTIME_LIMIT = 80;
 const CORE_SHELL = [
   "./",
   "./index.html",
   "./styles.css?v=95",
-  "./themes.css?v=119",
+  "./themes.css?v=120",
   "./app-config.js?v=69",
   "./app.js?v=121",
   "./manifest.webmanifest",
@@ -122,6 +122,18 @@ self.addEventListener("fetch", (event) => {
         }
       }),
     );
+    return;
+  }
+  // These bundled scanner files are identical for the lifetime of this shell version.
+  if (url.pathname.startsWith("/assets/ocr/")) {
+    event.respondWith((async () => {
+      const cache = await caches.open(SHELL_CACHE).catch(() => null);
+      const saved = await cache?.match(event.request).catch(() => null);
+      if (saved) return saved;
+      const response = await fetch(event.request);
+      if (cache && response.ok) event.waitUntil(cache.put(event.request, response.clone()).catch(() => {}));
+      return response;
+    })());
     return;
   }
   event.respondWith(

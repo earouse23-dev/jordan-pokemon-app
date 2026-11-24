@@ -1243,12 +1243,50 @@ test("late automatic identification cannot open a match for a different owner", 
   await expect(page.locator("#sheetTitle")).toHaveText("Checking your card");
   await expect(page.getByRole("status", { name: "Loading your card" })).toBeVisible();
   await expect(page.locator(".skeleton-card")).toBeVisible();
+  await expect(page.locator("#scanProgress")).toBeVisible();
+  await expect(page.locator("#scanProgress")).toHaveText("Finding your card…");
+  expect(await page.locator(".skeleton-card").evaluate(photo => photo.naturalWidth)).toBeGreaterThan(0);
   const box = await page.locator("#bottomSheet").boundingBox();
   expect(box.x).toBe(0); expect(box.y).toBe(0);
   expect(box.width).toBe(page.viewportSize().width); expect(box.height).toBeCloseTo(page.viewportSize().height, 1);
   await expect(page.getByRole("button", {name:"Back", exact:true})).toBeVisible();
   await expect(page.locator("#positionForm")).toHaveCount(0);
   await expect(page.locator("[data-vision-card]")).toHaveCount(0);
+});
+
+test("slow identification can switch straight to search and ignore its late result", async ({ page }) => {
+  await setup(page, { recognition: true, experience: "intake" });
+  let pending;
+  await page.route("**/api/vision", route => { pending = route; });
+  await installSyntheticDocument(page);
+  await page.evaluate(() => {
+    const input = document.querySelector("#deviceCameraUpload");
+    input.files = globalThis.__syntheticTransfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect.poll(() => Boolean(pending)).toBe(true);
+  await expect(page.locator("#scanSearchInstead")).toBeHidden();
+  await page.locator("#scanSearchInstead").click({ timeout: 8000 });
+  await pending.fulfill({ json: { analysis: { quality: { usable: true }, identity: {} }, catalogResolution: { cards: [] } } });
+  await expect(page.locator("#quickCardSearch")).toBeFocused();
+  await expect(page.locator("#bottomSheet")).toBeHidden();
+});
+
+test("scan limit shows when to retry and opens name search", async ({ page }) => {
+  await setup(page, { recognition: true, experience: "intake" });
+  await page.route("**/api/vision", route => route.fulfill({
+    status: 429, headers: { "Retry-After": "91" }, json: { error: "AI analysis limit reached." },
+  }));
+  await installSyntheticDocument(page);
+  await page.evaluate(() => {
+    const input = document.querySelector("#deviceCameraUpload");
+    input.files = globalThis.__syntheticTransfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await expect(page.getByRole("heading", { name: "Scan limit reached" })).toBeVisible();
+  await expect(page.getByText("Scan again in about 2 minutes.")).toBeVisible();
+  await page.getByRole("button", { name: "Search by name" }).click();
+  await expect(page.locator("#quickCardSearch")).toBeFocused();
 });
 
 test("unreadable intake photo offers retake without edge or confirmation controls", async ({page},testInfo) => {

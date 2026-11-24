@@ -589,15 +589,15 @@ test("Mica uses one green interface with synchronized light/dark shell assets", 
   assert.match(appShell, /data-software-mode="collector"/);
   assert.match(appShell, /data-software-mode="investor"/);
   assert.match(appShell, /data-software-mode="seller"/);
-  assert.match(appShell, /themes\.css\?v=119/);
+  assert.match(appShell, /themes\.css\?v=120/);
   assert.match(appSource, /let uiTheme = "mica"/);
   assert.match(appSource, /let workspaceMode = "collector"/);
   assert.match(themes, /body\[data-ui-theme="mica"\]/);
   assert.match(themes, /--canvas:\s*#f6f7f4/i);
   assert.match(themes, /--pine:\s*#66785d/i);
   assert.match(vercelConfig, /img-src[^;]*https:\/\/images\.pkmnprices\.com(?: |;)/);
-  assert.match(serviceWorker, /mica-shell-design-160/);
-  assert.match(serviceWorker, /themes\.css\?v=119/);
+  assert.match(serviceWorker, /mica-shell-design-161/);
+  assert.match(serviceWorker, /themes\.css\?v=120/);
 });
 
 test("signup keeps account existence private and supports confirmation resend", () => {

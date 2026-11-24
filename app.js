@@ -3309,7 +3309,7 @@ function renderExactSoldValue(item, context, sales) {
   const status = needsPrinting ? "" : !checked
     ? ""
     : sales.salesStatus === "loading"
-      ? "Checking sales…"
+      ? "Finding matching sales…"
       : sales.salesStatus === "error"
         ? "Couldn’t update. Try again."
         : ["unconfigured", "plan_required"].includes(sales.salesStatus)
@@ -12531,6 +12531,7 @@ async function openDeviceCamera({
   delete $("#bottomSheet").dataset.experience;
   if (experience === "intake") {
     $("#bottomSheet").dataset.experience = "intake";
+    void import("./lib/card-ocr.js").then(module => module.warmSlabReader()).catch(() => {});
     $(".camera-top-actions")?.remove();
     $(".camera-edge-levels")?.remove();
     $(".camera-scan-line")?.remove();
@@ -12809,6 +12810,7 @@ async function openDeviceCamera({
     try {
       const prepared = await prepareDocumentPreview(file, {
         documentKind: gradingExperience ? "card" : "auto",
+        skipPreviewEncoding: experience === "intake",
         geometry: manualGeometry?.corners ? manualGeometry : null,
         rotationDegrees: manualRotationDegrees,
       });
@@ -12826,12 +12828,12 @@ async function openDeviceCamera({
       }
       if (prepared.corrected) {
         manualGeometry = prepared.geometry;
-        review.src = prepared.dataUrl;
-        status.textContent = `Corrected ${prepared.documentKind === "slab" ? "full slab" : "card"} preview · confirm or adjust`;
         if (experience === "intake") {
           deliverPhoto(file);
           return;
         }
+        review.src = prepared.dataUrl;
+        status.textContent = `Corrected ${prepared.documentKind === "slab" ? "full slab" : "card"} preview · confirm or adjust`;
       } else {
         previewUrl = URL.createObjectURL(file);
         $("#bottomSheet").dataset.sensitivePreviewUrl = previewUrl;
@@ -14265,7 +14267,6 @@ async function prepareDocumentPreview(file, options = {}) {
   );
   decoded.close?.();
   if (!canvas) return { corrected: false, geometry: detected };
-  const blob = await canvasBlob(canvas, 0.92);
   return {
     corrected: true,
     geometry: detected,
@@ -14276,7 +14277,7 @@ async function prepareDocumentPreview(file, options = {}) {
           ? "slab"
           : "card"
         : detected.documentKind,
-    dataUrl: await readBlobAsDataUrl(blob),
+    dataUrl: options.skipPreviewEncoding ? null : await readBlobAsDataUrl(await canvasBlob(canvas, 0.92)),
   };
 }
 
@@ -14484,7 +14485,7 @@ async function prepareVisionImage(file, options = {}) {
   const normalizedDataUrl = await readBlobAsDataUrl(blob);
   return {
     dataUrl: normalizedDataUrl,
-    previewDataUrl: correctedCanvas
+    previewDataUrl: correctedCanvas && correctedCanvas !== uploadCanvas
       ? await readBlobAsDataUrl(await canvasBlob(correctedCanvas, 0.9))
       : normalizedDataUrl,
     width,
@@ -14564,12 +14565,12 @@ async function requestVisionAnalysis(
   if (cached && cached.owner === context.owner && cached.loadVersion === context.loadVersion) {
     return structuredClone(cached.payload);
   }
-  let legacyLabelText;
+  let legacyLabel;
   if (mode === "identify" && preparedImages[0]?.slabLabel) {
     const current = () => $("#bottomSheet").dataset.visionOperation === context.requestId && !$("#bottomSheet").hidden && state.session?.user?.id === context.owner && sessionLoadVersion === context.loadVersion;
     try {
       const label = await preparedImages[0].slabLabel;
-      if (label?.legacyText && current()) legacyLabelText = label.legacyText;
+      if (label?.legacyText && current()) legacyLabel = label;
       else if (label && current()) {
         const query = new URLSearchParams({q:label.providerId, language:"en", source:"tcgdex", limit:"1"});
         const response = await fetch(`/api/catalog?${query}`, {signal:AbortSignal.timeout(2500)});
@@ -14586,6 +14587,13 @@ async function requestVisionAnalysis(
     } catch { /* The full photo remains available for unfamiliar labels or devices. */ }
     if (!current()) throw new Error("Scan closed");
   }
+  if (mode === "identify" && $("#scanProgress")) {
+    $("#scanProgress").textContent = legacyLabel ? `Matching ${legacyLabel.name} · PSA ${legacyLabel.grade}…` : "Finding your card…";
+    if (legacyLabel) {
+      $("#scanSearchInstead").dataset.name = legacyLabel.name;
+      $("#scanSearchInstead").dataset.language = legacyLabel.language;
+    }
+  }
   const response = await fetch("/api/vision", {
     method: "POST",
     headers: {
@@ -14595,7 +14603,7 @@ async function requestVisionAnalysis(
     },
     body: JSON.stringify({
       mode,
-      ...(legacyLabelText ? { legacyLabelText } : {}),
+      ...(legacyLabel ? { legacyLabelText: legacyLabel.legacyText } : {}),
       images: preparedImages.map((image) => mode === "identify" ? image.identityDataUrl || image.dataUrl : image.dataUrl),
       ...(mode === "grade"
         ? {
@@ -14618,8 +14626,15 @@ async function requestVisionAnalysis(
     }),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok)
-    throw new Error(payload.error || "AI analysis is temporarily unavailable.");
+  if (!response.ok) {
+    const error = new Error(payload.error || "AI analysis is temporarily unavailable.");
+    if (mode === "identify" && response.status === 429) {
+      error.scanLimited = true;
+      error.retryAfter = Number(response.headers.get("Retry-After"));
+      error.label = legacyLabel;
+    }
+    throw error;
+  }
   if (photoKey && accountRequestIsCurrent(context.owner, context.loadVersion) &&
       payload.analysis?.quality?.usable && payload.catalogResolution?.resolution?.status === "exact" &&
       payload.catalogResolution.cards?.some(card => card.id === payload.catalogResolution.resolution.recommendedId)) {
@@ -14947,7 +14962,7 @@ function openScannedCardDetail(card, options) {
 function openVisionSearchFallback(query = "", language = "en", options = null) {
   pendingVisionSearch = options ? { ownerId: state.session?.user?.id, loadVersion: sessionLoadVersion, options } : null;
   closeSheet({ discardHistory: true, force: true });
-  routeTo("scan");
+  routeTo("scan", { focus: false });
   const input = $("#quickCardSearch");
   $("#quickSearchLanguage").value = visionLanguage(language);
   input.value = query;
@@ -15903,14 +15918,26 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
   if (mode === "grade" && !(await requireDigitalGrading(true))) return;
   $("#bottomSheet").dataset.lockClose = "true";
   openSheet(
-    `<div class="sheet-heading grading-process-heading ${mode === "identify" ? "identification-processing-heading" : ""}"><div><span>${mode === "grade" ? esc(GRADING_MODES[options.gradingMode]?.name || "Digital grading") : "Card identification"}</span><h2 id="sheetTitle">${mode === "grade" ? "Grade processing" : "Checking your card"}</h2><p>${mode === "grade" ? `${preparedImages.length} real captures · identity, match, and grade` : "Reading the name and bottom number"}</p></div></div>${mode === "grade" ? '<div class="grade-processing" role="status" aria-live="polite"><div data-process-stage="normalize" data-state="complete"><span>Photo normalization</span><small>Device, light, and perspective checks</small><i></i><b>Complete</b></div><div data-process-stage="identity" data-state="active"><span>Card identity + Collection match</span><small>Name, set, collector number, and language</small><i></i><b>In progress</b></div><div data-process-stage="centering" data-state="waiting"><span>Centering model</span><small>Front and back printed-border geometry</small><i></i><b>Waiting</b></div><div data-process-stage="edges" data-state="waiting"><span>Corner + edge models</span><small>Independent localized evidence</small><i></i><b>Waiting</b></div><div data-process-stage="surface" data-state="waiting"><span>Surface + structure models</span><small>Cross-view evidence comparison</small><i></i><b>Waiting</b></div><div class="grade-processing-overall" data-process-stage="overall" data-state="waiting"><span>Overall grade + automatic attachment</span><i></i><b>Waiting</b></div><strong>Identifying, matching, and grading your card…</strong><small>Mica only changes an eligible Collection card when its printed identity is verified.</small></div>' : '<button class="identification-back" id="cancelIdentification" type="button" aria-label="Back">‹</button><div class="card-loading-skeleton" role="status" aria-live="polite" aria-label="Loading your card"><span class="sr-only">Checking your card</span><div class="skeleton-card" aria-hidden="true"></div><div class="skeleton-copy" aria-hidden="true"><i></i><i></i><i></i></div><div class="skeleton-chart" aria-hidden="true"></div></div>'}`,
+    `<div class="sheet-heading grading-process-heading ${mode === "identify" ? "identification-processing-heading" : ""}"><div><span>${mode === "grade" ? esc(GRADING_MODES[options.gradingMode]?.name || "Digital grading") : "Card identification"}</span><h2 id="sheetTitle">${mode === "grade" ? "Grade processing" : "Checking your card"}</h2><p>${mode === "grade" ? `${preparedImages.length} real captures · identity, match, and grade` : "Reading the name and bottom number"}</p></div></div>${mode === "grade" ? '<div class="grade-processing" role="status" aria-live="polite"><div data-process-stage="normalize" data-state="complete"><span>Photo normalization</span><small>Device, light, and perspective checks</small><i></i><b>Complete</b></div><div data-process-stage="identity" data-state="active"><span>Card identity + Collection match</span><small>Name, set, collector number, and language</small><i></i><b>In progress</b></div><div data-process-stage="centering" data-state="waiting"><span>Centering model</span><small>Front and back printed-border geometry</small><i></i><b>Waiting</b></div><div data-process-stage="edges" data-state="waiting"><span>Corner + edge models</span><small>Independent localized evidence</small><i></i><b>Waiting</b></div><div data-process-stage="surface" data-state="waiting"><span>Surface + structure models</span><small>Cross-view evidence comparison</small><i></i><b>Waiting</b></div><div class="grade-processing-overall" data-process-stage="overall" data-state="waiting"><span>Overall grade + automatic attachment</span><i></i><b>Waiting</b></div><strong>Identifying, matching, and grading your card…</strong><small>Mica only changes an eligible Collection card when its printed identity is verified.</small></div>' : '<button class="identification-back" id="cancelIdentification" type="button" aria-label="Back">‹</button><div class="card-loading-skeleton" role="status" aria-live="polite" aria-label="Loading your card"><img class="skeleton-card" alt=""><div><strong id="scanProgress">Reading your photo…</strong><button id="scanSearchInstead" class="inline-retry" type="button" hidden>Search by name</button></div></div>'}`,
   );
   $("#bottomSheet").dataset.experience = mode === "identify" ? "identification" : "grading";
+  if (mode === "identify") $(".card-loading-skeleton img").src = preparedImages[0].previewDataUrl || preparedImages[0].dataUrl;
   $("#cancelIdentification")?.addEventListener("click", () => closeSheet({ force: true, discardHistory: true }));
   const requestId = crypto.randomUUID();
   const identificationOwner = state.session?.user?.id;
   const identificationLoadVersion = sessionLoadVersion;
-  if (mode === "identify") $("#bottomSheet").dataset.visionOperation = requestId;
+  let searchDelay;
+  if (mode === "identify") {
+    $("#bottomSheet").dataset.visionOperation = requestId;
+    const search = $("#scanSearchInstead");
+    const scanOpen = () => search.isConnected && $("#bottomSheet").dataset.visionOperation === requestId && accountRequestIsCurrent(identificationOwner, identificationLoadVersion);
+    search.addEventListener("click", () => {
+      if (scanOpen()) openVisionSearchFallback(search.dataset.name, search.dataset.language);
+    });
+    searchDelay = setTimeout(() => {
+      if (scanOpen()) search.hidden = false;
+    }, 4000);
+  }
   const ingestionStartedAt = performance.now();
   const ingestionChannel = preparedImages.some((image) =>
     String(image.captureMetadata?.captureMethod || "").includes("camera"),
@@ -16122,6 +16149,13 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
         .then(() => refreshGradingActivity())
         .catch(() => {});
     $("#bottomSheet").dataset.lockClose = "false";
+    if (mode === "identify" && error.scanLimited) {
+      const minutes = Math.ceil(error.retryAfter / 60);
+      const retry = minutes > 0 ? `Scan again in about ${minutes} ${minutes === 1 ? "minute" : "minutes"}.` : "Try scanning again later.";
+      openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Scan limit reached</h2><p>${retry}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="sheet-actions"><button class="primary" id="visionErrorSearch" type="button">Search by name</button></div>`);
+      $("#visionErrorSearch").addEventListener("click", () => openVisionSearchFallback(error.label?.name, error.label?.language));
+      return;
+    }
     openSheet(
       `<div class="sheet-heading"><div><h2 id="sheetTitle">AI scan did not finish</h2><p>${cleanupWarning ? "A private temporary upload may still need cleanup" : "Temporary uploads were removed"}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="unavailable-panel">${esc(`${error.message || "The analysis service is temporarily unavailable."}${cleanupWarning ? ` ${cleanupWarning}` : ""}`)}</div><div class="sheet-actions"><button class="secondary" id="visionErrorClose" type="button">Choose another</button><button class="primary" id="visionErrorSearch" type="button">Search manually</button></div>`,
     );
@@ -16131,6 +16165,8 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
     $("#visionErrorSearch").addEventListener("click", () =>
       openVisionSearchFallback(),
     );
+  } finally {
+    clearTimeout(searchDelay);
   }
 }
 
@@ -20620,7 +20656,10 @@ function bindEvents() {
     () => void openCardCamera(),
   );
   $("#sealedSearchButton").addEventListener("click", openSealedSearch);
-  $("#chooseCardPhoto").addEventListener("click", () => $("#galleryInput").click());
+  $("#chooseCardPhoto").addEventListener("click", () => {
+    void import("./lib/card-ocr.js").then(module => module.warmSlabReader()).catch(() => {});
+    $("#galleryInput").click();
+  });
   $("#galleryInput").addEventListener("change", (event) => {
     const file = event.target.files[0];
     event.target.value = "";
