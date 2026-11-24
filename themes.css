@@ -7441,12 +7441,32 @@ body[data-ui-theme="mica"] #appShell .dashboard-card-row .card-preview-trend svg
 body[data-ui-theme="mica"] #appShell .dashboard-card-row .card-preview-trend > small { margin: 0; color: inherit; }
 
 #bottomSheet[data-experience="identification"] .card-loading-skeleton {
-  align-items: center;
-  grid-template-columns: minmax(80px, 112px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 20px;
+  margin: clamp(16px, 8vh, 72px) auto 0;
+  text-align: center;
 }
 .card-loading-skeleton img.skeleton-card {
-  width: 100%; aspect-ratio: 3 / 4; object-fit: contain; border-radius: 8px;
+  width: auto;
+  max-width: 75%;
+  height: clamp(104px, 26vh, 224px);
+  object-fit: contain;
+  border-radius: 8px;
 }
 #scanProgress { color: var(--ink); font-size: 1rem; }
-
-#scanSearchInstead:not([hidden]) { display: block; margin-top: 12px; }
+#scanSearchInstead:not([hidden]) { display: block; margin: 12px auto 0; }
+@media (prefers-reduced-motion: no-preference) {
+  #scanProgress::before {
+    content: "";
+    display: inline-block;
+    width: .75em;
+    height: .75em;
+    margin-inline-end: .5em;
+    border: 2px solid var(--line);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: scan-progress-turn .9s linear infinite;
+  }
+  @keyframes scan-progress-turn { to { transform: rotate(1turn); } }
+}
