@@ -94,3 +94,13 @@ test("vintage PSA labels need a complete standard layout and matching issue", as
   for (const invalid of [text.replace("HOLO","REVERSE"),text.replace("10\n","9\n"),text.replace("ED.","ED. OC"),text.replace("STORMFRONT","STORM"),text+"\nSTAFF"])
     assert.equal(parseLegacyPsaLabel(invalid), null);
 });
+
+test("movie VS Pack label resolves only to its Japanese printing and retains an unknown finish", async () => {
+  const { parseLegacyPsaLabel, matchesLegacyPsaCard } = await import("../lib/psa-label.js");
+  const text = "2004 POKEMON JAPANESE #003\nSKY'S RAYQUAZA GEM MT\nMOVIE COMM. VS PACK 10\n123456789";
+  const label = parseLegacyPsaLabel(text);
+  assert.equal(label.finish, null);
+  assert.equal(matchesLegacyPsaCard(label, {name:"Sky's Rayquaza", language:"ja", set:label.catalogSet, number:"003/019"}), true);
+  assert.equal(parseLegacyPsaLabel(text.replace("PACK 10","PACK 9")), null);
+  assert.equal(parseLegacyPsaLabel(text.replace("RAYQUAZA","RAYQUAZA OC")), null);
+});

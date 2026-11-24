@@ -421,12 +421,18 @@ export async function visionHandler(
   try {
     let catalogMs = 0;
     const legacy = input.mode === "identify" && parseLegacyPsaLabel(request.body?.legacyLabelText);
-    if (legacy && config.pkmnpricesApiKey) {
+    if (legacy) {
       const lookupStart = Date.now();
-      const cards = await searchPkmnPricesCatalog(config.pkmnpricesApiKey, legacy, controller.signal)
-        .catch(() => []);
+      const exactCards = cards => cards.filter(card => matchesLegacyPsaCard(legacy, card));
+      // Prefer the internal printing options when the set is already cataloged.
+      const internal = legacy.language === "en"
+        ? await searchInternalCatalog(database, { ...legacy, setName: legacy.catalogSet }, legacy.language, 12).catch(() => null)
+        : null;
+      let matches = exactCards(internal?.cards || []);
+      if (!matches.length && config.pkmnpricesApiKey) {
+        matches = exactCards(await searchPkmnPricesCatalog(config.pkmnpricesApiKey, legacy, controller.signal).catch(() => []));
+      }
       catalogMs = Date.now() - lookupStart;
-      const matches = cards.filter(card => matchesLegacyPsaCard(legacy, card));
       if (matches.length === 1) {
         const metrics = { latencyMs: Date.now() - startedAt, modelMs: 0, catalogMs, independentReviews: 0 };
         console.info("[api/vision] legacy label resolved", metrics);
@@ -440,7 +446,7 @@ export async function visionHandler(
     let modelPlan = advisorMode
       ? [config.advisorModel]
       : [config.visionModel, ...config.visionFallbackModels];
-    if (!advisorMode) {
+    if (!advisorMode && input.mode !== "identify") {
       try {
         const available = await availableGatewayVisionModels({
           token: gatewayToken,
@@ -526,7 +532,15 @@ export async function visionHandler(
     };
     const modelStartedAt = Date.now();
     const firstModels = modelPlan.slice(0, desiredResponseCount);
-    const firstResults = await Promise.all(firstModels.map(runModel));
+    const firstResults = await Promise.all(firstModels.map(model => runModel(model)));
+    // Identify normally uses one configured model. Discover a replacement only
+    // if the gateway says that model is unavailable.
+    if (input.mode === "identify" && firstResults[0]?.status === 404) {
+      const available = await availableGatewayVisionModels({ token: gatewayToken }).catch(() => []);
+      const fallback = selectGatewayVisionModels(available, config.visionFallbackModels.filter(model => model !== modelPlan[0]), { maximum: 1 });
+      modelPlan.push(...fallback);
+      modelCatalogVerified = fallback.length > 0;
+    }
     firstResults.forEach((result) => {
       if (result.ok)
         successfulResponses.push({

@@ -2553,7 +2553,7 @@ function portfolioHistoryForItem(item) {
   return completedSaleHistory(item, valuationContextForItem(item), evidence).flatMap(point => point.observations || [point]).map(point => ({ ...point, verifiedExactSold: true, contextValidated: true }));
 }
 
-function renderCardPreviewTrend(item, { catalogPreview = false, descriptionId = "" } = {}) {
+function renderCardPreviewTrend(item, { catalogPreview = false, descriptionId = "", omitEmpty = false } = {}) {
   let source = item;
   // Catalog references are explicitly Near Mint; never borrow a slab's prices.
   const reference = catalogPreview && !(item.cardState === "graded" || item.gradingCompany || item.cardState === "sealed");
@@ -2573,13 +2573,14 @@ function renderCardPreviewTrend(item, { catalogPreview = false, descriptionId = 
   const sharedMatches = sharedContext && sharedContext.language === item.language && sharedContext.variantId === printing.id && sharedContext.finish === printing.finish && sharedContext.edition === printing.edition && sharedContext.promoType === printing.promoType && sharedContext.currency === (source.currency || "USD") && sharedContext.condition === "Near Mint";
   const trend = priceTrendPreview(matched, source.currency || "USD") || (sharedMatches ? shared : null);
   const spanDays = trend && (Date.parse(trend.lastDate) - Date.parse(trend.firstDate)) / 86_400_000;
-  const period = `${reference ? "NM · " : ""}${spanDays > 0 && spanDays < 90 ? `${spanDays}d` : "3M"}`;
+  const period = `${reference ? "NM · " : ""}${trend?.savedRange ? "Saved" : spanDays > 0 && spanDays < 90 ? `${spanDays}d` : "3M"}`;
   const description = descriptionId ? ` id="${esc(descriptionId)}"` : "";
-  if (!trend) return `<span class="card-preview-trend empty"${description} role="img" aria-label="No saved matching three-month price history"><span aria-hidden="true">—</span><small aria-hidden="true">${period}</small></span>`;
+  if (!trend && omitEmpty) return "";
+  if (!trend) return `<span class="card-preview-trend empty"${description} role="img" aria-label="Insufficient matching price history"><span aria-hidden="true">—</span></span>`;
   const direction = { up: "Up", down: "Down", flat: "Unchanged" }[trend.direction];
   const change = trend.percent === null ? `${trend.change > 0 ? "+" : trend.change < 0 ? "−" : ""}${displayCurrencyMoney(Math.abs(trend.change), source.currency)}` : `${trend.percent > 0 ? "+" : ""}${trend.percent.toFixed(1)}%`;
   const label = `${reference ? "Near Mint reference. " : ""}${direction}${trend.percent === null ? "" : ` ${Math.abs(trend.percent).toFixed(1)} percent`}, recorded prices ${trend.firstDate} to ${trend.lastDate}`;
-  return `<span class="card-preview-trend ${trend.direction}"${description} role="img" aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><polygon class="trend-area" points="0,40 ${trend.line} 100,40"/><polyline points="${trend.line}"/></svg><small aria-hidden="true"><span>${change}</span><span>${period}</span></small></span>`;
+  return `<span class="card-preview-trend ${trend.direction}"${description} role="img" aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><polygon class="trend-area" points="0,40 ${esc(trend.line)} 100,40"/><polyline points="${esc(trend.line)}"/></svg><small aria-hidden="true"><span>${change}</span><span>${period}</span></small></span>`;
 }
 
 function purchaseMarketReference(item, lot) {
@@ -3004,7 +3005,9 @@ async function mountPriceChart(item, history = historyForItem(item)) {
     label: dailySales ? "Daily median" : "Recorded price",
     data: model.points.map(point => ({ x: point.x, y: point.amount, point })),
     borderColor: accent,
-    borderWidth: 2.25,
+    borderWidth: 2,
+    borderJoinStyle: "round",
+    borderCapStyle: "round",
     backgroundColor: historyChartFill,
     fill: dailySales ? false : "start",
     pointRadius: model.points.length === 1 ? 3 : dailySales && model.points.some((_, i) => isolatedSale(i)) ? model.points.map((_, i) => isolatedSale(i) ? 2.5 : 0) : 0,
@@ -3065,7 +3068,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           borderColor: line,
           borderWidth: 1,
           titleColor: accent,
-          titleFont: { size: 24, weight: "700" },
+          titleFont: { size: 17, weight: "600" },
           bodyColor: muted,
           bodyFont: { size: 12 },
           padding: 12,
@@ -3090,7 +3093,7 @@ async function mountPriceChart(item, history = historyForItem(item)) {
             align: "inner",
             maxRotation: 0,
             callback: (value) => dateLabel(value),
-            font: { size: 12, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
+            font: { size: 12, family: "-apple-system, BlinkMacSystemFont, system-ui, sans-serif" },
           },
         },
         y: {
@@ -3099,13 +3102,13 @@ async function mountPriceChart(item, history = historyForItem(item)) {
           max: high + padding,
           border: { display: false },
           ticks: {
-            maxTicksLimit: 6,
+            maxTicksLimit: 4,
             includeBounds: false,
-            mirror: true,
+            mirror: false,
             color: muted,
             padding: 4,
             callback: value => new Intl.NumberFormat("en-US", { style: "currency", currency: model.currency, notation: "compact", maximumFractionDigits: 2 }).format(value),
-            font: { size: 12, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
+            font: { size: 12, family: "-apple-system, BlinkMacSystemFont, system-ui, sans-serif" },
           },
           grid: { color: line, drawTicks: false, lineWidth: 0.5 },
         },
@@ -4897,7 +4900,7 @@ function renderWatchlistRows() {
       return `<article class="ledger-row watch-row" tabindex="0" role="button" aria-label="Open watched ${esc(item.name)}" data-watch-id="${esc(item.watchlistId)}">
       <img class="card-thumb" src="${esc(item.thumb)}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${targetReached ? '<span class="target-hit">Buy target</span>' : ""}</div><span class="card-set">${esc(item.set)} · ${esc(item.number)}</span><div class="card-tags"><span class="micro-tag ${item.cardState === "graded" ? "graded" : ""}">${esc(watchContextLabel(item))}</span><span class="micro-tag">${esc(item.variant)}</span></div></div>
-      <div class="price-cell"><span class="row-value">${item.currentPrice === null ? "—" : money(item.currentPrice, item.currency)}</span><span class="row-unit">${hasTarget ? `Buy at ${money(item.targetPrice, item.currency)}` : "No target set"}</span><small class="price-provenance">${esc(priceProvenanceText({ ...item, price: item.currentPrice }))}</small><span class="row-move ${performance ? (performance.changeMinor > 0 ? "up" : performance.changeMinor < 0 ? "down" : "none") : targetReached ? "up" : "none"}">${esc(movement || targetStatus)}</span></div>
+      <div class="price-cell"><span class="row-value">${item.currentPrice === null ? "—" : money(item.currentPrice, item.currency)}</span><span class="row-unit">${hasTarget ? `Buy at ${money(item.targetPrice, item.currency)}` : "No target set"}</span><small class="price-provenance">${esc(priceProvenanceText({ ...item, price: item.currentPrice }))}</small><span class="row-move ${performance ? (performance.changeMinor > 0 ? "up" : performance.changeMinor < 0 ? "down" : "none") : targetReached ? "up" : "none"}">${esc(movement || targetStatus)}</span>${renderCardPreviewTrend(item, { omitEmpty: true })}</div>
     </article>`;
     })
     .join("");
@@ -5553,7 +5556,9 @@ async function mountPortfolioHistoryChart({
               : "Collection value",
           data: values,
           borderColor: accent,
-          borderWidth: 2.25,
+          borderWidth: 2,
+          borderJoinStyle: "round",
+          borderCapStyle: "round",
           backgroundColor: historyChartFill,
           fill: "start",
           tension: 0,
@@ -5599,7 +5604,7 @@ async function mountPortfolioHistoryChart({
           borderColor: line,
           borderWidth: 1,
           titleColor: accent,
-          titleFont: { size: 24, weight: "700" },
+          titleFont: { size: 17, weight: "600" },
           bodyColor: muted,
           bodyFont: { size: 12 },
           padding: 12,
@@ -5624,7 +5629,7 @@ async function mountPortfolioHistoryChart({
             align: "inner",
             maxRotation: 0,
             padding: 4,
-            font: { size: 12, weight: 400, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
+            font: { size: 12, weight: 400, family: "-apple-system, BlinkMacSystemFont, system-ui, sans-serif" },
             callback(value) {
               return shortPortfolioDate(new Date(value).toISOString().slice(0, 10), (dateDomain?.start || chartDates[0]).slice(0,4) !== (dateDomain?.end || chartDates.at(-1)).slice(0,4));
             },
@@ -5640,9 +5645,9 @@ async function mountPortfolioHistoryChart({
             color: muted,
             maxTicksLimit: 4,
             includeBounds: false,
-            mirror: true,
+            mirror: false,
             padding: 4,
-            font: { size: 12, weight: 400, family: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" },
+            font: { size: 12, weight: 400, family: "-apple-system, BlinkMacSystemFont, system-ui, sans-serif" },
             callback(value) {
               return compactCurrency.format(value);
             },
@@ -6284,10 +6289,11 @@ function renderDashboardHighlights() {
           const value = savedHoldings ? item.total : itemValue(item);
           const performance = itemPurchasePerformance(item);
           const change = performance?.change;
+          const holding = savedHoldings ? state.items.find(copy => copy.uid === item.uid) : item;
           return `<button class="dashboard-card-row" type="button" data-detail="${esc(item.uid)}"${savedHoldings && !state.items.some(candidate => candidate.uid === item.uid) ? ' disabled aria-label="Collection loading"' : ""}>
             <img loading="lazy" decoding="async" width="40" height="56" src="${esc(item.thumb || item.image)}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="" />
             <span><strong>${esc(item.name)}</strong><small>${esc(item.set)} · ${esc(item.number || "Number unavailable")}</small></span>
-            <span>${collector ? `<strong>${value === null ? "—" : displayCurrencyMoney(value, item.currency)}${Number(item.quantity) > 1 ? ` <small style="display:inline;color:var(--muted);font-weight:400">×${Number(item.quantity).toLocaleString()}</small>` : ""}</strong>` : `<strong>${displayCurrencyMoney(itemValue(item), item.currency)}</strong><small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${change == null ? "Performance unavailable" : `${change >= 0 ? "+" : ""}${money(change, item.currency)}`}</small><small class="price-provenance">${esc(priceProvenanceText(item))}</small>`}</span>
+            <span>${collector ? `<strong>${value === null ? "—" : displayCurrencyMoney(value, item.currency)}${Number(item.quantity) > 1 ? ` <small style="display:inline;color:var(--muted);font-weight:400">×${Number(item.quantity).toLocaleString()}</small>` : ""}</strong>` : `<strong>${displayCurrencyMoney(itemValue(item), item.currency)}</strong><small class="${change > 0 ? "up" : change < 0 ? "down" : ""}">${change == null ? "Performance unavailable" : `${change >= 0 ? "+" : ""}${money(change, item.currency)}`}</small><small class="price-provenance">${esc(priceProvenanceText(item))}</small>`}${holding ? renderCardPreviewTrend(holding, { omitEmpty: true }) : ""}</span>
           </button>`;
         })
         .join("")
@@ -14374,7 +14380,7 @@ async function prepareVisionImage(file, options = {}) {
   const identitySource = options.purpose === "collectible"
     ? sourceEvidenceCanvas(decoded, originalWidth, originalHeight, null)
     : null;
-  const evidenceCanvas = sourceEvidenceCanvas(
+  const evidenceCanvas = (!detectedBounds && identitySource) || sourceEvidenceCanvas(
     decoded,
     originalWidth,
     originalHeight,
@@ -14441,7 +14447,14 @@ async function prepareVisionImage(file, options = {}) {
           0.64
         ? "slab"
         : "card";
-  const slabCrop = identitySource ? (await import("./lib/card-ocr.js")).slabLabelCrop(identitySource) : null;
+  // Read a detected label while the preview and cloud fallback image encode.
+  const photoKey = identitySource ? documentKind + ":" + await sha256Hex(file) : null;
+  let slabLabel = null;
+  if (identitySource && !qualityCheck.blockers.length && !identifiedPhotos.has(photoKey)) {
+    const { slabLabelCrop, readModernSlabLabel } = await import("./lib/card-ocr.js");
+    const crop = slabLabelCrop(identitySource);
+    if (crop) slabLabel = readModernSlabLabel(crop).catch(() => null);
+  }
   const identityDataUrl = await identityEvidenceDataUrl(
     identitySource || correctedCanvas || evidenceCanvas,
     documentKind,
@@ -14514,15 +14527,18 @@ async function prepareVisionImage(file, options = {}) {
       regions: documentRecognitionRegions(documentKind),
     },
     printedBorderCentering,
-    imageHash: await sha256Hex(blob),
+    imageHash: photoKey || await sha256Hex(blob),
+    photoKey,
     captureType: options.captureType || options.side || "front",
     side: options.side || "front",
     researchBlob: blob,
     identityDataUrl,
-    slabCrop,
+    slabLabel,
   };
 }
 
+// Session memory only. Store the matched identity, never the uploaded photograph.
+const identifiedPhotos = new Map();
 async function requestVisionAnalysis(
   mode,
   preparedImages,
@@ -14531,12 +14547,16 @@ async function requestVisionAnalysis(
 ) {
   if (!state.session?.access_token)
     throw new Error("Sign in again before using AI analysis.");
+  const photoKey = mode === "identify" && preparedImages.length === 1 && preparedImages[0].photoKey;
+  const cached = photoKey && identifiedPhotos.get(photoKey);
+  if (cached && cached.owner === context.owner && cached.loadVersion === context.loadVersion) {
+    return structuredClone(cached.payload);
+  }
   let legacyLabelText;
-  if (mode === "identify" && preparedImages[0]?.slabCrop) {
+  if (mode === "identify" && preparedImages[0]?.slabLabel) {
     const current = () => $("#bottomSheet").dataset.visionOperation === context.requestId && !$("#bottomSheet").hidden && state.session?.user?.id === context.owner && sessionLoadVersion === context.loadVersion;
     try {
-      const { readModernSlabLabel } = await import("./lib/card-ocr.js");
-      const label = await readModernSlabLabel(preparedImages[0].slabCrop);
+      const label = await preparedImages[0].slabLabel;
       if (label?.legacyText && current()) legacyLabelText = label.legacyText;
       else if (label && current()) {
         const query = new URLSearchParams({q:label.providerId, language:"en", source:"tcgdex", limit:"1"});
@@ -14588,6 +14608,12 @@ async function requestVisionAnalysis(
   const payload = await response.json().catch(() => ({}));
   if (!response.ok)
     throw new Error(payload.error || "AI analysis is temporarily unavailable.");
+  if (photoKey && accountRequestIsCurrent(context.owner, context.loadVersion) &&
+      payload.analysis?.quality?.usable && payload.catalogResolution?.resolution?.status === "exact" &&
+      payload.catalogResolution.cards?.some(card => card.id === payload.catalogResolution.resolution.recommendedId)) {
+    if (identifiedPhotos.size >= 12) identifiedPhotos.delete(identifiedPhotos.keys().next().value);
+    identifiedPhotos.set(photoKey, { owner: context.owner, loadVersion: context.loadVersion, payload: structuredClone(payload) });
+  }
   return payload;
 }
 
@@ -21673,6 +21699,7 @@ export function openOnboarding({ afterComplete } = {}) {
 async function retryAccountLoad() {
   if (state.accountLoading || !state.session) return;
   const ownerId = state.session.user.id;
+  identifiedPhotos.clear();
   const loadVersion = ++sessionLoadVersion;
   state.accountLoading = true;
   renderCollection();
@@ -21744,6 +21771,7 @@ async function applySession(session) {
     state.session = session;
     return;
   }
+  identifiedPhotos.clear();
   const loadVersion = ++sessionLoadVersion;
   const ownerId = session?.user?.id || "";
   const previousOwnerId = state.session?.user?.id || "";

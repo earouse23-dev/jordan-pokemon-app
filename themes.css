@@ -7433,3 +7433,9 @@ body[data-ui-theme="mica"] #appShell #view-dashboard:has(.portfolio-first-card) 
   body[data-ui-theme="mica"] #appShell #detailContent .sold-actions { gap: 0 8px; }
   body[data-ui-theme="mica"] #appShell #detailContent .detail-identity-content > .exact-sold-value { padding-top: 6px; }
 }
+
+/* The value and its dated trend share one trailing column in holding previews. */
+body[data-ui-theme="mica"] #appShell .dashboard-card-row > span:last-child { justify-items: end; }
+body[data-ui-theme="mica"] #appShell .dashboard-card-row .card-preview-trend { width: 84px; }
+body[data-ui-theme="mica"] #appShell .dashboard-card-row .card-preview-trend svg { height: 24px; }
+body[data-ui-theme="mica"] #appShell .dashboard-card-row .card-preview-trend > small { margin: 0; color: inherit; }

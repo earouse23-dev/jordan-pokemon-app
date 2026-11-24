@@ -153,7 +153,7 @@ test('saved preview trends show true direction in collection and both catalog su
   await expect(page.locator('#cardLedger .card-preview-trend.up svg')).toHaveCount(2);
   await expect(page.locator('#cardLedger .card-preview-trend.down svg')).toHaveCount(1);
   await expect(page.locator('#cardLedger .card-preview-trend.empty svg')).toHaveCount(0);
-  await expect(page.locator('#cardLedger .card-preview-trend.up')).toHaveText(['+20.0%3M','+20.0%3M']);
+  await expect(page.locator('#cardLedger .card-preview-trend.up')).toHaveText(['+20.0%2d','+20.0%2d']);
   await expect(page.locator('#cardLedger .card-preview-trend.down')).toContainText('-16.7%');
   await expect(page.locator('#cardLedger .card-preview-trend.up').first()).toHaveAttribute('aria-label',/Up 20.0 percent/);
   expect(await page.locator('#cardLedger .card-preview-trend.up>small').first().evaluate(el=>getComputedStyle(el).display)).toBe('flex');
@@ -166,7 +166,7 @@ test('saved preview trends show true direction in collection and both catalog su
   await page.evaluate(()=>polishApp.routeTo('scan',{instant:true}));
   await page.locator('#quickCardSearch').fill('Pikachu'); await page.locator('#quickCardSearch').press('Enter');
   await expect(page.locator('#quickSearchResults .card-preview-trend.up svg')).toHaveCount(1);
-  await expect(page.locator('#quickSearchResults .card-preview-trend')).toContainText('NM · 3M');
+  await expect(page.locator('#quickSearchResults .card-preview-trend')).toContainText('NM · 1d');
   await expect(page.locator('#quickSearchResults [data-quick-card]')).toHaveAccessibleDescription(/Near Mint reference. Up/);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(1);
   await page.evaluate(()=>{polishApp.routeTo('collection',{instant:true});polishApp.routeTo('scan',{instant:true});});

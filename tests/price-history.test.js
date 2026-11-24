@@ -143,3 +143,15 @@ test("preview trends use daily medians, elapsed time and one currency without in
   assert.equal(priceTrendPreview([point("2026-11-01", 30), point("2026-11-02", 30)], "USD", now).line, "0.00,20.00 100.00,20.00");
   assert.equal(priceTrendPreview([point("2026-11-01", 0), point("2026-11-02", 30)], "USD", now).percent, null);
 });
+
+test("thin recent trading uses dated saved history and dense previews preserve the endpoints and extremes", () => {
+  const now = Date.UTC(2026, 10, 23), day = 86400000;
+  const point = (ago, amount) => ({ recordedAt: new Date(now - ago * day).toISOString(), amount, currency: "USD" });
+  const saved = priceTrendPreview([point(365, 75), point(180, 100), point(2, 150)], "USD", now);
+  assert.equal(saved.savedRange, true);
+  assert.equal(saved.percent, 100);
+  const dense = priceTrendPreview(Array.from({ length: 91 }, (_, i) => point(90 - i, i === 40 ? 175 : 100 + i % 3)), "USD", now);
+  assert.equal(dense.savedRange, false);
+  assert.ok(dense.line.split(" ").length <= 26);
+  assert.match(dense.line, /,4.00(?: |$)/);
+});
