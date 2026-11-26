@@ -91,6 +91,8 @@ test("vintage PSA labels need a complete standard layout and matching issue", as
   assert.equal(matchesLegacyPsaCard(label, card), true);
   for (const change of [{language:"en"},{set:"Stormfront"},{number:"091/092"},{name:"Charizard ex"}])
     assert.equal(matchesLegacyPsaCard(label, {...card,...change}), false);
+  assert.deepEqual(parseLegacyPsaLabel(text.replace("STORMFRONT", "| STORMFRONT")), parseLegacyPsaLabel(text));
+  assert.equal(parseLegacyPsaLabel(text.replace("STORMFRONT", "| OC STORMFRONT")), null);
   for (const invalid of [text.replace("HOLO","REVERSE"),text.replace("10\n","9\n"),text.replace("ED.","ED. OC"),text.replace("STORMFRONT","STORM"),text+"\nSTAFF"])
     assert.equal(parseLegacyPsaLabel(invalid), null);
 });

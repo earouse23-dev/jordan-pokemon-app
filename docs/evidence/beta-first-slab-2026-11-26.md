@@ -20,4 +20,8 @@ The Rayquaza rule matches the numbered Japanese deck printing and PSA label toge
 - An isolated restore reconciled quantity, cost, transactions, dated prices, portfolio totals and exact private-photo bytes. The second account had no access to the restored owner's data.
 - The portfolio chart test now measures plot width after reserving space for exterior currency labels and checks tooltip legibility across six sizes.
 
+A post-promotion Charizard run exposed an intermittent local OCR failure. The isolated set-line crop included a vertical slab edge before the fully readable words “STORMFRONT-1ST ED.” The parser now accepts a single separated border character before a known set. The same original yielded the exact first edition, grade 10 and certificate in 0.55 seconds in a fresh iPhone 17 Simulator OCR-only probe. That timing excludes catalog lookup and pricing. A separate WebKit run used the first-card photo picker, actual OCR, a fixture catalog response and a disposable local database. It saved the slab once, restored its private photo on reload, reopened the correct graded copy, and completed recovery and account switch.
+
+The external beta gate used an unsupported default Ubuntu image for the repository's Playwright release. Its runner is now pinned to Ubuntu 24.04. Production provider limits remain active. Repeated demo scans eventually hit the existing scan limit, and the app offered manual search with the returned retry time.
+
 Physical camera acquisition, delivery to an external inbox, production backup availability and offsite restoration remain separate acceptance checks. The two catalog misses have no verified price. Billing and App Store submission are outside this release.
