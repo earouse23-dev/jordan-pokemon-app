@@ -11909,6 +11909,7 @@ body button:focus-visible, body .inline-source-link:focus-visible, body select:f
 .portfolio-first-card { padding-block: clamp(28px, 6vh, 72px); }
 .portfolio-first-card h2 { margin: 0 0 8px; }
 .portfolio-first-card p { color: var(--muted); margin: 0 0 20px; }
+.first-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .portfolio-first-card button { min-height: 44px; }
 @media (max-width: 680px) {
   body[data-ui-theme="mica"] #appShell .history-chart-head .history-period-change {

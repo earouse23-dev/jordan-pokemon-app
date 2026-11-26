@@ -1,4 +1,4 @@
-import { standardLegacyHolo } from "./lib/psa-label.js";
+import { legacyDeckPrinting, standardLegacyHolo } from "./lib/psa-label.js";
 import { portfolioRangeStart, portfolioPeriodDrivers, portfolioRefreshNote, portfolioPricingKeyMatches, portfolioPricingKey, portfolioPriceIsFresh, portfolioOlderPriceCount, displayPortfolioView, hasPortfolioValue, compactPortfolioView, portfolioDisplayTimeline } from "./lib/portfolio-view.js";
 import {
   appFetch as fetch,
@@ -5680,8 +5680,10 @@ function renderPortfolioHistory() {
   if (state.profile?.onboardingCompletedAt && !state.accountLoading && !state.accountLoadError && !state.items.length && !state.largeInventory.active && !saved?.history?.length && !state.portfolioHistory.length) {
     destroyPortfolioHistoryChart();
     portfolioRenderKey = null;
-    root.innerHTML = '<div class="portfolio-first-card"><h2>Your collection starts here</h2><p>Add a card to start tracking its value.</p><button type="button" class="primary" data-first-card>Add your first card</button></div>';
-    $("[data-first-card]", root).onclick = openManualSearch;
+    root.innerHTML = '<div class="portfolio-first-card"><h2>Your collection starts here</h2><p>For a graded card, include the whole slab label.</p><div class="first-card-actions"><button type="button" class="primary" data-first-card>Scan a card</button><button type="button" class="secondary" data-first-photo>Choose photo</button><button type="button" class="secondary" data-first-search>Search by name</button></div></div>';
+    $("[data-first-card]", root).onclick = () => void openAutoCapture();
+    $("[data-first-photo]", root).onclick = chooseCardPhoto;
+    $("[data-first-search]", root).onclick = openManualSearch;
     return;
   }
   if (saved?.fxUnavailable && state.portfolioHistoryMode === "value") {
@@ -8333,12 +8335,27 @@ async function loadCardPreviewPricing(
   if (!detailContextReady(context) || scanNeedsPrintingReview(card, context)) return;
   const cacheKey = previewPricingKey(card, context);
   const cached = previewPricingCache.get(cacheKey);
-  if (!includeHistory && cached?.pricing && cached.expires > Date.now() && portfolioPriceIsFresh(cached.pricing)) {
-    state.detailPricing = { ...cached.pricing, selectionKey: guard.selectionKey, contextKey: guard.contextKey };
+  const saved = cached?.pricing;
+  const fresh = saved && portfolioPriceIsFresh(saved);
+  if (!includeHistory && saved && (saved.price != null || saved.referencePrice != null)) {
+    state.detailPricing = { ...saved, selectionKey: guard.selectionKey, contextKey: guard.contextKey,
+      ...(fresh ? {} : { pricingStatus: "stale", retainedPrice: true }) };
     renderDetailPreservingValuationFocus();
-    if (cached.pricing.historyStatus === "live" || context.cardState === "graded") return;
-    includeHistory = true;
+    if (fresh && (portfolioPriceIsFresh({ checkedAt: saved.historyCheckedAt }) || saved.historyStatus === "live" || context.cardState === "graded")) return;
+    includeHistory = context.cardState !== "graded";
   }
+  const keepVisiblePrice = (historyStatus, history = []) => {
+    const visible = state.detailPricing;
+    if (visible?.selectionKey !== guard.selectionKey || visible.contextKey !== guard.contextKey ||
+        (visible.price == null && visible.referencePrice == null)) return false;
+    state.detailPricing = { ...visible, historyStatus };
+    if (history.length) {
+      state.detailPricing.priceHistory = mergePriceHistory(visible.priceHistory || [], history);
+      previewPricingCache.set(cacheKey, { ...cached, pricing: state.detailPricing });
+    }
+    renderDetailPreservingValuationFocus();
+    return true;
+  };
   const printing = selectedPrinting(card);
   const lookup = [
     {
@@ -8366,11 +8383,7 @@ async function loadCardPreviewPricing(
     if (!response.ok) {
       const failure = await response.json().catch(() => ({}));
       if (!detailRequestIsCurrent(guard)) return;
-      if (includeHistory && state.detailPricing?.selectionKey === guard.selectionKey && state.detailPricing?.contextKey === guard.contextKey && state.detailPricing.price != null) {
-        state.detailPricing.historyStatus = "error";
-        renderDetailPreservingValuationFocus();
-        return;
-      }
+      if (keepVisiblePrice("error")) return;
       state.detailPricing = {
         pricingReason: failure.code || "provider_refresh_failed",
         selectionKey: guard.selectionKey,
@@ -8385,6 +8398,7 @@ async function loadCardPreviewPricing(
     const priced = payload.cards?.[0];
     if (!detailRequestIsCurrent(guard)) return;
     if (!priced) {
+      if (keepVisiblePrice("unavailable")) return;
       state.detailPricing = {
         selectionKey: guard.selectionKey,
         contextKey: guard.contextKey,
@@ -8413,6 +8427,7 @@ async function loadCardPreviewPricing(
       context.currency || card.currency || "USD",
       pricingContext,
     );
+    if (!quote && keepVisiblePrice(priced.historyStatus || "unavailable", priced.history || [])) return;
     const pricing = quotePricingFields(quote, priced, {
       ...card,
       ...pricingContext,
@@ -8428,6 +8443,7 @@ async function loadCardPreviewPricing(
       quotes: priced.quotes || [],
       priceHistory: recordPriceObservation(card, quote, mergePriceHistory(card.priceHistory || [], state.detailPricing?.priceHistory || [], priced.history || [])),
       historyStatus: priced.historyStatus || null,
+      historyCheckedAt: includeHistory && ["live", "missing", "unavailable"].includes(priced.historyStatus) ? new Date().toISOString() : null,
     };
     const identityUpdate = {
       image: normalizeCardImageSource(priced.images?.large)?.href || card.image || null,
@@ -8456,11 +8472,7 @@ async function loadCardPreviewPricing(
     if (!includeHistory && context.cardState !== "graded") void loadCardPreviewPricing(state.detailCard, context, guard, true);
   } catch {
     if (!detailRequestIsCurrent(guard)) return;
-    if (includeHistory && state.detailPricing?.selectionKey === guard.selectionKey && state.detailPricing?.contextKey === guard.contextKey && state.detailPricing.price != null) {
-      state.detailPricing.historyStatus = "error";
-      renderDetailPreservingValuationFocus();
-      return;
-    }
+    if (keepVisiblePrice("error")) return;
     state.detailPricing = {
       selectionKey: guard.selectionKey,
       contextKey: guard.contextKey,
@@ -14570,6 +14582,10 @@ async function requestVisionAnalysis(
     const current = () => $("#bottomSheet").dataset.visionOperation === context.requestId && !$("#bottomSheet").hidden && state.session?.user?.id === context.owner && sessionLoadVersion === context.loadVersion;
     try {
       const label = await preparedImages[0].slabLabel;
+      if (label?.setName === "1999 Topps Pokémon Movie Edition" && current()) {
+        return { analysis: { model: "on-device label", quality: { usable: true }, identity: label,
+          searchQuery: label.name.replaceAll("/", " ") }, catalogResolution: null };
+      }
       if (label?.legacyText && current()) legacyLabel = label;
       else if (label && current()) {
         const query = new URLSearchParams({q:label.providerId, language:"en", source:"tcgdex", limit:"1"});
@@ -14590,8 +14606,7 @@ async function requestVisionAnalysis(
   if (mode === "identify" && $("#scanProgress")) {
     $("#scanProgress").textContent = legacyLabel ? `Matching ${legacyLabel.name} · PSA ${legacyLabel.grade}…` : "Finding your card…";
     if (legacyLabel) {
-      $("#scanSearchInstead").dataset.name = legacyLabel.name;
-      $("#scanSearchInstead").dataset.language = legacyLabel.language;
+      context.onReadLabel?.(legacyLabel);
     }
   }
   const response = await fetch("/api/vision", {
@@ -14930,11 +14945,12 @@ let pendingVisionSearch = null;
 function openScannedCardDetail(card, options) {
   const prefill = options.prefill;
   const catalogPrinting = selectedPrinting(card);
+  const deckPrinting = legacyDeckPrinting(prefill.labelEvidence, card);
   const scanPrinting = observedScanPrinting(prefill);
   const printingConflicts = [];
   const printing = {};
   for (const [field, controlId] of [["finish", "printingFinish"], ["edition", "printingEdition"], ["promoType", "printingPromo"]]) {
-    const scanned = scanPrinting[field];
+    const scanned = scanPrinting[field] === "unknown" && deckPrinting ? deckPrinting[field] : scanPrinting[field];
     const catalogValue = catalogPrinting[field];
     if (scanned !== "unknown" && catalogValue !== "unknown" && scanned !== catalogValue) {
       printingConflicts.push(controlId);
@@ -14947,7 +14963,7 @@ function openScannedCardDetail(card, options) {
   const resolvedScan = prefill.cardState === "graded" && !printingConflicts.length && prefill.gradeQualifier != null &&
     Object.values(printing).every(value => value !== "unknown") &&
     !["missing_detailed_variant", "tcgdex_detailed_variant"].includes(catalogPrinting.metadata.identityEvidence) &&
-    (catalogPrinting.status === "exact" || card.variantOptions?.length === 1);
+    (catalogPrinting.status === "exact" || card.variantOptions?.length === 1 || deckPrinting);
   const option = resolvedScan ? normalizeVariantOption({
     ...printing, id: catalogPrinting.id, collectibleId: catalogPrinting.collectibleId,
     label: catalogPrinting.status === "exact" ? catalogPrinting.label : undefined,
@@ -15926,13 +15942,18 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
   const requestId = crypto.randomUUID();
   const identificationOwner = state.session?.user?.id;
   const identificationLoadVersion = sessionLoadVersion;
-  let searchDelay;
+  let searchDelay, readLabel;
+  const searchWithLabel = (label) => openVisionSearchFallback(label?.name, label?.language, label ? {
+    prefill: visionPrefill({identity: label}, "identify"),
+    photoDataUrl: preparedImages[0]?.previewDataUrl || preparedImages[0]?.dataUrl,
+    ingestionChannel,
+  } : null);
   if (mode === "identify") {
     $("#bottomSheet").dataset.visionOperation = requestId;
     const search = $("#scanSearchInstead");
     const scanOpen = () => search.isConnected && $("#bottomSheet").dataset.visionOperation === requestId && accountRequestIsCurrent(identificationOwner, identificationLoadVersion);
     search.addEventListener("click", () => {
-      if (scanOpen()) openVisionSearchFallback(search.dataset.name, search.dataset.language);
+      if (scanOpen()) searchWithLabel(readLabel);
     });
     searchDelay = setTimeout(() => {
       if (scanOpen()) search.hidden = false;
@@ -16000,7 +16021,7 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
     const payload = applyDeterministicCaptureMeasurements(
       await requestVisionAnalysis(mode, preparedImages, [], {
         owner: identificationOwner, loadVersion: identificationLoadVersion, requestId,
-        scanSessionId,
+        onReadLabel: label => { readLabel = label; }, scanSessionId,
       }),
       preparedImages,
     );
@@ -16153,7 +16174,7 @@ async function analyzeCardImages(mode, preparedImages, options = {}) {
       const minutes = Math.ceil(error.retryAfter / 60);
       const retry = minutes > 0 ? `Scan again in about ${minutes} ${minutes === 1 ? "minute" : "minutes"}.` : "Try scanning again later.";
       openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Scan limit reached</h2><p>${retry}</p></div><button class="sheet-close" aria-label="Close">×</button></div><div class="sheet-actions"><button class="primary" id="visionErrorSearch" type="button">Search by name</button></div>`);
-      $("#visionErrorSearch").addEventListener("click", () => openVisionSearchFallback(error.label?.name, error.label?.language));
+      $("#visionErrorSearch").addEventListener("click", () => searchWithLabel(error.label));
       return;
     }
     openSheet(
@@ -20656,10 +20677,7 @@ function bindEvents() {
     () => void openCardCamera(),
   );
   $("#sealedSearchButton").addEventListener("click", openSealedSearch);
-  $("#chooseCardPhoto").addEventListener("click", () => {
-    void import("./lib/card-ocr.js").then(module => module.warmSlabReader()).catch(() => {});
-    $("#galleryInput").click();
-  });
+  $("#chooseCardPhoto").addEventListener("click", chooseCardPhoto);
   $("#galleryInput").addEventListener("change", (event) => {
     const file = event.target.files[0];
     event.target.value = "";
@@ -20819,6 +20837,11 @@ function validateImageFile(file) {
   return true;
 }
 
+function chooseCardPhoto() {
+  void import("./lib/card-ocr.js").then(module => module.warmSlabReader()).catch(() => {});
+  $("#galleryInput").click();
+}
+
 function validateImage(file) {
   if (!validateImageFile(file)) return;
   void showProcessing(file);
@@ -20855,11 +20878,11 @@ function openAuthLegal(kind) {
   if (kind === "privacy") {
     title.textContent = "Privacy notice";
     content.innerHTML =
-      "<p>Mica stores your account, collection, purchases, sales, watched cards, and value history so its private collection tools can work.</p><p>Your collection belongs only to your signed-in account. Card photos sent for AI help are used for that one request and are not intentionally saved by Mica’s scan service.</p><p>Mica may ask connected price services for matching card prices. Do not put payment-card details or other sensitive information in notes.</p><p>Before public launch, the owner must add the final legal entity, support contact, data-retention period, and location-specific legal notices.</p>";
+      "<p>Mica stores your account, collection, purchases, sales, watched cards, and value history so its private collection tools can work.</p><p>Your collection belongs only to your signed-in account. Card photos sent for AI help are used for that one request and are not intentionally saved by Mica’s scan service.</p><p>Mica may ask connected price services for matching card prices. Do not put payment-card details or other sensitive information in notes.</p><p>You can export your collection or delete your account in Settings. Photos you attach to a saved card are private to your account.</p>";
   } else {
     title.textContent = "Mica terms";
     content.innerHTML =
-      "<p>Mica is a collection and decision-support tool. Prices, grading estimates, sale plans, and trade comparisons are references—not appraisals, guarantees, or financial advice.</p><p>You are responsible for confirming card identity, condition, authenticity, provider prices, fees, and transaction details before acting.</p><p>Do not use Mica to violate marketplace, data-provider, or intellectual-property terms. Public-release entity, jurisdiction, and dispute language must be approved by the owner before launch.</p>";
+      "<p>Mica is a collection and decision-support tool. Prices, grading estimates, sale plans, and trade comparisons are references—not appraisals, guarantees, or financial advice.</p><p>You are responsible for confirming card identity, condition, authenticity, provider prices, fees, and transaction details before acting.</p><p>Do not use Mica to violate marketplace, data-provider, or intellectual-property terms.</p>";
   }
   dialog.showModal();
 }
@@ -21706,6 +21729,7 @@ export function openOnboarding({ afterComplete } = {}) {
       restoreModeCollectionView(workspaceMode);
       renderWorkflowDefaults();
       closeOnboarding();
+      renderCollection();
       afterComplete?.();
     } catch {
       if (ownerId && !accountRequestIsCurrent(ownerId, loadVersion)) { closeOnboarding(false); return; }
@@ -21892,6 +21916,7 @@ async function applySession(session) {
       summary: {},
       attachments: new Map(),
     };
+    previewPricingCache.clear();
     clearPrivateCollectionPhotos();
     revealedHistoryContexts.clear();
     state.actionCenter = emptyActionCenter(session ? "idle" : "local");

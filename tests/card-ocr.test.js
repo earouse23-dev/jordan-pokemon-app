@@ -96,11 +96,27 @@ test("vintage PSA labels need a complete standard layout and matching issue", as
 });
 
 test("movie VS Pack label resolves only to its Japanese printing and retains an unknown finish", async () => {
-  const { parseLegacyPsaLabel, matchesLegacyPsaCard } = await import("../lib/psa-label.js");
+  const { parseLegacyPsaLabel, matchesLegacyPsaCard, legacyDeckPrinting } = await import("../lib/psa-label.js");
   const text = "2004 POKEMON JAPANESE #003\nSKY'S RAYQUAZA GEM MT\nMOVIE COMM. VS PACK 10\n123456789";
   const label = parseLegacyPsaLabel(text);
   assert.equal(label.finish, null);
+  const card = {name:"Sky's Rayquaza", language:"ja", set:label.catalogSet, number:"003/019"};
+  assert.deepEqual(legacyDeckPrinting(label,card), {finish:"non_holo", edition:"unlimited", promoType:"none"});
+  assert.equal(legacyDeckPrinting({...label,edition:"first_edition"},card), null);
+  assert.equal(legacyDeckPrinting(label,{...card,number:"003/020"}), null);
   assert.equal(matchesLegacyPsaCard(label, {name:"Sky's Rayquaza", language:"ja", set:label.catalogSet, number:"003/019"}), true);
   assert.equal(parseLegacyPsaLabel(text.replace("PACK 10","PACK 9")), null);
   assert.equal(parseLegacyPsaLabel(text.replace("RAYQUAZA","RAYQUAZA OC")), null);
+});
+
+test("Topps foil movie labels preserve scene, grade and certificate for catalog review", async () => {
+  const { parseToppsMovieLabel } = await import("../lib/card-ocr.js");
+  const text = "1999 TOPPS POKEMON #7\nMOVIE EDITION GEM MT\nTRYING OUT/NEW TOY-FOIL 10\n(Barcode) 12345678";
+  const label = parseToppsMovieLabel(text);
+  assert.equal(label.name, "TRYING OUT/NEW TOY");
+  assert.equal(label.collectorNumber, "7");
+  assert.equal(label.grade, 10);
+  assert.equal(label.certificationNumber, "12345678");
+  for (const bad of [text.replace("GEM MT", "MINT"), text.replace("FOIL", "AUTO"), text.replace("12345678", "12345"), text.replace("MOVIE EDITION", "CHROME")])
+    assert.equal(parseToppsMovieLabel(bad), null);
 });

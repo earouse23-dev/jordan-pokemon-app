@@ -16,7 +16,7 @@ test.beforeAll(async () => {
   // Exports exist only in this intercepted test bundle, never the shipped app.
   const result = await build({
     stdin: {
-      contents: `${source}\nexport { state, renderDetail, chartInstance, detailIdentityKey, openCardDetail, saveCardAddDraft, reloadPortfolio, supabase as testSupabase };`,
+      contents: `${source}\nexport { state, renderDetail, chartInstance, detailIdentityKey, previewPricingCache, previewPricingKey, loadCardPreviewPricing, openCardDetail, saveCardAddDraft, reloadPortfolio, supabase as testSupabase };`,
       resolveDir: root,
       sourcefile: "app.js",
     },
@@ -543,4 +543,41 @@ test('graded preview automatically loads exact sold comps and reuses them for 24
  expect(calls).toHaveLength(1);
  await page.evaluate(()=>{const app=fixtureApp,card={...app.state.detailCard};delete card.uid;delete card.exactSaleEvidence;app.state.items=[];app.state.session={user:{id:'another-slab-owner'},access_token:'other-fixture'};app.openCardDetail(card);});
  await expect.poll(()=>calls.length).toBe(2);
+});
+
+test("raw preview keeps its last checked price through an expired refresh and provider failure", async ({page}) => {
+  await openDetail(page);
+  const hero = page.locator(".market-hero > strong");
+  let calls = 0, release;
+  const gate = new Promise(resolve => { release = resolve; });
+  await page.route("**/api/cards?*", async route => {
+    calls++;
+    await gate;
+    await route.fulfill({status:503, json:{}});
+  });
+  const check = hours => page.evaluate(async hours => {
+    const app = fixtureApp;
+    const card = {...app.state.detailCard};
+    delete card.uid;
+    app.state.items = [];
+    app.state.detailCard = card;
+    app.state.detailId = card.id;
+    const context = app.state.detailValuationContext;
+    const key = app.previewPricingKey(card, context);
+    const checkedAt = new Date(Date.now() - hours * 3600000).toISOString();
+    app.previewPricingCache.set(key, {pricing:{price:42, referencePrice:42, retainedPrice:true,
+      pricingStatus:"live", checkedAt, historyStatus:"live"}});
+    app.state.detailPricing = null;
+    await app.loadCardPreviewPricing(card, context);
+  }, hours);
+  await check(23);
+  await expect(hero).toHaveText("$42.00");
+  expect(calls).toBe(0);
+  const pending = check(24);
+  try {
+    await expect.poll(() => calls).toBe(1);
+    await expect(hero).toHaveText("$42.00");
+  } finally { release(); await pending; }
+  await expect(hero).toHaveText("$42.00");
+  expect(await page.evaluate(() => fixtureApp.state.detailPricing.pricingStatus)).toBe("stale");
 });
