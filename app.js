@@ -2584,7 +2584,7 @@ function renderCardPreviewTrend(item, { catalogPreview = false, descriptionId = 
   const direction = { up: "Up", down: "Down", flat: "Unchanged" }[trend.direction];
   const change = trend.percent === null ? `${trend.change > 0 ? "+" : trend.change < 0 ? "−" : ""}${displayCurrencyMoney(Math.abs(trend.change), source.currency)}` : `${trend.percent > 0 ? "+" : ""}${trend.percent.toFixed(1)}%`;
   const label = `${reference ? "Near Mint reference. " : ""}${direction}${trend.percent === null ? "" : ` ${Math.abs(trend.percent).toFixed(1)} percent`}, recorded prices ${trend.firstDate} to ${trend.lastDate}`;
-  return `<span class="card-preview-trend ${trend.direction}"${description} role="img" aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><polygon class="trend-area" points="0,40 ${esc(trend.line)} 100,40"/><polyline points="${esc(trend.line)}"/></svg><small aria-hidden="true"><span>${change}</span><span>${period}</span></small></span>`;
+  return `<span class="card-preview-trend ${trend.direction}"${description} role="img" aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><polygon class="trend-area" points="0,40 ${esc(trend.line)} 100,40"/><polyline points="${esc(trend.line)}"/></svg><small aria-hidden="true"><span class="trend-period">${period}</span><span>${change}</span></small></span>`;
 }
 
 function purchaseMarketReference(item, lot) {
@@ -5505,6 +5505,12 @@ function portfolioHistoryRangePoints(points, range) {
   return points.filter(point => point.date >= cutoff);
 }
 
+function savedPortfolioStatus(updatedAt, view) {
+  const label = Number.isFinite(Date.parse(updatedAt)) ? `Updated ${shortPortfolioDate(updatedAt, true)}` : "Saved prices";
+  if (!view?.refreshIncomplete) return label;
+  return label + (view.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete");
+}
+
 function shortPortfolioDate(value, includeYear = false) {
   const date = new Date(`${String(value).slice(0, 10)}T00:00:00Z`);
   if (!Number.isFinite(date.getTime())) return value;
@@ -5674,7 +5680,7 @@ function renderPortfolioHistory() {
   const root = $("#portfolioHistory");
   if (!root) return;
   const detailsOpen = Boolean($(".portfolio-native-history", root)?.open);
-  const ranges = [["all", "All time"], ["1m", "Month"], ["ytd", "YTD"], ["1y", "Year"], ["1d", "Day"]];
+  const ranges = [["1d", "Day"], ["1m", "Month"], ["ytd", "YTD"], ["1y", "Year"], ["all", "All time"]];
   const rangeControls = () => historyRangeControls("portfolioChartRange", "Graph timeframe", ranges.map(([value, label]) => [value, ({all:"All", "1m":"1M", "1y":"1Y", "1d":"1D"})[value] || label]), state.portfolioHistoryRange);
   const saved = displayPortfolioView(state.portfolioView, displayCurrency(), lastValidatedFxRate);
   if (state.profile?.onboardingCompletedAt && !state.accountLoading && !state.accountLoadError && !state.items.length && !state.largeInventory.active && !saved?.history?.length && !state.portfolioHistory.length) {
@@ -7211,7 +7217,20 @@ function renderCollection() {
           : state.pricingStatus === "error"
             ? "Live pricing is temporarily unavailable"
             : "Waiting for live prices";
-  $(".status-label").innerHTML = `<i></i> ${savedPortfolio && state.portfolioView.updatedAt ? `Valued ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}` : state.pricingStatus === "loading" ? "Updating prices" : pricingLabel}`;
+  let status = pricingLabel;
+  if (savedPortfolio && (savedPortfolio.total != null || savedPortfolio.knownTotal != null)) {
+    status = savedPortfolioStatus(state.portfolioView.updatedAt, state.portfolioView);
+  } else if (restoreSnapshot) {
+    status = savedPortfolioStatus(storedSnapshots[0].date);
+  } else if (profitLoss.pricedUnits && ["loading", "idle", "demo"].includes(state.pricingStatus)) {
+    const lastCheck = valuedItems.reduce((latest, item) => {
+      if (item.quantity <= 0 || (item.soldValuation?.estimate ?? item.price) == null) return latest;
+      const time = Date.parse(item.checkedAt || item.exactSaleEvidence?.retrievedAt || item.pricingUpdatedAt || "");
+      return Number.isFinite(time) ? Math.max(latest, time) : latest;
+    }, 0);
+    status = lastCheck ? `Last price check ${shortPortfolioDate(new Date(lastCheck).toISOString(), true)}` : "Saved prices";
+  }
+  $(".status-label").innerHTML = `<i></i> ${esc(status)}`;
   renderPortfolioRetry();
   const syncLabels = {
     loading: "Prices updating",
@@ -7518,7 +7537,7 @@ function renderCollection() {
           : "none"
       : "none";
     const movementLabel = purchasePerformance
-      ? `${purchasePerformance.change >= 0 ? "+" : "−"}${displayCurrencyMoney(Math.abs(purchasePerformance.change), item.currency)}${purchasePerformance.percent === null ? "" : ` (${purchasePerformance.percent >= 0 ? "+" : ""}${purchasePerformance.percent.toFixed(1)}%)`}`
+      ? `${moveClass === "down" ? "Your loss" : "Your gain"} ${moveClass === "down" ? "−" : "+"}${displayCurrencyMoney(Math.abs(purchasePerformance.change), item.currency)}`
       : "";
     const listing = listingReadiness([item]);
     const listingTag =
@@ -7557,8 +7576,8 @@ function renderCollection() {
       ${state.bulkMode ? "" : `<button class="ledger-favorite${favorite ? " selected" : ""}" type="button" data-toggle-favorite="${esc(item.uid)}" aria-pressed="${String(favorite)}" aria-label="${favorite ? "Remove from favorites" : "Add to favorites"}">♥</button>`}
       <img class="card-thumb" data-source-key="${esc(privateCollectionPhoto(item) || item.thumb || item.image || "./icons/icon.svg")}"${privateCollectionPhoto(item) ? " data-private-photo" : ""} src="${esc(privateCollectionPhoto(item) || item.thumb || item.image || "./icons/icon.svg")}" data-fallback="${esc(item.image || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}" loading="lazy">
       <div class="card-main"><div class="card-name-line"><span class="card-name">${esc(item.name)}</span>${activeCopies > 1 ? `<span class="quantity">×${activeCopies}</span>` : ""}</div><span class="card-set">${esc(item.set)} · ${esc(item.number || "Number unavailable")}</span><div class="card-tags">${tags.map((tag, i) => `<span class="micro-tag ${i === 0 && item.gradingCompany ? "graded" : ""}">${esc(tag)}</span>`).join("")}</div></div>
-      <div class="position-price-grid compact" aria-label="Card value"><span><small class="${copyGroup?.copies.length > 1 || activeCopies > 1 ? "" : "sr-only"}">${copyGroup?.copies.length > 1 ? "Each" : activeCopies > 1 ? "Total" : "Value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span>${renderCardPreviewTrend(item)}</div>
-      <div class="price-cell">${item.pricingStatus === "stale" || total == null ? `<span class="row-unit price-provenance">${item.pricingStatus === "stale" ? "Older price" : "Price unavailable"}</span>` : ""}${movementLabel ? `<span class="row-move ${moveClass}" title="Gain/loss since purchase">P/L ${esc(movementLabel)}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}"><svg class="ledger-grade-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg><span>${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</span></button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
+      <div class="position-price-grid compact" aria-label="Card value"><div class="holding-value"><span class="holding-amount"><small class="${copyGroup?.copies.length > 1 || activeCopies > 1 ? "" : "sr-only"}">${copyGroup?.copies.length > 1 ? "Each" : activeCopies > 1 ? "Total" : "Value"}</small><strong title="${esc(displayPriceSource(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency))}">${total == null ? "—" : displayCurrencyMoney(copyGroup?.copies.length > 1 ? portfolioUnitPrice(item) : total, item.currency)}</strong></span>${movementLabel ? `<span class="row-move ${moveClass}" title="Gain/loss since purchase">${esc(movementLabel)}</span>` : ""}</div>${renderCardPreviewTrend(item)}</div>
+      <div class="price-cell">${item.pricingStatus === "stale" || total == null ? `<span class="row-unit price-provenance">${item.pricingStatus === "stale" ? "Older price" : "Price unavailable"}</span>` : ""}</div>${state.bulkMode ? "" : `<div class="ledger-row-actions">${canDigitalGrade ? `<button class="ledger-grade-action" type="button" data-digital-grade="${esc(item.uid)}" aria-label="${item.digitalGrade ? "Regrade" : "Digitally grade"} ${esc(item.name)}"><svg class="ledger-grade-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></svg><span>${item.digitalGrade ? `Regrade · DG ${esc(dgNumber || "")}` : "Digital grade"}</span></button>` : ""}<button class="ledger-quick-add" type="button" data-add-purchase="${esc(item.uid)}" aria-label="Add another ${esc(item.name)}">+</button></div>`}
     </article>`;
   };
   const groups = groupCollectionOrganization(displayedRows, state.groupBy);
@@ -7695,6 +7714,9 @@ function openCardDetail(card, preferOwned = false, initialContext = null, scanDr
     state.detailValuationContext = { ...state.detailValuationContext, condition: "Near Mint", referenceOnly: true };
   const waitingForPrinting = scanNeedsPrintingReview(card, state.detailValuationContext);
   routeTo("detail");
+  if (scanDraft && motionPreference !== "reduce" && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    $("#detailContent .detail-identity")?.animate([{ opacity: 0.55 }, { opacity: 1 }], { duration: 150, easing: "ease-out" });
+  }
   if ((owned || card).cardState === "sealed") {
     void loadSealedDetailPricing(owned || card);
     if (owned) void loadOwnedCollectionAttachments(owned);
@@ -8971,6 +8993,11 @@ function renderDetailPreservingValuationFocus() {
   }
 }
 
+function scanPreviewPhoto(options) {
+  const photo = options?.photoDataUrl;
+  return typeof photo === "string" && /^data:image\/(?:jpeg|png|webp);base64,/.test(photo) ? photo : "";
+}
+
 function renderDetail() {
   const focusedCopyId = document.activeElement?.closest("#detailContent [data-copy-id]")?.dataset.copyId;
   const owned =
@@ -9280,13 +9307,20 @@ function renderDetail() {
     : `<details class="identity-details${identityNeedsReview ? " uncertain" : ""}"><summary><span>${identityNeedsReview ? "Printing details incomplete" : "Printing details"}</span></summary><div class="identity-secondary"><div class="detail-meta">${detailMeta}</div><div><span>Year</span><strong>${esc(releaseYear)}</strong></div><div><span>Rarity</span><strong>${esc(item.rarity || "Unknown")}</strong></div><div><span>Finish</span><strong>${esc(identityFieldLabel(printing.finish))}</strong></div><div><span>Edition / stamp</span><strong>${esc(identityFieldLabel(printing.edition))}</strong></div><div><span>Promo type</span><strong>${esc(identityFieldLabel(printing.promoType))}</strong></div><div><span>Printing treatment</span><strong>${esc(identityFieldLabel(item.printingTreatment || item.metadata?.printingTreatment))}</strong></div></div>${identityNeedsReview ? "<p>Confirm the printed version to price this copy accurately.</p>" : ""}</details>${identityNeedsReview && !scanNeedsPrintingReview(baseItem, context) ? '<button class="inline-retry" id="confirmPrintingButton" type="button">Confirm card version</button>' : ""}`;
   const listingTitle = sealed ? item.name : cardListingTitle(item, printing, context);
   const nameAt = listingTitle.indexOf(item.name);
-  const gradeLabel = context.cardState === "graded" && context.gradingCompany && context.grade ? `${context.gradingCompany} ${context.grade}` : "";
-  const attributes = listingTitle.slice(nameAt + item.name.length).replace(/^\s*·\s*/, "").split(" · ").map(part => part === gradeLabel ? `<span class="detail-grade-badge">${esc(part)}</span>` : esc(part)).join(" · ");
-  const titleMarkup = nameAt < 0 ? esc(listingTitle) : `<span class="detail-title-context detail-title-year">${esc(listingTitle.slice(0, nameAt))}</span><span class="detail-title-name">${esc(item.name)}</span> <span class="detail-title-context detail-title-attributes">${attributes}</span>`;
+  const scan = state.detailScanDraft;
+  const photo = scan && scan.selectionKey === detailIdentityKey(baseItem) && accountRequestIsCurrent(scan.ownerId, scan.loadVersion)
+    ? scanPreviewPhoto(scan.options) : "";
+  const gradeLabel = context.cardState === "graded" && context.gradingCompany && context.grade
+    ? [context.gradingCompany, context.grade, context.gradeQualifier || item.gradeQualifier].filter(Boolean).join(" ") : "";
+  const badge = gradeLabel ? `<span class="detail-grade-badge">${esc(gradeLabel)}</span>` : "";
+  const attributes = listingTitle.slice(nameAt + item.name.length).replace(/^\s*·\s*/, "").split(" · ")
+    .filter(part => !photo || part !== gradeLabel)
+    .map(part => part === gradeLabel ? badge : esc(part)).join(" · ");
+  const titleMarkup = nameAt < 0 ? esc(listingTitle) : `<span class="detail-title-context detail-title-year">${esc(listingTitle.slice(0, nameAt))}</span><span class="detail-title-name">${esc(item.name)}${photo && badge ? " " + badge : ""}</span> <span class="detail-title-context detail-title-attributes">${attributes}</span>`;
   const marketHero = `<section class="market-hero" data-price-state="${displayPrice == null ? "empty" : "ready"}" role="status"><span>${marketLabel}</span><strong>${displayPrice == null ? (pricingStatus === "loading" ? "Checking…" : "Price unavailable") : context.cardState === "graded" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : (displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD") === "—" ? money(displayPrice, context.currency || valuationItem.currency || "USD") : displayCurrencyMoney(displayPrice, context.currency || valuationItem.currency || "USD"))}</strong>${marketStatusCopy ? `<small>${marketStatusCopy}</small>` : ""}${displayPrice != null ? `<details class="price-source-details"><summary>Source</summary><small class="price-provenance">${esc(provenance)}</small></details>` : ""}${!sealed && context.cardState === "raw" ? '<button class="inline-retry" id="openRecentSalesButton" type="button" aria-label="View recent eBay sales">eBay sales</button>' : ""}${["error", "rate_limited"].includes(pricingStatus) ? '<button class="inline-retry" id="retryPricingButton" type="button">Try pricing again</button>' : ""}</section>`;
   $("#detailContent").innerHTML =
     `<button class="detail-back" id="detailBack" type="button"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>${backLabel}</button>
-    <div class="detail-identity"><div class="detail-image"><img${privateCollectionPhoto(item) ? " data-private-photo" : ""} src="${esc(privateCollectionPhoto(item) || item.image || item.thumb || "./icons/icon.svg")}" data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div class="detail-identity-content"><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><div class="detail-title-block"><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="sr-only" aria-live="polite">Copy title</span></button></div>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
+    <div class="detail-identity"><div class="detail-image"><img${privateCollectionPhoto(item) ? " data-private-photo" : ""} ${photo ? "" : `src="${esc(privateCollectionPhoto(item) || item.image || item.thumb || "./icons/icon.svg")}"`} data-fallback="${esc(item.thumb || "./icons/icon.svg")}" alt="${esc(item.name)} from ${esc(item.set)}"><span aria-hidden="true">Image unavailable</span></div><div class="detail-identity-content"><p class="eyebrow">${esc(sealed ? "Unopened product" : item.rarity || "Pokémon card")}</p><div class="detail-title-block"><h1 id="detailTitle">${titleMarkup}</h1><button class="detail-copy-title" id="copyCardTitle" type="button" aria-label="Copy full card title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span class="sr-only" aria-live="polite">Copy title</span></button></div>${sealed ? `<p class="detail-set">${esc(item.set || "Set unknown")}</p>` : ""}${context.cardState === "graded" ? renderExactSoldValue(baseItem, context, sales) : marketHero}</div></div>
     <section class="detail-section">${renderInteractiveHistory(valuationItem, displayPrice, detailHistory)}</section>
     ${performanceSummary}
     ${(item.currency || context.currency || "USD") !== displayCurrency() ? `<p class="detail-currency-note">Display preference ${esc(displayCurrency())}. ${esc(usableFxRate(lastValidatedFxRate) ? `ECB rate dated ${lastValidatedFxRate.effectiveDate} · indicative conversion.` : "Currency conversion unavailable; values retain their original currencies.")} Purchase and sale records retain their original currencies.</p>` : ""}
@@ -9305,6 +9339,7 @@ function renderDetail() {
 
     ${owned ? collectionAttachmentMarkup(item) : ""}</div>
     <p class="legal-copy">Prices are estimates.</p>`;
+  if (photo) detailRoot.querySelector(".detail-image img").src = photo;
   const conditionTool = detailRoot.querySelector(".detail-digital-grade");
   $("#copyCardTitle").addEventListener("click", async () => {
     const button = $("#copyCardTitle");
@@ -10769,7 +10804,8 @@ export function openPositionSheet(card, options = {}) {
     prefill.acquisitionDateKnown === false ? "" : prefill.transactionDate || today;
   const initialTotal = prefill.totalAcquisitionCost ?? "";
   const idempotencyKey = options.idempotencyKey || crypto.randomUUID();
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Add card</h2><p id="positionIdentitySummary"></p></div><button class="sheet-close" aria-label="Close">×</button></div>
+  const previewPhoto = scanPreviewPhoto(options);
+  openSheet(`<div class="sheet-heading position-sheet-heading">${previewPhoto ? `<img class="position-photo" alt="">` : ""}<div><h2 id="sheetTitle">Add card</h2><p id="positionIdentitySummary"><strong>${esc(card.name)}<span id="positionHeadingGrade"></span></strong><span>${esc(card.set)} · ${esc(card.number)}</span></p></div><button class="sheet-close" aria-label="Close">×</button></div>
     <form id="positionForm"><div class="form-grid">
       <input id="positionVariant" name="variant" type="hidden" value="${esc(initialVariant.label)}"><input id="positionVariantId" name="variantId" type="hidden" value="${esc(initialVariant.id || "")}">${variantControl}
       <div class="field"><label for="positionState">Card type</label><select id="positionState" name="cardState"><option value="raw" ${initialState === "raw" ? "selected" : ""}>Raw</option><option value="graded" ${initialState === "graded" ? "selected" : ""}>Graded</option></select></div>
@@ -10788,6 +10824,7 @@ export function openPositionSheet(card, options = {}) {
       <p class="form-error" id="positionError" role="alert"></p>
     </div><div class="position-total"><span id="positionCostSummary">Total for 1 card</span><strong id="positionTotal">$0.00</strong></div><p class="unknown-basis-note" id="positionUnknownBasisNote" hidden>Add the missing purchase details later to see profit or loss.</p>
     <div class="sheet-actions"><button class="secondary" type="button" id="positionCancel">Cancel</button><button class="primary" type="submit">Add card</button>${!options.visionAnalysis ? '<button class="secondary raw-position" type="submit" id="positionGradeFirst">Grade first</button>' : ""}</div></form>`);
+  if (previewPhoto) $("#sheetContent .position-photo").src = previewPhoto;
   const form = $("#positionForm");
   // Purchase facts lead; existing identity controls remain editable and submit unchanged.
   const grid = form.querySelector(".form-grid");
@@ -10795,7 +10832,7 @@ export function openPositionSheet(card, options = {}) {
   const cardDetails = document.createElement("details");
   cardDetails.className = "full intake-more card-edit-details";
   cardDetails.id = "positionCardDetails";
-  cardDetails.innerHTML = '<summary>Card details</summary><div class="form-grid"></div>';
+  cardDetails.innerHTML = '<summary>Edit card details</summary><div class="form-grid"></div>';
   const identityFields = cardDetails.querySelector(".form-grid");
   while (grid.firstElementChild && grid.firstElementChild !== purchaseDetails)
     identityFields.append(grid.firstElementChild);
@@ -10860,7 +10897,8 @@ export function openPositionSheet(card, options = {}) {
   };
   const updateTotal = () => {
     const input = values();
-    $("#positionIdentitySummary").textContent = `${card.name} · ${card.set} · ${card.number}`;
+    $("#positionHeadingGrade").textContent = input.cardState === "graded" && input.grader && input.grader !== "Choose grader" && input.grade
+      ? ` · ${[input.grader, input.grade, input.gradeQualifier?.trim()].filter(Boolean).join(" ")}` : "";
     $("#positionCurrencyMark").textContent = input.currency === "EUR" ? "€" : "$";
     const costUnknown =
       $("#positionCostUnknown").checked ||
@@ -10877,9 +10915,6 @@ export function openPositionSheet(card, options = {}) {
     $("#positionCostSummary").textContent =
       `Total for ${count || 0} card${count === 1 ? "" : "s"}`;
     $("#positionMoreSummary").textContent = "Notes";
-    cardDetails.querySelector("summary").textContent = input.cardState === "graded"
-      ? (input.grader && input.grader !== "Choose grader" && input.grade ? `Grading details · ${input.grader} ${input.grade}` : "Grading details")
-      : "Card details · ungraded";
     $("#positionUnknownBasisNote").hidden = true;
     $(".position-total", form).hidden = costUnknown;
   };
@@ -11877,7 +11912,9 @@ function openPrintingConfirmationSheet(item) {
   const copy = conflicts.length ? "The scan and catalog disagree. Check the highlighted fields on your slab." :
     needsChoice.length && scan ? "Choose the remaining details from your slab." :
     item.uid ? "Check the actual card or slab. Purchases, sales and notes stay with this copy." : "Check the card or slab label.";
-  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">Confirm card version</h2><p>${esc(item.name)} · ${esc(item.set)} · ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="confirmPrintingForm"><p>${copy}</p><div class="form-grid">${needsChoice.map(choices).join("")}${known}<p class="form-error" id="printingError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="printingCancel">Cancel</button><button class="primary" type="submit">Confirm version</button></div></form>`);
+  const questions = { printingFinish: "Which finish is this?", printingEdition: "Which edition is this?", printingPromo: "Which promo marking is on the card?", printingQualifier: "Which qualifier is on the slab?" };
+  const title = scan && needsChoice.length ? questions[needsChoice[0].id] : "Confirm card version";
+  openSheet(`<div class="sheet-heading"><div><h2 id="sheetTitle">${title}</h2><p>${esc(item.name)} · ${esc(item.set)} · ${esc(item.number)}</p></div><button class="sheet-close" aria-label="Close">×</button></div><form id="confirmPrintingForm"><p>${copy}</p><div class="form-grid">${needsChoice.map(choices).join("")}${known}<p class="form-error" id="printingError" role="alert"></p></div><div class="sheet-actions"><button class="secondary" type="button" id="printingCancel">Cancel</button><button class="primary" type="submit">Confirm version</button></div></form>`);
   if (scan && needsChoice.length) document.getElementById(needsChoice[0].id)?.focus();
   $("#printingCancel").addEventListener("click", closeSheet);
   $("#confirmPrintingForm").addEventListener("submit", async event => {
@@ -18031,7 +18068,7 @@ function renderSavedPortfolio() {
   setPortfolioPrice(money(saved.total ?? saved.knownTotal, saved.currency));
   $("#portfolioValue").dataset.savedSnapshot = "true";
   $("#portfolioChange").textContent = savedPortfolioCoverageNote(saved, state.portfolioView);
-  $(".status-label").innerHTML = `<i></i> Valued ${esc(shortPortfolioDate(state.portfolioView.updatedAt, true))}${state.portfolioView.refreshIncomplete ? state.portfolioView.refreshReason === "provider_daily_budget_reached" ? " · Daily pricing limit reached" : " · Update incomplete" : ""}`;
+  $(".status-label").innerHTML = `<i></i> ${esc(savedPortfolioStatus(state.portfolioView.updatedAt, state.portfolioView))}`;
   renderPortfolioRetry();
   renderPortfolioHistory();
   renderPortfolioPnl();

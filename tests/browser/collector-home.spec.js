@@ -281,8 +281,8 @@ for (const entry of ["manual", "recognized slab"]) test(`${entry} intake preserv
   await page.locator("#positionGrader").selectOption(corrected.grader);
   await page.locator("#positionGrade").fill(corrected.grade);
   await page.locator("#positionCertification").fill(corrected.certification);
-  await expect(page.locator("#positionIdentitySummary")).toContainText("Charizard · Base Set · 4/102");
-  await expect(page.locator("#positionCardDetails > summary")).toContainText(`${corrected.grader} ${corrected.grade}`);
+  await expect(page.locator("#positionIdentitySummary")).toContainText("Base Set · 4/102");
+  await expect(page.locator("#positionIdentitySummary strong")).toHaveText(`Charizard · ${corrected.grader} ${corrected.grade}`);
   await page.locator("#positionIdentitySummary").scrollIntoViewIfNeeded();
   await assertFits(page);
   expect(await page.locator("#positionCardDetails").evaluate(el => parseFloat(getComputedStyle(el).borderTopRightRadius))).toBeGreaterThanOrEqual(8);
@@ -472,6 +472,7 @@ test("owner dashboard defaults to an all-time dominant graph and independent P/L
     renderCollection(); routeTo("dashboard", { focus: false });
   });
   await expect(page.locator("#portfolioChartRange")).toHaveAttribute("data-value", "all");
+  await expect(page.locator("#portfolioChartRange button")).toHaveText(["1D","1M","YTD","1Y","All"]);
   await expect(page.locator("#portfolioPnlRange")).toHaveValue("all");
   await expect(page.locator("#portfolioHistoryChart")).toBeVisible();
   for (const selector of ["#portfolioChartRange", "#portfolioPnlRange"])
@@ -696,7 +697,7 @@ test("private deletion cannot continue or show success under a switched account"
   await page.evaluate(async url=>{const {state,renderCollection}=await import(url);Object.assign(state.items[0],{price:100,pricingStatus:"live",pricingUpdatedAt:new Date().toISOString(),costBasis:60,marketPriceAtPurchase:60});renderCollection();},appUrl);
   const live=page.locator(".ledger-row").filter({hasText:"Charizard"});
   await expect(live.locator(".price-provenance")).toHaveCount(0);
-  await expect(live.locator(".row-move")).toContainText("+");
+  await expect(live.locator(".holding-value .row-move")).toContainText("Your gain +$");
   await expect(live.locator(".row-move")).not.toContainText("since purchase");
  });
 

@@ -675,7 +675,7 @@ test("portfolio refresh publishes once, shares requests and retains values on fa
   expect(await page.evaluate(() => globalThis.__restoredPortfolioValue)).toBe("$300.00");
   await expect.poll(() => requests).toBe(2);
   await expect(page.locator("#portfolioValue")).toHaveText("$300.00");
-  await expect(page.locator(".status-label")).toContainText("Updating prices");
+  await expect(page.locator(".status-label")).toHaveText(/Updated |Saved prices|Last price check /);
   const previousCanvas = await page.locator("#portfolioHistoryChart").elementHandle();
   await page.waitForTimeout(500);
   expect(await previousCanvas.evaluate(node => node.isConnected)).toBe(true);

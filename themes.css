@@ -7414,7 +7414,7 @@ body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend svg {
 body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend polyline { fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend .trend-area { fill: currentColor; fill-opacity: .09; stroke: none; }
 body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend>small { display: flex; flex-wrap: wrap; width: 100%; justify-content: space-between; align-items: baseline; gap: 0 5px; font-size: 12px; line-height: 1.4; color: inherit; }
-body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend>small>span:last-child { color: var(--muted); font-weight: 400; }
+body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend>small>.trend-period { color: var(--muted); font-weight: 400; }
 body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) .card-preview-trend.empty { height: auto; min-height: 24px; flex-direction: row; align-items: baseline; justify-content: center; color: var(--muted); }
 body[data-ui-theme="mica"] :is(#appShell,#bottomSheet) :is(.quick-card-result,.catalog-result) .card-preview-trend { margin-top: 8px; width: 120px; }
 @media (max-width:759px) {
@@ -7469,4 +7469,41 @@ body[data-ui-theme="mica"] #appShell .dashboard-card-row .card-preview-trend > s
     animation: scan-progress-turn .9s linear infinite;
   }
   @keyframes scan-progress-turn { to { transform: rotate(1turn); } }
+}
+
+body[data-ui-theme="mica"] #appShell #view-collection .holding-value {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+body[data-ui-theme="mica"] #appShell #view-collection .holding-amount {
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: 4px;
+  padding: 0;
+}
+body[data-ui-theme="mica"] #appShell #view-collection .holding-amount strong {
+  order: -1;
+  font-size: 20px;
+  color: var(--ink);
+}
+body[data-ui-theme="mica"] #appShell #view-collection .holding-value .row-move {
+  padding: 0;
+  text-align: start;
+  font-size: var(--type-meta);
+}
+.position-sheet-heading { align-items: center; }
+.position-sheet-heading > div { flex: 1; min-width: 0; }
+.position-photo { width: 48px; height: 68px; object-fit: contain; border-radius: 6px; }
+#positionIdentitySummary > strong, #positionIdentitySummary > span { display: block; overflow-wrap: anywhere; }
+#positionIdentitySummary > strong { color: var(--ink); }
+
+@media (min-width: 761px) {
+  body[data-ui-theme="mica"] #appShell #detailContent:has(.detail-sticky-action) {
+    padding-bottom: calc(88px + var(--safe-bottom));
+    min-height: calc(100dvh - 64px);
+  }
 }

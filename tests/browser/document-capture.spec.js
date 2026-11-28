@@ -1336,7 +1336,8 @@ test("automatic raw match hydrates photo, price and history without saving a gue
   await expect(page.locator(".detail-sticky-action button")).toHaveCount(1);
   await expect(page.getByRole("button", {name:"Add card", exact:true})).toBeVisible();
   await expect(page.locator(".market-hero")).toContainText("$125.00");
-  await expect(page.locator(".detail-image img")).toHaveAttribute("src","https://images.pkmnprices.com/cards/24784.webp");
+  await expect(page.locator(".detail-image img")).toHaveAttribute("src", /^data:image\/jpeg;base64,/);
+  await expect(page.locator(".detail-image img")).toHaveAttribute("data-fallback","https://images.pkmnprices.com/cards/24784.webp");
   await expect.poll(()=>page.locator(".detail-image img").evaluate(i=>i.complete&&i.naturalWidth>0)).toBe(true);
   expect(await page.evaluate(()=>globalThis.__documentCaptureApp.state.detailPricing.priceHistory.length)).toBeGreaterThan(1);
   expect(await page.evaluate(()=>globalThis.__documentCaptureApp.state.detailCard.condition)).toBeNull();
@@ -1412,6 +1413,8 @@ for (const recover of [false,true]) test(`slab ${recover ? "manual recovery" : "
  }
  await expect(page.locator("#detailTitle")).toContainText("PSA 9");
  await page.locator("#reviewScanPrinting").click();
+ await expect(page.locator("#sheetTitle")).toHaveText("Which edition is this?");
+ await expect(page.locator("#printingEdition")).toBeFocused();
  await expect(page.locator("#printingFinish")).toBeHidden();
  await expect(page.locator("#printingFinish")).toHaveValue("holofoil");
  await page.locator("#printingEdition").selectOption("unlimited");
@@ -1446,6 +1449,14 @@ test("Japanese PSA label and provider card without variants open the exact price
   await expect(page.locator(".exact-sold-value > strong")).toHaveText("$6,500.00");
   await expect(page.getByRole("img",{name:/PSA grade 10 recorded prices/})).toBeVisible();
   await expect(page.locator("#reviewScanPrinting,#confirmPrintingButton")).toHaveCount(0);
+  const image = await page.locator(".detail-image img").getAttribute("src");
+  expect(image?.startsWith("data:image/")).toBe(true);
+  await page.locator("#addLibraryButton").click();
+  expect(await page.locator(".position-photo").getAttribute("src")).toBe(image);
+  await expect(page.locator("#positionIdentitySummary strong")).toHaveText("Charizard · PSA 10");
+  await expect(page.locator("#positionCardDetails > summary")).toHaveText("Edit card details");
+  expect(await page.locator("#positionCardDetails").evaluate(el => el.open)).toBe(false);
+  await page.screenshot({path:test.info().outputPath("scan-save.png"),animations:"disabled"});
 });
 
 test("a conflicting slab finish asks for only that field before using verified pricing context", async ({ page }) => {
